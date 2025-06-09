@@ -2,19 +2,23 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { WalletProvider } from "@/lib/WalletProvider";
+import { Toaster } from "sonner";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Yield AI Agent",
-  description: "DeFi-ассистент на Aptos",
+  description: "DeFi assistant on Aptos",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <WalletProvider>{children}</WalletProvider>
+        <WalletProvider>
+          {children}
+          <Toaster />
+        </WalletProvider>
       </body>
     </html>
   );
