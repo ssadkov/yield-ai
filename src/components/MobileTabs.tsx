@@ -1,6 +1,5 @@
 "use client";
 import { useState } from "react";
-import Sidebar from "./Sidebar";
 import DashboardPanel from "./DashboardPanel";
 import ChatPanel from "./ChatPanel";
 import { WalletSelector } from "./WalletSelector";

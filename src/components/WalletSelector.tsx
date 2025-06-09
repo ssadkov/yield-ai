@@ -43,12 +43,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { toast } from "sonner";
+import { useToast } from "./ui/use-toast";
 
 export function WalletSelector(walletSortingOptions: WalletSortingOptions) {
   const { account, connected, disconnect, wallet } = useWallet();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     setMounted(true);
@@ -60,11 +61,36 @@ export function WalletSelector(walletSortingOptions: WalletSortingOptions) {
     if (!account?.address) return;
     try {
       await navigator.clipboard.writeText(account.address.toString());
-      toast.success("Copied wallet address to clipboard");
+      toast({
+        title: "Success",
+        description: "Copied wallet address to clipboard",
+      });
     } catch {
-      toast.error("Failed to copy wallet address");
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to copy wallet address",
+      });
     }
-  }, [account?.address]);
+  }, [account?.address, toast]);
+
+  const handleDisconnect = useCallback(async () => {
+    try {
+      if (connected) {
+        await disconnect();
+        toast({
+          title: "Success",
+          description: "Wallet disconnected successfully",
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to disconnect wallet",
+      });
+    }
+  }, [connected, disconnect, toast]);
 
   if (!mounted) {
     return null;
@@ -95,7 +121,7 @@ export function WalletSelector(walletSortingOptions: WalletSortingOptions) {
             </a>
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem onSelect={disconnect} className="gap-2">
+        <DropdownMenuItem onSelect={handleDisconnect} className="gap-2">
           <LogOut className="h-4 w-4" /> Disconnect
         </DropdownMenuItem>
       </DropdownMenuContent>
