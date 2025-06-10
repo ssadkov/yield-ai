@@ -1,4 +1,5 @@
 // Inspired by react-hot-toast library
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import * as React from "react"
 
 import type {
@@ -30,7 +31,12 @@ function genId() {
   return count.toString()
 }
 
-type ActionType = typeof actionTypes
+type ActionType = {
+  ADD_TOAST: typeof actionTypes["ADD_TOAST"]
+  UPDATE_TOAST: typeof actionTypes["UPDATE_TOAST"]
+  DISMISS_TOAST: typeof actionTypes["DISMISS_TOAST"]
+  REMOVE_TOAST: typeof actionTypes["REMOVE_TOAST"]
+}
 
 type Action =
   | {
