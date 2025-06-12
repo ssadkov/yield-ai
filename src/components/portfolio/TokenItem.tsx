@@ -1,5 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Token } from "@/lib/types/token";
+import { getTokenList } from "@/lib/tokens/getTokenList";
 
 interface TokenItemProps {
   token: Token;
@@ -11,11 +12,16 @@ export function TokenItem({ token }: TokenItemProps) {
   const formattedPrice = token.price ? `$${parseFloat(token.price).toFixed(2)}` : 'N/A';
   const symbol = token.symbol || token.name || 'Unknown';
 
+  // Находим токен в списке для получения logoUrl
+  const tokenList = getTokenList(1); // 1 - это chainId для Aptos
+  const tokenInfo = tokenList.find(t => t.symbol === symbol);
+  const logoUrl = tokenInfo?.logoUrl;
+
   return (
     <div className="flex items-center justify-between py-2 px-1 hover:bg-accent rounded-md transition-colors">
       <div className="flex items-center gap-2 min-w-0">
         <Avatar className="h-6 w-6 flex-shrink-0">
-          <AvatarImage src={`/tokens/${symbol.toLowerCase()}.png`} />
+          <AvatarImage src={logoUrl} />
           <AvatarFallback>{symbol.slice(0, 2)}</AvatarFallback>
         </Avatar>
         <div className="flex flex-col">
