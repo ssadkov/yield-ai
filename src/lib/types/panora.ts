@@ -1,12 +1,23 @@
 export interface Token {
-  address: string;
   chainId: number;
-  decimals: number;
+  panoraId: string;
+  tokenAddress: string | null;
+  faAddress: string;
   name: string;
   symbol: string;
-  logoURI?: string;
-  tags?: string[];
-  verified: boolean;
+  decimals: number;
+  bridge: string | null;
+  panoraSymbol: string;
+  usdPrice: string;
+  logoUrl: string;
+  websiteUrl: string | null;
+  panoraUI: boolean;
+  panoraTags: string[];
+  panoraIndex: number;
+  coinGeckoId: string | null;
+  coinMarketCapId: number | null;
+  isInPanoraTokenList: boolean;
+  isBanned: boolean;
 }
 
 export interface TokenListResponse {

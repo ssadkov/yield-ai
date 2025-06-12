@@ -7,6 +7,7 @@ export class PanoraTokensService {
 
   constructor() {
     this.apiKey = process.env.PANORA_API_KEY || '';
+    console.log('API Key loaded:', this.apiKey ? 'Present' : 'Missing');
     this.baseUrl = process.env.PANORA_API_URL || 'https://api.panora.exchange';
     this.tokenListEndpoint = `${this.baseUrl}/tokenlist`;
 
@@ -27,7 +28,7 @@ export class PanoraTokensService {
     try {
       const response = await fetch(this.tokenListEndpoint, {
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
+          'x-api-key': this.apiKey,
           'Accept': 'application/json',
         },
       });
