@@ -5,6 +5,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
+import Image from "next/image";
 
 interface PositionsListProps {
   address?: string;
@@ -18,6 +20,7 @@ export function PositionsList({ address }: PositionsListProps) {
   const [isExpanded, setIsExpanded] = useState(true);
 
   const walletAddress = address || account?.address?.toString();
+  const protocol = getProtocolByName("Hyperion");
 
   useEffect(() => {
     async function loadPositions() {
@@ -82,7 +85,19 @@ export function PositionsList({ address }: PositionsListProps) {
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">Hyperion</CardTitle>
+          <div className="flex items-center gap-2">
+            {protocol && (
+              <div className="w-5 h-5 relative">
+                <Image 
+                  src={protocol.logoUrl} 
+                  alt={protocol.name}
+                  fill
+                  className="object-contain"
+                />
+              </div>
+            )}
+            <CardTitle className="text-lg">Hyperion</CardTitle>
+          </div>
           <div className="flex items-center gap-2">
             <span className="text-lg">${totalValue.toFixed(2)}</span>
             <ChevronDown className={cn(
