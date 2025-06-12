@@ -13,10 +13,27 @@ export function createSuccessResponse<T>(data: T): ApiResponse<T> {
 }
 
 export const http = {
-  get: async (url: string, options?: { headers?: Record<string, string> }) => {
+  async get<T>(url: string, options?: { headers?: Record<string, string> }): Promise<T> {
     const response = await fetch(url, {
       method: 'GET',
-      headers: options?.headers
+      headers: options?.headers,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  },
+
+  async post<T>(url: string, body: any, options?: { headers?: Record<string, string> }): Promise<T> {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers,
+      },
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {

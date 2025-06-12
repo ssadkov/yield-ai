@@ -5,7 +5,7 @@ import "swagger-ui-react/swagger-ui.css";
 export default function SwaggerPage() {
   return (
     <div className="h-screen">
-      <SwaggerUI url="/api/panora/swagger" />
+      <SwaggerUI url="/api/swagger" />
     </div>
   );
 } 
