@@ -2,15 +2,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import { http } from '@/lib/utils/http';
 import { createErrorResponse, createSuccessResponse } from '@/lib/utils/http';
 
+interface PanoraResponse {
+  data: Array<{
+    tokenAddress: string;
+    faAddress: string;
+    symbol: string;
+    price: number;
+  }>;
+}
+
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams;
+    const { searchParams } = new URL(request.url);
     const chainId = searchParams.get('chainId');
     const tokenAddress = searchParams.get('tokenAddress');
 
     if (!chainId) {
       return NextResponse.json(
-        createErrorResponse(new Error('ChainId parameter is required')),
+        createErrorResponse(new Error('Chain ID is required')),
         { status: 400 }
       );
     }
@@ -21,7 +30,7 @@ export async function GET(request: NextRequest) {
       queryParams.append('tokenAddress', tokenAddress);
     }
 
-    const response = await http.get(`https://api.panora.dev/v1/prices?${queryParams.toString()}`, {
+    const response = await http.get<PanoraResponse>(`https://api.panora.dev/v1/prices?${queryParams.toString()}`, {
       headers: {
         'Authorization': `Bearer ${process.env.PANORA_API_KEY}`,
       }
