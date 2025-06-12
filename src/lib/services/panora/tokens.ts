@@ -1,4 +1,4 @@
-import { Token, TokenListResponse, TokenListError, SUPPORTED_CHAIN_IDS, SupportedChainId, DEFAULT_CHAIN_ID } from '../../types/panora';
+import { TokenListResponse, TokenListError, SUPPORTED_CHAIN_IDS, SupportedChainId, DEFAULT_CHAIN_ID } from '../../types/panora';
 
 export class PanoraTokensService {
   private readonly apiKey: string;

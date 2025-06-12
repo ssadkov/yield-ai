@@ -34,6 +34,18 @@ export interface TokenListError {
   code: string;
 }
 
+export interface PriceResponse {
+  data: any[];
+  status: number;
+}
+
+export class PriceError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PriceError';
+  }
+}
+
 export const SUPPORTED_CHAIN_IDS = {
   APTOS: 1,
 } as const;
