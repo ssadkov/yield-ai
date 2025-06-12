@@ -4,6 +4,7 @@ import DashboardPanel from "@/components/DashboardPanel";
 import ChatPanel from "@/components/ChatPanel";
 import MobileTabs from "@/components/MobileTabs";
 import { WalletConnect } from "@/components/WalletConnect";
+import { PositionsList } from "@/components/protocols/hyperion/PositionsList";
 
 export default function Home() {
   return (

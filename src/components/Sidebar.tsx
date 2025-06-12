@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { AptosPortfolioService } from "@/lib/services/aptos/portfolio";
 import { Token } from "@/lib/types/token";
 import { Logo } from "./ui/logo";
+import { PositionsList } from "./protocols/hyperion/PositionsList";
 
 export default function Sidebar() {
   const { account } = useWallet();
@@ -45,8 +46,9 @@ export default function Sidebar() {
         <WalletSelector />
       </div>
       {account?.address && (
-        <div className="mt-4">
+        <div className="mt-4 space-y-4">
           <PortfolioCard totalValue={totalValue} tokens={tokens} />
+          <PositionsList address={account.address.toString()} />
         </div>
       )}
     </div>
