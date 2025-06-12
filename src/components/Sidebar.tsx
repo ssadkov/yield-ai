@@ -36,8 +36,10 @@ export default function Sidebar() {
 
   return (
     <div className="w-[340px] p-4 border-r">
-      <h2 className="text-xl font-bold mb-4">Yield AI</h2>
-      <WalletSelector />
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold">Yield AI</h2>
+        <WalletSelector />
+      </div>
       {account?.address && (
         <div className="mt-4">
           <PortfolioCard totalValue={totalValue} tokens={tokens} />
