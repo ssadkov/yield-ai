@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     );
 
     // Обрабатываем балансы
-    const balancesWithPrices = balances.map(balance => {
+    const balancesWithPrices = balances.map((balance: { asset_type: string; amount: string }) => {
       const tokenInfo = TOKEN_INFO[balance.asset_type] || { symbol: balance.asset_type, decimals: 8 };
       const amount = Number(balance.amount) / Math.pow(10, tokenInfo.decimals);
       const usdPrice = prices[tokenInfo.symbol];
