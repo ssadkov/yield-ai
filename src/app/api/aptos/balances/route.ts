@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { http } from '@/lib/utils/http';
 import { createErrorResponse, createSuccessResponse } from '@/lib/utils/http';
 
+interface AptosResponse {
+  data: {
+    current_fungible_asset_balances: Array<{
+      asset_type: string;
+      amount: string;
+      last_transaction_timestamp: string;
+    }>;
+  };
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { address } = await request.json();
@@ -30,7 +40,7 @@ export async function POST(request: NextRequest) {
     console.log('Making request to Aptos API with query:', query);
     console.log('API Key:', process.env.APTOS_API_KEY ? 'Present' : 'Missing');
 
-    const response = await http.post('https://indexer.mainnet.aptoslabs.com/v1/graphql', {
+    const response = await http.post<AptosResponse>('https://indexer.mainnet.aptoslabs.com/v1/graphql', {
       query,
       variables: { address },
     }, {

@@ -1,30 +1,10 @@
 import { useState } from 'react';
-import { AptosWalletAdapter } from '@/lib/adapters/aptos';
-import { useWalletStore } from '@/lib/stores/wallet';
-import { usePortfolioStore } from '@/lib/stores/portfolio';
 
 export function WalletConnectButton() {
-  const { setWallet, setAddress } = useWalletStore();
-  const { setPortfolio } = usePortfolioStore();
-
   const handleConnect = async () => {
     try {
-      const wallet = new AptosWalletAdapter();
-      await wallet.connect();
-      const account = await wallet.account();
-      
-      if (account) {
-        setWallet(wallet);
-        setAddress(account.address);
-        
-        // Получаем портфолио через API
-        const response = await fetch(`/api/aptos/portfolio?address=${account.address}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch portfolio');
-        }
-        const data = await response.json();
-        setPortfolio(data.data);
-      }
+      // TODO: Implement wallet connection
+      console.log('Connecting wallet...');
     } catch (error) {
       console.error('Failed to connect wallet:', error);
     }
