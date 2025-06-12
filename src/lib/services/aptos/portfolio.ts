@@ -81,7 +81,14 @@ export class AptosPortfolioService {
         };
       });
 
-      console.log('Final tokens:', tokens);
+      // Сортируем по значению
+      tokens.sort((a, b) => {
+        const valueA = a.value ? parseFloat(a.value) : 0;
+        const valueB = b.value ? parseFloat(b.value) : 0;
+        return valueB - valueA;
+      });
+
+      console.log('Final sorted tokens:', tokens);
       return { tokens };
     } catch (error) {
       console.error('Error in getPortfolio:', error);

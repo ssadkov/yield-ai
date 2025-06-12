@@ -20,7 +20,8 @@ export default function Sidebar() {
         const portfolio = await portfolioService.getPortfolio(account.address.toString());
         
         const total = portfolio.tokens.reduce((sum, token) => {
-          return sum + (token.value ? parseFloat(token.value) : 0);
+          const value = token.value ? parseFloat(token.value) : 0;
+          return sum + (isNaN(value) ? 0 : value);
         }, 0);
 
         setTokens(portfolio.tokens);
