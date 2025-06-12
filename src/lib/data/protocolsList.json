@@ -5,5 +5,26 @@
     "url": "https://hyperion.xyz/drips?inviteCode=O02Eig",
     "logoUrl": "https://hyperion.xyz/fav-new.svg",
     "description": "Decentralized exchange on Aptos blockchain"
+  },
+  {
+    "name": "Aries",
+    "category": "Lending",
+    "url": "https://app.ariesmarkets.xyz/lending",
+    "logoUrl": "https://ariesmarkets.xyz/favicon-32x32.png",
+    "description": "Lending protocol on Aptos blockchain"
+  },
+  {
+    "name": "Joule",
+    "category": "Lending",
+    "url": "https://app.joule.finance/rewards?tabId=referral&referralAddress=0x56ff2fc971deecd286314fe99b8ffd6a5e72e62eacdc46ae9b234c5282985f97",
+    "logoUrl": "https://app.joule.finance/favicon.ico",
+    "description": "Lending protocol on Aptos blockchain"
+  },
+  {
+    "name": "Echelon",
+    "category": "Lending",
+    "url": "https://app.echelon.market/dashboard?network=aptos_mainnet",
+    "logoUrl": "/echelon-favicon.ico",
+    "description": "High-efficiency lending market on Aptos blockchain"
   }
 ] 
