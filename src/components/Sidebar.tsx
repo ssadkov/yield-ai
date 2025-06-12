@@ -5,6 +5,7 @@ import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useEffect, useState } from "react";
 import { AptosPortfolioService } from "@/lib/services/aptos/portfolio";
 import { Token } from "@/lib/types/token";
+import { Logo } from "./ui/logo";
 
 export default function Sidebar() {
   const { account } = useWallet();
@@ -37,7 +38,10 @@ export default function Sidebar() {
   return (
     <div className="w-[340px] p-4 border-r">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold">Yield AI</h2>
+        <div className="flex items-center gap-2">
+          <Logo size="md" />
+          <h2 className="text-xl font-bold">Yield AI</h2>
+        </div>
         <WalletSelector />
       </div>
       {account?.address && (

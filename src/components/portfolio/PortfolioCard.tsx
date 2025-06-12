@@ -68,7 +68,7 @@ export function PortfolioCard({ totalValue, tokens }: PortfolioCardProps) {
             <ScrollArea className="h-full">
               <TokenList tokens={filteredTokens} />
               {hiddenCount > 0 && (
-                <div className="text-sm text-muted-foreground py-2 text-center">
+                <div className="text-xs text-muted-foreground py-1 text-right">
                   {hiddenCount} assets hidden
                 </div>
               )}

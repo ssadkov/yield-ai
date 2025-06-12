@@ -1,10 +1,76 @@
 import { NextResponse } from 'next/server';
 
-export async function GET() {
+/**
+ * @swagger
+ * /api/protocols/hyperion/userPositions:
+ *   get:
+ *     tags:
+ *       - protocols
+ *     summary: Get user positions in Hyperion protocol
+ *     parameters:
+ *       - in: query
+ *         name: address
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User wallet address
+ *     responses:
+ *       200:
+ *         description: User positions retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       isActive:
+ *                         type: boolean
+ *                       value:
+ *                         type: string
+ *                       farm:
+ *                         type: object
+ *                       fees:
+ *                         type: object
+ *                       position:
+ *                         type: object
+ *       400:
+ *         description: Invalid address
+ *       500:
+ *         description: Internal server error
+ */
+export async function GET(request: Request) {
   try {
-    // TODO: Implement Hyperion user positions logic
-    return NextResponse.json({ message: 'Hyperion user positions endpoint' });
-  } catch {
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    const { searchParams } = new URL(request.url);
+    const address = searchParams.get("address");
+
+    if (!address) {
+      return NextResponse.json(
+        { error: "Address is required" },
+        { status: 400 }
+      );
+    }
+
+    // Получаем данные из внешнего API
+    const externalApiUrl = `https://yield-a.vercel.app/api/hyperion/userPositions?address=${address}`;
+    const response = await fetch(externalApiUrl);
+    
+    if (!response.ok) {
+      throw new Error(`External API returned ${response.status}`);
+    }
+
+    const data = await response.json();
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error("Error fetching Hyperion user positions:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch user positions" },
+      { status: 500 }
+    );
   }
 } 

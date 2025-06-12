@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { http } from '@/lib/utils/http';
 import { createErrorResponse, createSuccessResponse } from '@/lib/utils/http';
+import { PanoraPricesService } from "@/lib/services/panora/prices";
 
 interface PanoraResponse {
   data: Array<{
@@ -11,44 +12,82 @@ interface PanoraResponse {
   }>;
 }
 
-export async function GET(request: NextRequest) {
+/**
+ * @swagger
+ * /api/panora/prices:
+ *   get:
+ *     tags:
+ *       - panora
+ *     summary: Get token prices from Panora
+ *     parameters:
+ *       - in: query
+ *         name: chainId
+ *         required: true
+ *         schema:
+ *           type: number
+ *         description: Chain ID (1 for Aptos)
+ *       - in: query
+ *         name: addresses
+ *         required: true
+ *         schema:
+ *           type: array
+ *           items:
+ *             type: string
+ *         description: Array of token addresses
+ *     responses:
+ *       200:
+ *         description: Prices retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       tokenAddress:
+ *                         type: string
+ *                       faAddress:
+ *                         type: string
+ *                       symbol:
+ *                         type: string
+ *                       name:
+ *                         type: string
+ *                       decimals:
+ *                         type: number
+ *                       price:
+ *                         type: number
+ *       400:
+ *         description: Invalid parameters
+ *       500:
+ *         description: Internal server error
+ */
+export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const chainId = searchParams.get('chainId');
-    const tokenAddress = searchParams.get('tokenAddress');
+    const chainId = searchParams.get("chainId");
+    const addresses = searchParams.get("addresses");
 
-    if (!chainId) {
+    if (!chainId || !addresses) {
       return NextResponse.json(
-        createErrorResponse(new Error('Chain ID is required')),
+        { error: "Chain ID and addresses are required" },
         { status: 400 }
       );
     }
 
-    const queryParams = new URLSearchParams();
-    queryParams.append('chainId', chainId);
-    if (tokenAddress) {
-      queryParams.append('tokenAddress', tokenAddress);
-    }
+    const pricesService = PanoraPricesService.getInstance();
+    const response = await pricesService.getPrices(
+      parseInt(chainId),
+      addresses.split(",")
+    );
 
-    const response = await http.get<PanoraResponse>(`https://api.panora.dev/v1/prices?${queryParams.toString()}`, {
-      headers: {
-        'Authorization': `Bearer ${process.env.PANORA_API_KEY}`,
-      }
-    });
-
-    return NextResponse.json(createSuccessResponse(response.data));
+    return NextResponse.json(response);
   } catch (error) {
-    console.error('Error in prices route:', error);
-    
-    if (error instanceof Error) {
-      return NextResponse.json(
-        createErrorResponse(error),
-        { status: 500 }
-      );
-    }
-
+    console.error("Error fetching prices:", error);
     return NextResponse.json(
-      createErrorResponse(new Error('Internal server error')),
+      { error: "Failed to fetch prices" },
       { status: 500 }
     );
   }
