@@ -30,8 +30,8 @@ export function TokenItem({ token }: TokenItemProps) {
         </div>
       </div>
       <div className="text-sm text-right ml-2">
-        <div className="font-medium whitespace-nowrap">{formattedAmount}</div>
-        <div className="text-xs text-muted-foreground whitespace-nowrap">{formattedValue}</div>
+        <div className="font-medium whitespace-nowrap">{formattedValue}</div>
+        <div className="text-xs text-muted-foreground whitespace-nowrap">{formattedAmount}</div>
       </div>
     </div>
   );
