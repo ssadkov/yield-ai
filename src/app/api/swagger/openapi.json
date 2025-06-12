@@ -1,0 +1,113 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Yield AI API",
+    "version": "1.0.0",
+    "description": "API для работы с Panora и другими протоколами"
+  },
+  "paths": {
+    "/api/panora/tokenPrices": {
+      "get": {
+        "summary": "Получить цены токенов",
+        "description": "Возвращает цены токенов из Panora API. Можно получить цены всех токенов или конкретных токенов по их адресам.",
+        "parameters": [
+          {
+            "name": "tokenAddress",
+            "in": "query",
+            "description": "Адреса токенов через запятую (опционально)",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "0x123,0x456"
+            }
+          },
+          {
+            "name": "chainId",
+            "in": "query",
+            "description": "ID сети (по умолчанию 1 для Aptos)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Успешный ответ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "chainId": {
+                            "type": "integer",
+                            "example": 1
+                          },
+                          "tokenAddress": {
+                            "type": "string",
+                            "nullable": true,
+                            "example": "0x123"
+                          },
+                          "faAddress": {
+                            "type": "string",
+                            "example": "0x456"
+                          },
+                          "name": {
+                            "type": "string",
+                            "example": "USDC"
+                          },
+                          "symbol": {
+                            "type": "string",
+                            "example": "USDC"
+                          },
+                          "decimals": {
+                            "type": "integer",
+                            "example": 6
+                          },
+                          "usdPrice": {
+                            "type": "string",
+                            "example": "0.99995"
+                          },
+                          "nativePrice": {
+                            "type": "string",
+                            "example": "0.18077031"
+                          }
+                        }
+                      }
+                    },
+                    "status": {
+                      "type": "integer",
+                      "example": 200
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Ошибка сервера",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Failed to fetch token prices"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+} 

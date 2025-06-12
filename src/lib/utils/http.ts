@@ -13,8 +13,16 @@ export function createSuccessResponse<T>(data: T): ApiResponse<T> {
 }
 
 export const http = {
-  get: async (_url: string) => {
-    // TODO: Implement HTTP GET logic
-    return {};
+  get: async (url: string, options?: { headers?: Record<string, string> }) => {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: options?.headers
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
   }
 }; 

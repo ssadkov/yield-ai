@@ -34,8 +34,19 @@ export interface TokenListError {
   code: string;
 }
 
+export interface TokenPrice {
+  chainId: number;
+  tokenAddress: string | null;
+  faAddress: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+  usdPrice: string;
+  nativePrice: string;
+}
+
 export interface PriceResponse {
-  data: any[];
+  data: TokenPrice[];
   status: number;
 }
 
@@ -48,6 +59,7 @@ export class PriceError extends Error {
 
 export const SUPPORTED_CHAIN_IDS = {
   APTOS: 1,
+  // TODO: Add more chains when supported
 } as const;
 
 export type SupportedChainId = typeof SUPPORTED_CHAIN_IDS[keyof typeof SUPPORTED_CHAIN_IDS];
