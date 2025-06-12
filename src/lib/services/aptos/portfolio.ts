@@ -1,7 +1,7 @@
 import { AptosWalletService } from './wallet';
 import { PanoraPricesService } from '../panora/prices';
-import { FungibleAssetBalance } from '../../types/aptos';
-import { TokenPrice } from '../../types/panora';
+import { FungibleAssetBalance } from '@/lib/types/aptos';
+import { TokenPrice } from '@/lib/types/panora';
 
 interface PortfolioToken {
   address: string;
@@ -23,52 +23,69 @@ export class AptosPortfolioService {
   }
 
   async getPortfolio(address: string): Promise<{ tokens: PortfolioToken[] }> {
-    // Получаем балансы из кошелька
-    const walletData = await this.walletService.getBalances(address);
-    const balances = walletData.balances;
-
-    // Собираем адреса токенов
-    const tokenAddresses = balances.map((balance: FungibleAssetBalance) => balance.asset_type);
-
-    // Получаем цены для всех токенов одним запросом
-    const pricesResponse = await this.pricesService.getPrices(1, tokenAddresses);
-    const prices = pricesResponse.data;
-
-    // Объединяем данные
-    const tokens: PortfolioToken[] = balances.map((balance: FungibleAssetBalance) => {
-      const price = prices.find((p: TokenPrice) => 
-        p.tokenAddress === balance.asset_type || 
-        p.faAddress === balance.asset_type
-      );
+    try {
+      console.log('Getting portfolio for address:', address);
       
-      // Если нет цены, используем дефолтные значения
-      if (!price) {
-        return {
-          address: balance.asset_type,
-          name: balance.asset_type.split('::').pop() || balance.asset_type,
-          symbol: balance.asset_type.split('::').pop() || balance.asset_type,
-          decimals: 8, // дефолтное значение
-          amount: balance.amount,
-          price: null,
-          value: null
-        };
+      // Получаем балансы из кошелька
+      const walletData = await this.walletService.getBalances(address);
+      console.log('Wallet data:', walletData);
+      const balances = walletData.balances;
+
+      if (!balances.length) {
+        console.log('No balances found');
+        return { tokens: [] };
       }
 
-      // Вычисляем value с учетом decimals
-      const amount = parseFloat(balance.amount) / Math.pow(10, price.decimals);
-      const value = (amount * parseFloat(price.usdPrice)).toString();
+      // Собираем адреса токенов
+      const tokenAddresses = balances.map((balance: FungibleAssetBalance) => balance.asset_type);
+      console.log('Token addresses:', tokenAddresses);
 
-      return {
-        address: balance.asset_type,
-        name: price.name,
-        symbol: price.symbol,
-        decimals: price.decimals,
-        amount: balance.amount,
-        price: price.usdPrice,
-        value
-      };
-    });
+      // Получаем цены для всех токенов одним запросом
+      const pricesResponse = await this.pricesService.getPrices(1, tokenAddresses);
+      console.log('Prices response:', pricesResponse);
+      const prices = pricesResponse.data;
 
-    return { tokens };
+      // Объединяем данные
+      const tokens: PortfolioToken[] = balances.map((balance: FungibleAssetBalance) => {
+        const price = prices.find((p: TokenPrice) => 
+          p.tokenAddress === balance.asset_type || 
+          p.faAddress === balance.asset_type
+        );
+        
+        // Если нет цены, используем дефолтные значения
+        if (!price) {
+          console.log('No price found for token:', balance.asset_type);
+          return {
+            address: balance.asset_type,
+            name: balance.asset_type.split('::').pop() || balance.asset_type,
+            symbol: balance.asset_type.split('::').pop() || balance.asset_type,
+            decimals: 8, // дефолтное значение
+            amount: balance.amount,
+            price: null,
+            value: null
+          };
+        }
+
+        // Вычисляем value с учетом decimals
+        const amount = parseFloat(balance.amount) / Math.pow(10, price.decimals);
+        const value = (amount * parseFloat(price.usdPrice)).toString();
+
+        return {
+          address: balance.asset_type,
+          name: price.name,
+          symbol: price.symbol,
+          decimals: price.decimals,
+          amount: balance.amount,
+          price: price.usdPrice,
+          value
+        };
+      });
+
+      console.log('Final tokens:', tokens);
+      return { tokens };
+    } catch (error) {
+      console.error('Error in getPortfolio:', error);
+      return { tokens: [] };
+    }
   }
 } 

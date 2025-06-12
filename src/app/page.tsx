@@ -3,11 +3,12 @@ import Sidebar from "@/components/Sidebar";
 import DashboardPanel from "@/components/DashboardPanel";
 import ChatPanel from "@/components/ChatPanel";
 import MobileTabs from "@/components/MobileTabs";
+import { WalletConnect } from "@/components/WalletConnect";
 
 export default function Home() {
   return (
     <div className="h-screen flex flex-col md:flex-row">
-      <div className="hidden md:block w-1/5 border-r">
+      <div className="hidden md:block border-r">
         <Sidebar />
       </div>
 

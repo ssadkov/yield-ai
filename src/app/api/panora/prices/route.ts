@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { http } from '@/lib/utils/http';
 import { createErrorResponse, createSuccessResponse } from '@/lib/utils/http';
 
 export async function GET(request: NextRequest) {
@@ -20,32 +21,15 @@ export async function GET(request: NextRequest) {
       queryParams.append('tokenAddress', tokenAddress);
     }
 
-    const baseUrl = process.env.PANORA_API_URL || 'https://api.panora.exchange';
-    console.log('Using Panora API URL:', baseUrl);
-    console.log('Query params:', queryParams.toString());
-    console.log('API Key present:', !!process.env.PANORA_API_KEY);
-
-    const response = await fetch(`${baseUrl}/prices?${queryParams.toString()}`, {
+    const response = await http.get(`https://api.panora.dev/v1/prices?${queryParams.toString()}`, {
       headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.PANORA_API_KEY || '',
+        'Authorization': `Bearer ${process.env.PANORA_API_KEY}`,
       }
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('API Error:', {
-        status: response.status,
-        statusText: response.statusText,
-        body: errorText
-      });
-      throw new Error(`Failed to fetch prices: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return NextResponse.json(createSuccessResponse(data));
+    return NextResponse.json(createSuccessResponse(response.data));
   } catch (error) {
-    console.error('Error in tokenPrices route:', error);
+    console.error('Error in prices route:', error);
     
     if (error instanceof Error) {
       return NextResponse.json(

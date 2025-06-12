@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AptosPortfolioService } from '@/lib/services/aptos/portfolio';
+import { AptosApiService } from '@/lib/services/aptos/api';
+import { PanoraPricesService } from '@/lib/services/panora/prices';
 import { createErrorResponse, createSuccessResponse } from '@/lib/utils/http';
+import { FungibleAssetBalance } from '@/lib/types/aptos';
+import { TokenPrice } from '@/lib/types/panora';
+
+interface PortfolioToken {
+  address: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+  amount: string;
+  price: string | null;
+  value: string | null;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,10 +27,66 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const service = new AptosPortfolioService();
-    const portfolio = await service.getPortfolio(address);
+    // Получаем балансы
+    const apiService = new AptosApiService();
+    const walletData = await apiService.getBalances(address);
+    const balances = walletData.balances;
 
-    return NextResponse.json(createSuccessResponse(portfolio));
+    if (!balances.length) {
+      return NextResponse.json(createSuccessResponse({ tokens: [] }));
+    }
+
+    // Получаем цены
+    const pricesService = PanoraPricesService.getInstance();
+    const tokenAddresses = balances.map((balance: FungibleAssetBalance) => balance.asset_type);
+    console.log('Getting prices for addresses:', tokenAddresses);
+    
+    const pricesResponse = await pricesService.getPrices(1, tokenAddresses);
+    console.log('Prices response:', pricesResponse);
+    const prices = pricesResponse.data;
+    console.log('Prices data:', prices);
+
+    // Объединяем данные
+    const tokens: PortfolioToken[] = balances.map((balance: FungibleAssetBalance) => {
+      const price = prices.find((p: TokenPrice) => {
+        const matches = p.tokenAddress === balance.asset_type || p.faAddress === balance.asset_type;
+        if (matches) {
+          console.log('Found price for token:', {
+            token: balance.asset_type,
+            price: p
+          });
+        }
+        return matches;
+      });
+      
+      if (!price) {
+        console.log('No price found for token:', balance.asset_type);
+        return {
+          address: balance.asset_type,
+          name: balance.asset_type.split('::').pop() || balance.asset_type,
+          symbol: balance.asset_type.split('::').pop() || balance.asset_type,
+          decimals: 8,
+          amount: balance.amount,
+          price: null,
+          value: null
+        };
+      }
+
+      const amount = parseFloat(balance.amount) / Math.pow(10, price.decimals);
+      const value = (amount * parseFloat(price.usdPrice)).toString();
+
+      return {
+        address: balance.asset_type,
+        name: price.name,
+        symbol: price.symbol,
+        decimals: price.decimals,
+        amount: balance.amount,
+        price: price.usdPrice,
+        value
+      };
+    });
+
+    return NextResponse.json(createSuccessResponse({ tokens }));
   } catch (error) {
     console.error('Error in portfolio route:', error);
     

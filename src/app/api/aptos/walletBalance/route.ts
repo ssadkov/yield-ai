@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AptosWalletService } from '@/lib/services/aptos/wallet';
+import { AptosApiService } from '@/lib/services/aptos/api';
+import { createErrorResponse, createSuccessResponse } from '@/lib/utils/http';
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,19 +9,29 @@ export async function GET(request: NextRequest) {
 
     if (!address) {
       return NextResponse.json(
-        { error: 'Address parameter is required' },
+        createErrorResponse(new Error('Address parameter is required')),
         { status: 400 }
       );
     }
 
-    const walletService = new AptosWalletService();
-    const data = await walletService.getBalances(address);
+    console.log('Getting balances for address:', address);
+    const apiService = new AptosApiService();
+    const data = await apiService.getBalances(address);
+    console.log('Balances response:', data);
 
-    return NextResponse.json({ data, status: 200 });
+    return NextResponse.json(createSuccessResponse(data));
   } catch (error) {
-    console.error('Error fetching wallet balance:', error);
+    console.error('Error in walletBalance route:', error);
+    
+    if (error instanceof Error) {
+      return NextResponse.json(
+        createErrorResponse(error),
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json(
-      { error: 'Failed to fetch wallet balance' },
+      createErrorResponse(new Error('Internal server error')),
       { status: 500 }
     );
   }

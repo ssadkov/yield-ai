@@ -1,16 +1,16 @@
 import { ApiError, ApiResponse } from '../types/api';
 
-export function createErrorResponse(error: Error): ApiResponse<never> {
+export const createErrorResponse = (error: Error): ApiResponse<never> => {
   return {
     error: error.message,
   };
-}
+};
 
-export function createSuccessResponse<T>(data: T): ApiResponse<T> {
+export const createSuccessResponse = <T>(data: T): ApiResponse<T> => {
   return {
     data,
   };
-}
+};
 
 export const http = {
   async get<T>(url: string, options?: { headers?: Record<string, string> }): Promise<T> {
