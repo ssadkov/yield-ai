@@ -1,4 +1,4 @@
-import { Pool, ProtocolService } from '../base/types';
+import { ProtocolService, Pool, UserPosition } from '../base/types';
 
 export class HyperionPoolsService implements ProtocolService {
   async getPools(): Promise<Pool[]> {
@@ -6,7 +6,7 @@ export class HyperionPoolsService implements ProtocolService {
     return [];
   }
 
-  async getUserPositions(userAddress: string): Promise<Pool[]> {
+  async getUserPositions(_userAddress: string): Promise<UserPosition[]> {
     // TODO: Implement Hyperion user positions logic
     return [];
   }

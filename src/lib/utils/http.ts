@@ -13,7 +13,7 @@ export function createSuccessResponse<T>(data: T): ApiResponse<T> {
 }
 
 export const http = {
-  get: async (url: string) => {
+  get: async (_url: string) => {
     // TODO: Implement HTTP GET logic
     return {};
   }

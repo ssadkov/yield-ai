@@ -16,7 +16,7 @@ export class PanoraPricesService {
     return PanoraPricesService.instance;
   }
 
-  public async getPrices(chainId: SupportedChainId = DEFAULT_CHAIN_ID): Promise<PriceResponse> {
+  public async getPrices(_chainId: SupportedChainId = DEFAULT_CHAIN_ID): Promise<PriceResponse> {
     try {
       // TODO: Implement price fetching logic
       return {
