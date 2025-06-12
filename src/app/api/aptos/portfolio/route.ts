@@ -12,7 +12,7 @@ interface PortfolioToken {
   decimals: number;
   amount: string;
   price: string | null;
-  value: string | null;
+  value: number | null;
 }
 
 export async function GET(request: NextRequest) {
@@ -72,19 +72,47 @@ export async function GET(request: NextRequest) {
         };
       }
 
-      const amount = parseFloat(balance.amount) / Math.pow(10, price.decimals);
-      const value = (amount * parseFloat(price.usdPrice)).toString();
+      const amount = Number(balance.amount) / Math.pow(10, 8);
+      const value = amount * price.price;
+
+      console.log('Token calculation:', {
+        symbol: price.symbol,
+        price: price.price,
+        amount: balance.amount,
+        amountConverted: amount,
+        value: value
+      });
 
       return {
         address: balance.asset_type,
-        name: price.name,
+        name: balance.asset_type.split('::').pop() || balance.asset_type,
         symbol: price.symbol,
-        decimals: price.decimals,
+        decimals: 8,
         amount: balance.amount,
-        price: price.usdPrice,
-        value
+        price: price.price.toString(),
+        value: isNaN(value) ? null : value
       };
     });
+
+    // Сортируем по значению
+    tokens.sort((a, b) => {
+      console.log('Comparing tokens:', {
+        a: { symbol: a.symbol, price: a.price, value: a.value },
+        b: { symbol: b.symbol, price: b.price, value: b.value }
+      });
+
+      if (!a.value && !b.value) return 0;
+      if (!a.value) return 1;
+      if (!b.value) return -1;
+      return b.value - a.value;
+    });
+
+    console.log('Final sorted tokens:', tokens.map(t => ({ 
+      symbol: t.symbol,
+      price: t.price,
+      amount: t.amount,
+      value: t.value 
+    })));
 
     return NextResponse.json(createSuccessResponse({ tokens }));
   } catch (error) {

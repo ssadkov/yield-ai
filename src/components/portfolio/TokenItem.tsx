@@ -18,12 +18,14 @@ export function TokenItem({ token }: TokenItemProps) {
           <AvatarImage src={`/tokens/${symbol.toLowerCase()}.png`} />
           <AvatarFallback>{symbol.slice(0, 2)}</AvatarFallback>
         </Avatar>
-        <span className="text-sm font-medium truncate">{symbol}</span>
+        <div className="flex flex-col">
+          <span className="text-sm font-medium truncate">{symbol}</span>
+          <span className="text-xs text-muted-foreground">{formattedPrice}</span>
+        </div>
       </div>
       <div className="text-sm text-right ml-2">
         <div className="font-medium whitespace-nowrap">{formattedAmount}</div>
         <div className="text-xs text-muted-foreground whitespace-nowrap">{formattedValue}</div>
-        <div className="text-xs text-muted-foreground whitespace-nowrap">{formattedPrice}</div>
       </div>
     </div>
   );
