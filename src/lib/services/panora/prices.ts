@@ -11,6 +11,11 @@ export class PanoraPricesService {
   private constructor() {
     this.baseUrl = process.env.PANORA_API_URL || 'https://api.panora.exchange';
     this.apiKey = process.env.PANORA_API_KEY || '';
+    console.log('PanoraPricesService initialized with:', {
+      baseUrl: this.baseUrl,
+      apiKeyPresent: !!this.apiKey,
+      apiKeyLength: this.apiKey.length
+    });
   }
 
   public static getInstance(): PanoraPricesService {
@@ -47,11 +52,19 @@ export class PanoraPricesService {
       }
       queryParams.append('chainId', chainId.toString());
 
-      const response = await http.get(`${this.baseUrl}/prices?${queryParams.toString()}`, {
+      const url = `${this.baseUrl}/prices?${queryParams.toString()}`;
+      console.log('Making request to:', url);
+      console.log('With headers:', {
+        'x-api-key': this.apiKey.substring(0, 10) + '...'
+      });
+
+      const response = await http.get(url, {
         headers: {
           'x-api-key': this.apiKey
         }
       });
+
+      console.log('Response:', response);
 
       const data = response as TokenPrice[];
       
@@ -65,6 +78,7 @@ export class PanoraPricesService {
         status: 200
       };
     } catch (error) {
+      console.error('Error in getPrices:', error);
       throw new PriceError('Failed to fetch prices');
     }
   }

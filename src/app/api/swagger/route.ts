@@ -248,6 +248,115 @@ export async function GET() {
             }
           }
         }
+      },
+      "/api/aptos/portfolio": {
+        get: {
+          summary: "Get Aptos portfolio",
+          description: "Returns all fungible token balances with prices and USD values for the specified address",
+          parameters: [
+            {
+              name: "address",
+              in: "query",
+              required: true,
+              schema: {
+                type: "string"
+              },
+              description: "Aptos wallet address",
+              example: "0x56ff2fc971deecd286314fe99b8ffd6a5e72e62eacdc46ae9b234c5282985f97"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "Successful response",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      data: {
+                        type: "object",
+                        properties: {
+                          tokens: {
+                            type: "array",
+                            items: {
+                              type: "object",
+                              properties: {
+                                address: {
+                                  type: "string",
+                                  example: "0x1::aptos_coin::AptosCoin"
+                                },
+                                name: {
+                                  type: "string",
+                                  example: "Aptos Coin"
+                                },
+                                symbol: {
+                                  type: "string",
+                                  example: "APT"
+                                },
+                                decimals: {
+                                  type: "number",
+                                  example: 8
+                                },
+                                amount: {
+                                  type: "string",
+                                  example: "79995869"
+                                },
+                                price: {
+                                  type: "string",
+                                  example: "4.93265503"
+                                },
+                                value: {
+                                  type: "string",
+                                  example: "394.61"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      status: {
+                        type: "number",
+                        example: 200
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              description: "Bad request",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      error: {
+                        type: "string",
+                        example: "Address parameter is required"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              description: "Server error",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      error: {
+                        type: "string",
+                        example: "Failed to fetch portfolio"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   };
