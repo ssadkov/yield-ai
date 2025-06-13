@@ -60,8 +60,18 @@ export function PositionsList({ address }: PositionsListProps) {
   // Считаем общую стоимость всех позиций и наград
   const totalValue = positions.reduce((sum, position) => {
     const positionValue = parseFloat(position.value || "0");
-    const rewardsValue = parseFloat(position.rewards?.value || "0");
-    return sum + positionValue + rewardsValue;
+    
+    // Считаем награды из фарма
+    const farmRewards = position.farm?.unclaimed?.reduce((rewardSum: number, reward: { amountUSD: string }) => {
+      return rewardSum + parseFloat(reward.amountUSD || "0");
+    }, 0) || 0;
+    
+    // Считаем награды из комиссий
+    const feeRewards = position.fees?.unclaimed?.reduce((feeSum: number, fee: { amountUSD: string }) => {
+      return feeSum + parseFloat(fee.amountUSD || "0");
+    }, 0) || 0;
+    
+    return sum + positionValue + farmRewards + feeRewards;
   }, 0);
 
   if (loading) {
@@ -110,7 +120,7 @@ export function PositionsList({ address }: PositionsListProps) {
           </div>
           <div className="flex items-center gap-2">
             <div className="flex flex-col items-end">
-              <span className="text-base">Total: ${totalValue.toFixed(2)}</span>
+              <span className="text-base">${totalValue.toFixed(2)}</span>
             </div>
             <ChevronDown className={cn(
               "h-5 w-5 transition-transform",
