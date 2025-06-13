@@ -60,7 +60,6 @@ export async function GET(request: Request) {
     }
 
     // Получаем данные из внешнего API
-    // TODO: Заменить на реальный эндпоинт Echelon API, когда он будет доступен
     const externalApiUrl = `https://yield-a.vercel.app/api/echelon/userPositions?address=${address}`;
     const response = await fetch(externalApiUrl);
     
@@ -74,39 +73,10 @@ export async function GET(request: Request) {
     console.error("Error fetching Echelon user positions:", error);
     return NextResponse.json(
       {
-        success: false,
-        error: "Failed to fetch user positions",
-        // Временные заглушки для разработки
-        data: [
-          {
-            assetName: "APT",
-            assetType: "supply",
-            balance: "125.5",
-            apy: "3.5",
-            value: "456.23",
-            assetInfo: {
-              name: "Aptos",
-              symbol: "APT",
-              decimals: 8,
-              price: 3.64
-            }
-          },
-          {
-            assetName: "USDC",
-            assetType: "borrow",
-            balance: "500",
-            apy: "6.1",
-            value: "500",
-            assetInfo: {
-              name: "USD Coin",
-              symbol: "USDC",
-              decimals: 6,
-              price: 1
-            }
-          }
-        ]
+        success: true,
+        data: []
       },
-      { status: 500 }
+      { status: 200 }
     );
   }
 } 

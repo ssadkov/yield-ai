@@ -6,7 +6,8 @@ import { useEffect, useState } from "react";
 import { AptosPortfolioService } from "@/lib/services/aptos/portfolio";
 import { Token } from "@/lib/types/token";
 import { Logo } from "./ui/logo";
-import { PositionsList } from "./protocols/hyperion/PositionsList";
+import { PositionsList as HyperionPositionsList } from "./protocols/hyperion/PositionsList";
+import { PositionsList as EchelonPositionsList } from "./protocols/echelon/PositionsList";
 
 export default function Sidebar() {
   const { account } = useWallet();
@@ -54,7 +55,11 @@ export default function Sidebar() {
       {account?.address && (
         <div className="mt-4 space-y-4">
           <PortfolioCard totalValue={totalValue} tokens={tokens} />
-          <PositionsList 
+          <HyperionPositionsList 
+            address={account.address.toString()} 
+            onPositionsValueChange={handleProtocolPositionsChange}
+          />
+          <EchelonPositionsList 
             address={account.address.toString()} 
             onPositionsValueChange={handleProtocolPositionsChange}
           />

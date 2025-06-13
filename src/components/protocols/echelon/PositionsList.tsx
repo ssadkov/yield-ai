@@ -10,11 +10,19 @@ import Image from "next/image";
 
 interface PositionsListProps {
   address?: string;
+  onPositionsValueChange?: (value: number) => void;
 }
 
-export function PositionsList({ address }: PositionsListProps) {
+interface Position {
+  market: string;
+  coin: string;
+  supply: number;
+  supplyApr: number;
+}
+
+export function PositionsList({ address, onPositionsValueChange }: PositionsListProps) {
   const { account } = useWallet();
-  const [positions, setPositions] = useState<any[]>([]);
+  const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(true);
@@ -39,10 +47,13 @@ export function PositionsList({ address }: PositionsListProps) {
         }
         
         const data = await response.json();
+        console.log('Echelon API response:', data);
         
-        if (data.success && Array.isArray(data.data)) {
-          setPositions(data.data);
+        if (data.userPositions) {
+          console.log('Setting positions:', data.userPositions);
+          setPositions(data.userPositions);
         } else {
+          console.log('No valid positions data');
           setPositions([]);
         }
       } catch (err) {
@@ -57,33 +68,11 @@ export function PositionsList({ address }: PositionsListProps) {
     loadPositions();
   }, [walletAddress]);
 
-  // Считаем общую стоимость всех позиций по типу (supply/borrow)
-  const supplyValue = positions
-    .filter(position => position.assetType === 'supply')
-    .reduce((sum, position) => sum + parseFloat(position.value || "0"), 0);
-
-  const borrowValue = positions
-    .filter(position => position.assetType === 'borrow')
-    .reduce((sum, position) => sum + parseFloat(position.value || "0"), 0);
-
-  if (loading) {
-    return <div className="text-sm text-muted-foreground">Loading positions...</div>;
-  }
-
-  if (error) {
-    return <div className="text-sm text-red-500">{error}</div>;
-  }
-
-  if (!walletAddress) {
-    return <div className="text-sm text-muted-foreground">Connect wallet to view positions</div>;
-  }
-
-  if (positions.length === 0) {
-    return <div className="text-sm text-muted-foreground">No positions found</div>;
-  }
+  // Считаем общую сумму supply
+  const totalSupply = positions.reduce((sum, position) => sum + position.supply, 0);
 
   return (
-    <Card className="w-full h-full flex flex-col">
+    <Card className="w-full">
       <CardHeader 
         className="py-2 cursor-pointer hover:bg-accent/50 transition-colors"
         onClick={() => setIsExpanded(!isExpanded)}
@@ -105,10 +94,7 @@ export function PositionsList({ address }: PositionsListProps) {
           </div>
           <div className="flex items-center gap-2">
             <div className="flex flex-col items-end">
-              <span className="text-base text-green-600">Supply: ${supplyValue.toFixed(2)}</span>
-              {borrowValue > 0 && (
-                <span className="text-base text-red-600">Borrow: ${borrowValue.toFixed(2)}</span>
-              )}
+              <span className="text-base text-green-600">Supply: {(totalSupply / 1e8).toFixed(4)}</span>
             </div>
             <ChevronDown className={cn(
               "h-5 w-5 transition-transform",
@@ -122,7 +108,18 @@ export function PositionsList({ address }: PositionsListProps) {
         <CardContent className="flex-1 overflow-y-auto px-3 pt-0">
           <ScrollArea className="h-full">
             {positions.map((position, index) => (
-              <PositionCard key={`${position.assetName}-${position.assetType}-${index}`} position={position} />
+              <div key={`${position.coin}-${index}`} className="mb-2">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <div className="font-medium">{position.coin.substring(0, 4).toUpperCase()}</div>
+                    <div className="text-sm text-muted-foreground">Supply</div>
+                  </div>
+                  <div className="text-right">
+                    <div>{(position.supply / 1e8).toFixed(4)}</div>
+                    <div className="text-sm text-green-600">APY: {(position.supplyApr * 100).toFixed(2)}%</div>
+                  </div>
+                </div>
+              </div>
             ))}
           </ScrollArea>
         </CardContent>
