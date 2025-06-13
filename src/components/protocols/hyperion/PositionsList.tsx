@@ -125,9 +125,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
             <CardTitle className="text-lg">Hyperion</CardTitle>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex flex-col items-end">
-              <span className="text-base">${totalValue.toFixed(2)}</span>
-            </div>
+            <div className="text-lg">${totalValue.toFixed(2)}</div>
             <ChevronDown className={cn(
               "h-5 w-5 transition-transform",
               isExpanded ? "transform rotate-0" : "transform -rotate-90"

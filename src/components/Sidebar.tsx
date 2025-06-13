@@ -13,7 +13,8 @@ export default function Sidebar() {
   const { account } = useWallet();
   const [tokens, setTokens] = useState<Token[]>([]);
   const [totalValue, setTotalValue] = useState<string>("0");
-  const [protocolPositionsValue, setProtocolPositionsValue] = useState<number>(0);
+  const [hyperionValue, setHyperionValue] = useState<number>(0);
+  const [echelonValue, setEchelonValue] = useState<number>(0);
 
   useEffect(() => {
     async function loadPortfolio() {
@@ -29,18 +30,22 @@ export default function Sidebar() {
         }, 0);
 
         setTokens(portfolio.tokens);
-        setTotalValue((total + protocolPositionsValue).toFixed(2));
+        setTotalValue((total + hyperionValue + echelonValue).toFixed(2));
       } catch (error) {
         console.error("Failed to load portfolio:", error);
       }
     }
 
     loadPortfolio();
-  }, [account?.address, protocolPositionsValue]);
+  }, [account?.address, hyperionValue, echelonValue]);
 
-  // Обработчик изменения суммы позиций в протоколах
-  const handleProtocolPositionsChange = (value: number) => {
-    setProtocolPositionsValue(value);
+  // Обработчики изменения суммы позиций в протоколах
+  const handleHyperionValueChange = (value: number) => {
+    setHyperionValue(value);
+  };
+
+  const handleEchelonValueChange = (value: number) => {
+    setEchelonValue(value);
   };
 
   return (
@@ -57,11 +62,11 @@ export default function Sidebar() {
           <PortfolioCard totalValue={totalValue} tokens={tokens} />
           <HyperionPositionsList 
             address={account.address.toString()} 
-            onPositionsValueChange={handleProtocolPositionsChange}
+            onPositionsValueChange={handleHyperionValueChange}
           />
           <EchelonPositionsList 
             address={account.address.toString()} 
-            onPositionsValueChange={handleProtocolPositionsChange}
+            onPositionsValueChange={handleEchelonValueChange}
           />
         </div>
       )}

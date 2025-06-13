@@ -26,6 +26,7 @@ interface TokenInfo {
   name: string;
   logoUrl: string | null;
   decimals: number;
+  usdPrice: string | null;
 }
 
 export function PositionsList({ address, onPositionsValueChange }: PositionsListProps) {
@@ -49,7 +50,8 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
         symbol: token.symbol,
         name: token.name,
         logoUrl: token.logoUrl || null,
-        decimals: token.decimals
+        decimals: token.decimals,
+        usdPrice: token.usdPrice || null
       };
     }
     
@@ -94,8 +96,18 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
     loadPositions();
   }, [walletAddress]);
 
-  // Считаем общую сумму supply
-  const totalSupply = positions.reduce((sum, position) => sum + position.supply, 0);
+  // Считаем общую сумму в долларах
+  const totalValue = positions.reduce((sum, position) => {
+    const tokenInfo = getTokenInfo(position.coin);
+    const amount = position.supply / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
+    const value = tokenInfo?.usdPrice ? amount * parseFloat(tokenInfo.usdPrice) : 0;
+    return sum + value;
+  }, 0);
+
+  // Вызываем колбэк при изменении общей суммы позиций
+  useEffect(() => {
+    onPositionsValueChange?.(totalValue);
+  }, [totalValue, onPositionsValueChange]);
 
   return (
     <Card className="w-full">
@@ -119,9 +131,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
             <CardTitle className="text-lg">Echelon</CardTitle>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex flex-col items-end">
-              <span className="text-base text-green-600">Supply: {(totalSupply / 1e8).toFixed(4)}</span>
-            </div>
+            <div className="text-lg">${totalValue.toFixed(2)}</div>
             <ChevronDown className={cn(
               "h-5 w-5 transition-transform",
               isExpanded ? "transform rotate-0" : "transform -rotate-90"
@@ -135,6 +145,9 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
           <ScrollArea className="h-full">
             {positions.map((position, index) => {
               const tokenInfo = getTokenInfo(position.coin);
+              const amount = position.supply / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
+              const value = tokenInfo?.usdPrice ? (amount * parseFloat(tokenInfo.usdPrice)).toFixed(2) : 'N/A';
+              
               return (
                 <div key={`${position.coin}-${index}`} className="mb-2">
                   <div className="flex justify-between items-center">
@@ -151,13 +164,15 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
                         </div>
                       )}
                       <div>
-                        <div className="font-medium">{tokenInfo?.symbol || position.coin.substring(0, 4).toUpperCase()}</div>
-                        <div className="text-sm text-muted-foreground">Supply</div>
+                        <div className="text-sm font-medium">{tokenInfo?.symbol || position.coin.substring(0, 4).toUpperCase()}</div>
+                        <div className="text-xs text-muted-foreground">
+                          ${tokenInfo?.usdPrice ? parseFloat(tokenInfo.usdPrice).toFixed(2) : 'N/A'}
+                        </div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div>{(position.supply / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8)).toFixed(4)}</div>
-                      <div className="text-sm text-green-600">APY: {(position.supplyApr * 100).toFixed(2)}%</div>
+                      <div className="text-sm font-medium">${value}</div>
+                      <div className="text-xs text-muted-foreground">{amount.toFixed(4)}</div>
                     </div>
                   </div>
                 </div>
