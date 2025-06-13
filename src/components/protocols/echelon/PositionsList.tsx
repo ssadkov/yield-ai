@@ -7,6 +7,7 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import Image from "next/image";
+import tokenList from "@/lib/data/tokenList.json";
 
 interface PositionsListProps {
   address?: string;
@@ -20,6 +21,13 @@ interface Position {
   supplyApr: number;
 }
 
+interface TokenInfo {
+  symbol: string;
+  name: string;
+  logoUrl: string | null;
+  decimals: number;
+}
+
 export function PositionsList({ address, onPositionsValueChange }: PositionsListProps) {
   const { account } = useWallet();
   const [positions, setPositions] = useState<Position[]>([]);
@@ -29,6 +37,24 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
 
   const walletAddress = address || account?.address?.toString();
   const protocol = getProtocolByName("Echelon");
+
+  // Функция для поиска информации о токене
+  const getTokenInfo = (coinAddress: string): TokenInfo | null => {
+    const token = tokenList.data.data.find(
+      (t) => t.faAddress === coinAddress || t.tokenAddress === coinAddress
+    );
+    
+    if (token) {
+      return {
+        symbol: token.symbol,
+        name: token.name,
+        logoUrl: token.logoUrl || null,
+        decimals: token.decimals
+      };
+    }
+    
+    return null;
+  };
 
   useEffect(() => {
     async function loadPositions() {
@@ -107,20 +133,36 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
       {isExpanded && (
         <CardContent className="flex-1 overflow-y-auto px-3 pt-0">
           <ScrollArea className="h-full">
-            {positions.map((position, index) => (
-              <div key={`${position.coin}-${index}`} className="mb-2">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <div className="font-medium">{position.coin.substring(0, 4).toUpperCase()}</div>
-                    <div className="text-sm text-muted-foreground">Supply</div>
-                  </div>
-                  <div className="text-right">
-                    <div>{(position.supply / 1e8).toFixed(4)}</div>
-                    <div className="text-sm text-green-600">APY: {(position.supplyApr * 100).toFixed(2)}%</div>
+            {positions.map((position, index) => {
+              const tokenInfo = getTokenInfo(position.coin);
+              return (
+                <div key={`${position.coin}-${index}`} className="mb-2">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      {tokenInfo?.logoUrl && (
+                        <div className="w-6 h-6 relative">
+                          <Image 
+                            src={tokenInfo.logoUrl} 
+                            alt={tokenInfo.symbol}
+                            width={24}
+                            height={24}
+                            className="object-contain"
+                          />
+                        </div>
+                      )}
+                      <div>
+                        <div className="font-medium">{tokenInfo?.symbol || position.coin.substring(0, 4).toUpperCase()}</div>
+                        <div className="text-sm text-muted-foreground">Supply</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div>{(position.supply / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8)).toFixed(4)}</div>
+                      <div className="text-sm text-green-600">APY: {(position.supplyApr * 100).toFixed(2)}%</div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </ScrollArea>
         </CardContent>
       )}
