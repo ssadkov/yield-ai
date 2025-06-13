@@ -18,6 +18,12 @@ const nextConfig = {
         pathname: '/**',
       },
     ],
+    domains: [
+      'hyperion.xyz',
+      'ariesmarkets.xyz',
+      'app.joule.finance',
+      'app.echelon.market'
+    ],
   },
 }
 
