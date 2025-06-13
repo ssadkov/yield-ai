@@ -926,6 +926,176 @@ export async function GET() {
             }
           }
         }
+      },
+      "/api/protocols/joule/userPositions": {
+        get: {
+          tags: ["protocols"],
+          summary: "Get user positions in Joule protocol",
+          description: "Returns user positions in Joule lending protocol for the specified address",
+          parameters: [
+            {
+              name: "address",
+              in: "query",
+              required: true,
+              schema: {
+                type: "string"
+              },
+              description: "User wallet address",
+              example: "0x56ff2fc971deecd286314fe99b8ffd6a5e72e62eacdc46ae9b234c5282985f97"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "Successful response",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      data: {
+                        type: "object",
+                        properties: {
+                          userPositions: {
+                            type: "array",
+                            items: {
+                              type: "object",
+                              properties: {
+                                positions_map: {
+                                  type: "object",
+                                  properties: {
+                                    data: {
+                                      type: "array",
+                                      items: {
+                                        type: "object",
+                                        properties: {
+                                          key: {
+                                            type: "string",
+                                            example: "1"
+                                          },
+                                          value: {
+                                            type: "object",
+                                            properties: {
+                                              borrow_positions: {
+                                                type: "object",
+                                                properties: {
+                                                  data: {
+                                                    type: "array",
+                                                    items: {
+                                                      type: "object",
+                                                      properties: {
+                                                        key: {
+                                                          type: "string",
+                                                          example: "0x1::aptos_coin::AptosCoin"
+                                                        },
+                                                        value: {
+                                                          type: "object",
+                                                          properties: {
+                                                            borrow_amount: {
+                                                              type: "string",
+                                                              example: "117444352967"
+                                                            },
+                                                            coin_name: {
+                                                              type: "string",
+                                                              example: "0x1::aptos_coin::AptosCoin"
+                                                            },
+                                                            interest_accumulated: {
+                                                              type: "string",
+                                                              example: "204352967"
+                                                            }
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              },
+                                              lend_positions: {
+                                                type: "object",
+                                                properties: {
+                                                  data: {
+                                                    type: "array",
+                                                    items: {
+                                                      type: "object",
+                                                      properties: {
+                                                        key: {
+                                                          type: "string",
+                                                          example: "0x111ae3e5bc816a5e63c2da97d0aa3886519e0cd5e4b046659fa35796bd11542a::stapt_token::StakedApt"
+                                                        },
+                                                        value: {
+                                                          type: "string",
+                                                          example: "119881806209"
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              },
+                                              position_name: {
+                                                type: "string",
+                                                example: "Loop-Position"
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                user_position_ids: {
+                                  type: "array",
+                                  items: {
+                                    type: "string"
+                                  },
+                                  example: ["1", "2"]
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      status: {
+                        type: "number",
+                        example: 200
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              description: "Bad request",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      error: {
+                        type: "string",
+                        example: "Address parameter is required"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              description: "Server error",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      error: {
+                        type: "string",
+                        example: "Failed to fetch user positions"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   };
