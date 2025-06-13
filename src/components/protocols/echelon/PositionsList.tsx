@@ -20,7 +20,7 @@ export function PositionsList({ address }: PositionsListProps) {
   const [isExpanded, setIsExpanded] = useState(true);
 
   const walletAddress = address || account?.address?.toString();
-  const protocol = getProtocolByName("Hyperion");
+  const protocol = getProtocolByName("Echelon");
 
   useEffect(() => {
     async function loadPositions() {
@@ -32,7 +32,7 @@ export function PositionsList({ address }: PositionsListProps) {
       try {
         setLoading(true);
         setError(null);
-        const response = await fetch(`/api/protocols/hyperion/userPositions?address=${walletAddress}`);
+        const response = await fetch(`/api/protocols/echelon/userPositions?address=${walletAddress}`);
         
         if (!response.ok) {
           throw new Error(`API returned status ${response.status}`);
@@ -46,7 +46,7 @@ export function PositionsList({ address }: PositionsListProps) {
           setPositions([]);
         }
       } catch (err) {
-        console.error('Error loading Hyperion positions:', err);
+        console.error('Error loading Echelon positions:', err);
         setError('Failed to load positions');
         setPositions([]);
       } finally {
@@ -57,12 +57,14 @@ export function PositionsList({ address }: PositionsListProps) {
     loadPositions();
   }, [walletAddress]);
 
-  // Считаем общую стоимость всех позиций и наград
-  const totalValue = positions.reduce((sum, position) => {
-    const positionValue = parseFloat(position.value || "0");
-    const rewardsValue = parseFloat(position.rewards?.value || "0");
-    return sum + positionValue + rewardsValue;
-  }, 0);
+  // Считаем общую стоимость всех позиций по типу (supply/borrow)
+  const supplyValue = positions
+    .filter(position => position.assetType === 'supply')
+    .reduce((sum, position) => sum + parseFloat(position.value || "0"), 0);
+
+  const borrowValue = positions
+    .filter(position => position.assetType === 'borrow')
+    .reduce((sum, position) => sum + parseFloat(position.value || "0"), 0);
 
   if (loading) {
     return <div className="text-sm text-muted-foreground">Loading positions...</div>;
@@ -79,13 +81,6 @@ export function PositionsList({ address }: PositionsListProps) {
   if (positions.length === 0) {
     return <div className="text-sm text-muted-foreground">No positions found</div>;
   }
-
-  // Сортируем позиции по убыванию общей стоимости (включая награды)
-  const sortedPositions = [...positions].sort((a, b) => {
-    const aValue = parseFloat(a.value || "0") + parseFloat(a.rewards?.value || "0");
-    const bValue = parseFloat(b.value || "0") + parseFloat(b.rewards?.value || "0");
-    return bValue - aValue;
-  });
 
   return (
     <Card className="w-full h-full flex flex-col">
@@ -106,11 +101,14 @@ export function PositionsList({ address }: PositionsListProps) {
                 />
               </div>
             )}
-            <CardTitle className="text-lg">Hyperion</CardTitle>
+            <CardTitle className="text-lg">Echelon</CardTitle>
           </div>
           <div className="flex items-center gap-2">
             <div className="flex flex-col items-end">
-              <span className="text-base">Total: ${totalValue.toFixed(2)}</span>
+              <span className="text-base text-green-600">Supply: ${supplyValue.toFixed(2)}</span>
+              {borrowValue > 0 && (
+                <span className="text-base text-red-600">Borrow: ${borrowValue.toFixed(2)}</span>
+              )}
             </div>
             <ChevronDown className={cn(
               "h-5 w-5 transition-transform",
@@ -123,8 +121,8 @@ export function PositionsList({ address }: PositionsListProps) {
       {isExpanded && (
         <CardContent className="flex-1 overflow-y-auto px-3 pt-0">
           <ScrollArea className="h-full">
-            {sortedPositions.map((position, index) => (
-              <PositionCard key={`${position.assetName}-${index}`} position={position} />
+            {positions.map((position, index) => (
+              <PositionCard key={`${position.assetName}-${position.assetType}-${index}`} position={position} />
             ))}
           </ScrollArea>
         </CardContent>

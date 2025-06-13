@@ -636,6 +636,177 @@ export async function GET() {
             }
           }
         }
+      },
+      "/api/protocols/echelon/pools": {
+        get: {
+          tags: ["protocols"],
+          summary: "Get Echelon pools",
+          description: "Returns all pools from Echelon lending protocol",
+          parameters: [],
+          responses: {
+            "200": {
+              description: "Successful response",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      data: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            poolId: {
+                              type: "string",
+                              example: "0x1::coin::AptosCoin"
+                            },
+                            assetName: {
+                              type: "string",
+                              example: "APT"
+                            },
+                            supplyApy: {
+                              type: "string",
+                              example: "3.5"
+                            },
+                            borrowApy: {
+                              type: "string",
+                              example: "5.2"
+                            },
+                            totalSupply: {
+                              type: "string",
+                              example: "1250000"
+                            },
+                            totalBorrow: {
+                              type: "string",
+                              example: "750000"
+                            }
+                          }
+                        }
+                      },
+                      status: {
+                        type: "number",
+                        example: 200
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              description: "Server error",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      error: {
+                        type: "string",
+                        example: "Failed to fetch pools"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/protocols/echelon/userPositions": {
+        get: {
+          tags: ["protocols"],
+          summary: "Get user positions in Echelon protocol",
+          description: "Returns user positions in Echelon lending protocol for the specified address",
+          parameters: [
+            {
+              name: "address",
+              in: "query",
+              required: true,
+              schema: {
+                type: "string"
+              },
+              description: "User wallet address",
+              example: "0x56ff2fc971deecd286314fe99b8ffd6a5e72e62eacdc46ae9b234c5282985f97"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "Successful response",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      data: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            assetName: {
+                              type: "string",
+                              example: "APT"
+                            },
+                            assetType: {
+                              type: "string",
+                              example: "supply"
+                            },
+                            balance: {
+                              type: "string",
+                              example: "125.5"
+                            },
+                            apy: {
+                              type: "string",
+                              example: "3.5"
+                            },
+                            value: {
+                              type: "string",
+                              example: "456.23"
+                            }
+                          }
+                        }
+                      },
+                      status: {
+                        type: "number",
+                        example: 200
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              description: "Bad request",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      error: {
+                        type: "string",
+                        example: "Address parameter is required"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              description: "Server error",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      error: {
+                        type: "string",
+                        example: "Failed to fetch user positions"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   };
