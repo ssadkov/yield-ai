@@ -12,6 +12,7 @@ export default function Sidebar() {
   const { account } = useWallet();
   const [tokens, setTokens] = useState<Token[]>([]);
   const [totalValue, setTotalValue] = useState<string>("0");
+  const [protocolPositionsValue, setProtocolPositionsValue] = useState<number>(0);
 
   useEffect(() => {
     async function loadPortfolio() {
@@ -27,14 +28,19 @@ export default function Sidebar() {
         }, 0);
 
         setTokens(portfolio.tokens);
-        setTotalValue(total.toFixed(2));
+        setTotalValue((total + protocolPositionsValue).toFixed(2));
       } catch (error) {
         console.error("Failed to load portfolio:", error);
       }
     }
 
     loadPortfolio();
-  }, [account?.address]);
+  }, [account?.address, protocolPositionsValue]);
+
+  // Обработчик изменения суммы позиций в протоколах
+  const handleProtocolPositionsChange = (value: number) => {
+    setProtocolPositionsValue(value);
+  };
 
   return (
     <div className="w-[340px] p-4 border-r">
@@ -48,7 +54,10 @@ export default function Sidebar() {
       {account?.address && (
         <div className="mt-4 space-y-4">
           <PortfolioCard totalValue={totalValue} tokens={tokens} />
-          <PositionsList address={account.address.toString()} />
+          <PositionsList 
+            address={account.address.toString()} 
+            onPositionsValueChange={handleProtocolPositionsChange}
+          />
         </div>
       )}
     </div>

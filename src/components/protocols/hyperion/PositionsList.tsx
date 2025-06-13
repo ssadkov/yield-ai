@@ -10,9 +10,10 @@ import Image from "next/image";
 
 interface PositionsListProps {
   address?: string;
+  onPositionsValueChange?: (value: number) => void;
 }
 
-export function PositionsList({ address }: PositionsListProps) {
+export function PositionsList({ address, onPositionsValueChange }: PositionsListProps) {
   const { account } = useWallet();
   const [positions, setPositions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -73,6 +74,11 @@ export function PositionsList({ address }: PositionsListProps) {
     
     return sum + positionValue + farmRewards + feeRewards;
   }, 0);
+
+  // Вызываем колбэк при изменении общей суммы позиций
+  useEffect(() => {
+    onPositionsValueChange?.(totalValue);
+  }, [totalValue, onPositionsValueChange]);
 
   if (loading) {
     return <div className="text-sm text-muted-foreground">Loading positions...</div>;
