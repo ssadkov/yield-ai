@@ -108,7 +108,15 @@ export async function GET(request: NextRequest) {
     }
 
     console.log('Fetching Joule positions for address:', address);
-    const response = await fetch(`https://yield-a.vercel.app/api/joule/userPositions?address=${address}`);
+    const response = await fetch(`https://yield-a.vercel.app/api/joule/userPositions?address=${address}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Origin': 'http://localhost:3000',
+        'Referer': 'http://localhost:3000/'
+      }
+    });
     
     if (!response.ok) {
       throw new Error(`Joule API returned status ${response.status}`);
