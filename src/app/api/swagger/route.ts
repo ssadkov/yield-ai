@@ -807,6 +807,125 @@ export async function GET() {
             }
           }
         }
+      },
+      "/api/protocols/aries/userPositions": {
+        get: {
+          tags: ["protocols"],
+          summary: "Get user positions in Aries protocol",
+          description: "Returns user positions in Aries lending protocol for the specified address",
+          parameters: [
+            {
+              name: "address",
+              in: "query",
+              required: true,
+              schema: {
+                type: "string"
+              },
+              description: "User wallet address",
+              example: "0x56ff2fc971deecd286314fe99b8ffd6a5e72e62eacdc46ae9b234c5282985f97"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "Successful response",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: {
+                        type: "boolean"
+                      },
+                      data: {
+                        type: "object",
+                        properties: {
+                          userPositions: {
+                            type: "array",
+                            items: {
+                              type: "object",
+                              properties: {
+                                assetName: {
+                                  type: "string",
+                                  example: "APT"
+                                },
+                                assetType: {
+                                  type: "string",
+                                  enum: ["supply", "borrow"],
+                                  example: "supply"
+                                },
+                                balance: {
+                                  type: "string",
+                                  example: "125.5"
+                                },
+                                value: {
+                                  type: "string",
+                                  example: "456.23"
+                                },
+                                assetInfo: {
+                                  type: "object",
+                                  properties: {
+                                    name: {
+                                      type: "string",
+                                      example: "Aptos Coin"
+                                    },
+                                    symbol: {
+                                      type: "string",
+                                      example: "APT"
+                                    },
+                                    decimals: {
+                                      type: "number",
+                                      example: 8
+                                    },
+                                    price: {
+                                      type: "string",
+                                      example: "3.92"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              description: "Bad request",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      error: {
+                        type: "string",
+                        example: "Address parameter is required"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              description: "Server error",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      error: {
+                        type: "string",
+                        example: "Failed to fetch user positions"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   };
