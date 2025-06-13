@@ -9,6 +9,7 @@ import { Logo } from "./ui/logo";
 import { PositionsList as HyperionPositionsList } from "./protocols/hyperion/PositionsList";
 import { PositionsList as EchelonPositionsList } from "./protocols/echelon/PositionsList";
 import { PositionsList as AriesPositionsList } from "./protocols/aries/PositionsList";
+import { PositionsList as JoulePositionsList } from "./protocols/joule/PositionsList";
 
 export default function Sidebar() {
   const { account } = useWallet();
@@ -17,6 +18,7 @@ export default function Sidebar() {
   const [hyperionValue, setHyperionValue] = useState<number>(0);
   const [echelonValue, setEchelonValue] = useState<number>(0);
   const [ariesValue, setAriesValue] = useState<number>(0);
+  const [jouleValue, setJouleValue] = useState<number>(0);
 
   useEffect(() => {
     async function loadPortfolio() {
@@ -32,14 +34,14 @@ export default function Sidebar() {
         }, 0);
 
         setTokens(portfolio.tokens);
-        setTotalValue((total + hyperionValue + echelonValue + ariesValue).toFixed(2));
+        setTotalValue((total + hyperionValue + echelonValue + ariesValue + jouleValue).toFixed(2));
       } catch (error) {
         console.error("Failed to load portfolio:", error);
       }
     }
 
     loadPortfolio();
-  }, [account?.address, hyperionValue, echelonValue, ariesValue]);
+  }, [account?.address, hyperionValue, echelonValue, ariesValue, jouleValue]);
 
   // Обработчики изменения суммы позиций в протоколах
   const handleHyperionValueChange = (value: number) => {
@@ -52,6 +54,10 @@ export default function Sidebar() {
 
   const handleAriesValueChange = (value: number) => {
     setAriesValue(value);
+  };
+
+  const handleJouleValueChange = (value: number) => {
+    setJouleValue(value);
   };
 
   return (
@@ -77,6 +83,10 @@ export default function Sidebar() {
           <AriesPositionsList 
             address={account.address.toString()} 
             onPositionsValueChange={handleAriesValueChange}
+          />
+          <JoulePositionsList 
+            address={account.address.toString()} 
+            onPositionsValueChange={handleJouleValueChange}
           />
         </div>
       )}
