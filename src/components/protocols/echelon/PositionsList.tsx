@@ -109,6 +109,11 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
     onPositionsValueChange?.(totalValue);
   }, [totalValue, onPositionsValueChange]);
 
+  // Если нет позиций, не отображаем блок
+  if (positions.length === 0) {
+    return null;
+  }
+
   return (
     <Card className="w-full">
       <CardHeader 
