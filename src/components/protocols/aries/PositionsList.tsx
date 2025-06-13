@@ -17,6 +17,7 @@ interface Position {
   assetName: string;
   balance: string;
   value: string;
+  type: 'deposit' | 'borrow';
   assetInfo: {
     name: string;
     symbol: string;
@@ -117,6 +118,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
                     assetName: symbol,
                     balance: deposit.collateral_coins.toString(),
                     value: deposit.collateral_value.toString(),
+                    type: 'deposit',
                     assetInfo: {
                       name: tokenInfo?.name || symbol,
                       symbol: symbol,
@@ -138,6 +140,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
                     assetName: symbol,
                     balance: borrow.borrowed_coins.toString(),
                     value: borrow.borrowed_value.toString(),
+                    type: 'borrow',
                     assetInfo: {
                       name: tokenInfo?.name || symbol,
                       symbol: symbol,
@@ -213,6 +216,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
               const tokenInfo = getTokenInfo(position.assetName);
               const amount = parseFloat(position.balance) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
               const value = parseFloat(position.value);
+              const isBorrow = position.type === 'borrow';
               
               return (
                 <div key={`${position.assetName}-${index}`} className="mb-2">
@@ -230,15 +234,34 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
                         </div>
                       )}
                       <div>
-                        <div className="text-sm font-medium">{position.assetName}</div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                          <div className={cn(
+                            "text-sm font-medium",
+                            isBorrow && "text-red-500"
+                          )}>{position.assetName}</div>
+                          {isBorrow && (
+                            <div className="text-xs px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 border border-red-500/20">
+                              Borrow
+                            </div>
+                          )}
+                        </div>
+                        <div className={cn(
+                          "text-xs",
+                          isBorrow ? "text-red-400" : "text-muted-foreground"
+                        )}>
                           ${parseFloat(position.assetInfo.price).toFixed(2)}
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-sm font-medium">${value.toFixed(2)}</div>
-                      <div className="text-xs text-muted-foreground">{amount.toFixed(4)}</div>
+                      <div className={cn(
+                        "text-sm font-medium",
+                        isBorrow && "text-red-500"
+                      )}>${value.toFixed(2)}</div>
+                      <div className={cn(
+                        "text-xs",
+                        isBorrow ? "text-red-400" : "text-muted-foreground"
+                      )}>{amount.toFixed(4)}</div>
                     </div>
                   </div>
                 </div>
