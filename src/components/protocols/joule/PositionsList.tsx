@@ -21,9 +21,26 @@ export function PositionsList({ address, onPositionsValueChange, mockData }: Pos
   const [error, setError] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(true);
   const [totalValue, setTotalValue] = useState(0);
+  const [positionValues, setPositionValues] = useState<{ [key: string]: number }>({});
 
   const walletAddress = address || account?.address?.toString();
   const protocol = getProtocolByName("Joule");
+
+  const handlePositionValueChange = (positionKey: string, value: number) => {
+    setPositionValues(prev => ({
+      ...prev,
+      [positionKey]: value
+    }));
+  };
+
+  useEffect(() => {
+    const total = Object.values(positionValues).reduce((sum, value) => sum + value, 0);
+    setTotalValue(total);
+  }, [positionValues]);
+
+  useEffect(() => {
+    onPositionsValueChange?.(totalValue);
+  }, [totalValue, onPositionsValueChange]);
 
   useEffect(() => {
     async function loadPositions() {
@@ -70,10 +87,6 @@ export function PositionsList({ address, onPositionsValueChange, mockData }: Pos
     loadPositions();
   }, [walletAddress, mockData]);
 
-  useEffect(() => {
-    onPositionsValueChange?.(totalValue);
-  }, [totalValue, onPositionsValueChange]);
-
   if (positions.length === 0) {
     return null;
   }
@@ -113,7 +126,11 @@ export function PositionsList({ address, onPositionsValueChange, mockData }: Pos
         <CardContent className="flex-1 overflow-y-auto px-3 pt-0">
           <ScrollArea className="h-full">
             {positions.map((position, index) => (
-              <PositionCard key={`${position.key}-${index}`} position={position.value} />
+              <PositionCard 
+                key={`${position.key}-${index}`} 
+                position={position.value}
+                onPositionValueChange={(value) => handlePositionValueChange(position.key, value)}
+              />
             ))}
           </ScrollArea>
         </CardContent>
