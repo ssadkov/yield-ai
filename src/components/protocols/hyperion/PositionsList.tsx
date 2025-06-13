@@ -93,7 +93,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
   }
 
   if (positions.length === 0) {
-    return <div className="text-sm text-muted-foreground">No positions found</div>;
+    return null;
   }
 
   // Сортируем позиции по убыванию общей стоимости (включая награды)

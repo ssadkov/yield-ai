@@ -72,22 +72,25 @@ export default function Sidebar() {
       {account?.address && (
         <div className="mt-4 space-y-4">
           <PortfolioCard totalValue={totalValue} tokens={tokens} />
-          <HyperionPositionsList 
-            address={account.address.toString()} 
-            onPositionsValueChange={handleHyperionValueChange}
-          />
-          <EchelonPositionsList 
-            address={account.address.toString()} 
-            onPositionsValueChange={handleEchelonValueChange}
-          />
-          <AriesPositionsList 
-            address={account.address.toString()} 
-            onPositionsValueChange={handleAriesValueChange}
-          />
-          <JoulePositionsList 
-            address={account.address.toString()} 
-            onPositionsValueChange={handleJouleValueChange}
-          />
+          {[
+            { component: HyperionPositionsList, value: hyperionValue, name: 'Hyperion' },
+            { component: EchelonPositionsList, value: echelonValue, name: 'Echelon' },
+            { component: AriesPositionsList, value: ariesValue, name: 'Aries' },
+            { component: JoulePositionsList, value: jouleValue, name: 'Joule' }
+          ]
+            .sort((a, b) => b.value - a.value)
+            .map(({ component: Component, name }) => (
+              <Component
+                key={name}
+                address={account.address.toString()}
+                onPositionsValueChange={
+                  name === 'Hyperion' ? handleHyperionValueChange :
+                  name === 'Echelon' ? handleEchelonValueChange :
+                  name === 'Aries' ? handleAriesValueChange :
+                  handleJouleValueChange
+                }
+              />
+            ))}
         </div>
       )}
     </div>
