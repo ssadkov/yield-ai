@@ -8,16 +8,24 @@ interface FungibleAssetBalance {
 }
 
 export class AptosWalletService {
+  private static instance: AptosWalletService;
   private aptos: Aptos;
   private baseUrl: string;
 
-  constructor() {
+  private constructor() {
     const config = new AptosConfig({
       network: (process.env.APTOS_NETWORK as Network) || Network.MAINNET,
     });
     this.aptos = new Aptos(config);
     this.baseUrl = 'https://indexer.mainnet.aptoslabs.com/v1/graphql';
     console.log('AptosWalletService initialized with baseUrl:', this.baseUrl);
+  }
+
+  public static getInstance(): AptosWalletService {
+    if (!AptosWalletService.instance) {
+      AptosWalletService.instance = new AptosWalletService();
+    }
+    return AptosWalletService.instance;
   }
 
   async getBalances(address: string) {

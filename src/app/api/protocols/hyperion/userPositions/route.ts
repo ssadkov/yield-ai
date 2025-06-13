@@ -58,14 +58,27 @@ export async function GET(request: Request) {
 
     // Получаем данные из внешнего API
     const externalApiUrl = `https://yield-a.vercel.app/api/hyperion/userPositions?address=${address}`;
-    const response = await fetch(externalApiUrl);
+    const response = await fetch(externalApiUrl, {
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
     
     if (!response.ok) {
       throw new Error(`External API returned ${response.status}`);
     }
 
     const data = await response.json();
-    return NextResponse.json(data);
+    return NextResponse.json(data, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
   } catch (error) {
     console.error("Error fetching Hyperion user positions:", error);
     return NextResponse.json(

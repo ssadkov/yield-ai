@@ -13,7 +13,7 @@ export function WalletConnect() {
   const handleConnect = async () => {
     try {
       console.log("Connecting wallet...");
-      const walletService = new AptosWalletService();
+      const walletService = AptosWalletService.getInstance();
       const connectedAddress = await walletService.connect();
       console.log("Connected address:", connectedAddress);
       setAddress(connectedAddress);

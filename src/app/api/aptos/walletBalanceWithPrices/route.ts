@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Получаем балансы
-    const walletService = new AptosWalletService();
+    const walletService = AptosWalletService.getInstance();
     const { balances } = await walletService.getBalances(address);
 
     // Получаем цены токенов
@@ -65,5 +65,16 @@ export async function GET(request: NextRequest) {
       { error: 'Failed to fetch wallet balance with prices' },
       { status: 500 }
     );
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const { address } = await request.json();
+    const walletService = AptosWalletService.getInstance();
+    // ... rest of the code ...
+  } catch (error) {
+    console.error('Error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 } 

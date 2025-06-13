@@ -18,7 +18,7 @@ export class AptosPortfolioService {
   private pricesService: PanoraPricesService;
 
   constructor() {
-    this.walletService = new AptosWalletService();
+    this.walletService = AptosWalletService.getInstance();
     this.pricesService = PanoraPricesService.getInstance();
   }
 
