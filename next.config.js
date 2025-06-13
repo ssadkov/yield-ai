@@ -11,6 +11,12 @@ const nextConfig = {
         port: '',
         pathname: '/tokens/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'ariesmarkets.xyz',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
 }

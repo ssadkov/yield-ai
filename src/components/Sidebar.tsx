@@ -8,6 +8,7 @@ import { Token } from "@/lib/types/token";
 import { Logo } from "./ui/logo";
 import { PositionsList as HyperionPositionsList } from "./protocols/hyperion/PositionsList";
 import { PositionsList as EchelonPositionsList } from "./protocols/echelon/PositionsList";
+import { PositionsList as AriesPositionsList } from "./protocols/aries/PositionsList";
 
 export default function Sidebar() {
   const { account } = useWallet();
@@ -15,6 +16,7 @@ export default function Sidebar() {
   const [totalValue, setTotalValue] = useState<string>("0");
   const [hyperionValue, setHyperionValue] = useState<number>(0);
   const [echelonValue, setEchelonValue] = useState<number>(0);
+  const [ariesValue, setAriesValue] = useState<number>(0);
 
   useEffect(() => {
     async function loadPortfolio() {
@@ -30,14 +32,14 @@ export default function Sidebar() {
         }, 0);
 
         setTokens(portfolio.tokens);
-        setTotalValue((total + hyperionValue + echelonValue).toFixed(2));
+        setTotalValue((total + hyperionValue + echelonValue + ariesValue).toFixed(2));
       } catch (error) {
         console.error("Failed to load portfolio:", error);
       }
     }
 
     loadPortfolio();
-  }, [account?.address, hyperionValue, echelonValue]);
+  }, [account?.address, hyperionValue, echelonValue, ariesValue]);
 
   // Обработчики изменения суммы позиций в протоколах
   const handleHyperionValueChange = (value: number) => {
@@ -46,6 +48,10 @@ export default function Sidebar() {
 
   const handleEchelonValueChange = (value: number) => {
     setEchelonValue(value);
+  };
+
+  const handleAriesValueChange = (value: number) => {
+    setAriesValue(value);
   };
 
   return (
@@ -67,6 +73,10 @@ export default function Sidebar() {
           <EchelonPositionsList 
             address={account.address.toString()} 
             onPositionsValueChange={handleEchelonValueChange}
+          />
+          <AriesPositionsList 
+            address={account.address.toString()} 
+            onPositionsValueChange={handleAriesValueChange}
           />
         </div>
       )}

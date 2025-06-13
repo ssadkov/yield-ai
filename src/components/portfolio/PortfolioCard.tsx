@@ -32,11 +32,14 @@ export function PortfolioCard({ totalValue, tokens }: PortfolioCardProps) {
     return sum + (isNaN(value) ? 0 : value);
   }, 0);
 
+  // Преобразуем totalValue в число для отображения
+  const displayTotalValue = parseFloat(totalValue) || 0;
+
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
         <span className="text-lg font-medium">Assets</span>
-        <span className="text-lg font-medium">${totalValue}</span>
+        <span className="text-lg font-medium">${displayTotalValue.toFixed(2)}</span>
       </div>
       <div className="flex items-center space-x-2 mb-2">
         <Checkbox 
