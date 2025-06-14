@@ -112,12 +112,6 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
     setDropTarget(null);
   };
 
-  const getActionType = (item: InvestmentData): InvestmentAction => {
-    if (item.depositApy > 0) return 'Invest';
-    if (item.borrowAPY > 0) return 'Borrow';
-    return 'Stake';
-  };
-
   const topInvestments = [...data]
     .sort((a, b) => b.totalAPY - a.totalAPY)
     .slice(0, 3);
@@ -214,7 +208,7 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
                         <div className="text-2xl font-bold">{item.totalAPY.toFixed(2)}%</div>
                         <p className="text-xs text-muted-foreground">Total APY</p>
                         <Button className="mt-4 w-full" variant="secondary">
-                          {getActionType(item)}
+                          Deposit
                         </Button>
                       </CardContent>
                     </Card>
@@ -280,7 +274,7 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
                           <div className="text-2xl font-bold">{item.totalAPY.toFixed(2)}%</div>
                           <p className="text-xs text-muted-foreground">Total APY</p>
                           <Button className="mt-4 w-full" variant="secondary">
-                            {getActionType(item)}
+                            Deposit
                           </Button>
                         </CardContent>
                       </Card>
@@ -355,7 +349,7 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
                         <div className="text-2xl font-bold">{bestPool.totalAPY.toFixed(2)}%</div>
                         <p className="text-xs text-muted-foreground">Total APY</p>
                         <Button className="mt-4 w-full" variant="secondary">
-                          {getActionType(bestPool)}
+                          Deposit
                         </Button>
                       </CardContent>
                     </Card>
@@ -376,8 +370,8 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
                   <TableHead>Protocol</TableHead>
                   <TableHead>
                     <Tooltip>
-                      <TooltipTrigger>Deposit APY</TooltipTrigger>
-                      <TooltipContent>Annual % yield from deposit</TooltipContent>
+                      <TooltipTrigger>Supply APY</TooltipTrigger>
+                      <TooltipContent>Annual % yield from supply</TooltipContent>
                     </Tooltip>
                   </TableHead>
                   <TableHead>
@@ -386,12 +380,15 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
                       <TooltipContent>Annual % cost or reward from borrowing</TooltipContent>
                     </Tooltip>
                   </TableHead>
-                  <TableHead>Total APY</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {data
+                  .filter(item => {
+                    const tokenInfo = getTokenInfo(item.asset, item.token);
+                    return item.asset.includes('::') || tokenInfo;
+                  })
                   .sort((a, b) => b.totalAPY - a.totalAPY)
                   .map((item, index) => {
                     const tokenInfo = getTokenInfo(item.asset, item.token);
@@ -440,12 +437,11 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
                         <TableCell>
                           <Badge variant="outline">{item.protocol}</Badge>
                         </TableCell>
-                        <TableCell>{item.depositApy ? `${item.depositApy.toFixed(2)}%` : "-"}</TableCell>
-                        <TableCell>{item.borrowAPY ? `${item.borrowAPY.toFixed(2)}%` : "-"}</TableCell>
                         <TableCell>{item.totalAPY.toFixed(2)}%</TableCell>
+                        <TableCell>{item.borrowAPY ? `${item.borrowAPY.toFixed(2)}%` : "-"}</TableCell>
                         <TableCell className="text-right">
                           <Button variant="secondary" size="sm">
-                            {getActionType(item)}
+                            Deposit
                           </Button>
                         </TableCell>
                       </TableRow>
