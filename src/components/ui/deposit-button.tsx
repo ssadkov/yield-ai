@@ -12,29 +12,48 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useState } from "react";
+import { DepositModal } from "./deposit-modal";
 
 interface DepositButtonProps {
   protocol: Protocol;
   className?: string;
+  tokenIn?: {
+    symbol: string;
+    logo: string;
+    decimals: number;
+  };
+  balance?: bigint;
+  priceUSD?: number;
 }
 
-export function DepositButton({ protocol, className }: DepositButtonProps) {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+export function DepositButton({ 
+  protocol, 
+  className,
+  tokenIn,
+  balance,
+  priceUSD,
+}: DepositButtonProps) {
+  const [isExternalDialogOpen, setIsExternalDialogOpen] = useState(false);
+  const [isNativeDialogOpen, setIsNativeDialogOpen] = useState(false);
 
   const handleClick = () => {
     if (protocol.depositType === 'external') {
-      setIsDialogOpen(true);
-    } else {
-      // TODO: Handle native deposit
-      console.log('Native deposit for', protocol.name);
+      setIsExternalDialogOpen(true);
+    } else if (protocol.depositType === 'native' && tokenIn && balance && priceUSD) {
+      setIsNativeDialogOpen(true);
     }
   };
 
-  const handleConfirm = () => {
+  const handleExternalConfirm = () => {
     if (protocol.depositUrl) {
       window.open(protocol.depositUrl, '_blank');
     }
-    setIsDialogOpen(false);
+    setIsExternalDialogOpen(false);
+  };
+
+  const handleNativeConfirm = (data: { amount: bigint }) => {
+    console.log('Native deposit:', data);
+    setIsNativeDialogOpen(false);
   };
 
   return (
@@ -50,7 +69,7 @@ export function DepositButton({ protocol, className }: DepositButtonProps) {
         )}
       </Button>
 
-      <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <AlertDialog open={isExternalDialogOpen} onOpenChange={setIsExternalDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Go to protocol website?</AlertDialogTitle>
@@ -60,10 +79,27 @@ export function DepositButton({ protocol, className }: DepositButtonProps) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirm}>Continue</AlertDialogAction>
+            <AlertDialogAction onClick={handleExternalConfirm}>Continue</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {protocol.depositType === 'native' && tokenIn && balance && priceUSD && (
+        <DepositModal
+          isOpen={isNativeDialogOpen}
+          onClose={() => setIsNativeDialogOpen(false)}
+          onConfirm={handleNativeConfirm}
+          protocol={{
+            name: protocol.name,
+            logo: protocol.logoUrl,
+            apy: 8.4, // TODO: Get from protocol data
+          }}
+          tokenIn={tokenIn}
+          tokenOut={tokenIn}
+          balance={balance}
+          priceUSD={priceUSD}
+        />
+      )}
     </>
   );
 } 

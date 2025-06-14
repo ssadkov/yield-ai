@@ -239,6 +239,13 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
                           <DepositButton 
                             protocol={getProtocolByName(item.protocol)!} 
                             className="mt-4 w-full"
+                            tokenIn={{
+                              symbol: item.asset,
+                              logo: tokenInfo?.logoUrl || '',
+                              decimals: tokenInfo?.decimals || 8
+                            }}
+                            balance={BigInt(1000000000)} // TODO: Get real balance
+                            priceUSD={Number(tokenInfo?.usdPrice || 0)}
                           />
                         </CardContent>
                       </Card>
@@ -319,6 +326,13 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
                         <DepositButton 
                           protocol={getProtocolByName(bestPool.protocol)!} 
                           className="mt-4 w-full"
+                          tokenIn={{
+                            symbol: bestPool.asset,
+                            logo: tokenInfo?.logoUrl || '',
+                            decimals: tokenInfo?.decimals || 8
+                          }}
+                          balance={BigInt(1000000000)} // TODO: Get real balance
+                          priceUSD={Number(tokenInfo?.usdPrice || 0)}
                         />
                       </CardContent>
                     </Card>
@@ -436,6 +450,13 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
                           <DepositButton 
                             protocol={getProtocolByName(item.protocol)!} 
                             className="mt-4 w-full"
+                            tokenIn={{
+                              symbol: item.asset,
+                              logo: tokenInfo?.logoUrl || '',
+                              decimals: tokenInfo?.decimals || 8
+                            }}
+                            balance={BigInt(1000000000)} // TODO: Get real balance
+                            priceUSD={Number(tokenInfo?.usdPrice || 0)}
                           />
                         </TableCell>
                       </TableRow>
