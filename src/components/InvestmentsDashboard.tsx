@@ -21,6 +21,8 @@ import { ConfirmModal } from "@/components/ui/confirm-modal";
 import tokenList from "@/lib/data/tokenList.json";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import { DepositButton } from "@/components/ui/deposit-button";
+import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 
 interface YieldIdeasProps {
   className?: string;
@@ -223,9 +225,10 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
                       <CardContent>
                         <div className="text-2xl font-bold">{item.totalAPY.toFixed(2)}%</div>
                         <p className="text-xs text-muted-foreground">Total APY</p>
-                        <Button className="mt-4 w-full" variant="secondary">
-                          Deposit
-                        </Button>
+                        <DepositButton 
+                          protocol={getProtocolByName(item.protocol)!} 
+                          className="mt-4 w-full"
+                        />
                       </CardContent>
                     </Card>
                   );
@@ -289,9 +292,10 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
                         <CardContent>
                           <div className="text-2xl font-bold">{item.totalAPY.toFixed(2)}%</div>
                           <p className="text-xs text-muted-foreground">Total APY</p>
-                          <Button className="mt-4 w-full" variant="secondary">
-                            Deposit
-                          </Button>
+                          <DepositButton 
+                            protocol={getProtocolByName(item.protocol)!} 
+                            className="mt-4 w-full"
+                          />
                         </CardContent>
                       </Card>
                     );
@@ -364,9 +368,10 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
                       <CardContent>
                         <div className="text-2xl font-bold">{bestPool.totalAPY.toFixed(2)}%</div>
                         <p className="text-xs text-muted-foreground">Total APY</p>
-                        <Button className="mt-4 w-full" variant="secondary">
-                          Deposit
-                        </Button>
+                        <DepositButton 
+                          protocol={getProtocolByName(bestPool.protocol)!} 
+                          className="mt-4 w-full"
+                        />
                       </CardContent>
                     </Card>
                   );
@@ -480,9 +485,10 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
                         <TableCell>{item.totalAPY.toFixed(2)}%</TableCell>
                         <TableCell>{item.borrowAPY ? `${item.borrowAPY.toFixed(2)}%` : "-"}</TableCell>
                         <TableCell className="text-right">
-                          <Button variant="secondary" size="sm">
-                            Deposit
-                          </Button>
+                          <DepositButton 
+                            protocol={getProtocolByName(item.protocol)!} 
+                            className="mt-4 w-full"
+                          />
                         </TableCell>
                       </TableRow>
                     );

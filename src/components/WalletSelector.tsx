@@ -133,6 +133,8 @@ export function WalletSelector(walletSortingOptions: WalletSortingOptions) {
       </DialogTrigger>
       <ConnectWalletDialog close={closeDialog} {...walletSortingOptions} />
     </Dialog>
+
+    
   );
 }
 

@@ -6,6 +6,9 @@ export interface Protocol {
   url: string;
   logoUrl: string;
   description: string;
+  depositType: 'native' | 'external' | 'none';
+  depositUrl?: string;
+  isDepositEnabled: boolean;
 }
 
 export function getProtocolsList(): Protocol[] {
