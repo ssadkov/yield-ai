@@ -63,6 +63,13 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
     return undefined;
   };
 
+  const getProvider = (item: InvestmentData): string => {
+    if (item.provider !== 'Unknown') return item.provider;
+    
+    const tokenInfo = getTokenInfo(item.asset, item.token);
+    return tokenInfo?.bridge || 'Unknown';
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -433,7 +440,7 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
                             </Tooltip>
                           </TooltipProvider>
                         </TableCell>
-                        <TableCell>{item.provider}</TableCell>
+                        <TableCell>{getProvider(item)}</TableCell>
                         <TableCell>
                           <Badge variant="outline">{item.protocol}</Badge>
                         </TableCell>
