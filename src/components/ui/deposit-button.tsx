@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ExternalLink } from "lucide-react";
 import { Protocol } from "@/lib/protocols/getProtocolsList";
+import { ProtocolKey } from "@/lib/transactions/types";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -94,17 +95,22 @@ export function DepositButton({
         </AlertDialogContent>
       </AlertDialog>
 
-      {protocol.depositType === 'native' && tokenIn && balance && priceUSD && (
+      {protocol.depositType === 'native' && tokenIn && tokenIn.address && balance && priceUSD && (
         <DepositModal
           isOpen={isNativeDialogOpen}
           onClose={() => setIsNativeDialogOpen(false)}
-          onConfirm={handleNativeConfirm}
           protocol={{
             name: protocol.name,
             logo: protocol.logoUrl,
             apy: 8.4, // TODO: Get from protocol data
+            key: protocol.name.toLowerCase() as ProtocolKey
           }}
-          tokenIn={tokenIn}
+          tokenIn={{
+            symbol: tokenIn.symbol,
+            logo: tokenIn.logo,
+            decimals: tokenIn.decimals,
+            address: tokenIn.address
+          }}
           tokenOut={tokenIn}
           priceUSD={priceUSD}
         />

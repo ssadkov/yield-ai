@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Image from "next/image";
 import { ChevronDown } from "lucide-react";
 import {
@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,49 +25,52 @@ import { calcYield } from "@/lib/utils/calcYield";
 import { useWalletData } from '@/contexts/WalletContext';
 import { Token } from '@/lib/types/panora';
 import tokenList from "@/lib/data/tokenList.json";
+import { useDeposit } from "@/lib/hooks/useDeposit";
+import { ProtocolKey } from "@/lib/transactions/types";
+import { Loader2 } from "lucide-react";
+import { Label } from "@/components/ui/label";
 
-interface DepositModalContentProps {
-  tokenIn: {
-    symbol: string;
-    logo: string;
-    decimals: number;
-    address?: string;
-  };
-  tokenOut: {
-    symbol: string;
-    logo: string;
-    address?: string;
-    decimals: number;
-  };
+interface DepositModalProps {
+  isOpen: boolean;
+  onClose(): void;
   protocol: {
     name: string;
     logo: string;
     apy: number;
+    key: ProtocolKey;
+  };
+  tokenIn: {
+    symbol: string;
+    logo: string;
+    decimals: number;
+    address: string;
+  };
+  tokenOut: {
+    symbol: string;
+    logo: string;
+    decimals: number;
   };
   priceUSD: number;
-  onClose: () => void;
-  onConfirm: (data: { amount: bigint }) => void;
 }
 
-export function DepositModalContent({
+export function DepositModal({
+  isOpen,
+  onClose,
+  protocol,
   tokenIn,
   tokenOut,
-  protocol,
   priceUSD,
-  onClose,
-  onConfirm,
-}: DepositModalContentProps) {
-  const [isYieldExpanded, setIsYieldExpanded] = useState(false);
+}: DepositModalProps) {
   const { tokens } = useWalletData();
+  const [isLoading, setIsLoading] = useState(false);
+  const { deposit } = useDeposit();
+  const [isYieldExpanded, setIsYieldExpanded] = useState(false);
 
   // Получаем информацию о токене из списка токенов
   const getTokenInfo = (address: string): Token | undefined => {
-    console.log('Searching token by address:', address);
-    const token = (tokenList.data.data as Token[]).find(token => 
+    return (tokenList.data.data as Token[]).find(token => 
       token.tokenAddress === address || token.faAddress === address
     );
-    console.log('Found token:', token);
-    return token;
   };
   
   // Находим текущий токен в кошельке по адресу
@@ -74,8 +78,6 @@ export function DepositModalContent({
     const tokenInfo = getTokenInfo(t.address);
     return tokenInfo && (tokenInfo.tokenAddress === tokenIn.address || tokenInfo.faAddress === tokenIn.address);
   });
-  console.log('Current token from wallet:', currentToken);
-  console.log('TokenIn props:', tokenIn);
   
   // Используем реальный баланс из кошелька
   const walletBalance = currentToken ? BigInt(currentToken.amount) : BigInt(0);
@@ -92,169 +94,206 @@ export function DepositModalContent({
     decimals: tokenIn.decimals,
   });
 
+  // Debug info
+  useEffect(() => {
+    console.log('Button state:', {
+      isValid,
+      isLoading,
+      hasTokenAddress: !!tokenIn.address,
+      hasProtocolKey: !!protocol.key,
+      amount: amount.toString(),
+      amountString,
+      walletBalance: walletBalance.toString()
+    });
+  }, [isValid, isLoading, tokenIn.address, protocol.key, amount, amountString, walletBalance]);
+
+  // Символы для токенов
+  const tokenInfo = useMemo(() => 
+    tokenIn.address ? getTokenInfo(tokenIn.address) : undefined,
+    [tokenIn.address]
+  );
+  
+  const displaySymbol = useMemo(() => 
+    tokenInfo?.symbol || tokenIn.symbol,
+    [tokenInfo?.symbol, tokenIn.symbol]
+  );
+  
+  const displayTokenOutSymbol = useMemo(() => 
+    tokenOut.symbol,
+    [tokenOut.symbol]
+  );
+
+  // Доходность
+  const yieldResult = useMemo(() => 
+    calcYield(protocol.apy, amount, tokenIn.decimals),
+    [protocol.apy, amount, tokenIn.decimals]
+  );
+
   // Устанавливаем максимальное значение при открытии модального окна
   useEffect(() => {
-    if (currentToken) {
+    if (isOpen && currentToken) {
       setMax();
     }
-  }, [currentToken, setMax]);
+  }, [isOpen, currentToken, setMax]);
 
-  const yieldResult = calcYield(protocol.apy, amount, tokenIn.decimals);
-  const usdValue = Number(amount) / Math.pow(10, tokenIn.decimals) * priceUSD;
+  const handleDeposit = async () => {
+    try {
+      console.log('Starting deposit with:', {
+        protocolKey: protocol.key,
+        tokenAddress: tokenIn.address,
+        amount: amount.toString()
+      });
 
-  // Используем символ из списка токенов, если он есть
-  const tokenInfo = tokenIn.address ? getTokenInfo(tokenIn.address) : undefined;
-  const displaySymbol = tokenInfo?.symbol || tokenIn.symbol;
-
-  // Получаем информацию о выходном токене
-  const tokenOutInfo = tokenOut.address ? getTokenInfo(tokenOut.address) : undefined;
-  const displayTokenOutSymbol = tokenOutInfo?.symbol || tokenOut.symbol;
+      await deposit(
+        protocol.key,
+        tokenIn.address,
+        amount
+      );
+      
+      onClose();
+    } catch (error) {
+      console.error('Deposit error:', error);
+    }
+  };
 
   return (
-    <DialogContent className="sm:max-w-[425px] p-6 rounded-2xl">
-      <DialogHeader>
-        <DialogTitle className="flex items-center gap-2">
-          <div className="w-8 h-8 relative">
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[425px] p-6 rounded-2xl">
+        <DialogHeader>
+          <div className="flex items-center gap-2">
             <Image
               src={protocol.logo}
               alt={protocol.name}
-              width={32}
-              height={32}
-              className="object-contain"
+              width={24}
+              height={24}
+              className="rounded-full"
             />
+            <DialogTitle>Deposit to {protocol.name}</DialogTitle>
           </div>
-          <span>Deposit on {protocol.name}</span>
-        </DialogTitle>
-      </DialogHeader>
+          <DialogDescription>
+            Enter amount to deposit {tokenIn.symbol}
+          </DialogDescription>
+        </DialogHeader>
 
-      <div className="flex items-center justify-center gap-2 py-4">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 relative">
-            <Image
-              src={tokenIn.logo}
-              alt={displaySymbol}
-              width={32}
-              height={32}
-              className="object-contain"
-            />
-          </div>
-          <span>{displaySymbol}</span>
-        </div>
-        <span>→</span>
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 relative">
-            <Image
-              src={tokenOut.logo}
-              alt={displayTokenOutSymbol}
-              width={32}
-              height={32}
-              className="object-contain"
-            />
-          </div>
-          <span>{displayTokenOutSymbol}</span>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Input
-            type="number"
-            value={amountString}
-            onChange={(e) => setAmountFromString(e.target.value)}
-            className="flex-1"
-          />
-          <div className="text-sm text-muted-foreground">
-            ≈ ${usdValue.toFixed(2)}
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={setHalf}>
-            Half
-          </Button>
-          <Button variant="outline" size="sm" onClick={setMax}>
-            Max
-          </Button>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <div
-          className="flex items-center justify-between cursor-pointer"
-          onClick={() => setIsYieldExpanded(!isYieldExpanded)}
-        >
-          <div className="flex items-center gap-4">
-            <div className="text-sm text-muted-foreground">
-              APY {protocol.apy.toFixed(2)}%
+        <div className="flex items-center justify-center gap-2 py-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 relative">
+              <Image
+                src={tokenIn.logo}
+                alt={displaySymbol}
+                width={32}
+                height={32}
+                className="object-contain"
+              />
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xl font-bold">
-                ≈ ${yieldResult.daily.toFixed(2)}
-              </span>
-              <span className="text-sm text-muted-foreground">/day</span>
+            <span>{displaySymbol}</span>
+          </div>
+          <span>→</span>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 relative">
+              <Image
+                src={tokenOut.logo}
+                alt={displayTokenOutSymbol}
+                width={32}
+                height={32}
+                className="object-contain"
+              />
+            </div>
+            <span>{displayTokenOutSymbol}</span>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="amount" className="text-right">
+                Amount
+              </Label>
+              <div className="col-span-3 flex items-center gap-2">
+                <Input
+                  id="amount"
+                  type="number"
+                  value={amountString}
+                  onChange={(e) => setAmountFromString(e.target.value)}
+                  className="flex-1"
+                  placeholder="0.00"
+                />
+                <div className="flex items-center gap-1">
+                  <Image
+                    src={tokenIn.logo}
+                    alt={tokenIn.symbol}
+                    width={16}
+                    height={16}
+                    className="rounded-full"
+                  />
+                  <span className="text-sm">{tokenIn.symbol}</span>
+                </div>
+              </div>
+            </div>
+
+            {amountString && (
+              <div className="text-sm text-muted-foreground">
+                ≈ ${(parseFloat(amountString) * priceUSD).toFixed(2)}
+              </div>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={setHalf}>
+              Half
+            </Button>
+            <Button variant="outline" size="sm" onClick={setMax}>
+              Max
+            </Button>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <div
+            className="flex items-center justify-between cursor-pointer"
+            onClick={() => setIsYieldExpanded(!isYieldExpanded)}
+          >
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-muted-foreground">
+                APY {protocol.apy.toFixed(2)}%
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xl font-bold">
+                  ≈ ${yieldResult.daily.toFixed(2)}
+                </span>
+                <span className="text-sm text-muted-foreground">/day</span>
+              </div>
             </div>
           </div>
-          <ChevronDown
-            className={`h-4 w-4 transition-transform ${
-              isYieldExpanded ? "rotate-180" : ""
-            }`}
-          />
+          {isYieldExpanded && (
+            <div className="space-y-1 text-sm text-muted-foreground">
+              <div>≈ ${yieldResult.weekly.toFixed(2)} /week</div>
+              <div>≈ ${yieldResult.monthly.toFixed(2)} /month</div>
+              <div>≈ ${yieldResult.yearly.toFixed(2)} /year</div>
+            </div>
+          )}
         </div>
-        {isYieldExpanded && (
-          <div className="space-y-1 text-sm text-muted-foreground">
-            <div>≈ ${yieldResult.weekly.toFixed(2)} /week</div>
-            <div>≈ ${yieldResult.monthly.toFixed(2)} /month</div>
-            <div>≈ ${yieldResult.yearly.toFixed(2)} /year</div>
-          </div>
-        )}
-      </div>
 
-      <Separator />
+        <Separator />
 
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button
-          onClick={() => onConfirm({ amount })}
-          disabled={!isValid}
-        >
-          Deposit
-        </Button>
-      </div>
-    </DialogContent>
-  );
-}
-
-interface DepositModalProps {
-  isOpen: boolean;
-  onClose(): void;
-  onConfirm(data: { amount: bigint }): void;
-
-  protocol: {
-    name: string;
-    logo: string;
-    apy: number;
-  };
-
-  tokenIn: {
-    symbol: string;
-    logo: string;
-    decimals: number;
-    address?: string;
-  };
-  tokenOut: {
-    symbol: string;
-    logo: string;
-    decimals: number;
-  };
-
-  priceUSD: number;
-}
-
-export function DepositModal(props: DepositModalProps) {
-  return (
-    <Dialog open={props.isOpen} onOpenChange={props.onClose}>
-      <DepositModalContent {...props} />
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeposit}
+            disabled={!isValid || isLoading || !tokenIn.address || !protocol.key || amount === BigInt(0)}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              "Deposit"
+            )}
+          </Button>
+        </div>
+      </DialogContent>
     </Dialog>
   );
 } 

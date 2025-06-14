@@ -24,11 +24,18 @@ export function useAmountInput({ balance, decimals, initialValue }: UseAmountInp
     }
 
     try {
-      const floatValue = parseFloat(value);
-      if (isNaN(floatValue)) return;
-
-      const multiplier = BigInt(Math.pow(10, decimals));
-      const newAmount = BigInt(Math.floor(floatValue * Math.pow(10, decimals)));
+      // Разбиваем число на целую и дробную части
+      const [intPart, decPart = ''] = value.split('.');
+      
+      // Преобразуем целую часть в bigint
+      let newAmount = BigInt(intPart) * BigInt(Math.pow(10, decimals));
+      
+      // Добавляем дробную часть, если она есть
+      if (decPart) {
+        // Дополняем дробную часть нулями до нужного количества знаков
+        const paddedDecPart = decPart.padEnd(decimals, '0').slice(0, decimals);
+        newAmount += BigInt(paddedDecPart);
+      }
       
       if (newAmount > balance) {
         setAmount(balance);
