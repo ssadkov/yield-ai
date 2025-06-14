@@ -12,9 +12,9 @@ export interface Protocol {
 }
 
 export function getProtocolsList(): Protocol[] {
-  return protocolsList;
+  return protocolsList as Protocol[];
 }
 
 export function getProtocolByName(name: string): Protocol | undefined {
-  return protocolsList.find(protocol => protocol.name === name);
+  return (protocolsList as Protocol[]).find(protocol => protocol.name === name);
 } 
