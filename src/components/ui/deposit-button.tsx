@@ -98,17 +98,7 @@ export function DepositButton({
           }}
           tokenIn={tokenIn}
           tokenOut={tokenIn}
-          balance={balance}
           priceUSD={priceUSD}
-          debugInfo={{
-            walletAddress: walletData.address,
-            tokens: JSON.stringify(walletData.tokens.map(token => ({
-              symbol: token.symbol,
-              address: token.address,
-              amount: (Number(token.amount) / Math.pow(10, token.decimals)).toFixed(2),
-              value: token.value ? `$${Number(token.value).toFixed(2)}` : 'N/A'
-            })), null, 2)
-          }}
         />
       )}
     </>
