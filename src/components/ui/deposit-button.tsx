@@ -22,6 +22,7 @@ interface DepositButtonProps {
     symbol: string;
     logo: string;
     decimals: number;
+    address?: string;
   };
   balance?: bigint;
   priceUSD?: number;

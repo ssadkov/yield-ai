@@ -329,7 +329,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                           tokenIn={{
                             symbol: bestPool.asset,
                             logo: tokenInfo?.logoUrl || '',
-                            decimals: tokenInfo?.decimals || 8
+                            decimals: tokenInfo?.decimals || 8,
+                            address: bestPool.token
                           }}
                           balance={BigInt(1000000000)} // TODO: Get real balance
                           priceUSD={Number(tokenInfo?.usdPrice || 0)}
