@@ -60,7 +60,7 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
   const getTokenInfo = (asset: string, tokenAddress?: string): Token | undefined => {
     if (tokenAddress) {
       return (tokenList.data.data as Token[]).find(token => 
-        token.tokenAddress === tokenAddress
+        token.tokenAddress === tokenAddress || token.faAddress === tokenAddress
       );
     }
     return undefined;
