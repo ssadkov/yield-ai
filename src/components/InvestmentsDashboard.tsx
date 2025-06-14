@@ -54,15 +54,10 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
   const [dragData, setDragData] = useState<DragData | null>(null);
   const [dropTarget, setDropTarget] = useState<InvestmentData | null>(null);
 
-  const getTokenInfo = (asset: string): Token | undefined => {
-    if (asset.includes('::')) {
-      // Убираем префикс @ если он есть
-      const cleanAddress = asset.startsWith('@') ? asset.slice(1) : asset;
-      // Добавляем префикс 0x если его нет
-      const fullAddress = cleanAddress.startsWith('0x') ? cleanAddress : `0x${cleanAddress}`;
-      
+  const getTokenInfo = (asset: string, tokenAddress?: string): Token | undefined => {
+    if (tokenAddress) {
       return (tokenList.data.data as Token[]).find(token => 
-        token.tokenAddress === fullAddress || token.faAddress === fullAddress
+        token.tokenAddress === tokenAddress
       );
     }
     return undefined;
@@ -167,9 +162,9 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
         <TabsContent value="lite" className="mt-6">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {topInvestments.map((item, index) => {
-              const tokenInfo = getTokenInfo(item.asset);
+              const tokenInfo = getTokenInfo(item.asset, item.token);
               const displaySymbol = tokenInfo?.symbol || item.asset;
-              const logoUrl = tokenInfo?.logoUrl || `/tokens/${displaySymbol.toLowerCase()}.png`;
+              const logoUrl = tokenInfo?.logoUrl;
 
               return (
                 <Card 
@@ -185,8 +180,11 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
                           <TooltipTrigger asChild>
                             <div className="flex items-center gap-2">
                               <Avatar className="h-6 w-6">
-                                <AvatarImage src={logoUrl} />
-                                <AvatarFallback>{displaySymbol.slice(0, 2)}</AvatarFallback>
+                                {logoUrl ? (
+                                  <AvatarImage src={logoUrl} />
+                                ) : (
+                                  <AvatarFallback>{displaySymbol.slice(0, 2)}</AvatarFallback>
+                                )}
                               </Avatar>
                               {displaySymbol}
                             </div>
@@ -194,7 +192,7 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
                           <TooltipContent>
                             <div className="space-y-1">
                               <p className="font-medium">Token Info</p>
-                              <p className="text-xs">Address: {item.asset}</p>
+                              <p className="text-xs">Address: {item.token}</p>
                               {tokenInfo && (
                                 <>
                                   <p className="text-xs">Name: {tokenInfo.name}</p>
@@ -250,9 +248,9 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
                 {data
                   .sort((a, b) => b.totalAPY - a.totalAPY)
                   .map((item, index) => {
-                    const tokenInfo = getTokenInfo(item.asset);
+                    const tokenInfo = getTokenInfo(item.asset, item.token);
                     const displaySymbol = tokenInfo?.symbol || item.asset;
-                    const logoUrl = tokenInfo?.logoUrl || `/tokens/${displaySymbol.toLowerCase()}.png`;
+                    const logoUrl = tokenInfo?.logoUrl;
 
                     return (
                       <TableRow 
@@ -267,8 +265,11 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
                               <TooltipTrigger asChild>
                                 <div className="flex items-center gap-2">
                                   <Avatar className="h-6 w-6">
-                                    <AvatarImage src={logoUrl} />
-                                    <AvatarFallback>{displaySymbol.slice(0, 2)}</AvatarFallback>
+                                    {logoUrl ? (
+                                      <AvatarImage src={logoUrl} />
+                                    ) : (
+                                      <AvatarFallback>{displaySymbol.slice(0, 2)}</AvatarFallback>
+                                    )}
                                   </Avatar>
                                   {displaySymbol}
                                 </div>
@@ -276,7 +277,7 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
                               <TooltipContent>
                                 <div className="space-y-1">
                                   <p className="font-medium">Token Info</p>
-                                  <p className="text-xs">Address: {item.asset}</p>
+                                  <p className="text-xs">Address: {item.token}</p>
                                   {tokenInfo && (
                                     <>
                                       <p className="text-xs">Name: {tokenInfo.name}</p>
