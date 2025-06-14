@@ -10,7 +10,7 @@ export function useAmountInput({ balance, decimals, initialValue }: UseAmountInp
   const [amount, setAmount] = useState<bigint>(initialValue || balance);
 
   const setHalf = useCallback(() => {
-    setAmount(balance / 2n);
+    setAmount(balance / BigInt(2));
   }, [balance]);
 
   const setMax = useCallback(() => {
@@ -19,7 +19,7 @@ export function useAmountInput({ balance, decimals, initialValue }: UseAmountInp
 
   const setAmountFromString = useCallback((value: string) => {
     if (!value) {
-      setAmount(0n);
+      setAmount(BigInt(0));
       return;
     }
 
@@ -49,6 +49,6 @@ export function useAmountInput({ balance, decimals, initialValue }: UseAmountInp
     setAmountFromString,
     setHalf,
     setMax,
-    isValid: amount > 0n && amount <= balance
+    isValid: amount > BigInt(0) && amount <= balance
   };
 } 

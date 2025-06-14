@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { ChevronDown } from "lucide-react";
 import {
@@ -21,49 +21,48 @@ import {
 } from "@/components/ui/tooltip";
 import { useAmountInput } from "@/hooks/useAmountInput";
 import { calcYield } from "@/lib/utils/calcYield";
+import { useWalletData } from '@/contexts/WalletContext';
 
 interface DepositModalContentProps {
-  onClose(): void;
-  onConfirm(data: { amount: bigint }): void;
-
+  tokenIn: {
+    symbol: string;
+    logo: string;
+    decimals: number;
+    address?: string;
+  };
+  tokenOut: {
+    symbol: string;
+    logo: string;
+  };
   protocol: {
     name: string;
     logo: string;
     apy: number;
   };
-
-  tokenIn: {
-    symbol: string;
-    logo: string;
-    decimals: number;
-  };
-  tokenOut: {
-    symbol: string;
-    logo: string;
-    decimals: number;
-  };
-
-  balance: bigint;
   priceUSD: number;
-  debugInfo?: {
-    walletAddress?: string;
-    walletBalance?: string;
-    positions?: string;
-    tokens?: string;
-  };
+  onClose: () => void;
+  onConfirm: (data: { amount: bigint }) => void;
 }
 
-function DepositModalContent({
-  onClose,
-  onConfirm,
-  protocol,
+export function DepositModalContent({
   tokenIn,
   tokenOut,
-  balance,
+  protocol,
   priceUSD,
-  debugInfo,
+  onClose,
+  onConfirm,
 }: DepositModalContentProps) {
   const [isYieldExpanded, setIsYieldExpanded] = useState(false);
+  const { tokens } = useWalletData();
+
+  // Находим текущий токен в кошельке
+  const currentToken = tokens.find(t => 
+    t.address === tokenIn.address || t.symbol === tokenIn.symbol
+  );
+  
+  // Используем реальный баланс из кошелька
+  const walletBalance = currentToken ? BigInt(currentToken.amount) : BigInt(0);
+  
   const {
     amount,
     amountString,
@@ -72,9 +71,16 @@ function DepositModalContent({
     setMax,
     isValid,
   } = useAmountInput({
-    balance,
+    balance: walletBalance,
     decimals: tokenIn.decimals,
   });
+
+  // Устанавливаем максимальное значение при открытии модального окна
+  useEffect(() => {
+    if (currentToken) {
+      setMax();
+    }
+  }, [currentToken, setMax]);
 
   const yieldResult = calcYield(protocol.apy, amount, tokenIn.decimals);
   const usdValue = Number(amount) / Math.pow(10, tokenIn.decimals) * priceUSD;
@@ -179,17 +185,7 @@ function DepositModalContent({
 
       <Separator />
 
-      {debugInfo && (
-        <div className="mt-4 p-4 bg-muted rounded-lg text-xs font-mono">
-          <div>Address: {debugInfo.walletAddress || 'N/A'}</div>
-          <div>Tokens:</div>
-          <pre className="mt-2 overflow-auto max-h-40">
-            {debugInfo.tokens || '[]'}
-          </pre>
-        </div>
-      )}
-
-      <DialogFooter>
+      <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={onClose}>
           Cancel
         </Button>
@@ -199,7 +195,7 @@ function DepositModalContent({
         >
           Deposit
         </Button>
-      </DialogFooter>
+      </div>
     </DialogContent>
   );
 }
@@ -219,6 +215,7 @@ interface DepositModalProps {
     symbol: string;
     logo: string;
     decimals: number;
+    address?: string;
   };
   tokenOut: {
     symbol: string;
@@ -226,14 +223,7 @@ interface DepositModalProps {
     decimals: number;
   };
 
-  balance: bigint;
   priceUSD: number;
-  debugInfo?: {
-    walletAddress?: string;
-    walletBalance?: string;
-    positions?: string;
-    tokens?: string;
-  };
 }
 
 export function DepositModal(props: DepositModalProps) {
