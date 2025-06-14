@@ -242,7 +242,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                             tokenIn={{
                               symbol: item.asset,
                               logo: tokenInfo?.logoUrl || '',
-                              decimals: tokenInfo?.decimals || 8
+                              decimals: tokenInfo?.decimals || 8,
+                              address: item.token
                             }}
                             balance={BigInt(1000000000)} // TODO: Get real balance
                             priceUSD={Number(tokenInfo?.usdPrice || 0)}
@@ -454,7 +455,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                             tokenIn={{
                               symbol: item.asset,
                               logo: tokenInfo?.logoUrl || '',
-                              decimals: tokenInfo?.decimals || 8
+                              decimals: tokenInfo?.decimals || 8,
+                              address: item.token
                             }}
                             balance={BigInt(1000000000)} // TODO: Get real balance
                             priceUSD={Number(tokenInfo?.usdPrice || 0)}

@@ -22,6 +22,8 @@ import {
 import { useAmountInput } from "@/hooks/useAmountInput";
 import { calcYield } from "@/lib/utils/calcYield";
 import { useWalletData } from '@/contexts/WalletContext';
+import { Token } from '@/lib/types/panora';
+import tokenList from "@/lib/data/tokenList.json";
 
 interface DepositModalContentProps {
   tokenIn: {
@@ -33,6 +35,8 @@ interface DepositModalContentProps {
   tokenOut: {
     symbol: string;
     logo: string;
+    address?: string;
+    decimals: number;
   };
   protocol: {
     name: string;
@@ -55,10 +59,23 @@ export function DepositModalContent({
   const [isYieldExpanded, setIsYieldExpanded] = useState(false);
   const { tokens } = useWalletData();
 
-  // Находим текущий токен в кошельке
-  const currentToken = tokens.find(t => 
-    t.address === tokenIn.address || t.symbol === tokenIn.symbol
-  );
+  // Получаем информацию о токене из списка токенов
+  const getTokenInfo = (address: string): Token | undefined => {
+    console.log('Searching token by address:', address);
+    const token = (tokenList.data.data as Token[]).find(token => 
+      token.tokenAddress === address || token.faAddress === address
+    );
+    console.log('Found token:', token);
+    return token;
+  };
+  
+  // Находим текущий токен в кошельке по адресу
+  const currentToken = tokens.find(t => {
+    const tokenInfo = getTokenInfo(t.address);
+    return tokenInfo && (tokenInfo.tokenAddress === tokenIn.address || tokenInfo.faAddress === tokenIn.address);
+  });
+  console.log('Current token from wallet:', currentToken);
+  console.log('TokenIn props:', tokenIn);
   
   // Используем реальный баланс из кошелька
   const walletBalance = currentToken ? BigInt(currentToken.amount) : BigInt(0);
@@ -85,6 +102,14 @@ export function DepositModalContent({
   const yieldResult = calcYield(protocol.apy, amount, tokenIn.decimals);
   const usdValue = Number(amount) / Math.pow(10, tokenIn.decimals) * priceUSD;
 
+  // Используем символ из списка токенов, если он есть
+  const tokenInfo = tokenIn.address ? getTokenInfo(tokenIn.address) : undefined;
+  const displaySymbol = tokenInfo?.symbol || tokenIn.symbol;
+
+  // Получаем информацию о выходном токене
+  const tokenOutInfo = tokenOut.address ? getTokenInfo(tokenOut.address) : undefined;
+  const displayTokenOutSymbol = tokenOutInfo?.symbol || tokenOut.symbol;
+
   return (
     <DialogContent className="sm:max-w-[425px] p-6 rounded-2xl">
       <DialogHeader>
@@ -107,26 +132,26 @@ export function DepositModalContent({
           <div className="w-8 h-8 relative">
             <Image
               src={tokenIn.logo}
-              alt={tokenIn.symbol}
+              alt={displaySymbol}
               width={32}
               height={32}
               className="object-contain"
             />
           </div>
-          <span>{tokenIn.symbol}</span>
+          <span>{displaySymbol}</span>
         </div>
         <span>→</span>
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 relative">
             <Image
               src={tokenOut.logo}
-              alt={tokenOut.symbol}
+              alt={displayTokenOutSymbol}
               width={32}
               height={32}
               className="object-contain"
             />
           </div>
-          <span>{tokenOut.symbol}</span>
+          <span>{displayTokenOutSymbol}</span>
         </div>
       </div>
 

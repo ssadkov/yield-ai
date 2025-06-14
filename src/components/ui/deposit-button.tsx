@@ -24,6 +24,12 @@ interface DepositButtonProps {
     decimals: number;
     address?: string;
   };
+  tokenOut?: {
+    symbol: string;
+    logo: string;
+    address?: string;
+    decimals: number;
+  };
   balance?: bigint;
   priceUSD?: number;
 }
@@ -32,6 +38,7 @@ export function DepositButton({
   protocol, 
   className,
   tokenIn,
+  tokenOut = tokenIn,
   balance,
   priceUSD,
 }: DepositButtonProps) {
