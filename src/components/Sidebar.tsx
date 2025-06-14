@@ -2,7 +2,7 @@
 import { WalletSelector } from "./WalletSelector";
 import { PortfolioCard } from "./portfolio/PortfolioCard";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { AptosPortfolioService } from "@/lib/services/aptos/portfolio";
 import { Token } from "@/lib/types/token";
 import { Logo } from "./ui/logo";
@@ -20,6 +20,19 @@ export default function Sidebar() {
   const [ariesValue, setAriesValue] = useState<number>(0);
   const [jouleValue, setJouleValue] = useState<number>(0);
 
+  const updateTotalValue = useCallback(() => {
+    const total = tokens.reduce((sum, token) => {
+      const value = token.value ? parseFloat(token.value) : 0;
+      return sum + (isNaN(value) ? 0 : value);
+    }, 0);
+
+    setTotalValue((total + hyperionValue + echelonValue + ariesValue + jouleValue).toFixed(2));
+  }, [tokens, hyperionValue, echelonValue, ariesValue, jouleValue]);
+
+  useEffect(() => {
+    updateTotalValue();
+  }, [updateTotalValue]);
+
   useEffect(() => {
     async function loadPortfolio() {
       if (!account?.address) return;
@@ -27,38 +40,31 @@ export default function Sidebar() {
       try {
         const portfolioService = new AptosPortfolioService();
         const portfolio = await portfolioService.getPortfolio(account.address.toString());
-        
-        const total = portfolio.tokens.reduce((sum, token) => {
-          const value = token.value ? parseFloat(token.value) : 0;
-          return sum + (isNaN(value) ? 0 : value);
-        }, 0);
-
         setTokens(portfolio.tokens);
-        setTotalValue((total + hyperionValue + echelonValue + ariesValue + jouleValue).toFixed(2));
       } catch (error) {
         console.error("Failed to load portfolio:", error);
       }
     }
 
     loadPortfolio();
-  }, [account?.address, hyperionValue, echelonValue, ariesValue, jouleValue]);
+  }, [account?.address]);
 
   // Обработчики изменения суммы позиций в протоколах
-  const handleHyperionValueChange = (value: number) => {
+  const handleHyperionValueChange = useCallback((value: number) => {
     setHyperionValue(value);
-  };
+  }, []);
 
-  const handleEchelonValueChange = (value: number) => {
+  const handleEchelonValueChange = useCallback((value: number) => {
     setEchelonValue(value);
-  };
+  }, []);
 
-  const handleAriesValueChange = (value: number) => {
+  const handleAriesValueChange = useCallback((value: number) => {
     setAriesValue(value);
-  };
+  }, []);
 
-  const handleJouleValueChange = (value: number) => {
+  const handleJouleValueChange = useCallback((value: number) => {
     setJouleValue(value);
-  };
+  }, []);
 
   return (
     <div className="w-[340px] p-4 border-r">
