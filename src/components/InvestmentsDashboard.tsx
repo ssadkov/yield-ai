@@ -288,6 +288,81 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
                   })}
               </div>
             </div>
+
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Fundamentals</h3>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {[
+                  { symbol: 'APT', exact: true },
+                  { symbol: 'BTC', exact: false },
+                  { symbol: 'ETH', exact: false }
+                ].map(({ symbol, exact }) => {
+                  const bestPool = data
+                    .filter(item => exact 
+                      ? item.asset.toUpperCase() === symbol
+                      : item.asset.toUpperCase().includes(symbol)
+                    )
+                    .sort((a, b) => b.totalAPY - a.totalAPY)[0];
+
+                  if (!bestPool) return null;
+
+                  const tokenInfo = getTokenInfo(bestPool.asset, bestPool.token);
+                  const displaySymbol = tokenInfo?.symbol || bestPool.asset;
+                  const logoUrl = tokenInfo?.logoUrl;
+
+                  return (
+                    <Card 
+                      key={symbol}
+                      className="transition-colors hover:bg-accent/50"
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, bestPool)}
+                    >
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="flex items-center gap-2">
+                                  <Avatar className="h-6 w-6">
+                                    {logoUrl ? (
+                                      <AvatarImage src={logoUrl} />
+                                    ) : (
+                                      <AvatarFallback>{displaySymbol.slice(0, 2)}</AvatarFallback>
+                                    )}
+                                  </Avatar>
+                                  {displaySymbol}
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <div className="space-y-1">
+                                  <p className="font-medium">Token Info</p>
+                                  <p className="text-xs">Address: {bestPool.token}</p>
+                                  {tokenInfo && (
+                                    <>
+                                      <p className="text-xs">Name: {tokenInfo.name}</p>
+                                      <p className="text-xs">Symbol: {tokenInfo.symbol}</p>
+                                      <p className="text-xs">Price: ${tokenInfo.usdPrice}</p>
+                                    </>
+                                  )}
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </CardTitle>
+                        <Badge variant="outline">{bestPool.protocol}</Badge>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold">{bestPool.totalAPY.toFixed(2)}%</div>
+                        <p className="text-xs text-muted-foreground">Total APY</p>
+                        <Button className="mt-4 w-full" variant="secondary">
+                          {getActionType(bestPool)}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </TabsContent>
 
