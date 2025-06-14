@@ -160,63 +160,134 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
         </TabsList>
 
         <TabsContent value="lite" className="mt-6">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {topInvestments.map((item, index) => {
-              const tokenInfo = getTokenInfo(item.asset, item.token);
-              const displaySymbol = tokenInfo?.symbol || item.asset;
-              const logoUrl = tokenInfo?.logoUrl;
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Best APY</h3>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {topInvestments.map((item, index) => {
+                  const tokenInfo = getTokenInfo(item.asset, item.token);
+                  const displaySymbol = tokenInfo?.symbol || item.asset;
+                  const logoUrl = tokenInfo?.logoUrl;
 
-              return (
-                <Card 
-                  key={index}
-                  className="transition-colors hover:bg-accent/50"
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(e, item)}
-                >
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="flex items-center gap-2">
-                              <Avatar className="h-6 w-6">
-                                {logoUrl ? (
-                                  <AvatarImage src={logoUrl} />
-                                ) : (
-                                  <AvatarFallback>{displaySymbol.slice(0, 2)}</AvatarFallback>
-                                )}
-                              </Avatar>
-                              {displaySymbol}
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <div className="space-y-1">
-                              <p className="font-medium">Token Info</p>
-                              <p className="text-xs">Address: {item.token}</p>
-                              {tokenInfo && (
-                                <>
-                                  <p className="text-xs">Name: {tokenInfo.name}</p>
-                                  <p className="text-xs">Symbol: {tokenInfo.symbol}</p>
-                                  <p className="text-xs">Price: ${tokenInfo.usdPrice}</p>
-                                </>
-                              )}
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </CardTitle>
-                    <Badge variant="outline">{item.protocol}</Badge>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{item.totalAPY.toFixed(2)}%</div>
-                    <p className="text-xs text-muted-foreground">Total APY</p>
-                    <Button className="mt-4 w-full" variant="secondary">
-                      {getActionType(item)}
-                    </Button>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                  return (
+                    <Card 
+                      key={index}
+                      className="transition-colors hover:bg-accent/50"
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, item)}
+                    >
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="flex items-center gap-2">
+                                  <Avatar className="h-6 w-6">
+                                    {logoUrl ? (
+                                      <AvatarImage src={logoUrl} />
+                                    ) : (
+                                      <AvatarFallback>{displaySymbol.slice(0, 2)}</AvatarFallback>
+                                    )}
+                                  </Avatar>
+                                  {displaySymbol}
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <div className="space-y-1">
+                                  <p className="font-medium">Token Info</p>
+                                  <p className="text-xs">Address: {item.token}</p>
+                                  {tokenInfo && (
+                                    <>
+                                      <p className="text-xs">Name: {tokenInfo.name}</p>
+                                      <p className="text-xs">Symbol: {tokenInfo.symbol}</p>
+                                      <p className="text-xs">Price: ${tokenInfo.usdPrice}</p>
+                                    </>
+                                  )}
+                                </div>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </CardTitle>
+                        <Badge variant="outline">{item.protocol}</Badge>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold">{item.totalAPY.toFixed(2)}%</div>
+                        <p className="text-xs text-muted-foreground">Total APY</p>
+                        <Button className="mt-4 w-full" variant="secondary">
+                          {getActionType(item)}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Stables</h3>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {data
+                  .filter(item => item.asset.toUpperCase().includes('USD'))
+                  .sort((a, b) => b.totalAPY - a.totalAPY)
+                  .slice(0, 3)
+                  .map((item, index) => {
+                    const tokenInfo = getTokenInfo(item.asset, item.token);
+                    const displaySymbol = tokenInfo?.symbol || item.asset;
+                    const logoUrl = tokenInfo?.logoUrl;
+
+                    return (
+                      <Card 
+                        key={index}
+                        className="transition-colors hover:bg-accent/50"
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDrop(e, item)}
+                      >
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                          <CardTitle className="text-sm font-medium">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="flex items-center gap-2">
+                                    <Avatar className="h-6 w-6">
+                                      {logoUrl ? (
+                                        <AvatarImage src={logoUrl} />
+                                      ) : (
+                                        <AvatarFallback>{displaySymbol.slice(0, 2)}</AvatarFallback>
+                                      )}
+                                    </Avatar>
+                                    {displaySymbol}
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <div className="space-y-1">
+                                    <p className="font-medium">Token Info</p>
+                                    <p className="text-xs">Address: {item.token}</p>
+                                    {tokenInfo && (
+                                      <>
+                                        <p className="text-xs">Name: {tokenInfo.name}</p>
+                                        <p className="text-xs">Symbol: {tokenInfo.symbol}</p>
+                                        <p className="text-xs">Price: ${tokenInfo.usdPrice}</p>
+                                      </>
+                                    )}
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </CardTitle>
+                          <Badge variant="outline">{item.protocol}</Badge>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-2xl font-bold">{item.totalAPY.toFixed(2)}%</div>
+                          <p className="text-xs text-muted-foreground">Total APY</p>
+                          <Button className="mt-4 w-full" variant="secondary">
+                            {getActionType(item)}
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+              </div>
+            </div>
           </div>
         </TabsContent>
 
