@@ -45,6 +45,12 @@ interface DepositModalContentProps {
 
   balance: bigint;
   priceUSD: number;
+  debugInfo?: {
+    walletAddress?: string;
+    walletBalance?: string;
+    positions?: string;
+    tokens?: string;
+  };
 }
 
 function DepositModalContent({
@@ -55,6 +61,7 @@ function DepositModalContent({
   tokenOut,
   balance,
   priceUSD,
+  debugInfo,
 }: DepositModalContentProps) {
   const [isYieldExpanded, setIsYieldExpanded] = useState(false);
   const {
@@ -172,6 +179,16 @@ function DepositModalContent({
 
       <Separator />
 
+      {debugInfo && (
+        <div className="mt-4 p-4 bg-muted rounded-lg text-xs font-mono">
+          <div>Address: {debugInfo.walletAddress || 'N/A'}</div>
+          <div>Tokens:</div>
+          <pre className="mt-2 overflow-auto max-h-40">
+            {debugInfo.tokens || '[]'}
+          </pre>
+        </div>
+      )}
+
       <DialogFooter>
         <Button variant="outline" onClick={onClose}>
           Cancel
@@ -211,6 +228,12 @@ interface DepositModalProps {
 
   balance: bigint;
   priceUSD: number;
+  debugInfo?: {
+    walletAddress?: string;
+    walletBalance?: string;
+    positions?: string;
+    tokens?: string;
+  };
 }
 
 export function DepositModal(props: DepositModalProps) {

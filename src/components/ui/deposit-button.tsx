@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useState } from "react";
 import { DepositModal } from "./deposit-modal";
+import { useWalletData } from "@/contexts/WalletContext";
 
 interface DepositButtonProps {
   protocol: Protocol;
@@ -35,6 +36,7 @@ export function DepositButton({
 }: DepositButtonProps) {
   const [isExternalDialogOpen, setIsExternalDialogOpen] = useState(false);
   const [isNativeDialogOpen, setIsNativeDialogOpen] = useState(false);
+  const walletData = useWalletData();
 
   const handleClick = () => {
     if (protocol.depositType === 'external') {
@@ -98,6 +100,15 @@ export function DepositButton({
           tokenOut={tokenIn}
           balance={balance}
           priceUSD={priceUSD}
+          debugInfo={{
+            walletAddress: walletData.address,
+            tokens: JSON.stringify(walletData.tokens.map(token => ({
+              symbol: token.symbol,
+              address: token.address,
+              amount: (Number(token.amount) / Math.pow(10, token.decimals)).toFixed(2),
+              value: token.value ? `$${Number(token.value).toFixed(2)}` : 'N/A'
+            })), null, 2)
+          }}
         />
       )}
     </>
