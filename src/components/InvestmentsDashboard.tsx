@@ -19,6 +19,8 @@ import { InvestmentData, InvestmentAction } from '@/types/investments';
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import tokenList from "@/lib/data/tokenList.json";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 
 interface YieldIdeasProps {
   className?: string;
@@ -53,6 +55,7 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [dragData, setDragData] = useState<DragData | null>(null);
   const [dropTarget, setDropTarget] = useState<InvestmentData | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const getTokenInfo = (asset: string, tokenAddress?: string): Token | undefined => {
     if (tokenAddress) {
@@ -122,6 +125,12 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
   const topInvestments = [...data]
     .sort((a, b) => b.totalAPY - a.totalAPY)
     .slice(0, 3);
+
+  const filteredData = data.filter(item => {
+    const tokenInfo = getTokenInfo(item.asset, item.token);
+    const displaySymbol = tokenInfo?.symbol || item.asset;
+    return displaySymbol.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
   if (error) {
     return (
@@ -368,6 +377,30 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
         </TabsContent>
 
         <TabsContent value="pro" className="mt-6">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search tokens..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+            <div className="flex gap-1">
+              {['USD', 'APT', 'BTC', 'ETH'].map((token) => (
+                <Button
+                  key={token}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSearchQuery(token)}
+                  className="h-9 px-2"
+                >
+                  {token}
+                </Button>
+              ))}
+            </div>
+          </div>
           <TooltipProvider>
             <Table>
               <TableHeader>
@@ -391,7 +424,7 @@ export function YieldIdeas({ className }: YieldIdeasProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data
+                {filteredData
                   .filter(item => {
                     const tokenInfo = getTokenInfo(item.asset, item.token);
                     return item.asset.includes('::') || tokenInfo;
