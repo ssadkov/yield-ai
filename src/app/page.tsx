@@ -5,6 +5,8 @@ import ChatPanel from "@/components/ChatPanel";
 import MobileTabs from "@/components/MobileTabs";
 import { WalletConnect } from "@/components/WalletConnect";
 import { PositionsList } from "@/components/protocols/hyperion/PositionsList";
+import { YieldIdeas } from "@/components/InvestmentsDashboard";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 export default function Home() {
   return (
@@ -24,6 +26,17 @@ export default function Home() {
         <div className="w-2/5">
           <ChatPanel />
         </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        <Card className="col-span-4">
+          <CardHeader>
+            <CardTitle>Yield Ideas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <YieldIdeas />
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

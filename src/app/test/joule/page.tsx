@@ -1,6 +1,7 @@
 "use client";
 
 import { PositionsList } from "@/components/protocols/joule/PositionsList";
+import { YieldIdeas } from "@/components/InvestmentsDashboard";
 
 // Моковые данные для тестирования
 const mockData = {
@@ -73,14 +74,22 @@ const mockData = {
 
 export default function TestJoulePage() {
   return (
-    <div className="p-4 max-w-md mx-auto">
+    <div className="p-4 max-w-7xl mx-auto">
       <h1 className="text-2xl font-bold mb-4">Joule Finance Test Page</h1>
-      <div className="space-y-4">
-        <PositionsList 
-          address="0x56ff2fc971deecd286314fe99b8ffd6a5e72e62eacdc46ae9b234c5282985f97"
-          onPositionsValueChange={(value) => console.log('Total value:', value)}
-          mockData={mockData}
-        />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-card rounded-lg p-6">
+          <h2 className="text-xl font-semibold mb-4">Your Positions</h2>
+          <PositionsList 
+            address="0x56ff2fc971deecd286314fe99b8ffd6a5e72e62eacdc46ae9b234c5282985f97"
+            onPositionsValueChange={(value) => console.log('Total value:', value)}
+            mockData={mockData}
+          />
+        </div>
+
+        <div className="bg-card rounded-lg p-6">
+          <h2 className="text-xl font-semibold mb-4">Yield Ideas</h2>
+          <YieldIdeas />
+        </div>
       </div>
     </div>
   );
