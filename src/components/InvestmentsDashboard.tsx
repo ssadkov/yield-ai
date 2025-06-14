@@ -25,7 +25,7 @@ import { DepositButton } from "@/components/ui/deposit-button";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import Image from "next/image";
 
-interface YieldIdeasProps {
+interface InvestmentsDashboardProps {
   className?: string;
 }
 
@@ -51,7 +51,7 @@ interface Token {
   logoUrl?: string;
 }
 
-export function YieldIdeas({ className }: YieldIdeasProps) {
+export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   const [data, setData] = useState<InvestmentData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

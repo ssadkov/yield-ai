@@ -1,7 +1,7 @@
 "use client";
 
 import { PositionsList } from "@/components/protocols/joule/PositionsList";
-import { YieldIdeas } from "@/components/InvestmentsDashboard";
+import { InvestmentsDashboard } from "@/components/InvestmentsDashboard";
 
 // Моковые данные для тестирования
 const mockData = {
@@ -88,9 +88,10 @@ export default function TestJoulePage() {
 
         <div className="bg-card rounded-lg p-6">
           <h2 className="text-xl font-semibold mb-4">Yield Ideas</h2>
-          <YieldIdeas />
+          <InvestmentsDashboard />
         </div>
       </div>
+      <InvestmentsDashboard />
     </div>
   );
 } 
