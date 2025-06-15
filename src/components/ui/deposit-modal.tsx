@@ -49,6 +49,7 @@ interface DepositModalProps {
     symbol: string;
     logo: string;
     decimals: number;
+    address?: string;
   };
   priceUSD: number;
 }
@@ -118,9 +119,14 @@ export function DepositModal({
     [tokenInfo?.symbol, tokenIn.symbol]
   );
   
+  const tokenOutInfo = useMemo(() => 
+    tokenOut.address ? getTokenInfo(tokenOut.address) : undefined,
+    [tokenOut.address]
+  );
+  
   const displayTokenOutSymbol = useMemo(() => 
-    tokenOut.symbol,
-    [tokenOut.symbol]
+    tokenOutInfo?.symbol || tokenOut.symbol,
+    [tokenOutInfo?.symbol, tokenOut.symbol]
   );
 
   // Доходность
@@ -171,7 +177,7 @@ export function DepositModal({
             <DialogTitle>Deposit to {protocol.name}</DialogTitle>
           </div>
           <DialogDescription>
-            Enter amount to deposit {tokenIn.symbol}
+            Enter amount to deposit {displaySymbol}
           </DialogDescription>
         </DialogHeader>
 
@@ -203,48 +209,46 @@ export function DepositModal({
           </div>
         </div>
 
-        <div className="space-y-2">
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="amount" className="text-right">
-                Amount
-              </Label>
-              <div className="col-span-3 flex items-center gap-2">
-                <Input
-                  id="amount"
-                  type="number"
-                  value={amountString}
-                  onChange={(e) => setAmountFromString(e.target.value)}
-                  className="flex-1"
-                  placeholder="0.00"
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="amount" className="text-right">
+              Amount
+            </Label>
+            <div className="col-span-3 flex items-center gap-2">
+              <Input
+                id="amount"
+                type="number"
+                value={amountString}
+                onChange={(e) => setAmountFromString(e.target.value)}
+                className="flex-1"
+                placeholder="0.00"
+              />
+              <div className="flex items-center gap-1">
+                <Image
+                  src={tokenIn.logo}
+                  alt={tokenIn.symbol}
+                  width={16}
+                  height={16}
+                  className="rounded-full"
                 />
-                <div className="flex items-center gap-1">
-                  <Image
-                    src={tokenIn.logo}
-                    alt={tokenIn.symbol}
-                    width={16}
-                    height={16}
-                    className="rounded-full"
-                  />
-                  <span className="text-sm">{tokenIn.symbol}</span>
-                </div>
+                <span className="text-sm">{displaySymbol}</span>
               </div>
             </div>
+          </div>
 
-            {amountString && (
-              <div className="text-sm text-muted-foreground">
-                ≈ ${(parseFloat(amountString) * priceUSD).toFixed(2)}
-              </div>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={setHalf}>
-              Half
-            </Button>
-            <Button variant="outline" size="sm" onClick={setMax}>
-              Max
-            </Button>
-          </div>
+          {amountString && (
+            <div className="text-sm text-muted-foreground">
+              ≈ ${(parseFloat(amountString) * priceUSD).toFixed(2)}
+            </div>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={setHalf}>
+            Half
+          </Button>
+          <Button variant="outline" size="sm" onClick={setMax}>
+            Max
+          </Button>
         </div>
 
         <div className="space-y-2">

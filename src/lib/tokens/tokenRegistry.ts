@@ -23,15 +23,32 @@ interface Token {
   isFungible: boolean;
 }
 
-export async function getTokenInfo(token: string): Promise<Token> {
+function normalizeTokenAddress(address: string): string {
   // Убираем префикс @ если он есть
-  const cleanAddress = token.startsWith('@') ? token.slice(1) : token;
-  // Добавляем префикс 0x если его нет
-  const fullAddress = cleanAddress.startsWith('0x') ? cleanAddress : `0x${cleanAddress}`;
+  let cleanAddress = address.startsWith('@') ? address.slice(1) : address;
   
-  const foundToken = (tokenList.data.data as any[]).find(t => 
-    t.tokenAddress === fullAddress || t.faAddress === fullAddress
-  );
+  // Если адрес содержит ::, значит это Move адрес
+  if (cleanAddress.includes('::')) {
+    // Разбиваем на части
+    const parts = cleanAddress.split('::');
+    // Берем только адрес модуля
+    cleanAddress = parts[0];
+  }
+  
+  // Добавляем префикс 0x если его нет
+  return cleanAddress.startsWith('0x') ? cleanAddress : `0x${cleanAddress}`;
+}
+
+export async function getTokenInfo(token: string): Promise<Token> {
+  const normalizedAddress = normalizeTokenAddress(token);
+  console.log('Normalized token address:', normalizedAddress);
+  
+  const foundToken = (tokenList.data.data as any[]).find(t => {
+    const normalizedTokenAddress = t.tokenAddress ? normalizeTokenAddress(t.tokenAddress) : null;
+    const normalizedFaAddress = t.faAddress ? normalizeTokenAddress(t.faAddress) : null;
+    
+    return normalizedTokenAddress === normalizedAddress || normalizedFaAddress === normalizedAddress;
+  });
 
   if (!foundToken) {
     throw new Error(`Token ${token} not found in token list`);

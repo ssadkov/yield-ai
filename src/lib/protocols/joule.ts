@@ -1,5 +1,5 @@
 import { BaseProtocol } from './BaseProtocol';
-import { getTokenInfo } from '../tokens/tokenRegistry';
+import { getTokenInfo } from '@/lib/tokens/tokenRegistry';
 
 interface Token {
   chainId: number;
