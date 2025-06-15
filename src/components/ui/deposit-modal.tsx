@@ -220,7 +220,7 @@ export function DepositModal({
                 type="number"
                 value={amountString}
                 onChange={(e) => setAmountFromString(e.target.value)}
-                className="flex-1"
+                className={`flex-1 ${amount > walletBalance ? 'text-red-500' : ''}`}
                 placeholder="0.00"
               />
               <div className="flex items-center gap-1">
@@ -233,24 +233,29 @@ export function DepositModal({
                 />
                 <span className="text-sm">{displaySymbol}</span>
                 {amountString && (
-                  <span className="text-sm text-muted-foreground ml-2">
+                  <span className={`text-sm ml-2 ${amount > walletBalance ? 'text-red-500' : 'text-muted-foreground'}`}>
                     ≈ ${(parseFloat(amountString) * priceUSD).toFixed(2)}
                   </span>
                 )}
               </div>
             </div>
           </div>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={setHalf}>
-            Half
-          </Button>
-          <Button variant="outline" size="sm" onClick={setMax}>
-            Max
-          </Button>
-        </div>
 
-        <div className="space-y-2">
+          {amount > walletBalance && (
+            <div className="text-sm text-red-500 mt-1">
+              Amount exceeds wallet balance
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={setHalf}>
+              Half
+            </Button>
+            <Button variant="outline" size="sm" onClick={setMax}>
+              Max
+            </Button>
+          </div>
+
           <div
             className="flex items-center justify-between cursor-pointer"
             onClick={() => setIsYieldExpanded(!isYieldExpanded)}

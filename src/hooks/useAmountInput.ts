@@ -37,15 +37,11 @@ export function useAmountInput({ balance, decimals, initialValue }: UseAmountInp
         newAmount += BigInt(paddedDecPart);
       }
       
-      if (newAmount > balance) {
-        setAmount(balance);
-      } else {
-        setAmount(newAmount);
-      }
+      setAmount(newAmount);
     } catch (e) {
       console.error('Error parsing amount:', e);
     }
-  }, [balance, decimals]);
+  }, [decimals]);
 
   const amountString = (Number(amount) / Math.pow(10, decimals)).toString();
 
