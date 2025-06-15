@@ -36,6 +36,8 @@ import { NextResponse } from 'next/server';
 export async function GET() {
   try {
     const externalApiUrl = "https://yield-a.vercel.app/api/echelon/markets";
+    console.log('Fetching from external API:', externalApiUrl);
+    
     const response = await fetch(externalApiUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -46,11 +48,17 @@ export async function GET() {
       }
     });
     
+    console.log('External API response status:', response.status);
+    console.log('External API response headers:', Object.fromEntries(response.headers.entries()));
+    
     if (!response.ok) {
-      throw new Error(`External API returned ${response.status}`);
+      const text = await response.text();
+      console.error('External API error response:', text);
+      throw new Error(`External API returned ${response.status}: ${text}`);
     }
 
     const data = await response.json();
+    console.log('External API response data:', data);
     return NextResponse.json(data);
   } catch (error) {
     console.error("Error fetching Echelon pools:", error);
