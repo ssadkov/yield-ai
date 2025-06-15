@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import React from 'react';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
 import { executeDeposit } from '../transactions/DepositTransaction';
 import { ProtocolKey } from '../transactions/types';
@@ -72,7 +73,44 @@ export function useDeposit() {
       });
       console.log('Transaction response:', response);
 
-      toast.success('Deposit successful');
+      if (response.hash) {
+        console.log('Checking transaction status for hash:', response.hash);
+        const maxAttempts = 10;
+        const delay = 2000;
+        
+        for (let i = 0; i < maxAttempts; i++) {
+          console.log(`Checking transaction status attempt ${i + 1}/${maxAttempts}`);
+          try {
+            const txResponse = await fetch(`https://fullnode.mainnet.aptoslabs.com/v1/transactions/by_hash/${response.hash}`);
+            const txData = await txResponse.json();
+            console.log('Transaction status response:', txData);
+            console.log('Transaction success:', txData.success);
+            console.log('Transaction vm_status:', txData.vm_status);
+            
+            if (txData.success && txData.vm_status === "Executed successfully") {
+              console.log('Transaction confirmed successfully, showing toast...');
+              toast('Deposit successful!', {
+                description: `Transaction hash: ${response.hash}`,
+                duration: 5000,
+              });
+              console.log('Toast should be shown now');
+              return response;
+            } else if (txData.vm_status) {
+              console.error('Transaction failed with status:', txData.vm_status);
+              throw new Error(`Transaction failed: ${txData.vm_status}`);
+            }
+          } catch (error) {
+            console.error(`Attempt ${i + 1} failed:`, error);
+          }
+          
+          console.log(`Waiting ${delay}ms before next attempt...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+        
+        console.error('Transaction status check timeout');
+        throw new Error('Transaction status check timeout');
+      }
+
       return response;
     } catch (error) {
       console.error('Deposit error:', error);
@@ -81,7 +119,7 @@ export function useDeposit() {
     } finally {
       setIsLoading(false);
     }
-  }, [wallet]);
+  }, [wallet, setIsLoading]);
 
   return {
     deposit,

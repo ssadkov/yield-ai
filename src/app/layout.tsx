@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { WalletProvider } from "@/lib/WalletProvider";
 import { WalletDataProvider } from "@/contexts/WalletContext";
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "sonner";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -51,7 +51,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <WalletDataProvider>
             {children}
           </WalletDataProvider>
-          <Toaster />
+          <Toaster 
+            richColors 
+            position="top-right"
+            expand={true}
+            closeButton={true}
+            style={{ fontSize: '1rem' }}
+          />
         </WalletProvider>
       </body>
     </html>
