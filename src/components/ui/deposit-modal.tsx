@@ -232,15 +232,14 @@ export function DepositModal({
                   className="rounded-full"
                 />
                 <span className="text-sm">{displaySymbol}</span>
+                {amountString && (
+                  <span className="text-sm text-muted-foreground ml-2">
+                    ≈ ${(parseFloat(amountString) * priceUSD).toFixed(2)}
+                  </span>
+                )}
               </div>
             </div>
           </div>
-
-          {amountString && (
-            <div className="text-sm text-muted-foreground">
-              ≈ ${(parseFloat(amountString) * priceUSD).toFixed(2)}
-            </div>
-          )}
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={setHalf}>
