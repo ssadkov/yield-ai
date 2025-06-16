@@ -2,6 +2,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Protocol } from "@/lib/protocols/getProtocolsList";
 import Image from "next/image";
+import { EchelonPositions } from "./protocols/EchelonPositions";
+import { JoulePositions } from "./protocols/JoulePositions";
+import { HyperionPositions } from "./protocols/HyperionPositions";
 
 interface ManagePositionsProps {
   protocol: Protocol;
@@ -9,6 +12,23 @@ interface ManagePositionsProps {
 }
 
 export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
+  const renderProtocolContent = () => {
+    switch (protocol.name.toLowerCase()) {
+      case 'joule':
+        return <JoulePositions />;
+      case 'echelon':
+        return <EchelonPositions />;
+      case 'hyperion':
+        return <HyperionPositions />;
+      default:
+        return (
+          <div className="text-sm text-muted-foreground">
+            Managing positions for {protocol.name}
+          </div>
+        );
+    }
+  };
+
   return (
     <Card className="w-full mb-6">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -33,9 +53,7 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
         </Button>
       </CardHeader>
       <CardContent>
-        <div className="text-sm text-muted-foreground">
-          Managing positions for {protocol.name}
-        </div>
+        {renderProtocolContent()}
       </CardContent>
     </Card>
   );
