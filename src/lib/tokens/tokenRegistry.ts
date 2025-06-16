@@ -54,8 +54,12 @@ export async function getTokenInfo(token: string): Promise<Token> {
     throw new Error(`Token ${token} not found in token list`);
   }
 
+  // Проверяем, является ли токен FA, исключая нативные токены Aptos
+  const isFungible = foundToken.faAddress !== null && 
+    !foundToken.tokenAddress?.includes('0x1::aptos_coin::AptosCoin');
+
   return {
     ...foundToken,
-    isFungible: foundToken.faAddress !== null
+    isFungible
   };
 } 
