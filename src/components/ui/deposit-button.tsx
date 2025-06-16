@@ -15,6 +15,7 @@ import {
 import { useState } from "react";
 import { DepositModal } from "./deposit-modal";
 import { useWalletData } from "@/contexts/WalletContext";
+import { cn } from "@/lib/utils";
 
 interface DepositButtonProps {
   protocol: Protocol;
@@ -70,8 +71,11 @@ export function DepositButton({
   return (
     <>
       <Button 
-        variant="secondary" 
-        className={className}
+        variant={protocol.depositType === 'native' ? "default" : "secondary"}
+        className={cn(
+          className,
+          protocol.depositType === 'native' && "bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+        )}
         onClick={handleClick}
       >
         Deposit
