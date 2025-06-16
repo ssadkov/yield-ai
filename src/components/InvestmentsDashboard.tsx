@@ -29,6 +29,15 @@ import { Protocol } from "@/lib/protocols/getProtocolsList";
 import { ManagePositionsButton } from "@/components/protocols/ManagePositionsButton";
 import { useProtocol } from "@/lib/contexts/ProtocolContext";
 
+// Список адресов токенов Echelon, которые нужно исключить из отображения
+const EXCLUDED_ECHELON_TOKENS = [
+  "0xf22bede237a07e121b56d91a491eb7bcdfd1f5907926a9e58338f964a01b17fa::asset::USDT",
+  "0xf22bede237a07e121b56d91a491eb7bcdfd1f5907926a9e58338f964a01b17fa::asset::USDC",
+  "0x2b3be0a97a73c87ff62cbdd36837a9fb5bbd1d7f06a73b7ed62ec15c5326c1b8",
+  "0x5e156f1207d0ebfa19a9eeff00d62a282278fb8719f4fab3a586a0a2c0fffbea::coin::T",
+  "0x54fc0d5fa5ad975ede1bf8b1c892ae018745a1afd4a4da9b70bb6e5448509fc0"
+];
+
 interface InvestmentsDashboardProps {
   className?: string;
 }
@@ -135,6 +144,11 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     .slice(0, 3);
 
   const filteredData = data.filter(item => {
+    // Фильтруем исключенные токены Echelon
+    if (item.protocol === 'Echelon' && EXCLUDED_ECHELON_TOKENS.includes(item.token)) {
+      return false;
+    }
+    
     const tokenInfo = getTokenInfo(item.asset, item.token);
     const displaySymbol = tokenInfo?.symbol || item.asset;
     return displaySymbol.toLowerCase().includes(searchQuery.toLowerCase());
@@ -195,9 +209,15 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
               <h3 className="text-lg font-semibold mb-4">Stables</h3>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {data
-                  .filter(item => item.asset.toUpperCase().includes('USDT') || 
-                                item.asset.toUpperCase().includes('USDC') ||
-                                item.asset.toUpperCase().includes('DAI'))
+                  .filter(item => {
+                    // Фильтруем исключенные токены Echelon
+                    if (item.protocol === 'Echelon' && EXCLUDED_ECHELON_TOKENS.includes(item.token)) {
+                      return false;
+                    }
+                    return item.asset.toUpperCase().includes('USDT') || 
+                           item.asset.toUpperCase().includes('USDC') ||
+                           item.asset.toUpperCase().includes('DAI');
+                  })
                   .sort((a, b) => b.totalAPY - a.totalAPY)
                   .slice(0, 3)
                   .map((item, index) => {

@@ -30,10 +30,14 @@ export class EchelonProtocol implements BaseProtocol {
     const marketAddress = await this.getMarketAddress(token);
     console.log('Market address:', marketAddress);
 
+    const functionName = tokenInfo.isFungible 
+      ? "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::supply_fa"
+      : "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::supply";
+
     return {
       type: "entry_function_payload" as const,
-      function: "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::supply",
-      type_arguments: [token],
+      function: functionName,
+      type_arguments: tokenInfo.isFungible ? [] : [token],
       arguments: [marketAddress, amountOctas.toString()]
     };
   }
