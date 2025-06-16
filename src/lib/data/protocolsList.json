@@ -7,7 +7,8 @@
     "description": "Decentralized exchange on Aptos blockchain",
     "depositType": "external",
     "depositUrl": "https://hyperion.xyz/pools?inviteCode=O02Eig",
-    "isDepositEnabled": true
+    "isDepositEnabled": true,
+    "managedType": "native"
   },
   {
     "name": "Aries",
@@ -17,7 +18,8 @@
     "description": "Lending protocol on Aptos blockchain",
     "depositType": "external",
     "depositUrl": "https://app.ariesmarkets.xyz/lending",
-    "isDepositEnabled": true
+    "isDepositEnabled": true,
+    "managedType": "external"
   },
   {
     "name": "Joule",
@@ -26,7 +28,8 @@
     "logoUrl": "https://app.joule.finance/favicon.ico",
     "description": "Lending protocol on Aptos blockchain",
     "depositType": "native",
-    "isDepositEnabled": true
+    "isDepositEnabled": true,
+    "managedType": "native"
   },
   {
     "name": "Echelon",
@@ -35,6 +38,7 @@
     "logoUrl": "/echelon-favicon.ico",
     "description": "High-efficiency lending market on Aptos blockchain",
     "depositType": "native",
-    "isDepositEnabled": true
+    "isDepositEnabled": true,
+    "managedType": "native"
   }
 ] 
