@@ -63,35 +63,12 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
 
   return (
     <Card className="w-full mb-6">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-lg font-medium flex items-center gap-2">
-          <div className="w-6 h-6 relative">
-            <Image
-              src={protocol.logoUrl}
-              alt={protocol.name}
-              width={24}
-              height={24}
-              className="object-contain"
-            />
-          </div>
-          {protocol.name}
-        </CardTitle>
+      <CardHeader className="pt-6 pb-2">
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-          >
-            <RefreshCw className={isRefreshing ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-          >
-            Close
-          </Button>
+          {protocol.logoUrl && (
+            <Image src={protocol.logoUrl} alt={protocol.name} width={32} height={32} className="object-contain" />
+          )}
+          <CardTitle className="text-xl font-bold">{protocol.name} positions</CardTitle>
         </div>
       </CardHeader>
       <CardContent>

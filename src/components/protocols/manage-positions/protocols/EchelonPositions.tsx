@@ -110,7 +110,7 @@ export function EchelonPositions() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 text-base">
       <ScrollArea className="h-[400px]">
         {sortedPositions.map((position, index) => {
           const tokenInfo = getTokenInfo(position.coin);
@@ -123,43 +123,43 @@ export function EchelonPositions() {
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
                   {tokenInfo?.logoUrl && (
-                    <div className="w-6 h-6 relative">
+                    <div className="w-8 h-8 relative">
                       <Image 
                         src={tokenInfo.logoUrl} 
                         alt={tokenInfo.symbol}
-                        width={24}
-                        height={24}
+                        width={32}
+                        height={32}
                         className="object-contain"
                       />
                     </div>
                   )}
                   <div>
-                    <div className="text-sm font-medium">{tokenInfo?.symbol || position.coin.substring(0, 4).toUpperCase()}</div>
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
+                      <div className="text-lg">{tokenInfo?.symbol || position.coin.substring(0, 4).toUpperCase()}</div>
+                      <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-base font-semibold px-3 py-1">
                         Supply
                       </Badge>
-                      <div className="text-xs text-muted-foreground">
-                        ${tokenInfo?.usdPrice ? parseFloat(tokenInfo.usdPrice).toFixed(2) : 'N/A'}
-                      </div>
+                    </div>
+                    <div className="text-base text-muted-foreground mt-0.5">
+                      ${tokenInfo?.usdPrice ? parseFloat(tokenInfo.usdPrice).toFixed(2) : 'N/A'}
                     </div>
                   </div>
                 </div>
                 <div className="text-right">
                   <div className="flex items-center gap-2 mb-1">
-                    <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
+                    <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-base font-semibold px-3 py-1">
                       APY: {apy !== null ? (apy * 100).toFixed(2) + '%' : 'N/A'}
                     </Badge>
-                    <div className="text-sm font-medium">${value.toFixed(2)}</div>
+                    <div className="text-lg font-bold">${value.toFixed(2)}</div>
                   </div>
-                  <div className="text-xs text-muted-foreground">{amount.toFixed(4)}</div>
+                  <div className="text-base text-muted-foreground font-semibold">{amount.toFixed(4)}</div>
                 </div>
               </div>
             </div>
           );
         })}
       </ScrollArea>
-      <div className="text-lg font-bold text-primary">
+      <div className="text-2xl font-bold text-primary">
         Total assets in Echelon: ${totalValue.toFixed(2)}
       </div>
     </div>
