@@ -20,17 +20,22 @@ export function EchelonPositions() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [totalValue, setTotalValue] = useState<number>(0);
+  const [marketData, setMarketData] = useState<any[]>([]);
+
+  // Загружаем marketData с APY
+  useEffect(() => {
+    fetch('/api/protocols/echelon/pools')
+      .then(res => res.json())
+      .then(data => setMarketData(data.marketData || []));
+  }, []);
 
   useEffect(() => {
     const fetchPositions = async () => {
       if (!account?.address) return;
-      
       setLoading(true);
       try {
         const response = await fetch(`/api/protocols/echelon/userPositions?address=${account.address}`);
         const data = await response.json();
-        console.log('Echelon positions response:', data);
-        
         if (data.success && Array.isArray(data.data)) {
           const positionsWithValue = data.data.map((position: any) => ({
             ...position,
@@ -38,17 +43,14 @@ export function EchelonPositions() {
           }));
           setPositions(positionsWithValue);
         } else {
-          console.error('Invalid data format:', data);
           setPositions([]);
         }
       } catch (error) {
-        console.error('Error fetching Echelon positions:', error);
         setPositions([]);
       } finally {
         setLoading(false);
       }
     };
-
     fetchPositions();
   }, [account?.address]);
 
@@ -64,6 +66,13 @@ export function EchelonPositions() {
       decimals: token.decimals,
       usdPrice: token.usdPrice
     };
+  };
+
+  // Получить APY для позиции
+  const getApyForPosition = (position: any) => {
+    // Сначала ищем по market, если есть, иначе по coin
+    const market = marketData.find((m: any) => m.market === position.market || m.coin === position.coin);
+    return market ? market.supplyAPR : null;
   };
 
   // Сортируем позиции по значению от большего к меньшему
@@ -107,6 +116,7 @@ export function EchelonPositions() {
           const tokenInfo = getTokenInfo(position.coin);
           const amount = parseFloat(position.supply) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
           const value = tokenInfo?.usdPrice ? amount * parseFloat(tokenInfo.usdPrice) : 0;
+          const apy = getApyForPosition(position);
           
           return (
             <div key={`${position.coin}-${index}`} className="p-4 border-b last:border-b-0">
@@ -136,7 +146,12 @@ export function EchelonPositions() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-medium">${value.toFixed(2)}</div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
+                      APY: {apy !== null ? (apy * 100).toFixed(2) + '%' : 'N/A'}
+                    </Badge>
+                    <div className="text-sm font-medium">${value.toFixed(2)}</div>
+                  </div>
                   <div className="text-xs text-muted-foreground">{amount.toFixed(4)}</div>
                 </div>
               </div>
