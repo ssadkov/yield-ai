@@ -64,11 +64,16 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
   return (
     <Card className="w-full mb-6">
       <CardHeader className="pt-6 pb-2">
-        <div className="flex items-center gap-2">
-          {protocol.logoUrl && (
-            <Image src={protocol.logoUrl} alt={protocol.name} width={32} height={32} className="object-contain" />
-          )}
-          <CardTitle className="text-xl font-bold">{protocol.name} positions</CardTitle>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {protocol.logoUrl && (
+              <Image src={protocol.logoUrl} alt={protocol.name} width={32} height={32} className="object-contain" />
+            )}
+            <CardTitle className="text-xl font-bold">{protocol.name} positions</CardTitle>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            Close
+          </Button>
         </div>
       </CardHeader>
       <CardContent>
