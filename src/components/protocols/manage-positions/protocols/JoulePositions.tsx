@@ -145,7 +145,6 @@ export function JoulePositions() {
             <div key={`${position.position_name}-${index}`} className="p-4 border-b last:border-b-0">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-lg">{position.position_name}</span>
-                <span className="text-lg font-bold">${positionValue.toFixed(2)}</span>
               </div>
               {/* Lend (Supply) */}
               {position.lend_positions.data.length > 0 && (
@@ -170,8 +169,7 @@ export function JoulePositions() {
                             <div className="text-base text-muted-foreground mt-0.5">${tokenInfo?.usdPrice ? parseFloat(tokenInfo.usdPrice).toFixed(2) : 'N/A'}</div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {/* APY можно добавить здесь, если появится */}
+                        <div className="flex flex-col items-end gap-0.5">
                           <span className="text-lg font-bold">${value.toFixed(2)}</span>
                           <span className="text-base text-muted-foreground font-semibold">{amount.toFixed(4)}</span>
                         </div>
@@ -203,8 +201,7 @@ export function JoulePositions() {
                             <div className="text-base text-muted-foreground mt-0.5">${tokenInfo?.usdPrice ? parseFloat(tokenInfo.usdPrice).toFixed(2) : 'N/A'}</div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {/* APY можно добавить здесь, если появится */}
+                        <div className="flex flex-col items-end gap-0.5">
                           <span className="text-lg font-bold">${value.toFixed(2)}</span>
                           <span className="text-base text-muted-foreground font-semibold">{amount.toFixed(4)}</span>
                         </div>
