@@ -13,6 +13,10 @@ export function ManagePositionsButton({ protocol }: ManagePositionsButtonProps) 
   const handleClick = () => {
     if (protocol.managedType === "native") {
       setSelectedProtocol(protocol);
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
     } else if (protocol.managedType === "external" && protocol.url) {
       window.open(protocol.url, "_blank");
     }
