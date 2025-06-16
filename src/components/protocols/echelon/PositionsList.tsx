@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import Image from "next/image";
 import tokenList from "@/lib/data/tokenList.json";
+import { ManagePositionsButton } from "../ManagePositionsButton";
 
 interface PositionsListProps {
   address?: string;
@@ -183,6 +184,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
                 </div>
               );
             })}
+            {protocol && <ManagePositionsButton protocol={protocol} />}
           </ScrollArea>
         </CardContent>
       )}

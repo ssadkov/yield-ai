@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import Image from "next/image";
 import tokenList from "@/lib/data/tokenList.json";
+import { ManagePositionsButton } from "../ManagePositionsButton";
 
 interface PositionsListProps {
   address?: string;
@@ -233,24 +234,22 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
                           />
                         </div>
                       )}
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <div className={cn(
-                            "text-sm font-medium",
-                            isBorrow && "text-red-500"
-                          )}>{position.assetName}</div>
-                          {isBorrow && (
-                            <div className="text-xs px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 border border-red-500/20">
-                              Borrow
-                            </div>
-                          )}
-                        </div>
+                      <div className="flex items-center gap-2">
                         <div className={cn(
-                          "text-xs",
-                          isBorrow ? "text-red-400" : "text-muted-foreground"
-                        )}>
-                          ${parseFloat(position.assetInfo.price).toFixed(2)}
-                        </div>
+                          "text-sm font-medium",
+                          isBorrow && "text-red-500"
+                        )}>{position.assetName}</div>
+                        {isBorrow && (
+                          <div className="text-xs px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 border border-red-500/20">
+                            Borrow
+                          </div>
+                        )}
+                      </div>
+                      <div className={cn(
+                        "text-xs",
+                        isBorrow ? "text-red-400" : "text-muted-foreground"
+                      )}>
+                        ${parseFloat(position.assetInfo.price).toFixed(2)}
                       </div>
                     </div>
                     <div className="text-right">
@@ -267,6 +266,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
                 </div>
               );
             })}
+            {protocol && <ManagePositionsButton protocol={protocol} />}
           </ScrollArea>
         </CardContent>
       )}

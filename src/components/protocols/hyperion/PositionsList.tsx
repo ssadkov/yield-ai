@@ -7,6 +7,7 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import Image from "next/image";
+import { ManagePositionsButton } from "../ManagePositionsButton";
 
 interface PositionsListProps {
   address?: string;
@@ -140,6 +141,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
             {sortedPositions.map((position, index) => (
               <PositionCard key={`${position.assetName}-${index}`} position={position} />
             ))}
+            {protocol && <ManagePositionsButton protocol={protocol} />}
           </ScrollArea>
         </CardContent>
       )}

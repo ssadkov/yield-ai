@@ -9,6 +9,7 @@ export interface Protocol {
   depositType: 'native' | 'external' | 'none';
   depositUrl?: string;
   isDepositEnabled: boolean;
+  managedType: 'native' | 'external';
 }
 
 export function getProtocolsList(): Protocol[] {
