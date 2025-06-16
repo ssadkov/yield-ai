@@ -111,7 +111,7 @@ export function EchelonPositions() {
 
   return (
     <div className="space-y-4 text-base">
-      <ScrollArea className="h-[400px]">
+      <ScrollArea>
         {sortedPositions.map((position, index) => {
           const tokenInfo = getTokenInfo(position.coin);
           const amount = parseFloat(position.supply) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
@@ -159,8 +159,9 @@ export function EchelonPositions() {
           );
         })}
       </ScrollArea>
-      <div className="text-2xl font-bold text-primary">
-        Total assets in Echelon: ${totalValue.toFixed(2)}
+      <div className="flex items-center justify-between pt-6 pb-6">
+        <span className="text-xl">Total assets in Echelon:</span>
+        <span className="text-xl text-primary font-bold">${totalValue.toFixed(2)}</span>
       </div>
     </div>
   );
