@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Settings } from "lucide-react";
+import { Settings, ExternalLink } from "lucide-react";
 import { Protocol } from "@/lib/protocols/getProtocolsList";
 
 interface ManagePositionsButtonProps {
@@ -16,13 +16,19 @@ export function ManagePositionsButton({ protocol }: ManagePositionsButtonProps) 
   };
 
   return (
-    <Button
-      variant="secondary"
-      className="w-full justify-start mt-2 gap-2"
-      onClick={handleClick}
-    >
-      <Settings className="h-4 w-4" />
-      Manage Positions
-    </Button>
+    <div className="flex justify-center mt-2">
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-8 gap-2"
+        onClick={handleClick}
+      >
+        <Settings className="h-4 w-4" />
+        Manage Positions
+        {protocol.managedType === "external" && (
+          <ExternalLink className="h-4 w-4 ml-1" />
+        )}
+      </Button>
+    </div>
   );
 } 
