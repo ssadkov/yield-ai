@@ -29,7 +29,7 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
           size="sm"
           onClick={onClose}
         >
-          Back
+          Close
         </Button>
       </CardHeader>
       <CardContent>

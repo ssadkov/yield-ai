@@ -491,13 +491,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
         </TabsContent>
       </Tabs>
 
-      {selectedProtocol && selectedProtocol.managedType === "native" && (
-        <ManagePositionsButton 
-          protocol={selectedProtocol} 
-          onManageClick={handleManageClick}
-        />
-      )}
-
       <ConfirmModal
         isOpen={isModalOpen}
         onClose={() => {
