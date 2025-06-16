@@ -105,6 +105,17 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
     return sum + value;
   }, 0);
 
+  // Сортируем позиции по значению от большего к меньшему
+  const sortedPositions = [...positions].sort((a, b) => {
+    const tokenInfoA = getTokenInfo(a.coin);
+    const tokenInfoB = getTokenInfo(b.coin);
+    const amountA = a.supply / (tokenInfoA?.decimals ? 10 ** tokenInfoA.decimals : 1e8);
+    const amountB = b.supply / (tokenInfoB?.decimals ? 10 ** tokenInfoB.decimals : 1e8);
+    const valueA = tokenInfoA?.usdPrice ? amountA * parseFloat(tokenInfoA.usdPrice) : 0;
+    const valueB = tokenInfoB?.usdPrice ? amountB * parseFloat(tokenInfoB.usdPrice) : 0;
+    return valueB - valueA;
+  });
+
   // Вызываем колбэк при изменении общей суммы позиций
   useEffect(() => {
     onPositionsValueChange?.(totalValue);
@@ -149,7 +160,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
       {isExpanded && (
         <CardContent className="flex-1 overflow-y-auto px-3 pt-0">
           <ScrollArea className="h-full">
-            {positions.map((position, index) => {
+            {sortedPositions.map((position, index) => {
               const tokenInfo = getTokenInfo(position.coin);
               const amount = position.supply / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
               const value = tokenInfo?.usdPrice ? (amount * parseFloat(tokenInfo.usdPrice)).toFixed(2) : 'N/A';
