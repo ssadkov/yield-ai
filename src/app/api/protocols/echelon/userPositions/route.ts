@@ -76,7 +76,15 @@ export async function GET(request: Request) {
     }
 
     const data = await response.json();
-    return NextResponse.json(data);
+    console.log('Echelon API response:', data);
+
+    // Преобразуем данные в нужный формат
+    const formattedData = {
+      success: true,
+      data: data.userPositions || []
+    };
+
+    return NextResponse.json(formattedData);
   } catch (error) {
     console.error("Error fetching Echelon user positions:", error);
     return NextResponse.json(

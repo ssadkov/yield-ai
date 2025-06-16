@@ -6,6 +6,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import Image from "next/image";
 import tokenList from "@/lib/data/tokenList.json";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface Position {
   coin: string;
@@ -17,46 +19,44 @@ export function EchelonPositions() {
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [totalValue, setTotalValue] = useState<number>(0);
 
   useEffect(() => {
-    async function loadPositions() {
-      if (!account?.address) {
-        setPositions([]);
-        return;
-      }
-
+    const fetchPositions = async () => {
+      if (!account?.address) return;
+      
+      setLoading(true);
       try {
-        setLoading(true);
-        setError(null);
         const response = await fetch(`/api/protocols/echelon/userPositions?address=${account.address}`);
-        
-        if (!response.ok) {
-          throw new Error(`API returned status ${response.status}`);
-        }
-        
         const data = await response.json();
+        console.log('Echelon positions response:', data);
         
         if (data.success && Array.isArray(data.data)) {
-          setPositions(data.data);
+          const positionsWithValue = data.data.map((position: any) => ({
+            ...position,
+            value: Number(position.amount) * Number(position.price)
+          }));
+          setPositions(positionsWithValue);
         } else {
+          console.error('Invalid data format:', data);
           setPositions([]);
         }
-      } catch (err) {
-        console.error('Error loading Echelon positions:', err);
-        setError('Failed to load positions');
+      } catch (error) {
+        console.error('Error fetching Echelon positions:', error);
         setPositions([]);
       } finally {
         setLoading(false);
       }
-    }
+    };
 
-    loadPositions();
+    fetchPositions();
   }, [account?.address]);
 
-  const getTokenInfo = (coinName: string) => {
-    const token = (tokenList as any).data.data.find((token: any) => token.symbol === coinName);
+  const getTokenInfo = (coinAddress: string) => {
+    const token = (tokenList as any).data.data.find(
+      (t: any) => t.faAddress === coinAddress || t.tokenAddress === coinAddress
+    );
     if (!token) return undefined;
-    
     return {
       address: token.tokenAddress,
       symbol: token.symbol,
@@ -65,6 +65,28 @@ export function EchelonPositions() {
       usdPrice: token.usdPrice
     };
   };
+
+  // Сортируем позиции по значению от большего к меньшему
+  const sortedPositions = [...positions].sort((a, b) => {
+    const tokenInfoA = getTokenInfo(a.coin);
+    const tokenInfoB = getTokenInfo(b.coin);
+    const amountA = parseFloat(a.supply) / (tokenInfoA?.decimals ? 10 ** tokenInfoA.decimals : 1e8);
+    const amountB = parseFloat(b.supply) / (tokenInfoB?.decimals ? 10 ** tokenInfoB.decimals : 1e8);
+    const valueA = tokenInfoA?.usdPrice ? amountA * parseFloat(tokenInfoA.usdPrice) : 0;
+    const valueB = tokenInfoB?.usdPrice ? amountB * parseFloat(tokenInfoB.usdPrice) : 0;
+    return valueB - valueA;
+  });
+
+  // Считаем общую сумму
+  useEffect(() => {
+    const total = sortedPositions.reduce((sum, position) => {
+      const tokenInfo = getTokenInfo(position.coin);
+      const amount = parseFloat(position.supply) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
+      const value = tokenInfo?.usdPrice ? amount * parseFloat(tokenInfo.usdPrice) : 0;
+      return sum + value;
+    }, 0);
+    setTotalValue(total);
+  }, [sortedPositions]);
 
   if (loading) {
     return <div>Loading positions...</div>;
@@ -79,12 +101,12 @@ export function EchelonPositions() {
   }
 
   return (
-    <Card className="w-full">
+    <div className="space-y-4">
       <ScrollArea className="h-[400px]">
-        {positions.map((position, index) => {
+        {sortedPositions.map((position, index) => {
           const tokenInfo = getTokenInfo(position.coin);
           const amount = parseFloat(position.supply) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
-          const value = tokenInfo?.usdPrice ? (amount * parseFloat(tokenInfo.usdPrice)).toFixed(2) : 'N/A';
+          const value = tokenInfo?.usdPrice ? amount * parseFloat(tokenInfo.usdPrice) : 0;
           
           return (
             <div key={`${position.coin}-${index}`} className="p-4 border-b last:border-b-0">
@@ -103,13 +125,18 @@ export function EchelonPositions() {
                   )}
                   <div>
                     <div className="text-sm font-medium">{tokenInfo?.symbol || position.coin.substring(0, 4).toUpperCase()}</div>
-                    <div className="text-xs text-muted-foreground">
-                      ${tokenInfo?.usdPrice ? parseFloat(tokenInfo.usdPrice).toFixed(2) : 'N/A'}
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
+                        Supply
+                      </Badge>
+                      <div className="text-xs text-muted-foreground">
+                        ${tokenInfo?.usdPrice ? parseFloat(tokenInfo.usdPrice).toFixed(2) : 'N/A'}
+                      </div>
                     </div>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-medium">${value}</div>
+                  <div className="text-sm font-medium">${value.toFixed(2)}</div>
                   <div className="text-xs text-muted-foreground">{amount.toFixed(4)}</div>
                 </div>
               </div>
@@ -117,6 +144,9 @@ export function EchelonPositions() {
           );
         })}
       </ScrollArea>
-    </Card>
+      <div className="text-lg font-bold text-primary">
+        Total assets in Echelon: ${totalValue.toFixed(2)}
+      </div>
+    </div>
   );
 } 

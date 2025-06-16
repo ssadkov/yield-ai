@@ -78,9 +78,9 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
         const data = await response.json();
         console.log('Echelon API response:', data);
         
-        if (data.userPositions) {
-          console.log('Setting positions:', data.userPositions);
-          setPositions(data.userPositions);
+        if (data.success && Array.isArray(data.data)) {
+          console.log('Setting positions:', data.data);
+          setPositions(data.data);
         } else {
           console.log('No valid positions data');
           setPositions([]);
