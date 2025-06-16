@@ -36,11 +36,30 @@ export function JoulePositions() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [totalValue, setTotalValue] = useState<number>(0);
+  const [marketData, setMarketData] = useState<any[]>([]);
 
   // Получаем данные о протоколе для логотипа и названия
   const protocol = {
     name: 'Joule',
     logoUrl: 'https://app.joule.finance/favicon.ico',
+  };
+
+  const getTokenInfo = (coinName: string) => {
+    const cleanAddress = coinName.startsWith('@') ? coinName.slice(1) : coinName;
+    const fullAddress = cleanAddress.startsWith('0x') ? cleanAddress : `0x${cleanAddress}`;
+    const token = (tokenList as any).data.data.find((token: any) => 
+      token.tokenAddress === fullAddress || 
+      token.faAddress === fullAddress ||
+      token.symbol === coinName
+    );
+    if (!token) return undefined;
+    return {
+      address: token.tokenAddress,
+      symbol: token.symbol,
+      logoUrl: token.logoUrl,
+      decimals: token.decimals,
+      usdPrice: token.usdPrice
+    };
   };
 
   useEffect(() => {
@@ -93,22 +112,20 @@ export function JoulePositions() {
     loadPositions();
   }, [account?.address]);
 
-  const getTokenInfo = (coinName: string) => {
-    const cleanAddress = coinName.startsWith('@') ? coinName.slice(1) : coinName;
-    const fullAddress = cleanAddress.startsWith('0x') ? cleanAddress : `0x${cleanAddress}`;
-    const token = (tokenList as any).data.data.find((token: any) => 
-      token.tokenAddress === fullAddress || 
-      token.faAddress === fullAddress ||
-      token.symbol === coinName
-    );
-    if (!token) return undefined;
-    return {
-      address: token.tokenAddress,
-      symbol: token.symbol,
-      logoUrl: token.logoUrl,
-      decimals: token.decimals,
-      usdPrice: token.usdPrice
-    };
+  // Загружаем market data для Joule
+  useEffect(() => {
+    fetch('/api/aptos/pools')
+      .then(res => res.json())
+      .then(data => setMarketData(data.data?.filter((m: any) => m.protocol === 'Joule') || []));
+  }, []);
+
+  // Получить APY для supply/borrow
+  const getApyForToken = (tokenAddress: string, type: 'supply' | 'borrow') => {
+    const market = marketData.find((m: any) => m.token === tokenAddress);
+    if (!market) return null;
+    if (type === 'supply') return market.totalAPY ?? null;
+    if (type === 'borrow') return market.borrowAPY ?? null;
+    return null;
   };
 
   if (loading) {
@@ -153,6 +170,7 @@ export function JoulePositions() {
                     const tokenInfo = getTokenInfo(lend.key);
                     const amount = parseFloat(lend.value) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
                     const value = tokenInfo?.usdPrice ? amount * parseFloat(tokenInfo.usdPrice) : 0;
+                    const apy = getApyForToken(tokenInfo?.address, 'supply');
                     return (
                       <div key={`lend-${lend.key}-${idx}`} className="flex justify-between items-center mb-2">
                         <div className="flex items-center gap-2">
@@ -170,7 +188,12 @@ export function JoulePositions() {
                           </div>
                         </div>
                         <div className="flex flex-col items-end gap-0.5">
-                          <span className="text-lg font-bold">${value.toFixed(2)}</span>
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-base font-semibold px-3 py-1">
+                              APY: {apy !== null ? (apy).toFixed(2) + '%' : 'N/A'}
+                            </Badge>
+                            <span className="text-lg font-bold">${value.toFixed(2)}</span>
+                          </div>
                           <span className="text-base text-muted-foreground font-semibold">{amount.toFixed(4)}</span>
                         </div>
                       </div>
@@ -185,6 +208,7 @@ export function JoulePositions() {
                     const tokenInfo = getTokenInfo(borrow.value.coin_name);
                     const amount = parseFloat(borrow.value.borrow_amount) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
                     const value = tokenInfo?.usdPrice ? amount * parseFloat(tokenInfo.usdPrice) : 0;
+                    const apy = getApyForToken(tokenInfo?.address, 'borrow');
                     return (
                       <div key={`borrow-${borrow.key}-${idx}`} className="flex justify-between items-center mb-2">
                         <div className="flex items-center gap-2">
@@ -202,7 +226,12 @@ export function JoulePositions() {
                           </div>
                         </div>
                         <div className="flex flex-col items-end gap-0.5">
-                          <span className="text-lg font-bold">${value.toFixed(2)}</span>
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-base font-semibold px-3 py-1">
+                              APY: {apy !== null ? (apy).toFixed(2) + '%' : 'N/A'}
+                            </Badge>
+                            <span className="text-lg font-bold">${value.toFixed(2)}</span>
+                          </div>
                           <span className="text-base text-muted-foreground font-semibold">{amount.toFixed(4)}</span>
                         </div>
                       </div>
