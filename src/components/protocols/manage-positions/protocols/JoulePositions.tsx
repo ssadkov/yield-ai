@@ -55,6 +55,7 @@ export function JoulePositions() {
     if (!token) return undefined;
     return {
       address: token.tokenAddress,
+      faAddress: token.faAddress,
       symbol: token.symbol,
       logoUrl: token.logoUrl,
       decimals: token.decimals,
@@ -120,8 +121,8 @@ export function JoulePositions() {
   }, []);
 
   // Получить APY для supply/borrow
-  const getApyForToken = (tokenAddress: string, type: 'supply' | 'borrow') => {
-    const market = marketData.find((m: any) => m.token === tokenAddress);
+  const getApyForToken = (tokenAddress: string, type: 'supply' | 'borrow', faAddress?: string) => {
+    const market = marketData.find((m: any) => m.token === tokenAddress || (faAddress && m.token === faAddress));
     if (!market) return null;
     if (type === 'supply') return market.totalAPY ?? null;
     if (type === 'borrow') return market.borrowAPY ?? null;
@@ -170,7 +171,7 @@ export function JoulePositions() {
                     const tokenInfo = getTokenInfo(lend.key);
                     const amount = parseFloat(lend.value) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
                     const value = tokenInfo?.usdPrice ? amount * parseFloat(tokenInfo.usdPrice) : 0;
-                    const apy = getApyForToken(tokenInfo?.address, 'supply');
+                    const apy = getApyForToken(tokenInfo?.address, 'supply', tokenInfo?.faAddress);
                     return (
                       <div key={`lend-${lend.key}-${idx}`} className="flex justify-between items-center mb-2">
                         <div className="flex items-center gap-2">
@@ -208,7 +209,7 @@ export function JoulePositions() {
                     const tokenInfo = getTokenInfo(borrow.value.coin_name);
                     const amount = parseFloat(borrow.value.borrow_amount) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
                     const value = tokenInfo?.usdPrice ? amount * parseFloat(tokenInfo.usdPrice) : 0;
-                    const apy = getApyForToken(tokenInfo?.address, 'borrow');
+                    const apy = getApyForToken(tokenInfo?.address, 'borrow', tokenInfo?.faAddress);
                     return (
                       <div key={`borrow-${borrow.key}-${idx}`} className="flex justify-between items-center mb-2">
                         <div className="flex items-center gap-2">
