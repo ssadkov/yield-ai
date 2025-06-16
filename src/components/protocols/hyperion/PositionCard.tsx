@@ -129,22 +129,22 @@ export function PositionCard({ position, isManageView = false }: PositionProps) 
                 Active
               </Badge>
             ) : (
-              <Badge variant="outline" className="mt-1 py-0 h-5 text-xs">
+              <Badge variant="outline" className="mt-1 py-0 h-5 bg-red-500/10 text-red-600 border-red-500/20 text-xs">
                 Inactive
               </Badge>
             )}
           </div>
           <div className="flex flex-col ml-1">
             <div className="text-sm font-medium">
-              {token1.symbol} / {token2.symbol}
+              {token1.symbol}/{token2.symbol}
             </div>
           </div>
         </div>
         <div className="flex flex-col items-end gap-2">
           <div className="text-base font-medium">${parseFloat(position.value).toFixed(2)}</div>
           <div className="flex items-center gap-2">
-            <div className="text-xs text-muted-foreground">
-              💰 Rewards: ${totalRewards.toFixed(2)}
+            <div className="text-xs text-muted-foreground text-right">
+              💰 Rewards and fees: ${totalRewards.toFixed(2)}
             </div>
             {isManageView && totalRewards > 0 && (
               <Button
