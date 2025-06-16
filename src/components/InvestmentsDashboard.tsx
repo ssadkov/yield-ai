@@ -24,6 +24,10 @@ import { Search } from "lucide-react";
 import { DepositButton } from "@/components/ui/deposit-button";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import Image from "next/image";
+import { ManagePositions } from "./protocols/manage-positions/ManagePositions";
+import { Protocol } from "@/lib/protocols/getProtocolsList";
+import { ManagePositionsButton } from "@/components/protocols/ManagePositionsButton";
+import { useProtocol } from "@/lib/contexts/ProtocolContext";
 
 interface InvestmentsDashboardProps {
   className?: string;
@@ -59,6 +63,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   const [dragData, setDragData] = useState<DragData | null>(null);
   const [dropTarget, setDropTarget] = useState<InvestmentData | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const { selectedProtocol, setSelectedProtocol } = useProtocol();
 
   const getTokenInfo = (asset: string, tokenAddress?: string): Token | undefined => {
     if (tokenAddress) {
@@ -135,6 +140,11 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     return displaySymbol.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
+  const handleManageClick = (protocol: Protocol) => {
+    console.log('Selected protocol:', protocol);
+    setSelectedProtocol(protocol);
+  };
+
   if (error) {
     return (
       <div className="text-center p-4 text-red-500">
@@ -166,6 +176,13 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 
   return (
     <div className={className}>
+      {selectedProtocol && (
+        <ManagePositions 
+          protocol={selectedProtocol} 
+          onClose={() => setSelectedProtocol(null)} 
+        />
+      )}
+
       <Tabs defaultValue="lite" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="lite">Lite</TabsTrigger>
@@ -187,6 +204,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                     const tokenInfo = getTokenInfo(item.asset, item.token);
                     const displaySymbol = tokenInfo?.symbol || item.asset;
                     const logoUrl = tokenInfo?.logoUrl;
+                    const protocol = getProtocolByName(item.protocol);
 
                     return (
                       <Card 
@@ -234,10 +252,10 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <div className="text-2xl font-bold">{item.totalAPY.toFixed(2)}%</div>
+                          <div className="text-2xl font-bold">{item.totalAPY?.toFixed(2) || "0.00"}%</div>
                           <p className="text-xs text-muted-foreground">Total APY</p>
                           <DepositButton 
-                            protocol={getProtocolByName(item.protocol)!} 
+                            protocol={protocol!} 
                             className="mt-4 w-full"
                             tokenIn={{
                               symbol: item.asset,
@@ -275,6 +293,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   const tokenInfo = getTokenInfo(bestPool.asset, bestPool.token);
                   const displaySymbol = tokenInfo?.symbol || bestPool.asset;
                   const logoUrl = tokenInfo?.logoUrl;
+                  const protocol = getProtocolByName(bestPool.protocol);
 
                   return (
                     <Card 
@@ -322,10 +341,10 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="text-2xl font-bold">{bestPool.totalAPY.toFixed(2)}%</div>
+                        <div className="text-2xl font-bold">{bestPool.totalAPY?.toFixed(2) || "0.00"}%</div>
                         <p className="text-xs text-muted-foreground">Total APY</p>
                         <DepositButton 
-                          protocol={getProtocolByName(bestPool.protocol)!} 
+                          protocol={protocol!} 
                           className="mt-4 w-full"
                           tokenIn={{
                             symbol: bestPool.asset,
@@ -403,6 +422,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                     const tokenInfo = getTokenInfo(item.asset, item.token);
                     const displaySymbol = tokenInfo?.symbol || item.asset;
                     const logoUrl = tokenInfo?.logoUrl;
+                    const protocol = getProtocolByName(item.protocol);
 
                     return (
                       <TableRow 
@@ -446,12 +466,12 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                         <TableCell>
                           <Badge variant="outline">{item.protocol}</Badge>
                         </TableCell>
-                        <TableCell>{item.totalAPY.toFixed(2)}%</TableCell>
+                        <TableCell>{item.totalAPY?.toFixed(2) || "0.00"}%</TableCell>
                         <TableCell>{item.borrowAPY ? `${item.borrowAPY.toFixed(2)}%` : "-"}</TableCell>
                         <TableCell className="text-right">
                           <DepositButton 
-                            protocol={getProtocolByName(item.protocol)!} 
-                            className="mt-4 w-full"
+                            protocol={protocol!} 
+                            className="w-full"
                             tokenIn={{
                               symbol: item.asset,
                               logo: tokenInfo?.logoUrl || '',
@@ -470,6 +490,13 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
           </TooltipProvider>
         </TabsContent>
       </Tabs>
+
+      {selectedProtocol && selectedProtocol.managedType === "native" && (
+        <ManagePositionsButton 
+          protocol={selectedProtocol} 
+          onManageClick={handleManageClick}
+        />
+      )}
 
       <ConfirmModal
         isOpen={isModalOpen}

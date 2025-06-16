@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { WalletProvider } from "@/lib/WalletProvider";
 import { WalletDataProvider } from "@/contexts/WalletContext";
+import { ProtocolProvider } from "@/lib/contexts/ProtocolContext";
 import { Toaster } from "sonner";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -49,7 +50,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className}>
         <WalletProvider>
           <WalletDataProvider>
-            {children}
+            <ProtocolProvider>
+              {children}
+            </ProtocolProvider>
           </WalletDataProvider>
           <Toaster 
             richColors 

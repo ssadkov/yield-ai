@@ -1,15 +1,18 @@
 import { Button } from "@/components/ui/button";
 import { Settings, ExternalLink } from "lucide-react";
 import { Protocol } from "@/lib/protocols/getProtocolsList";
+import { useProtocol } from "@/lib/contexts/ProtocolContext";
 
 interface ManagePositionsButtonProps {
   protocol: Protocol;
 }
 
 export function ManagePositionsButton({ protocol }: ManagePositionsButtonProps) {
+  const { setSelectedProtocol } = useProtocol();
+
   const handleClick = () => {
     if (protocol.managedType === "native") {
-      alert(`Manage positions for ${protocol.name}`);
+      setSelectedProtocol(protocol);
     } else if (protocol.managedType === "external" && protocol.url) {
       window.open(protocol.url, "_blank");
     }
