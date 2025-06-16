@@ -20,6 +20,9 @@ importers:
       '@aptos-labs/wallet-adapter-react':
         specifier: ^6.1.2
         version: 6.1.2(@aptos-labs/ts-sdk@1.39.0(axios@1.9.0)(got@11.8.6))(@mizuwallet-sdk/protocol@0.0.2)(@telegram-apps/bridge@1.9.2)(@types/react@19.1.7)(@wallet-standard/core@1.0.3)(aptos@1.21.0)(axios@1.9.0)(got@11.8.6)(react@19.1.0)
+      '@hyperionxyz/sdk':
+        specifier: ^0.0.13
+        version: 0.0.13(@aptos-labs/ts-sdk@1.39.0(axios@1.9.0)(got@11.8.6))(graphql@16.11.0)
       '@radix-ui/react-alert-dialog':
         specifier: ^1.1.14
         version: 1.1.14(@types/react-dom@19.1.6(@types/react@19.1.7))(@types/react@19.1.7)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -338,6 +341,11 @@ packages:
   '@humanwhocodes/retry@0.4.3':
     resolution: {integrity: sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ==}
     engines: {node: '>=18.18'}
+
+  '@hyperionxyz/sdk@0.0.13':
+    resolution: {integrity: sha512-YkSrprJSoBSdavYtIslbCE9P5Zl1Lv9jsfmorqSDnMp7mhlIfnoT++X0YUPtKML5FRdRMWBDaUTnqw9Ar7Oo2w==}
+    peerDependencies:
+      '@aptos-labs/ts-sdk': ^1.38.0
 
   '@identity-connect/api@0.7.0':
     resolution: {integrity: sha512-mn/LZGeb3xgBD644p67tYOjvYSSdZpwxiO4/ZjwjsJZ8eYvGha5FiZg+pqVH73lg1S36qikwbkA3HUQOAE5GKA==}
@@ -1672,6 +1680,11 @@ packages:
   apg-lite@1.0.5:
     resolution: {integrity: sha512-SlI+nLMQDzCZfS39ihzjGp3JNBQfJXyMi6cg9tkLOCPVErgFsUIAEdO9IezR7kbP5Xd0ozcPNQBkf9TO5cHgWw==}
 
+  aptos-tool@0.0.8:
+    resolution: {integrity: sha512-1V4WswhESOVFdd5EMAljVQ22ZJf+HyBe1xcT3NIvpdx7iO6khQZo7t+97drr2Bk5A7HIZwtEX1JemK9D2HrZCA==}
+    peerDependencies:
+      '@aptos-labs/ts-sdk': latest
+
   aptos@1.21.0:
     resolution: {integrity: sha512-PRKjoFgL8tVEc9+oS7eJUv8GNxx8n3+0byH2+m7CP3raYOD6yFKOecuwjVMIJmgfpjp6xH0P0HDMGZAXmSyU0Q==}
     engines: {node: '>=11.0.0'}
@@ -1766,6 +1779,9 @@ packages:
 
   base64-js@1.5.1:
     resolution: {integrity: sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==}
+
+  bignumber.js@9.3.0:
+    resolution: {integrity: sha512-EM7aMFTXbptt/wZdMlBv2t8IViwQL+h6SLHosp8Yf0dqJMTnY6iL32opnAB6kAdL0SZPuvcAzFr31o0c/R3/RA==}
 
   bn.js@5.2.2:
     resolution: {integrity: sha512-v2YAxEmKaBLahNwE1mjp4WON6huMNeuDvagFZW+ASCuA/ku0bXR9hSMw0XpiqMoA3+rmnyck/tPRSFQkoC9Cuw==}
@@ -2736,6 +2752,9 @@ packages:
 
   lodash@4.17.21:
     resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
+
+  long@5.3.2:
+    resolution: {integrity: sha512-mNAgZ1GmyNhD7AuqnTG3/VQ26o760+ZYBPKjPvugO8+nLbYfX6TVpJPseBvopbdY+qpZ/lKUnmEc1LeZYS3QAA==}
 
   loose-envify@1.4.0:
     resolution: {integrity: sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q==}
@@ -4044,6 +4063,16 @@ snapshots:
   '@humanwhocodes/retry@0.3.1': {}
 
   '@humanwhocodes/retry@0.4.3': {}
+
+  '@hyperionxyz/sdk@0.0.13(@aptos-labs/ts-sdk@1.39.0(axios@1.9.0)(got@11.8.6))(graphql@16.11.0)':
+    dependencies:
+      '@aptos-labs/ts-sdk': 1.39.0(axios@1.9.0)(got@11.8.6)
+      aptos-tool: 0.0.8(@aptos-labs/ts-sdk@1.39.0(axios@1.9.0)(got@11.8.6))
+      bignumber.js: 9.3.0
+      graphql-request: 7.2.0(graphql@16.11.0)
+      long: 5.3.2
+    transitivePeerDependencies:
+      - graphql
 
   '@identity-connect/api@0.7.0': {}
 
@@ -5612,6 +5641,11 @@ snapshots:
 
   apg-lite@1.0.5: {}
 
+  aptos-tool@0.0.8(@aptos-labs/ts-sdk@1.39.0(axios@1.9.0)(got@11.8.6)):
+    dependencies:
+      '@aptos-labs/ts-sdk': 1.39.0(axios@1.9.0)(got@11.8.6)
+      bignumber.js: 9.3.0
+
   aptos@1.21.0:
     dependencies:
       '@aptos-labs/aptos-client': 0.1.1
@@ -5745,6 +5779,8 @@ snapshots:
       safe-buffer: 5.1.2
 
   base64-js@1.5.1: {}
+
+  bignumber.js@9.3.0: {}
 
   bn.js@5.2.2: {}
 
@@ -6863,6 +6899,8 @@ snapshots:
   lodash.merge@4.6.2: {}
 
   lodash@4.17.21: {}
+
+  long@5.3.2: {}
 
   loose-envify@1.4.0:
     dependencies:

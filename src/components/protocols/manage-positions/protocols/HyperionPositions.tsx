@@ -60,12 +60,16 @@ export function HyperionPositions() {
   }
 
   return (
-    <Card className="w-full">
+    <div className="space-y-4">
       <ScrollArea className="h-[400px]">
         {positions.map((position, index) => (
-          <PositionCard key={`${position.assetName}-${index}`} position={position} />
+          <PositionCard 
+            key={`${position.assetName}-${index}`} 
+            position={position} 
+            isManageView={true}
+          />
         ))}
       </ScrollArea>
-    </Card>
+    </div>
   );
 } 

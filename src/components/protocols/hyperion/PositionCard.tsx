@@ -1,6 +1,12 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useWallet } from "@aptos-labs/wallet-adapter-react";
+import { useState } from "react";
+import { Loader2 } from "lucide-react";
+import { sdk } from "@/lib/hyperion";
+import { useToast } from "@/components/ui/use-toast";
 
 interface PositionProps {
   position: {
@@ -46,9 +52,13 @@ interface PositionProps {
       };
     };
   };
+  isManageView?: boolean;
 }
 
-export function PositionCard({ position }: PositionProps) {
+export function PositionCard({ position, isManageView = false }: PositionProps) {
+  const { signAndSubmitTransaction, account } = useWallet();
+  const [isClaiming, setIsClaiming] = useState(false);
+  const { toast } = useToast();
   const token1 = position.position.pool.token1Info;
   const token2 = position.position.pool.token2Info;
   
@@ -62,6 +72,44 @@ export function PositionCard({ position }: PositionProps) {
   }, 0);
   
   const totalRewards = farmRewards + feeRewards;
+
+  const handleClaimRewards = async () => {
+    if (!signAndSubmitTransaction || !account?.address) return;
+    
+    try {
+      setIsClaiming(true);
+      const payload = await sdk.Position.claimAllRewardsTransactionPayload({
+        positionId: position.position.objectId,
+        recipient: account.address.toString()
+      });
+
+      const response = await signAndSubmitTransaction({
+        data: {
+          function: payload.function as `${string}::${string}::${string}`,
+          typeArguments: payload.typeArguments,
+          functionArguments: payload.functionArguments
+        },
+        options: {
+          maxGasAmount: 100000,
+        },
+      });
+
+      console.log('Transaction hash:', response.hash);
+      toast({
+        title: "Success",
+        description: "Rewards claimed successfully",
+      });
+    } catch (error) {
+      console.error('Error claiming rewards:', error);
+      toast({
+        title: "Error",
+        description: "Failed to claim rewards",
+        variant: "destructive",
+      });
+    } finally {
+      setIsClaiming(false);
+    }
+  };
   
   return (
     <Card className="w-full mb-3">
@@ -92,10 +140,26 @@ export function PositionCard({ position }: PositionProps) {
             </div>
           </div>
         </div>
-        <div className="text-right flex flex-col">
+        <div className="flex flex-col items-end gap-2">
           <div className="text-base font-medium">${parseFloat(position.value).toFixed(2)}</div>
-          <div className="text-xs text-muted-foreground">
-            💰 Rewards: ${totalRewards.toFixed(2)}
+          <div className="flex items-center gap-2">
+            <div className="text-xs text-muted-foreground">
+              💰 Rewards: ${totalRewards.toFixed(2)}
+            </div>
+            {isManageView && totalRewards > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleClaimRewards}
+                disabled={isClaiming}
+              >
+                {isClaiming ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Claim"
+                )}
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>
