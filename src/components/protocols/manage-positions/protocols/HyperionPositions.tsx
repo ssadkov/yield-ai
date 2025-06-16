@@ -61,7 +61,7 @@ function HyperionPosition({ position, index }: HyperionPositionProps) {
           {position.isActive ? (
             <span className="px-2 py-1 rounded bg-green-500/10 text-green-600 text-xs font-semibold ml-2">Active</span>
           ) : (
-            <span className="px-2 py-1 rounded bg-muted text-muted-foreground text-xs font-semibold ml-2">Inactive</span>
+            <span className="px-2 py-1 rounded bg-red-500/10 text-red-600 border-red-500/20 text-xs font-semibold ml-2">Inactive</span>
           )}
         </div>
         <div className="flex items-center gap-2">
