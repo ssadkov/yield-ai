@@ -285,7 +285,7 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, amount, fromToken, 
   const getTokenLogo = (address: string): string => {
     const tokensArr = Array.isArray((tokenList as any).data?.data) ? (tokenList as any).data.data : (tokenList as any);
     const tokenMeta = tokensArr.find((t: any) => t.faAddress === address || t.address === address);
-    return tokenMeta?.logo || '/file.svg';
+    return tokenMeta?.logoUrl || '/file.svg';
   };
 
   return (

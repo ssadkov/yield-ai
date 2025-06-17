@@ -29,7 +29,7 @@ import { useDeposit } from "@/lib/hooks/useDeposit";
 import { ProtocolKey } from "@/lib/transactions/types";
 import { Loader2 } from "lucide-react";
 import { Label } from "@/components/ui/label";
-import { SwapAndDepositStatusModal } from "@/components/ui/SwapAndDepositStatusModal";
+import { SwapAndDepositStatusModal } from "@/components/ui/swap-and-deposit-status-modal";
 
 interface SwapAndDepositModalProps {
   isOpen: boolean;
