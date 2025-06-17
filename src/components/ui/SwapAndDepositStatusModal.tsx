@@ -1,9 +1,10 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, ExternalLink } from "lucide-react";
 import { useEffect, useState } from "react";
 import { HyperionSwapService } from '@/lib/services/protocols/hyperion/swap';
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
+import tokenList from '@/lib/data/tokenList.json';
 
 interface SwapAndDepositStatusModalProps {
   isOpen: boolean;
@@ -33,13 +34,19 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, amount, fromToken, 
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [hasRun, setHasRun] = useState(false);
+  const [receivedAmount, setReceivedAmount] = useState<string | null>(null);
+  const [receivedSymbol, setReceivedSymbol] = useState<string | null>(null);
+  const [receivedDecimals, setReceivedDecimals] = useState<number | null>(null);
+  const [receivedHuman, setReceivedHuman] = useState<string | null>(null);
   const wallet = useWallet();
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || hasRun) return;
     setStatus('loading');
     setResult(null);
     setError(null);
+    setHasRun(true);
 
     (async () => {
       try {
@@ -172,10 +179,66 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, amount, fromToken, 
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, amount, fromToken.address, toToken.address, userAddress, wallet, retryCount]);
+  }, [isOpen, amount, fromToken.address, toToken.address, userAddress, wallet, retryCount, hasRun]);
+
+  useEffect(() => {
+    if (!isOpen) setHasRun(false);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (status === 'success' && result?.hash) {
+      fetch(`https://fullnode.mainnet.aptoslabs.com/v1/transactions/by_hash/${result.hash}`)
+        .then(res => res.json())
+        .then(data => {
+          const events = data.events || [];
+          // 1. Ищем SwapEventV3
+          const swapEvent = events.find((e: any) => e.type && e.type.includes('SwapEventV3'));
+          let amount = null;
+          let tokenAddress = null;
+          if (swapEvent && swapEvent.data) {
+            amount = swapEvent.data.amount_out;
+            tokenAddress = swapEvent.data.to_token?.inner;
+          }
+          // 2. Если нет SwapEventV3, ищем Deposit с amount > 0
+          if (!amount) {
+            const depositEvent = events.find((e: any) => e.type && e.type.includes('Deposit') && e.data && e.data.amount && Number(e.data.amount) > 0);
+            if (depositEvent) {
+              amount = depositEvent.data.amount;
+              tokenAddress = depositEvent.data.store;
+            }
+          }
+          if (amount && tokenAddress) {
+            // 3. Ищем метаданные токена
+            let symbol = null;
+            let decimals = 8;
+            // Корректно извлекаем массив токенов
+            const tokensArr = Array.isArray((tokenList as any).data?.data) ? (tokenList as any).data.data : (tokenList as any);
+            const tokenMeta = tokensArr.find((t: any) => t.faAddress === tokenAddress || t.address === tokenAddress);
+            if (tokenMeta) {
+              symbol = tokenMeta.symbol;
+              decimals = tokenMeta.decimals;
+            } else {
+              // Если не нашли, ищем в changes -> Metadata
+              const metaChange = (data.changes || []).find((c: any) => c.address === tokenAddress && c.data && c.data.type && c.data.type.includes('Metadata'));
+              if (metaChange && metaChange.data && metaChange.data.data) {
+                symbol = metaChange.data.data.symbol;
+                decimals = metaChange.data.data.decimals;
+              }
+            }
+            setReceivedAmount(amount);
+            setReceivedSymbol(symbol);
+            setReceivedDecimals(decimals);
+            // 4. Переводим в человекочитаемый вид
+            const human = (Number(amount) / Math.pow(10, decimals)).toFixed(decimals);
+            setReceivedHuman(human);
+          }
+        });
+    }
+  }, [status, result]);
 
   const handleRetry = () => {
     setRetryCount((c) => c + 1);
+    setHasRun(false);
   };
 
   return (
@@ -193,7 +256,25 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, amount, fromToken, 
           {status === 'success' && (
             <div className="text-green-600 text-center">
               Swap transaction sent!<br />
-              <pre className="text-xs mt-2 bg-muted p-2 rounded max-w-xs overflow-x-auto">{JSON.stringify(result, null, 2)}</pre>
+              <div className="flex items-center justify-center gap-2 mt-2">
+                <span className="font-mono text-sm bg-muted px-2 py-1 rounded">
+                  {result.hash.slice(0, 6)}...{result.hash.slice(-4)}
+                </span>
+                <a
+                  href={`https://explorer.aptoslabs.com/txn/${result.hash}?network=mainnet`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="View in Explorer"
+                  className="text-blue-600 hover:underline"
+                >
+                  <ExternalLink className="inline w-4 h-4 align-text-bottom" />
+                </a>
+              </div>
+              {receivedAmount && receivedSymbol && receivedHuman && (
+                <div className="mt-2 text-sm text-green-700">
+                  Received: <b>{receivedHuman}</b> {receivedSymbol}
+                </div>
+              )}
             </div>
           )}
           {status === 'error' && (

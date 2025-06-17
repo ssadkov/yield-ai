@@ -84,7 +84,6 @@ export class HyperionSwapService {
         slippage: params.slippage,
         poolRoute: params.poolRoute,
         recipient: params.recipient,
-        typeArgs: params.typeArgs,
       });
       return payload;
     } catch (error) {
