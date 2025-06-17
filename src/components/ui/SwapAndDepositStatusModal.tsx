@@ -7,6 +7,7 @@ import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import tokenList from '@/lib/data/tokenList.json';
 import { useDeposit } from '@/lib/hooks/useDeposit';
 import { ProtocolKey } from '@/lib/transactions/types';
+import Image from 'next/image';
 
 interface SwapAndDepositStatusModalProps {
   isOpen: boolean;
@@ -16,15 +17,19 @@ interface SwapAndDepositStatusModalProps {
     symbol: string;
     address: string;
     decimals?: number;
+    logo?: string;
   };
   toToken: {
     symbol: string;
     address: string;
     decimals?: number;
+    logo?: string;
   };
   protocol: {
     name: string;
     key: string;
+    apy?: number;
+    logo?: string;
   };
   userAddress: string;
 }
@@ -48,7 +53,21 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, amount, fromToken, 
   const [depositError, setDepositError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isOpen || hasRun) return;
+    if (!isOpen) {
+      setHasRun(false);
+      setStatus('idle');
+      setResult(null);
+      setError(null);
+      setReceivedAmount(null);
+      setReceivedSymbol(null);
+      setReceivedDecimals(null);
+      setReceivedHuman(null);
+      setDepositStatus(null);
+      setDepositResult(null);
+      setDepositError(null);
+      return;
+    }
+    if (hasRun) return;
     setStatus('loading');
     setResult(null);
     setError(null);
@@ -262,6 +281,13 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, amount, fromToken, 
     setHasRun(false);
   };
 
+  // Получение логотипа токена по адресу
+  const getTokenLogo = (address: string): string => {
+    const tokensArr = Array.isArray((tokenList as any).data?.data) ? (tokenList as any).data.data : (tokenList as any);
+    const tokenMeta = tokensArr.find((t: any) => t.faAddress === address || t.address === address);
+    return tokenMeta?.logo || '/file.svg';
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[400px] p-6 rounded-2xl flex flex-col items-center">
@@ -272,12 +298,30 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, amount, fromToken, 
             You will need to sign 2 transactions: 1 for swap, 2 for deposit of received tokens.
           </DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col items-center gap-4 mt-4">
+        <div className="flex flex-col items-center gap-4 mt-4 w-full">
+          {/* Блок обмена */}
+          <div className="w-full flex flex-col items-center gap-2 mb-2">
+            <div className="flex items-center gap-2">
+              <Image src={getTokenLogo(fromToken.address)} alt={fromToken.symbol} width={28} height={28} className="rounded-full bg-white border" />
+              <span className="font-semibold text-base">{amount} {fromToken.symbol}</span>
+              <span className="text-xl">→</span>
+              {receivedAmount && receivedSymbol && (
+                <>
+                  <Image src={getTokenLogo(toToken.address)} alt={receivedSymbol || ''} width={28} height={28} className="rounded-full bg-white border" />
+                  <span className="font-semibold text-base">{receivedHuman} {receivedSymbol}</span>
+                </>
+              )}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Swap: {fromToken.symbol} → {receivedSymbol || toToken.symbol}
+            </div>
+          </div>
+
+          {/* Статус свапа */}
           {status === 'loading' && <Loader2 className="h-10 w-10 animate-spin text-primary" />}
           {status === 'loading' && <div className="text-lg font-medium">Processing swap and deposit...</div>}
           {status === 'success' && (
-            <div className="text-green-600 text-center">
-              Swap transaction sent!<br />
+            <div className="text-green-600 text-center w-full">
               <div className="flex items-center justify-center gap-2 mt-2">
                 <span className="font-mono text-sm bg-muted px-2 py-1 rounded">
                   {result.hash.slice(0, 6)}...{result.hash.slice(-4)}
@@ -293,27 +337,32 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, amount, fromToken, 
                 </a>
               </div>
               {receivedAmount && receivedSymbol && receivedHuman && (
-                <div className="mt-2 text-sm text-green-700">
-                  Received: <b>{receivedHuman}</b> {receivedSymbol}
+                <div className="mt-2 text-sm text-green-700 flex items-center justify-center gap-2">
+                  <Image src={getTokenLogo(toToken.address)} alt={receivedSymbol || ''} width={20} height={20} className="rounded-full bg-white border" />
+                  <span>Received: <b>{receivedHuman}</b> {receivedSymbol}</span>
                 </div>
               )}
             </div>
           )}
-          {status === 'error' && (
-            <div className="text-red-600 text-center">
-              Swap failed:<br />
-              <pre className="text-xs mt-2 bg-muted p-2 rounded max-w-xs overflow-x-auto">{error}</pre>
-              <Button variant="outline" className="mt-2" onClick={handleRetry}>Retry</Button>
-            </div>
-          )}
+
+          {/* Статус депозита */}
           {depositStatus === 'loading' && (
             <div className="text-blue-600 text-center mt-2">
-              Deposit transaction is being sent...
+              <div className="flex items-center justify-center gap-2 mb-1">
+                <Image src={protocol.logo || ''} alt={protocol.name} width={24} height={24} className="rounded-full bg-white border" />
+                <span className="font-semibold">Depositing to {protocol.name}...</span>
+              </div>
+              <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />
             </div>
           )}
           {depositStatus === 'success' && depositResult?.hash && (
             <div className="text-green-600 text-center mt-2">
-              Deposit transaction sent!<br />
+              <div className="flex items-center justify-center gap-2 mb-1">
+                <Image src={protocol.logo || ''} alt={protocol.name} width={24} height={24} className="rounded-full bg-white border" />
+                <span className="font-semibold">Deposited to {protocol.name}:</span>
+                <Image src={getTokenLogo(toToken.address)} alt={receivedSymbol || ''} width={20} height={20} className="rounded-full bg-white border" />
+                <span><b>{receivedHuman}</b> {receivedSymbol}</span>
+              </div>
               <div className="flex items-center justify-center gap-2 mt-2">
                 <span className="font-mono text-sm bg-muted px-2 py-1 rounded">
                   {depositResult.hash.slice(0, 6)}...{depositResult.hash.slice(-4)}
@@ -328,6 +377,12 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, amount, fromToken, 
                   <ExternalLink className="inline w-4 h-4 align-text-bottom" />
                 </a>
               </div>
+              {/* APY и финальный месседж */}
+              {protocol.apy !== undefined && protocol.apy !== null && (
+                <div className="mt-1 text-base text-green-700 font-medium">
+                  Now you are earning {protocol.apy.toFixed(2)}% APY!
+                </div>
+              )}
             </div>
           )}
           {depositStatus === 'error' && (
@@ -336,16 +391,11 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, amount, fromToken, 
               <pre className="text-xs mt-2 bg-muted p-2 rounded max-w-xs overflow-x-auto">{depositError}</pre>
             </div>
           )}
-          <div className="text-xs text-muted-foreground mt-2">
-            <div>Amount: {amount}</div>
-            <div>From: {fromToken.symbol} ({fromToken.address})</div>
-            <div>To: {toToken.symbol} ({toToken.address})</div>
-            <div>Protocol: {protocol.name} ({protocol.key})</div>
-            <div>User: {userAddress}</div>
-          </div>
         </div>
         <div className="flex justify-end w-full mt-6">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="outline" onClick={onClose}>
+            {depositStatus === 'success' ? 'Close' : 'Cancel'}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
