@@ -78,10 +78,13 @@ export function SwapAndDepositModal({
         return {
           ...t,
           tokenInfo,
-          value: tokenInfo ? Number(t.amount) * (Number(tokenInfo.usdPrice) || 0) : 0
+          value: tokenInfo
+            ? (Number(t.amount) / Math.pow(10, tokenInfo.decimals)) * (Number(tokenInfo.usdPrice) || 0)
+            : 0
         };
       })
       .filter(token =>
+        token.value > 0 &&
         token.tokenInfo?.tokenAddress !== tokenIn.address &&
         token.tokenInfo?.faAddress !== tokenIn.address
       )
@@ -162,9 +165,16 @@ export function SwapAndDepositModal({
                 type="number"
                 value={amountString}
                 onChange={(e) => setAmountFromString(e.target.value)}
-                className="flex-1"
+                className={`w-32 ${swapAmount > (selectedToken ? BigInt(tokens.find(t => t.address === selectedToken.tokenAddress)?.amount || '0') : BigInt(0)) ? 'text-red-500' : ''}`}
                 placeholder="0.00"
               />
+              {amountString && (
+                <span className={`text-sm ${swapAmount > (selectedToken ? BigInt(tokens.find(t => t.address === selectedToken.tokenAddress)?.amount || '0') : BigInt(0)) ? 'text-red-500' : 'text-muted-foreground'}`}>
+                  ≈ ${(
+                    parseFloat(amountString) * (selectedToken ? Number(selectedToken.usdPrice) || 0 : 0)
+                  ).toFixed(2)}
+                </span>
+              )}
               <Select
                 value={selectedToken?.tokenAddress || undefined}
                 onValueChange={(value) => {
@@ -172,7 +182,7 @@ export function SwapAndDepositModal({
                   if (token) setSelectedToken(token);
                 }}
               >
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-[140px]">
                   <SelectValue>
                     {selectedToken && (
                       <div className="flex items-center gap-2">
@@ -213,6 +223,12 @@ export function SwapAndDepositModal({
               </Select>
             </div>
           </div>
+
+          {swapAmount > (selectedToken ? BigInt(tokens.find(t => t.address === selectedToken.tokenAddress)?.amount || '0') : BigInt(0)) && (
+            <div className="text-sm text-red-500 mt-1">
+              Amount exceeds wallet balance of {selectedToken?.symbol}
+            </div>
+          )}
 
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={setHalf}>
