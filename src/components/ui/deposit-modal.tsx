@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Image from "next/image";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ArrowLeftRight } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -242,8 +242,18 @@ export function DepositModal({
           </div>
 
           {amount > walletBalance && (
-            <div className="text-sm text-red-500 mt-1">
-              Amount exceeds wallet balance
+            <div className="flex items-center justify-between text-sm text-red-500 mt-1">
+              <span>
+                Amount exceeds wallet balance of {displaySymbol}. Would you like to{" "}
+                <button 
+                  onClick={() => alert('Swap functionality coming soon!')}
+                  className="text-blue-500 hover:text-blue-600 inline-flex items-center gap-1"
+                >
+                  swap and deposit
+                  <ArrowLeftRight className="h-4 w-4" />
+                </button>
+                {" "}another token?
+              </span>
             </div>
           )}
 
