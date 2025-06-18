@@ -84,29 +84,11 @@ export function SwapAndDepositModal({
       token.faAddress ?? undefined,
     ].filter(Boolean).map(normalizeAddress);
 
-    // Логируем адреса токена и все адреса из балансов
-    console.log('--- findTokenBalance debug ---');
-    console.log('Token:', token.symbol, tokenAddresses);
-    tokens.forEach(t => {
-      console.log(
-        'Balance token:',
-        t.symbol,
-        'address:',
-        normalizeAddress(t.address),
-        'faAddress:',
-        normalizeAddress(t.faAddress),
-        'amount:',
-        t.amount
-      );
-    });
-
     const found = tokens.find(
       t =>
         tokenAddresses.includes(normalizeAddress(t.address)) ||
         tokenAddresses.includes(normalizeAddress(t.faAddress))
     );
-
-    console.log('Found:', found);
 
     return found?.amount || '0';
   }
@@ -319,6 +301,7 @@ export function SwapAndDepositModal({
         fromToken={{
           symbol: selectedToken?.symbol || '',
           address: selectedToken?.faAddress || '',
+          decimals: selectedToken?.decimals ?? 6,
         }}
         toToken={{
           symbol: tokenIn.symbol,

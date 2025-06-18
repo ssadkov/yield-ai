@@ -86,8 +86,9 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, amount, fromToken, 
 
         // Преобразуем amount в минимальные единицы
         const decimalsA = fromToken.decimals || 8;
+        console.log('fromToken.decimals:', fromToken.decimals, 'amount:', amount);
         const amountInMinimalUnits = Math.floor(parseFloat(amount) * Math.pow(10, decimalsA));
-        console.log('Amount in minimal units:', amountInMinimalUnits);
+        console.log('amountInMinimalUnits:', amountInMinimalUnits);
 
         // Предварительная оценка через estFromAmount и estToAmount
         const estFromAmount = await swapService.estFromAmount({
