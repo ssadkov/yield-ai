@@ -310,6 +310,7 @@ export function SwapAndDepositModal({
         protocol={{
           name: protocol.name,
           key: protocol.key,
+          logo: protocol.logo,
         }}
         userAddress={userAddress || ''}
       />

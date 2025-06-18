@@ -286,8 +286,11 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, amount, fromToken, 
   const getTokenLogo = (address: string): string => {
     const tokensArr = Array.isArray((tokenList as any).data?.data) ? (tokenList as any).data.data : (tokenList as any);
     const tokenMeta = tokensArr.find((t: any) => t.faAddress === address || t.address === address);
-    return tokenMeta?.logoUrl || '/file.svg';
+    return tokenMeta?.logoUrl && tokenMeta.logoUrl !== '' ? tokenMeta.logoUrl : '/file.svg';
   };
+
+  // Получение логотипа протокола
+  const getProtocolLogo = (logo?: string) => logo && logo !== '' ? logo : '/file.svg';
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -296,8 +299,13 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, amount, fromToken, 
           <DialogTitle>Swap and Deposit</DialogTitle>
           <DialogDescription>
             Processing your swap and deposit transaction. Please wait...<br/>
-            You will need to sign 2 transactions: 1 for swap, 2 for deposit of received tokens.
+            You will need to sign 2 transactions: 1 for swap, 2 for deposit of received tokens
           </DialogDescription>
+          <div className="flex items-center justify-center gap-2 mt-2 text-base font-medium">
+            <span>Deposit on</span>
+            <Image src={getProtocolLogo(protocol.logo)} alt={protocol.name} width={20} height={20} className="rounded-full bg-white border" />
+            <span>{protocol.name}</span>
+          </div>
         </DialogHeader>
         <div className="flex flex-col items-center gap-4 mt-4 w-full">
           {/* Блок обмена */}
@@ -321,6 +329,9 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, amount, fromToken, 
           {/* Статус свапа */}
           {status === 'loading' && <Loader2 className="h-10 w-10 animate-spin text-primary" />}
           {status === 'loading' && <div className="text-lg font-medium">Processing swap and deposit...</div>}
+          {status === 'loading' && (
+            <div className="text-sm text-muted-foreground mt-2">Waiting for wallet confirmation and network response...</div>
+          )}
           {status === 'success' && (
             <div className="text-green-600 text-center w-full">
               <div className="flex items-center justify-center gap-2 mt-2">
@@ -350,7 +361,7 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, amount, fromToken, 
           {depositStatus === 'loading' && (
             <div className="text-blue-600 text-center mt-2">
               <div className="flex items-center justify-center gap-2 mb-1">
-                <Image src={protocol.logo || ''} alt={protocol.name} width={24} height={24} className="rounded-full bg-white border" />
+                <Image src={getProtocolLogo(protocol.logo)} alt={protocol.name} width={24} height={24} className="rounded-full bg-white border" />
                 <span className="font-semibold">Depositing to {protocol.name}...</span>
               </div>
               <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />
@@ -359,7 +370,7 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, amount, fromToken, 
           {depositStatus === 'success' && depositResult?.hash && (
             <div className="text-green-600 text-center mt-2">
               <div className="flex items-center justify-center gap-2 mb-1">
-                <Image src={protocol.logo || ''} alt={protocol.name} width={24} height={24} className="rounded-full bg-white border" />
+                <Image src={getProtocolLogo(protocol.logo)} alt={protocol.name} width={24} height={24} className="rounded-full bg-white border" />
                 <span className="font-semibold">Deposited to {protocol.name}:</span>
                 <Image src={getTokenLogo(toToken.address)} alt={receivedSymbol || ''} width={20} height={20} className="rounded-full bg-white border" />
                 <span><b>{receivedHuman}</b> {receivedSymbol}</span>
