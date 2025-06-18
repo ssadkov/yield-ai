@@ -219,7 +219,7 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, amount, fromToken, 
           // 1. Ищем SwapEventV3
           const swapEvent = events.find((e: any) => e.type && e.type.includes('SwapEventV3'));
           let amount = null;
-          let tokenAddress = null;
+          let tokenAddress: string | null = null;
           if (swapEvent && swapEvent.data) {
             amount = swapEvent.data.amount_out;
             tokenAddress = swapEvent.data.to_token?.inner;
