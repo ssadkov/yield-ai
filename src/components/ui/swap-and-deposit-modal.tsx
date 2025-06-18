@@ -67,28 +67,68 @@ export function SwapAndDepositModal({
 
   // Получаем информацию о токене из списка токенов
   const getTokenInfo = (address: string): Token | undefined => {
-    return (tokenList.data.data as Token[]).find(token => 
-      token.tokenAddress === address || token.faAddress === address
+    const norm = address.toLowerCase();
+    return (tokenList.data.data as Token[]).find(token =>
+      (token.tokenAddress?.toLowerCase?.() === norm) ||
+      (token.faAddress?.toLowerCase?.() === norm)
     );
   };
+
+  function normalizeAddress(address?: string) {
+    return (address || '').toLowerCase();
+  }
+
+  function findTokenBalance(tokens: any[], token: Token): string {
+    const tokenAddresses = [
+      token.tokenAddress ?? undefined,
+      token.faAddress ?? undefined,
+    ].filter(Boolean).map(normalizeAddress);
+
+    // Логируем адреса токена и все адреса из балансов
+    console.log('--- findTokenBalance debug ---');
+    console.log('Token:', token.symbol, tokenAddresses);
+    tokens.forEach(t => {
+      console.log(
+        'Balance token:',
+        t.symbol,
+        'address:',
+        normalizeAddress(t.address),
+        'faAddress:',
+        normalizeAddress(t.faAddress),
+        'amount:',
+        t.amount
+      );
+    });
+
+    const found = tokens.find(
+      t =>
+        tokenAddresses.includes(normalizeAddress(t.address)) ||
+        tokenAddresses.includes(normalizeAddress(t.faAddress))
+    );
+
+    console.log('Found:', found);
+
+    return found?.amount || '0';
+  }
 
   // Сортируем токены по value и выбираем самый дорогой
   const sortedTokens = useMemo(() => {
     return tokens
       .map(t => {
-        const tokenInfo = getTokenInfo(t.address);
+        const tokenInfo = getTokenInfo(t.address.toLowerCase());
         return {
           ...t,
           tokenInfo,
           value: tokenInfo
-            ? (Number(t.amount) / Math.pow(10, tokenInfo.decimals)) * (Number(tokenInfo.usdPrice) || 0)
+            ? (Number(findTokenBalance(tokens, tokenInfo)) / Math.pow(10, tokenInfo.decimals)) * (Number(tokenInfo.usdPrice) || 0)
             : 0
         };
       })
       .filter(token =>
         token.value > 0 &&
-        token.tokenInfo?.tokenAddress !== tokenIn.address &&
-        token.tokenInfo?.faAddress !== tokenIn.address
+        token.tokenInfo &&
+        token.tokenInfo.tokenAddress?.toLowerCase?.() !== tokenIn.address.toLowerCase() &&
+        token.tokenInfo.faAddress?.toLowerCase?.() !== tokenIn.address.toLowerCase()
       )
       .sort((a, b) => b.value - a.value);
   }, [tokens, tokenIn.address]);
@@ -97,7 +137,8 @@ export function SwapAndDepositModal({
   useEffect(() => {
     if (sortedTokens.length > 0) {
       // selectedToken всегда Token
-      const token = getTokenInfo(sortedTokens[0].address);
+      const address = sortedTokens[0].address;
+      const token = getTokenInfo(address);
       if (token) setSelectedToken(token);
     }
   }, [sortedTokens]);
@@ -110,7 +151,7 @@ export function SwapAndDepositModal({
     setMax,
     isValid,
   } = useAmountInput({
-    balance: selectedToken ? BigInt(tokens.find(t => t.address === selectedToken.tokenAddress)?.amount || '0') : BigInt(0),
+    balance: selectedToken ? BigInt(findTokenBalance(tokens, selectedToken)) : BigInt(0),
     decimals: selectedToken?.decimals || 18,
   });
 
@@ -157,44 +198,47 @@ export function SwapAndDepositModal({
                   type="number"
                   value={amountString}
                   onChange={(e) => setAmountFromString(e.target.value)}
-                  className={`w-32 ${swapAmount > (selectedToken ? BigInt(tokens.find(t => t.address === selectedToken.tokenAddress)?.amount || '0') : BigInt(0)) ? 'text-red-500' : ''}`}
+                  className={`w-32 ${swapAmount > (selectedToken ? BigInt(findTokenBalance(tokens, selectedToken)) : BigInt(0)) ? 'text-red-500' : ''}`}
                   placeholder="0.00"
                 />
                 {amountString && (
-                  <span className={`text-sm ${swapAmount > (selectedToken ? BigInt(tokens.find(t => t.address === selectedToken.tokenAddress)?.amount || '0') : BigInt(0)) ? 'text-red-500' : 'text-muted-foreground'}`}>
+                  <span className={`text-sm ${swapAmount > (selectedToken ? BigInt(findTokenBalance(tokens, selectedToken)) : BigInt(0)) ? 'text-red-500' : 'text-muted-foreground'}`}>
                     ≈ ${(
                       parseFloat(amountString) * (selectedToken ? Number(selectedToken.usdPrice) || 0 : 0)
                     ).toFixed(2)}
                   </span>
                 )}
                 <Select
-                  value={selectedToken?.tokenAddress || undefined}
+                  value={selectedToken?.faAddress || selectedToken?.tokenAddress || ''}
                   onValueChange={(value) => {
                     const token = getTokenInfo(value);
+                    console.log('selectedToken', token);
                     if (token) setSelectedToken(token);
                   }}
                 >
                   <SelectTrigger className="w-[140px]">
                     <SelectValue>
-                      {selectedToken && (
+                      {selectedToken ? (
                         <div className="flex items-center gap-2">
                           <Image
-                            src={selectedToken?.logoUrl || '/placeholder-token.png'}
-                            alt={selectedToken?.symbol || 'Token'}
+                            src={selectedToken.logoUrl || '/file.svg'}
+                            alt={selectedToken.symbol || 'Token'}
                             width={16}
                             height={16}
                             className="rounded-full"
                           />
-                          <span>{selectedToken?.symbol}</span>
+                          <span>{selectedToken.symbol || 'Token'}</span>
                         </div>
+                      ) : (
+                        <span>Select token</span>
                       )}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {sortedTokens.map((token) => (
-                      <SelectItem 
-                        key={token.address} 
-                        value={token.address}
+                      <SelectItem
+                        key={token.tokenInfo?.faAddress || token.tokenInfo?.tokenAddress || ''}
+                        value={token.tokenInfo?.faAddress || token.tokenInfo?.tokenAddress || ''}
                       >
                         <div className="flex items-center gap-2">
                           <Image
@@ -216,7 +260,7 @@ export function SwapAndDepositModal({
               </div>
             </div>
 
-            {swapAmount > (selectedToken ? BigInt(tokens.find(t => t.address === selectedToken.tokenAddress)?.amount || '0') : BigInt(0)) && (
+            {swapAmount > (selectedToken ? BigInt(findTokenBalance(tokens, selectedToken)) : BigInt(0)) && (
               <div className="text-sm text-red-500 mt-1">
                 Amount exceeds wallet balance of {selectedToken?.symbol}
               </div>
