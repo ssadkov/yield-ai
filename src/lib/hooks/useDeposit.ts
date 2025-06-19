@@ -90,7 +90,11 @@ export function useDeposit() {
             if (txData.success && txData.vm_status === "Executed successfully") {
               console.log('Transaction confirmed successfully, showing toast...');
               toast('Deposit successful!', {
-                description: `Transaction hash: ${response.hash}`,
+                description: `Transaction hash: ${response.hash.slice(0, 6)}...${response.hash.slice(-4)}`,
+                action: {
+                  label: 'View in Explorer',
+                  onClick: () => window.open(`https://explorer.aptoslabs.com/txn/${response.hash}?network=mainnet`, '_blank')
+                },
                 duration: 5000,
               });
               console.log('Toast should be shown now');

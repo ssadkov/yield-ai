@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { sdk } from "@/lib/hyperion";
 import { useToast } from "@/components/ui/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 
 interface PositionProps {
   position: {
@@ -97,7 +98,12 @@ export function PositionCard({ position, isManageView = false }: PositionProps) 
       console.log('Transaction hash:', response.hash);
       toast({
         title: "Success",
-        description: "Rewards claimed successfully",
+        description: `Transaction hash: ${response.hash.slice(0, 6)}...${response.hash.slice(-4)}`,
+        action: (
+          <ToastAction altText="View in Explorer" onClick={() => window.open(`https://explorer.aptoslabs.com/txn/${response.hash}?network=mainnet`, '_blank')}>
+            View in Explorer
+          </ToastAction>
+        ),
       });
     } catch (error) {
       console.error('Error claiming rewards:', error);

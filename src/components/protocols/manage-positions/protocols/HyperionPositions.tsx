@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useToast } from "@/components/ui/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { sdk } from "@/lib/hyperion";
 
 interface HyperionPositionProps {
@@ -38,7 +39,15 @@ function HyperionPosition({ position, index }: HyperionPositionProps) {
         },
         options: { maxGasAmount: 100000 },
       });
-      toast({ title: "Success", description: "Rewards claimed successfully" });
+      toast({ 
+        title: "Success", 
+        description: `Transaction hash: ${response.hash.slice(0, 6)}...${response.hash.slice(-4)}`,
+        action: (
+          <ToastAction altText="View in Explorer" onClick={() => window.open(`https://explorer.aptoslabs.com/txn/${response.hash}?network=mainnet`, '_blank')}>
+            View in Explorer
+          </ToastAction>
+        ),
+      });
     } catch (error) {
       toast({ title: "Error", description: "Failed to claim rewards", variant: "destructive" });
     } finally {
