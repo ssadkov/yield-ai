@@ -10,6 +10,7 @@ import { PositionsList as AriesPositionsList } from "./protocols/aries/Positions
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { AptosPortfolioService } from "@/lib/services/aptos/portfolio";
 import { Token } from "@/lib/types/token";
+import { Logo } from "./ui/logo";
 
 export default function MobileTabs() {
   const [tab, setTab] = useState<"dashboard" | "assets" | "chat">("assets");
@@ -59,6 +60,14 @@ export default function MobileTabs() {
   return (
     <div className="flex flex-col h-screen">
       <div className="flex-1 overflow-y-auto">
+        {/* Header for all tabs */}
+        <div className="p-4 border-b">
+          <div className="flex items-center gap-3">
+            <Logo size="md" />
+            <h1 className="text-xl font-bold">Yield AI</h1>
+          </div>
+        </div>
+        
         {tab === "dashboard" && <DashboardPanel />}
         {tab === "assets" && (
           <div className="p-4 space-y-4">
