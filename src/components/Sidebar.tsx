@@ -75,7 +75,7 @@ export default function Sidebar() {
         </div>
         <WalletSelector />
       </div>
-      {account?.address && (
+      {account?.address ? (
         <div className="mt-4 space-y-4">
           <PortfolioCard totalValue={totalValue} tokens={tokens} />
           {[
@@ -97,6 +97,12 @@ export default function Sidebar() {
                 }
               />
             ))}
+        </div>
+      ) : (
+        <div className="mt-4 p-4 bg-muted rounded-lg">
+          <p className="text-sm text-muted-foreground">
+            Connect your Aptos wallet to view your assets and positions in DeFi protocols
+          </p>
         </div>
       )}
     </div>

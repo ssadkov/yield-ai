@@ -13,7 +13,7 @@ import { Token } from "@/lib/types/token";
 import { Logo } from "./ui/logo";
 
 export default function MobileTabs() {
-  const [tab, setTab] = useState<"dashboard" | "assets" | "chat">("assets");
+  const [tab, setTab] = useState<"ideas" | "assets" | "chat">("assets");
   const { account } = useWallet();
   const [tokens, setTokens] = useState<Token[]>([]);
   const [totalValue, setTotalValue] = useState<string>("0");
@@ -68,11 +68,11 @@ export default function MobileTabs() {
           </div>
         </div>
         
-        {tab === "dashboard" && <DashboardPanel />}
+        {tab === "ideas" && <DashboardPanel />}
         {tab === "assets" && (
           <div className="p-4 space-y-4">
             <WalletSelector />
-            {account?.address && (
+            {account?.address ? (
               <>
                 <PortfolioCard totalValue={totalValue} tokens={tokens} />
                 <HyperionPositionsList 
@@ -88,6 +88,12 @@ export default function MobileTabs() {
                   onPositionsValueChange={handleAriesValueChange}
                 />
               </>
+            ) : (
+              <div className="mt-6 p-4 bg-muted rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  Connect your Aptos wallet to view your assets and positions in DeFi protocols
+                </p>
+              </div>
             )}
           </div>
         )}
@@ -95,10 +101,10 @@ export default function MobileTabs() {
       </div>
       <div className="flex border-t">
         <button
-          className={`flex-1 p-4 text-center ${tab === "dashboard" ? "text-primary" : "text-muted-foreground"}`}
-          onClick={() => setTab("dashboard")}
+          className={`flex-1 p-4 text-center ${tab === "ideas" ? "text-primary" : "text-muted-foreground"}`}
+          onClick={() => setTab("ideas")}
         >
-          Dashboard
+          Ideas
         </button>
         <button
           className={`flex-1 p-4 text-center ${tab === "assets" ? "text-primary" : "text-muted-foreground"}`}
