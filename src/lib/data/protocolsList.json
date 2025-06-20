@@ -40,5 +40,16 @@
     "depositType": "native",
     "isDepositEnabled": true,
     "managedType": "native"
+  },
+  {
+    "name": "Tapp Exchange",
+    "category": "DEX",
+    "url": "https://tapp.exchange/",
+    "logoUrl": "https://tapp.exchange/favicon.ico",
+    "description": "Tapp Exchange is a next-generation DEX built on Aptos, introducing a modular approach to trading",
+    "depositType": "external",
+    "depositUrl": "https://tapp.exchange/pool",
+    "isDepositEnabled": false,
+    "managedType": "native"
   }
 ] 
