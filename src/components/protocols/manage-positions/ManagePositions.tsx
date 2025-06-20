@@ -5,6 +5,7 @@ import Image from "next/image";
 import { EchelonPositions } from "./protocols/EchelonPositions";
 import { JoulePositions } from "./protocols/JoulePositions";
 import { HyperionPositions } from "./protocols/HyperionPositions";
+import { TappPositions } from "./protocols/TappPositions";
 import { RefreshCw } from "lucide-react";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useState } from "react";
@@ -23,7 +24,14 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
     
     try {
       setIsRefreshing(true);
-      const response = await fetch(`/api/protocols/${protocol.name.toLowerCase()}/userPositions?address=${account.address}`);
+      
+      // Специальная обработка для Tapp Exchange
+      let apiPath = protocol.name.toLowerCase();
+      if (protocol.name.toLowerCase().includes('tapp')) {
+        apiPath = 'tapp';
+      }
+      
+      const response = await fetch(`/api/protocols/${apiPath}/userPositions?address=${account.address}`);
       
       if (!response.ok) {
         throw new Error(`API returned status ${response.status}`);
@@ -34,7 +42,7 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
       if (data.success) {
         // Вызываем обновление через событие
         window.dispatchEvent(new CustomEvent('refreshPositions', { 
-          detail: { protocol: protocol.name.toLowerCase(), data: data.data }
+          detail: { protocol: apiPath, data: data.data }
         }));
       }
     } catch (error) {
@@ -45,7 +53,14 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
   };
 
   const renderProtocolContent = () => {
-    switch (protocol.name.toLowerCase()) {
+    const protocolName = protocol.name.toLowerCase();
+    
+    // Специальная обработка для Tapp Exchange
+    if (protocolName.includes('tapp')) {
+      return <TappPositions />;
+    }
+    
+    switch (protocolName) {
       case 'joule':
         return <JoulePositions />;
       case 'echelon':

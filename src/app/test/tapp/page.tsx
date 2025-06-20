@@ -1,7 +1,11 @@
 "use client";
 
+import { useState } from 'react';
 import { PositionCard } from "@/components/protocols/tapp/PositionCard";
 import { InvestmentsDashboard } from "@/components/InvestmentsDashboard";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { TappPositions } from '@/components/protocols/manage-positions/protocols/TappPositions';
 
 // Моковые данные для тестирования Tapp Exchange (2 позиции)
 const mockTappData = {
@@ -221,34 +225,40 @@ const mockTappData = {
   ]
 };
 
-export default function TestTappPage() {
+export default function TappTestPage() {
+  const [showManagePositions, setShowManagePositions] = useState(false);
+
   return (
-    <div className="p-4 max-w-7xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">Tapp Exchange Test Page</h1>
+    <div className="container mx-auto p-6">
+      <h1 className="text-2xl font-bold mb-6">Tapp Exchange Test Page</h1>
       
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-card rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-4">API Response</h2>
-          <div className="bg-muted p-4 rounded-lg">
-            <pre className="text-xs overflow-auto max-h-96">
-              {JSON.stringify(mockTappData, null, 2)}
-            </pre>
-          </div>
-        </div>
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Test Options</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <Button 
+                onClick={() => setShowManagePositions(!showManagePositions)}
+                variant="outline"
+              >
+                {showManagePositions ? 'Hide' : 'Show'} Manage Positions
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
-        <div className="bg-card rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-4">Position Cards Preview (2 positions)</h2>
-          <div className="space-y-4">
-            {mockTappData.data.map((position, index) => (
-              <PositionCard key={`${position.positionAddr}-${index}`} position={position} />
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-8">
-        <h2 className="text-xl font-semibold mb-4">Yield Ideas</h2>
-        <InvestmentsDashboard />
+        {showManagePositions && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Tapp Manage Positions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <TappPositions />
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

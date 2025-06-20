@@ -103,17 +103,15 @@ export async function GET(request: Request) {
     }
 
     const data = await response.json();
-    console.log('Tapp API response:', data);
 
     // Проверяем структуру ответа
     if (!data.result || !data.result.data) {
-      throw new Error("Invalid response structure from Tapp API");
+      return NextResponse.json({ success: true, data: [] });
     }
 
-    // Преобразуем данные в нужный формат
     const formattedData = {
       success: true,
-      data: data.result.data || []
+      data: data.result.data || [],
     };
 
     return NextResponse.json(formattedData);
