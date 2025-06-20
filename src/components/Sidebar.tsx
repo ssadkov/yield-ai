@@ -11,6 +11,7 @@ import { PositionsList as HyperionPositionsList } from "./protocols/hyperion/Pos
 import { PositionsList as EchelonPositionsList } from "./protocols/echelon/PositionsList";
 import { PositionsList as AriesPositionsList } from "./protocols/aries/PositionsList";
 import { PositionsList as JoulePositionsList } from "./protocols/joule/PositionsList";
+import { PositionsList as TappPositionsList } from "./protocols/tapp/PositionsList";
 
 export default function Sidebar() {
   const { account } = useWallet();
@@ -20,6 +21,7 @@ export default function Sidebar() {
   const [echelonValue, setEchelonValue] = useState<number>(0);
   const [ariesValue, setAriesValue] = useState<number>(0);
   const [jouleValue, setJouleValue] = useState<number>(0);
+  const [tappValue, setTappValue] = useState<number>(0);
 
   const updateTotalValue = useCallback(() => {
     const total = tokens.reduce((sum, token) => {
@@ -27,8 +29,8 @@ export default function Sidebar() {
       return sum + (isNaN(value) ? 0 : value);
     }, 0);
 
-    setTotalValue((total + hyperionValue + echelonValue + ariesValue + jouleValue).toFixed(2));
-  }, [tokens, hyperionValue, echelonValue, ariesValue, jouleValue]);
+    setTotalValue((total + hyperionValue + echelonValue + ariesValue + jouleValue + tappValue).toFixed(2));
+  }, [tokens, hyperionValue, echelonValue, ariesValue, jouleValue, tappValue]);
 
   useEffect(() => {
     updateTotalValue();
@@ -67,6 +69,10 @@ export default function Sidebar() {
     setJouleValue(value);
   }, []);
 
+  const handleTappValueChange = useCallback((value: number) => {
+    setTappValue(value);
+  }, []);
+
   return (
     <div className="w-[340px] p-4 border-r">
       <div className="flex items-center justify-between mb-4">
@@ -88,7 +94,8 @@ export default function Sidebar() {
             { component: HyperionPositionsList, value: hyperionValue, name: 'Hyperion' },
             { component: EchelonPositionsList, value: echelonValue, name: 'Echelon' },
             { component: AriesPositionsList, value: ariesValue, name: 'Aries' },
-            { component: JoulePositionsList, value: jouleValue, name: 'Joule' }
+            { component: JoulePositionsList, value: jouleValue, name: 'Joule' },
+            { component: TappPositionsList, value: tappValue, name: 'Tapp Exchange' }
           ]
             .sort((a, b) => b.value - a.value)
             .map(({ component: Component, name }) => (
@@ -99,7 +106,8 @@ export default function Sidebar() {
                   name === 'Hyperion' ? handleHyperionValueChange :
                   name === 'Echelon' ? handleEchelonValueChange :
                   name === 'Aries' ? handleAriesValueChange :
-                  handleJouleValueChange
+                  name === 'Joule' ? handleJouleValueChange :
+                  handleTappValueChange
                 }
               />
             ))}

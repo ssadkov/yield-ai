@@ -22,7 +22,8 @@ const nextConfig = {
       'hyperion.xyz',
       'ariesmarkets.xyz',
       'app.joule.finance',
-      'app.echelon.market'
+      'app.echelon.market',
+      'tapp.exchange'
     ],
   },
 }
