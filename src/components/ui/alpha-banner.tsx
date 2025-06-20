@@ -26,7 +26,7 @@ export function AlphaBanner() {
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-center gap-3 text-sm text-blue-800 relative">
           <span className="animate-pulse">🧪</span>
-          <span className="font-medium">Early Access - Features may change</span>
+          <span className="font-medium">Early Access Beta version - Features may change</span>
           <span className="animate-pulse">🚀</span>
           
           <button

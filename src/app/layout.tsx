@@ -4,6 +4,7 @@ import { Inter } from "next/font/google";
 import { WalletProvider } from "@/lib/WalletProvider";
 import { WalletDataProvider } from "@/contexts/WalletContext";
 import { ProtocolProvider } from "@/lib/contexts/ProtocolContext";
+import { DragDropProvider } from "@/contexts/DragDropContext";
 import { Toaster } from "sonner";
 import { AlphaBanner } from "@/components/ui/alpha-banner";
 import { Analytics } from "@vercel/analytics/next";
@@ -53,8 +54,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <WalletProvider>
           <WalletDataProvider>
             <ProtocolProvider>
-              <AlphaBanner />
-              {children}
+              <DragDropProvider>
+                <AlphaBanner />
+                {children}
+              </DragDropProvider>
             </ProtocolProvider>
           </WalletDataProvider>
           <Toaster 

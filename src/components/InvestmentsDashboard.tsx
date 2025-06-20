@@ -28,6 +28,9 @@ import { ManagePositions } from "./protocols/manage-positions/ManagePositions";
 import { Protocol } from "@/lib/protocols/getProtocolsList";
 import { ManagePositionsButton } from "@/components/protocols/ManagePositionsButton";
 import { useProtocol } from "@/lib/contexts/ProtocolContext";
+import { useDragDrop } from "@/contexts/DragDropContext";
+import { DragData } from "@/types/dragDrop";
+import { cn } from "@/lib/utils";
 
 // Список адресов токенов Echelon, которые нужно исключить из отображения
 const EXCLUDED_ECHELON_TOKENS = [
@@ -40,13 +43,6 @@ const EXCLUDED_ECHELON_TOKENS = [
 
 interface InvestmentsDashboardProps {
   className?: string;
-}
-
-interface DragData {
-  positionId: string;
-  asset: string;
-  amount: string;
-  type: 'lend' | 'borrow';
 }
 
 interface Token {
@@ -68,11 +64,9 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   const [data, setData] = useState<InvestmentData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [dragData, setDragData] = useState<DragData | null>(null);
-  const [dropTarget, setDropTarget] = useState<InvestmentData | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const { selectedProtocol, setSelectedProtocol } = useProtocol();
+  const { state, validateDrop, handleDrop } = useDragDrop();
 
   const getTokenInfo = (asset: string, tokenAddress?: string): Token | undefined => {
     if (tokenAddress) {
@@ -112,31 +106,38 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     fetchData();
   }, []);
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent, investment: InvestmentData) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
   };
 
-  const handleDrop = (e: React.DragEvent, investment: InvestmentData) => {
+  const handleDragLeave = () => {
+    // Убираем эту логику, так как подсветка теперь глобальная
+  };
+
+  const handleDropEvent = (e: React.DragEvent, investment: InvestmentData) => {
     e.preventDefault();
+    
     try {
       const dragData = JSON.parse(e.dataTransfer.getData('application/json')) as DragData;
-      setDragData(dragData);
-      setDropTarget(investment);
-      setIsModalOpen(true);
+      handleDrop(dragData, investment);
     } catch (error) {
       console.error('Error parsing drag data:', error);
     }
   };
 
-  const handleConfirm = () => {
-    if (dragData && dropTarget) {
-      // TODO: Implement the actual transfer logic here
-      console.log('Transferring', dragData, 'to', dropTarget);
+  const getDropZoneClassName = (investment: InvestmentData) => {
+    if (!state.dragData) {
+      return "transition-colors hover:bg-accent/50";
     }
-    setIsModalOpen(false);
-    setDragData(null);
-    setDropTarget(null);
+
+    const validation = validateDrop(state.dragData, investment);
+    
+    if (validation.isValid) {
+      return "transition-colors bg-green-50 border-green-200 hover:bg-green-100";
+    } else {
+      return "transition-colors bg-red-50 border-red-200 hover:bg-red-100";
+    }
   };
 
   const topInvestments = [...data]
@@ -229,9 +230,10 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                     return (
                       <Card 
                         key={index}
-                        className="transition-colors hover:bg-accent/50"
-                        onDragOver={handleDragOver}
-                        onDrop={(e) => handleDrop(e, item)}
+                        className={cn("border-2", getDropZoneClassName(item))}
+                        onDragOver={(e) => handleDragOver(e, item)}
+                        onDragLeave={handleDragLeave}
+                        onDrop={(e) => handleDropEvent(e, item)}
                       >
                         <CardHeader>
                           <CardTitle className="flex items-center gap-2">
@@ -318,9 +320,10 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   return (
                     <Card 
                       key={symbol}
-                      className="transition-colors hover:bg-accent/50"
-                      onDragOver={handleDragOver}
-                      onDrop={(e) => handleDrop(e, bestPool)}
+                      className={cn("border-2", getDropZoneClassName(bestPool))}
+                      onDragOver={(e) => handleDragOver(e, bestPool)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDropEvent(e, bestPool)}
                     >
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
@@ -409,6 +412,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
               ))}
             </div>
           </div>
+          
           <TooltipProvider>
             <Table>
               <TableHeader>
@@ -447,9 +451,10 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                     return (
                       <TableRow 
                         key={index}
-                        className="transition-colors hover:bg-accent/50"
-                        onDragOver={handleDragOver}
-                        onDrop={(e) => handleDrop(e, item)}
+                        className={cn("transition-colors", getDropZoneClassName(item))}
+                        onDragOver={(e) => handleDragOver(e, item)}
+                        onDragLeave={handleDragLeave}
+                        onDrop={(e) => handleDropEvent(e, item)}
                       >
                         <TableCell>
                           <TooltipProvider>
@@ -486,7 +491,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                         <TableCell>
                           <Badge variant="outline">{item.protocol}</Badge>
                         </TableCell>
-                        <TableCell>{item.totalAPY?.toFixed(2) || "0.00"}%</TableCell>
+                        <TableCell>{item.depositApy ? `${item.depositApy.toFixed(2)}%` : "-"}</TableCell>
                         <TableCell>{item.borrowAPY ? `${item.borrowAPY.toFixed(2)}%` : "-"}</TableCell>
                         <TableCell className="text-right">
                           <DepositButton 
@@ -510,18 +515,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
           </TooltipProvider>
         </TabsContent>
       </Tabs>
-
-      <ConfirmModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setDragData(null);
-          setDropTarget(null);
-        }}
-        onConfirm={handleConfirm}
-        title="Подтверждение перемещения"
-        description={`Вы уверены, что хотите переместить ${dragData?.amount} ${dragData?.asset} (${dragData?.type === 'borrow' ? 'заем' : 'депозит'}) в ${dropTarget?.protocol}?`}
-      />
     </div>
   );
 } 

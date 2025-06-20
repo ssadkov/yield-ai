@@ -22,7 +22,7 @@ export function AlphaBadge({ className, variant = "secondary" }: AlphaBadgeProps
             )}
           >
             <span className="animate-pulse mr-1">●</span>
-            Alpha version
+            Beta version
           </Badge>
         </TooltipTrigger>
         <TooltipContent>
