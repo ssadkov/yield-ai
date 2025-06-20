@@ -6,6 +6,7 @@ import { WalletDataProvider } from "@/contexts/WalletContext";
 import { ProtocolProvider } from "@/lib/contexts/ProtocolContext";
 import { Toaster } from "sonner";
 import { AlphaBanner } from "@/components/ui/alpha-banner";
+import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -64,6 +65,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             style={{ fontSize: '1rem' }}
           />
         </WalletProvider>
+        <Analytics />
       </body>
     </html>
   );
