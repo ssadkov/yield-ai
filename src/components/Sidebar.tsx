@@ -6,6 +6,7 @@ import { useEffect, useState, useCallback } from "react";
 import { AptosPortfolioService } from "@/lib/services/aptos/portfolio";
 import { Token } from "@/lib/types/token";
 import { Logo } from "./ui/logo";
+import { AlphaBadge } from "./ui/alpha-badge";
 import { PositionsList as HyperionPositionsList } from "./protocols/hyperion/PositionsList";
 import { PositionsList as EchelonPositionsList } from "./protocols/echelon/PositionsList";
 import { PositionsList as AriesPositionsList } from "./protocols/aries/PositionsList";
@@ -70,8 +71,13 @@ export default function Sidebar() {
     <div className="w-[340px] p-4 border-r">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Logo size="md" />
-          <h2 className="text-xl font-bold">Yield AI</h2>
+          <div className="flex flex-col items-start gap-1">
+            <div className="flex items-center gap-2">
+              <Logo size="md" />
+              <h2 className="text-xl font-bold">Yield AI</h2>
+            </div>
+            <AlphaBadge />
+          </div>
         </div>
         <WalletSelector />
       </div>

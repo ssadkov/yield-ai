@@ -11,6 +11,7 @@ import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { AptosPortfolioService } from "@/lib/services/aptos/portfolio";
 import { Token } from "@/lib/types/token";
 import { Logo } from "./ui/logo";
+import { AlphaBadge } from "./ui/alpha-badge";
 
 export default function MobileTabs() {
   const [tab, setTab] = useState<"ideas" | "assets" | "chat">("assets");
@@ -64,7 +65,10 @@ export default function MobileTabs() {
         <div className="p-4 border-b">
           <div className="flex items-center gap-3">
             <Logo size="md" />
-            <h1 className="text-xl font-bold">Yield AI</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold">Yield AI</h1>
+              <AlphaBadge />
+            </div>
           </div>
         </div>
         
