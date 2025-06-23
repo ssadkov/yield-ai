@@ -222,10 +222,19 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   .sort((a, b) => b.totalAPY - a.totalAPY)
                   .slice(0, 3)
                   .map((item, index) => {
+                    console.log('Processing item:', item);
                     const tokenInfo = getTokenInfo(item.asset, item.token);
                     const displaySymbol = tokenInfo?.symbol || item.asset;
                     const logoUrl = tokenInfo?.logoUrl;
                     const protocol = getProtocolByName(item.protocol);
+
+                    console.log('Token debug:', {
+                      item,
+                      tokenInfo,
+                      displaySymbol,
+                      priceUSD: Number(tokenInfo?.usdPrice || 0),
+                      usdPrice: tokenInfo?.usdPrice
+                    });
 
                     return (
                       <Card 
@@ -280,7 +289,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                             protocol={protocol!} 
                             className="mt-4 w-full"
                             tokenIn={{
-                              symbol: item.asset,
+                              symbol: displaySymbol,
                               logo: tokenInfo?.logoUrl || '',
                               decimals: tokenInfo?.decimals || 8,
                               address: item.token
@@ -316,6 +325,14 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   const displaySymbol = tokenInfo?.symbol || bestPool.asset;
                   const logoUrl = tokenInfo?.logoUrl;
                   const protocol = getProtocolByName(bestPool.protocol);
+
+                  console.log('Token debug:', {
+                    item: bestPool,
+                    tokenInfo,
+                    displaySymbol,
+                    priceUSD: Number(tokenInfo?.usdPrice || 0),
+                    usdPrice: tokenInfo?.usdPrice
+                  });
 
                   return (
                     <Card 
@@ -370,7 +387,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                           protocol={protocol!} 
                           className="mt-4 w-full"
                           tokenIn={{
-                            symbol: bestPool.asset,
+                            symbol: displaySymbol,
                             logo: tokenInfo?.logoUrl || '',
                             decimals: tokenInfo?.decimals || 8,
                             address: bestPool.token
@@ -443,10 +460,19 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   })
                   .sort((a, b) => b.totalAPY - a.totalAPY)
                   .map((item, index) => {
+                    console.log('Processing item:', item);
                     const tokenInfo = getTokenInfo(item.asset, item.token);
                     const displaySymbol = tokenInfo?.symbol || item.asset;
                     const logoUrl = tokenInfo?.logoUrl;
                     const protocol = getProtocolByName(item.protocol);
+
+                    console.log('Token debug:', {
+                      item,
+                      tokenInfo,
+                      displaySymbol,
+                      priceUSD: Number(tokenInfo?.usdPrice || 0),
+                      usdPrice: tokenInfo?.usdPrice
+                    });
 
                     return (
                       <TableRow 
@@ -494,18 +520,26 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                         <TableCell>{item.depositApy ? `${item.depositApy.toFixed(2)}%` : "-"}</TableCell>
                         <TableCell>{item.borrowAPY ? `${item.borrowAPY.toFixed(2)}%` : "-"}</TableCell>
                         <TableCell className="text-right">
-                          <DepositButton 
-                            protocol={protocol!} 
-                            className="w-full"
-                            tokenIn={{
-                              symbol: item.asset,
-                              logo: tokenInfo?.logoUrl || '',
-                              decimals: tokenInfo?.decimals || 8,
-                              address: item.token
-                            }}
-                            balance={BigInt(1000000000)} // TODO: Get real balance
-                            priceUSD={Number(tokenInfo?.usdPrice || 0)}
-                          />
+                          <div>
+                            {protocol ? (
+                              <DepositButton 
+                                protocol={protocol} 
+                                className="w-full"
+                                tokenIn={{
+                                  symbol: displaySymbol,
+                                  logo: tokenInfo?.logoUrl || '',
+                                  decimals: tokenInfo?.decimals || 8,
+                                  address: item.token
+                                }}
+                                balance={BigInt(1000000000)} // TODO: Get real balance
+                                priceUSD={Number(tokenInfo?.usdPrice || 0)}
+                              />
+                            ) : (
+                              <Button disabled className="w-full">
+                                Protocol not found
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );

@@ -44,15 +44,34 @@ export function DepositButton({
   balance,
   priceUSD,
 }: DepositButtonProps) {
+  console.log('DepositButton render:', { protocol, tokenIn, balance, priceUSD });
+  
   const [isExternalDialogOpen, setIsExternalDialogOpen] = useState(false);
   const [isNativeDialogOpen, setIsNativeDialogOpen] = useState(false);
   const walletData = useWalletData();
 
   const handleClick = () => {
+    console.log('DepositButton clicked:', {
+      protocol,
+      depositType: protocol.depositType,
+      tokenIn,
+      tokenInAddress: tokenIn?.address,
+      balance,
+      priceUSD,
+      condition: protocol.depositType === 'native' && tokenIn && balance,
+      tokenInExists: !!tokenIn,
+      balanceExists: !!balance,
+      priceUSDExists: !!priceUSD
+    });
+    
     if (protocol.depositType === 'external') {
+      console.log('Opening external dialog');
       setIsExternalDialogOpen(true);
-    } else if (protocol.depositType === 'native' && tokenIn && balance && priceUSD) {
+    } else if (protocol.depositType === 'native' && tokenIn && balance) {
+      console.log('Opening native dialog');
       setIsNativeDialogOpen(true);
+    } else {
+      console.log('No conditions met for opening dialog');
     }
   };
 
@@ -99,7 +118,7 @@ export function DepositButton({
         </AlertDialogContent>
       </AlertDialog>
 
-      {protocol.depositType === 'native' && tokenIn && tokenIn.address && balance && priceUSD && (
+      {protocol.depositType === 'native' && tokenIn && tokenIn.address && balance && (
         <DepositModal
           isOpen={isNativeDialogOpen}
           onClose={() => setIsNativeDialogOpen(false)}
@@ -116,7 +135,7 @@ export function DepositButton({
             address: tokenIn.address
           }}
           tokenOut={tokenIn}
-          priceUSD={priceUSD}
+          priceUSD={priceUSD || 0}
         />
       )}
     </>
