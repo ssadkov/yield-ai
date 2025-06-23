@@ -120,7 +120,7 @@ export default function MobileTabs() {
           className={`flex-1 p-4 text-center ${tab === "chat" ? "text-primary" : "text-muted-foreground"}`}
           onClick={() => setTab("chat")}
         >
-          Chat
+          Feedback
         </button>
       </div>
     </div>
