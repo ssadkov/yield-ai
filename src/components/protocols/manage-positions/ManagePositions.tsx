@@ -1,12 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Protocol } from "@/lib/protocols/getProtocolsList";
 import Image from "next/image";
 import { EchelonPositions } from "./protocols/EchelonPositions";
 import { JoulePositions } from "./protocols/JoulePositions";
 import { HyperionPositions } from "./protocols/HyperionPositions";
 import { TappPositions } from "./protocols/TappPositions";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Info, ExternalLink } from "lucide-react";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useState } from "react";
 
@@ -85,6 +86,39 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
               <Image src={protocol.logoUrl} alt={protocol.name} width={32} height={32} className="object-contain" />
             )}
             <CardTitle className="text-xl font-bold">{protocol.name} positions</CardTitle>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                  >
+                    <Info className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="w-80 p-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-semibold text-sm">{protocol.name}</h4>
+                      <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded-full">{protocol.category}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{protocol.description}</p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs bg-background text-foreground border-border hover:bg-accent hover:text-accent-foreground"
+                        onClick={() => window.open(protocol.url, '_blank')}
+                      >
+                        Visit Protocol
+                        <ExternalLink className="h-3 w-3 ml-1" />
+                      </Button>
+                    </div>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
           <Button variant="ghost" size="sm" onClick={onClose}>
             Close
