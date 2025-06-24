@@ -73,8 +73,10 @@ export default function MobileTabs() {
       
       {/* Content area - scrollable */}
       <div className="flex-1 overflow-y-auto min-h-0">
-        {tab === "ideas" && <DashboardPanel />}
-        {tab === "assets" && (
+        <div className={tab === "ideas" ? "block" : "hidden"}>
+          <DashboardPanel />
+        </div>
+        <div className={tab === "assets" ? "block" : "hidden"}>
           <div className="p-4 space-y-4">
             <WalletSelector />
             {account?.address ? (
@@ -101,8 +103,10 @@ export default function MobileTabs() {
               </div>
             )}
           </div>
-        )}
-        {tab === "chat" && <ChatPanel />}
+        </div>
+        <div className={tab === "chat" ? "block" : "hidden"}>
+          <ChatPanel />
+        </div>
       </div>
       
       {/* Bottom navigation - fixed at bottom */}
