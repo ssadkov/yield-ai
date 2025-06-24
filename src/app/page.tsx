@@ -8,12 +8,12 @@ import { PositionsList } from "@/components/protocols/hyperion/PositionsList";
 
 export default function Home() {
   return (
-    <div className="h-screen flex flex-col md:flex-row">
+    <div className="h-screen flex flex-col md:flex-row overflow-hidden">
       <div className="hidden md:block border-r">
         <Sidebar />
       </div>
 
-      <div className="block md:hidden">
+      <div className="block md:hidden h-full">
         <MobileTabs />
       </div>
 

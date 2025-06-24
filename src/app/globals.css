@@ -119,4 +119,31 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Mobile-specific styles */
+  html, body {
+    height: 100%;
+    overflow: hidden;
+  }
+  
+  /* Prevent zoom on input focus on iOS */
+  input, select, textarea {
+    font-size: 16px;
+  }
+  
+  /* Improve touch targets */
+  button, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Safe area support for modern mobile browsers */
+  @supports (padding: max(0px)) {
+    .safe-area-top {
+      padding-top: max(env(safe-area-inset-top), 0px);
+    }
+    .safe-area-bottom {
+      padding-bottom: max(env(safe-area-inset-bottom), 0px);
+    }
+  }
 }
