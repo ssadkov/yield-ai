@@ -126,6 +126,13 @@
     overflow: hidden;
   }
   
+  /* Desktop styles - allow scrolling */
+  @media (min-width: 768px) {
+    html, body {
+      overflow: auto;
+    }
+  }
+  
   /* Prevent zoom on input focus on iOS */
   input, select, textarea {
     font-size: 16px;

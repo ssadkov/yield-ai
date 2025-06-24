@@ -73,11 +73,11 @@ export default function MobileTabs() {
       
       {/* Content area - scrollable */}
       <div className="flex-1 overflow-y-auto min-h-0">
-        <div className={tab === "ideas" ? "block" : "hidden"}>
+        <div className={tab === "ideas" ? "block w-full max-w-full" : "hidden w-full max-w-full"}>
           <DashboardPanel />
         </div>
-        <div className={tab === "assets" ? "block" : "hidden"}>
-          <div className="p-4 space-y-4">
+        <div className={tab === "assets" ? "block w-full max-w-full" : "hidden w-full max-w-full"}>
+          <div className="p-4 space-y-4 w-full max-w-full">
             <WalletSelector />
             {account?.address ? (
               <>

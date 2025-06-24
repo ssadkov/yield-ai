@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 
 export default function ChatPanel() {
   return (
-    <div className="p-4 h-full overflow-y-auto">
+    <div className="p-4">
       <h1 className="text-xl font-bold">Feedback</h1>
       <p className="text-sm text-muted-foreground">
         New AI features will be here soon, and for now, we would be happy to get your{' '}

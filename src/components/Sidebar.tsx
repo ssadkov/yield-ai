@@ -74,8 +74,8 @@ export default function Sidebar() {
   }, []);
 
   return (
-    <div className="w-[340px] p-4 border-r">
-      <div className="flex items-center justify-between mb-4">
+    <div className="hidden md:flex w-[340px] p-4 border-r h-screen flex-col">
+      <div className="flex items-center justify-between mb-4 shrink-0">
         <div className="flex items-center gap-2">
           <div className="flex flex-col items-start gap-1">
             <div className="flex items-center gap-2">
@@ -87,38 +87,40 @@ export default function Sidebar() {
         </div>
         <WalletSelector />
       </div>
-      {account?.address ? (
-        <div className="mt-4 space-y-4">
-          <PortfolioCard totalValue={totalValue} tokens={tokens} />
-          {[
-            { component: HyperionPositionsList, value: hyperionValue, name: 'Hyperion' },
-            { component: EchelonPositionsList, value: echelonValue, name: 'Echelon' },
-            { component: AriesPositionsList, value: ariesValue, name: 'Aries' },
-            { component: JoulePositionsList, value: jouleValue, name: 'Joule' },
-            { component: TappPositionsList, value: tappValue, name: 'Tapp Exchange' }
-          ]
-            .sort((a, b) => b.value - a.value)
-            .map(({ component: Component, name }) => (
-              <Component
-                key={name}
-                address={account.address.toString()}
-                onPositionsValueChange={
-                  name === 'Hyperion' ? handleHyperionValueChange :
-                  name === 'Echelon' ? handleEchelonValueChange :
-                  name === 'Aries' ? handleAriesValueChange :
-                  name === 'Joule' ? handleJouleValueChange :
-                  handleTappValueChange
-                }
-              />
-            ))}
-        </div>
-      ) : (
-        <div className="mt-4 p-4 bg-muted rounded-lg">
-          <p className="text-sm text-muted-foreground">
-            Connect your Aptos wallet to view your assets and positions in DeFi protocols
-          </p>
-        </div>
-      )}
+      <div className="flex-1 overflow-y-auto">
+        {account?.address ? (
+          <div className="mt-4 space-y-4">
+            <PortfolioCard totalValue={totalValue} tokens={tokens} />
+            {[
+              { component: HyperionPositionsList, value: hyperionValue, name: 'Hyperion' },
+              { component: EchelonPositionsList, value: echelonValue, name: 'Echelon' },
+              { component: AriesPositionsList, value: ariesValue, name: 'Aries' },
+              { component: JoulePositionsList, value: jouleValue, name: 'Joule' },
+              { component: TappPositionsList, value: tappValue, name: 'Tapp Exchange' }
+            ]
+              .sort((a, b) => b.value - a.value)
+              .map(({ component: Component, name }) => (
+                <Component
+                  key={name}
+                  address={account.address.toString()}
+                  onPositionsValueChange={
+                    name === 'Hyperion' ? handleHyperionValueChange :
+                    name === 'Echelon' ? handleEchelonValueChange :
+                    name === 'Aries' ? handleAriesValueChange :
+                    name === 'Joule' ? handleJouleValueChange :
+                    handleTappValueChange
+                  }
+                />
+              ))}
+          </div>
+        ) : (
+          <div className="mt-4 p-4 bg-muted rounded-lg">
+            <p className="text-sm text-muted-foreground">
+              Connect your Aptos wallet to view your assets and positions in DeFi protocols
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 } 
