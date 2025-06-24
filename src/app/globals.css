@@ -132,7 +132,7 @@
   }
   
   /* Improve touch targets */
-  button, [role="button"] {
+  button:not([data-slot="checkbox"]), [role="button"]:not([data-slot="checkbox"]) {
     min-height: 44px;
     min-width: 44px;
   }
