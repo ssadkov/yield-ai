@@ -11,6 +11,8 @@ import Image from "next/image";
 import { ManagePositionsButton } from "../../ManagePositionsButton";
 import { parseMesoPosition, formatMesoPosition } from "@/lib/protocols/meso/parser";
 import tokenList from "@/lib/data/tokenList.json";
+import { Badge } from "@/components/ui/badge";
+import { getMesoTokenByInner } from "@/lib/protocols/meso/tokens";
 
 interface MesoPositionsProps {
   address?: string;
@@ -28,6 +30,7 @@ interface Position {
     logoUrl?: string;
     price?: string;
   };
+  inner: string;
 }
 
 interface MesoResponse {
@@ -123,6 +126,7 @@ export function MesoPositions({ address, onPositionsValueChange }: MesoPositions
                 assetName: deposit.tokenSymbol,
                 balance: deposit.shares,
                 type: 'deposit',
+                inner: deposit.inner,
                 assetInfo: {
                   name: deposit.tokenName,
                   symbol: deposit.tokenSymbol,
@@ -146,6 +150,7 @@ export function MesoPositions({ address, onPositionsValueChange }: MesoPositions
                 assetName: debt.tokenSymbol,
                 balance: debt.shares,
                 type: 'debt',
+                inner: debt.inner,
                 assetInfo: {
                   name: debt.tokenName,
                   symbol: debt.tokenSymbol,
@@ -175,107 +180,97 @@ export function MesoPositions({ address, onPositionsValueChange }: MesoPositions
     loadPositions();
   }, [walletAddress]);
 
+  // Сортировка: сначала депозиты, потом займы, внутри каждой группы — по убыванию value
+  const sortedPositions = [...positions].sort((a, b) => {
+    if (a.type !== b.type) {
+      // deposit выше debt
+      return a.type === 'deposit' ? -1 : 1;
+    }
+    // Сортировка по value (стоимости позиции)
+    const aAmount = parseFloat(formatTokenAmount(a.balance, a.assetInfo.decimals));
+    const bAmount = parseFloat(formatTokenAmount(b.balance, b.assetInfo.decimals));
+    const aValue = a.assetInfo.price ? aAmount * parseFloat(a.assetInfo.price) : 0;
+    const bValue = b.assetInfo.price ? bAmount * parseFloat(b.assetInfo.price) : 0;
+    return bValue - aValue;
+  });
+
+  // Считаем общую сумму
+  useEffect(() => {
+    const total = sortedPositions.reduce((sum, position) => {
+      const amount = parseFloat(formatTokenAmount(position.balance, position.assetInfo.decimals));
+      const value = position.assetInfo.price ? amount * parseFloat(position.assetInfo.price) : 0;
+      return sum + (position.type === 'deposit' ? value : -value);
+    }, 0);
+    setTotalValue(total);
+  }, [sortedPositions]);
+
   // Вызываем колбэк при изменении общей суммы позиций
   useEffect(() => {
     onPositionsValueChange?.(totalValue);
   }, [totalValue, onPositionsValueChange]);
 
-  // Если нет позиций, не отображаем блок
+  if (loading) {
+    return <div>Loading positions...</div>;
+  }
+
+  if (error) {
+    return <div className="text-red-500">{error}</div>;
+  }
+
   if (positions.length === 0) {
     return null;
   }
 
   return (
-    <Card className="w-full h-full flex flex-col">
-      <CardHeader 
-        className="py-2 cursor-pointer hover:bg-accent/50 transition-colors"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {protocol && (
-              <div className="w-5 h-5 relative">
-                <Image 
-                  src={protocol.logoUrl} 
-                  alt={protocol.name}
-                  width={20}
-                  height={20}
-                  className="object-contain"
-                />
-              </div>
-            )}
-            <CardTitle className="text-lg">Meso Finance</CardTitle>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-lg">${totalValue.toFixed(2)}</div>
-            <ChevronDown className={cn(
-              "h-5 w-5 transition-transform",
-              isExpanded ? "transform rotate-0" : "transform -rotate-90"
-            )} />
-          </div>
-        </div>
-      </CardHeader>
-      
-      {isExpanded && (
-        <CardContent className="flex-1 overflow-y-auto px-3 pt-0">
-          <ScrollArea className="h-full">
-            {positions.map((position, index) => {
-              const amount = formatTokenAmount(position.balance, position.assetInfo.decimals);
-              const isDebt = position.type === 'debt';
-              const value = position.assetInfo.price ? 
-                parseFloat(amount) * parseFloat(position.assetInfo.price) : 0;
-              
-              return (
-                <div key={`${position.assetName}-${index}`} className="mb-2">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      {position.assetInfo.logoUrl && (
-                        <div className="w-6 h-6 relative">
-                          <Image 
-                            src={position.assetInfo.logoUrl} 
-                            alt={position.assetInfo.symbol}
-                            width={24}
-                            height={24}
-                            className="object-contain"
-                          />
-                        </div>
-                      )}
-                      <div className="flex items-center gap-2">
-                        <div className={cn(
-                          "text-sm font-medium",
-                          isDebt && "text-red-500"
-                        )}>{position.assetName}</div>
-                        {isDebt && (
-                          <div className="text-xs px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 border border-red-500/20">
-                            Debt
-                          </div>
-                        )}
-                      </div>
-                      <div className={cn(
-                        "text-xs",
-                        isDebt ? "text-red-400" : "text-muted-foreground"
-                      )}>
-                        ${position.assetInfo.price ? parseFloat(position.assetInfo.price).toFixed(2) : 'N/A'}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className={cn(
-                        "text-sm font-medium",
-                        isDebt && "text-red-500"
-                      )}>${value.toFixed(2)}</div>
-                      <div className={cn(
-                        "text-xs",
-                        isDebt ? "text-red-400" : "text-muted-foreground"
-                      )}>{amount}</div>
-                    </div>
+    <div className="space-y-4 text-base">
+      <ScrollArea>
+        {sortedPositions.map((position, index) => {
+          // Получаем mapping по inner
+          const mesoToken = getMesoTokenByInner((position as any).inner);
+          const tokenInfo = mesoToken ? getTokenInfo(mesoToken.tokenAddress) : undefined;
+          const amount = parseFloat(formatTokenAmount(position.balance, mesoToken?.decimals ?? position.assetInfo.decimals));
+          const price = tokenInfo?.usdPrice ? parseFloat(tokenInfo.usdPrice) : undefined;
+          const value = price ? amount * price : 0;
+          return (
+            <div key={`${position.assetName}-${index}`} className="flex justify-between items-center p-4 border-b last:border-b-0">
+              <div className="flex items-center gap-3">
+                {tokenInfo?.logoUrl && (
+                  <div className="w-8 h-8 relative">
+                    <Image 
+                      src={tokenInfo.logoUrl} 
+                      alt={mesoToken?.symbol || position.assetInfo.symbol}
+                      width={32}
+                      height={32}
+                      className="object-contain"
+                    />
+                  </div>
+                )}
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-medium">{mesoToken?.symbol || position.assetInfo.symbol}</span>
+                    <Badge variant="outline" className={position.type === 'deposit' ? "bg-green-500/10 text-green-600 border-green-500/20 text-base font-semibold px-3 py-1" : "bg-red-500/10 text-red-600 border-red-500/20 text-base font-semibold px-3 py-1"}>
+                      {position.type === 'deposit' ? 'Supply' : 'Borrow'}
+                    </Badge>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {price ? `$${price.toFixed(2)}` : '$N/A'}
                   </div>
                 </div>
-              );
-            })}
-            {protocol && <ManagePositionsButton protocol={protocol} />}
-          </ScrollArea>
-        </CardContent>
-      )}
-    </Card>
+              </div>
+              <div className="text-right">
+                <div className={position.type === 'deposit' ? "text-lg font-bold text-green-600" : "text-lg font-bold text-red-600"}>
+                  ${value.toFixed(2)}
+                </div>
+                <div className="text-xs text-muted-foreground font-semibold">{amount.toFixed(4)}</div>
+              </div>
+            </div>
+          );
+        })}
+      </ScrollArea>
+      <div className="flex items-center justify-between pt-6 pb-6">
+        <span className="text-xl">Total assets in Meso:</span>
+        <span className="text-xl text-primary font-bold">${totalValue.toFixed(2)}</span>
+      </div>
+    </div>
   );
 } 

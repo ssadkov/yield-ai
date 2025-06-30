@@ -50,7 +50,7 @@
     "depositType": "external",
     "depositUrl": "https://app.meso.finance/points?ref=DTORFK5S9ITD",
     "isDepositEnabled": true,
-    "managedType": "external"
+    "managedType": "native"
   },
   {
     "name": "Tapp Exchange",
