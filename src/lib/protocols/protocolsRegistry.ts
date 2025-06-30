@@ -2,6 +2,7 @@ import { EchelonProtocol } from "./echelon";
 import { JouleProtocol } from "./joule";
 import { AriesProtocol } from "./aries";
 import { HyperionProtocol } from "./hyperion";
+import { MesoProtocol } from "./meso";
 import { BaseProtocol } from "./BaseProtocol";
 import { ProtocolKey } from "../transactions/types";
 
@@ -10,4 +11,5 @@ export const protocols: Record<ProtocolKey, BaseProtocol> = {
   joule: new JouleProtocol(),
   aries: new AriesProtocol(),
   hyperion: new HyperionProtocol(),
+  meso: new MesoProtocol(),
 }; 

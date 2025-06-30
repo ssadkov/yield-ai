@@ -7,6 +7,7 @@ import { EchelonPositions } from "./protocols/EchelonPositions";
 import { JoulePositions } from "./protocols/JoulePositions";
 import { HyperionPositions } from "./protocols/HyperionPositions";
 import { TappPositions } from "./protocols/TappPositions";
+import { MesoPositions } from "./protocols/MesoPositions";
 import { RefreshCw, Info, ExternalLink } from "lucide-react";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useState } from "react";
@@ -68,6 +69,8 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
         return <EchelonPositions />;
       case 'hyperion':
         return <HyperionPositions />;
+      case 'meso finance':
+        return <MesoPositions />;
       default:
         return (
           <div className="text-sm text-muted-foreground">

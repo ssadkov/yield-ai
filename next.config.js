@@ -23,7 +23,8 @@ const nextConfig = {
       'ariesmarkets.xyz',
       'app.joule.finance',
       'app.echelon.market',
-      'tapp.exchange'
+      'tapp.exchange',
+      'app.meso.finance'
     ],
   },
 }
