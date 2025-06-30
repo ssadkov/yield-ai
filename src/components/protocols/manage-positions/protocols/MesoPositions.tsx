@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useWallet } from "@aptos-labs/wallet-adapter-react";
+import { useWallet, WalletReadyState } from "@aptos-labs/wallet-adapter-react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
@@ -13,6 +13,9 @@ import { parseMesoPosition, formatMesoPosition } from "@/lib/protocols/meso/pars
 import tokenList from "@/lib/data/tokenList.json";
 import { Badge } from "@/components/ui/badge";
 import { getMesoTokenByInner } from "@/lib/protocols/meso/tokens";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 interface MesoPositionsProps {
   address?: string;
@@ -65,7 +68,8 @@ function getTokenInfo(tokenAddress: string) {
 }
 
 export function MesoPositions({ address, onPositionsValueChange }: MesoPositionsProps) {
-  const { account } = useWallet();
+  const { account, signAndSubmitTransaction } = useWallet();
+  const { toast } = useToast();
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -111,7 +115,6 @@ export function MesoPositions({ address, onPositionsValueChange }: MesoPositions
           const parsed = parseMesoPosition(mesoResource.data);
           if (parsed) {
             const newPositions: Position[] = [];
-            let totalValueSum = 0;
             
             // Добавляем депозиты
             parsed.deposits.forEach(deposit => {
@@ -119,8 +122,6 @@ export function MesoPositions({ address, onPositionsValueChange }: MesoPositions
               const amount = formatTokenAmount(deposit.shares, deposit.decimals);
               const value = tokenInfo?.usdPrice ? 
                 parseFloat(amount) * parseFloat(tokenInfo.usdPrice) : 0;
-              
-              totalValueSum += value;
               
               newPositions.push({
                 assetName: deposit.tokenSymbol,
@@ -144,8 +145,6 @@ export function MesoPositions({ address, onPositionsValueChange }: MesoPositions
               const value = tokenInfo?.usdPrice ? 
                 parseFloat(amount) * parseFloat(tokenInfo.usdPrice) : 0;
               
-              totalValueSum -= value; // Займы уменьшают общую стоимость
-              
               newPositions.push({
                 assetName: debt.tokenSymbol,
                 balance: debt.shares,
@@ -162,11 +161,9 @@ export function MesoPositions({ address, onPositionsValueChange }: MesoPositions
             });
             
             setPositions(newPositions);
-            setTotalValue(Math.max(0, totalValueSum)); // Не показываем отрицательные значения
           }
         } else {
           setPositions([]);
-          setTotalValue(0);
         }
       } catch (err) {
         console.error('Error loading Meso positions:', err);
@@ -194,13 +191,19 @@ export function MesoPositions({ address, onPositionsValueChange }: MesoPositions
     return bValue - aValue;
   });
 
-  // Считаем общую сумму
+  // Новый useEffect для расчёта суммы по sortedPositions
   useEffect(() => {
+    console.log('sortedPositions:', sortedPositions);
     const total = sortedPositions.reduce((sum, position) => {
-      const amount = parseFloat(formatTokenAmount(position.balance, position.assetInfo.decimals));
-      const value = position.assetInfo.price ? amount * parseFloat(position.assetInfo.price) : 0;
+      const mesoToken = getMesoTokenByInner(position.inner);
+      const tokenInfo = mesoToken ? getTokenInfo(mesoToken.tokenAddress) : undefined;
+      const amount = parseFloat(formatTokenAmount(position.balance, mesoToken?.decimals ?? position.assetInfo.decimals));
+      const price = tokenInfo?.usdPrice ? parseFloat(tokenInfo.usdPrice) : undefined;
+      const value = price ? amount * price : 0;
+      console.log('token:', mesoToken?.symbol || position.assetInfo.symbol, 'amount:', amount, 'price:', price, 'value:', value);
       return sum + (position.type === 'deposit' ? value : -value);
     }, 0);
+    console.log('totalValue:', total);
     setTotalValue(total);
   }, [sortedPositions]);
 
