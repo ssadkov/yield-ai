@@ -42,6 +42,17 @@
     "managedType": "native"
   },
   {
+    "name": "Meso Finance",
+    "category": "Lending",
+    "url": "https://app.meso.finance/points?ref=DTORFK5S9ITD",
+    "logoUrl": "https://app.meso.finance/favicon.ico",
+    "description": "The capital-efficient Money Market, empowering credit expansion on Aptos",
+    "depositType": "external",
+    "depositUrl": "https://app.meso.finance/points?ref=DTORFK5S9ITD",
+    "isDepositEnabled": true,
+    "managedType": "external"
+  },
+  {
     "name": "Tapp Exchange",
     "category": "DEX",
     "url": "https://tapp.exchange/",
