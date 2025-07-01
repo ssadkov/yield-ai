@@ -174,13 +174,18 @@ export function TappPositions() {
     loadPositions();
 
     const handleRefresh = (event: CustomEvent) => {
-      if (event.detail.protocol === 'tapp' && Array.isArray(event.detail.data)) {
-        const sortedPositions = [...event.detail.data].sort((a, b) => {
-            const aValue = (a.estimatedWithdrawals || []).reduce((sum: number, token: any) => sum + parseFloat(token.usd || "0"), 0);
-            const bValue = (b.estimatedWithdrawals || []).reduce((sum: number, token: any) => sum + parseFloat(token.usd || "0"), 0);
-            return bValue - aValue;
-        });
-        setPositions(sortedPositions);
+      if (event.detail.protocol === 'tapp') {
+        if (event.detail.data && Array.isArray(event.detail.data)) {
+          const sortedPositions = [...event.detail.data].sort((a, b) => {
+              const aValue = (a.estimatedWithdrawals || []).reduce((sum: number, token: any) => sum + parseFloat(token.usd || "0"), 0);
+              const bValue = (b.estimatedWithdrawals || []).reduce((sum: number, token: any) => sum + parseFloat(token.usd || "0"), 0);
+              return bValue - aValue;
+          });
+          setPositions(sortedPositions);
+        } else {
+          // Если данных нет, загружаем позиции заново
+          loadPositions();
+        }
       }
     };
 

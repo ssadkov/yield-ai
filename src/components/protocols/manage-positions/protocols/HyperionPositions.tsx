@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
@@ -183,7 +183,9 @@ function HyperionPosition({ position, index }: HyperionPositionProps) {
         ),
       });
       // Обновляем позиции после успеха
-      window.dispatchEvent(new CustomEvent('refreshPositions', { detail: { protocol: 'hyperion' } }));
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('refreshPositions', { detail: { protocol: 'hyperion' } }));
+      }, 2000); // Небольшая задержка для обновления блокчейна
     } catch (error) {
       console.error('Remove liquidity error:', error);
       toast({ title: "Error", description: "Failed to remove liquidity", variant: "destructive" });
@@ -461,19 +463,28 @@ export function HyperionPositions() {
     }
   };
 
+  // Мемоизируем функцию loadPositions
+  const memoizedLoadPositions = useCallback(loadPositions, [account?.address]);
+
   useEffect(() => {
-    loadPositions();
+    memoizedLoadPositions();
 
     // Добавляем обработчик события обновления
     const handleRefresh = (event: CustomEvent) => {
       if (event.detail.protocol === 'hyperion') {
-        // Сортируем позиции при обновлении
-        const sortedPositions = [...event.detail.data].sort((a, b) => {
-          const valueA = parseFloat(a.value || "0");
-          const valueB = parseFloat(b.value || "0");
-          return valueB - valueA;
-        });
-        setPositions(sortedPositions);
+        // Если есть данные в событии, используем их, иначе загружаем заново
+        if (event.detail.data && Array.isArray(event.detail.data)) {
+          // Сортируем позиции при обновлении
+          const sortedPositions = [...event.detail.data].sort((a, b) => {
+            const valueA = parseFloat(a.value || "0");
+            const valueB = parseFloat(b.value || "0");
+            return valueB - valueA;
+          });
+          setPositions(sortedPositions);
+        } else {
+          // Если данных нет, загружаем позиции заново
+          memoizedLoadPositions();
+        }
       }
     };
 
@@ -481,7 +492,7 @@ export function HyperionPositions() {
     return () => {
       window.removeEventListener('refreshPositions', handleRefresh as EventListener);
     };
-  }, [account?.address]);
+  }, [memoizedLoadPositions]);
 
   // Считаем общую сумму (позиции + награды)
   const totalValue = positions.reduce((sum, position) => {
