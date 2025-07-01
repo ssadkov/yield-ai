@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import Image from "next/image";
 import { ManagePositionsButton } from "../ManagePositionsButton";
+import { useCollapsible } from "@/contexts/CollapsibleContext";
 
 interface PositionsListProps {
   address?: string;
@@ -85,7 +86,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isExpanded, setIsExpanded] = useState(true);
+  const { isExpanded, toggleSection } = useCollapsible();
 
   const walletAddress = address || account?.address?.toString();
   const protocol = getProtocolByName("Tapp Exchange");
@@ -166,7 +167,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
     <Card className="w-full">
       <CardHeader 
         className="py-2 cursor-pointer hover:bg-accent/50 transition-colors"
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={() => toggleSection('tapp')}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -187,13 +188,13 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
             <div className="text-lg">${totalValue.toFixed(2)}</div>
             <ChevronDown className={cn(
               "h-5 w-5 transition-transform",
-              isExpanded ? "transform rotate-0" : "transform -rotate-90"
+              isExpanded('tapp') ? "transform rotate-0" : "transform -rotate-90"
             )} />
           </div>
         </div>
       </CardHeader>
       
-      {isExpanded && (
+      {isExpanded('tapp') && (
         <CardContent className="flex-1 overflow-y-auto px-3 pt-0">
           <ScrollArea className="h-full">
             {sortedPositions.map((position, index) => (

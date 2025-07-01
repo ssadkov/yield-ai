@@ -7,6 +7,8 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { useCollapsible } from "@/contexts/CollapsibleContext";
+import { CollapsibleControls } from "@/components/ui/collapsible-controls";
 
 interface PortfolioCardProps {
   totalValue: string;
@@ -14,7 +16,7 @@ interface PortfolioCardProps {
 }
 
 export function PortfolioCard({ totalValue, tokens }: PortfolioCardProps) {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const { isExpanded, toggleSection } = useCollapsible();
   const [hideSmallAssets, setHideSmallAssets] = useState(true);
 
   const filteredTokens = hideSmallAssets 
@@ -41,18 +43,21 @@ export function PortfolioCard({ totalValue, tokens }: PortfolioCardProps) {
         <span className="text-lg font-medium">Assets</span>
         <span className="text-lg font-medium">${displayTotalValue.toFixed(2)}</span>
       </div>
-      <div className="flex items-center space-x-2 mb-2">
-        <Checkbox 
-          id="hideSmallAssets" 
-          checked={hideSmallAssets}
-          onCheckedChange={(checked) => setHideSmallAssets(checked as boolean)}
-        />
-        <Label htmlFor="hideSmallAssets" className="text-sm">Hide assets {'<'}1$</Label>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center space-x-2">
+          <Checkbox 
+            id="hideSmallAssets" 
+            checked={hideSmallAssets}
+            onCheckedChange={(checked) => setHideSmallAssets(checked as boolean)}
+          />
+          <Label htmlFor="hideSmallAssets" className="text-sm">Hide assets {'<'}1$</Label>
+        </div>
+        <CollapsibleControls />
       </div>
       <Card className="w-full h-full flex flex-col">
         <CardHeader 
           className="py-2 cursor-pointer hover:bg-accent/50 transition-colors"
-          onClick={() => setIsExpanded(!isExpanded)}
+          onClick={() => toggleSection('wallet')}
         >
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2">
@@ -63,13 +68,13 @@ export function PortfolioCard({ totalValue, tokens }: PortfolioCardProps) {
               <span className="text-lg">${walletTotal.toFixed(2)}</span>
               <ChevronDown className={cn(
                 "h-5 w-5 transition-transform",
-                isExpanded ? "transform rotate-0" : "transform -rotate-90"
+                isExpanded('wallet') ? "transform rotate-0" : "transform -rotate-90"
               )} />
             </div>
           </div>
         </CardHeader>
 
-        {isExpanded && (
+        {isExpanded('wallet') && (
           <CardContent className="flex-1 overflow-y-auto px-3 pt-0">
             <ScrollArea className="h-full">
               <TokenList tokens={filteredTokens} />
