@@ -65,7 +65,7 @@ export function PortfolioCard({ totalValue, tokens, onRefresh, isRefreshing }: P
                   size="sm"
                   onClick={onRefresh}
                   disabled={isRefreshing}
-                  className="h-4 w-4 p-0 hover:bg-accent transition-colors"
+                  className="h-4 w-4 p-0 text-muted-foreground hover:bg-transparent hover:text-foreground/60 opacity-80 transition-colors"
                 >
                   <RefreshCw className={cn(
                     "h-3 w-3",

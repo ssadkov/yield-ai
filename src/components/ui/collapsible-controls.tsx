@@ -16,7 +16,7 @@ export function CollapsibleControls() {
             variant="ghost"
             size="sm"
             onClick={expandAll}
-            className="h-4 w-4 p-0 hover:bg-accent transition-colors"
+            className="h-4 w-4 p-0 text-muted-foreground hover:bg-transparent hover:text-foreground/60 opacity-80 transition-colors"
           >
             <Maximize2 className="h-3 w-3" />
           </Button>
@@ -32,7 +32,7 @@ export function CollapsibleControls() {
             variant="ghost"
             size="sm"
             onClick={collapseAll}
-            className="h-4 w-4 p-0 hover:bg-accent transition-colors"
+            className="h-4 w-4 p-0 text-muted-foreground hover:bg-transparent hover:text-foreground/60 opacity-80 transition-colors"
           >
             <Minimize2 className="h-3 w-3" />
           </Button>

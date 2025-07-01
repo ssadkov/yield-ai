@@ -108,11 +108,12 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                    className="h-6 w-6 p-0 text-gray-400 text-xs hover:text-foreground"
                     onClick={handleRefresh}
                     disabled={isRefreshing}
                   >
-                    <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    <span className="sr-only">Refresh positions</span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -126,9 +127,9 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                    className="h-6 w-6 p-0 text-gray-400 text-xs hover:text-foreground"
                   >
-                    <Info className="h-4 w-4" />
+                    <Info className="h-3 w-3" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent className="w-80 p-4">
@@ -142,7 +143,7 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-7 text-xs bg-background text-foreground border-border hover:bg-accent hover:text-accent-foreground"
+                        className="h-7 text-gray-400 text-xs bg-background text-foreground border-border hover:bg-accent hover:text-accent-foreground"
                         onClick={() => window.open(protocol.url, '_blank')}
                       >
                         Visit Protocol
