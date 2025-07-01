@@ -7,6 +7,9 @@ import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useToast } from "@/components/ui/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { sdk } from "@/lib/hyperion";
+import { getRemoveLiquidityPayload } from "@/lib/services/protocols/hyperion/pools";
+import { ConfirmRemoveModal } from "@/components/ui/confirm-remove-modal";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface HyperionPositionProps {
   position: any;
@@ -15,6 +18,8 @@ interface HyperionPositionProps {
 
 function HyperionPosition({ position, index }: HyperionPositionProps) {
   const [isClaiming, setIsClaiming] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
+  const [showRemoveModal, setShowRemoveModal] = useState(false);
   const { signAndSubmitTransaction, account } = useWallet();
   const { toast } = useToast();
 
@@ -55,6 +60,71 @@ function HyperionPosition({ position, index }: HyperionPositionProps) {
     }
   };
 
+  function getTokenAddress(info: any) {
+    return info?.assetType || info?.coinType || info?.tokenAddress || info?.faType || null;
+  }
+
+  // Remove Liquidity
+  const handleRemoveLiquidity = async () => {
+    setShowRemoveModal(true);
+  };
+
+  const handleConfirmRemove = async () => {
+    if (!signAndSubmitTransaction || !account?.address) return;
+    try {
+      setIsRemoving(true);
+      setShowRemoveModal(false);
+      const token1Info = position.position.pool.token1Info;
+      const token2Info = position.position.pool.token2Info;
+      const currencyA = getTokenAddress(token1Info);
+      const currencyB = getTokenAddress(token2Info);
+      console.log('REMOVE PARAMS:', {
+        positionId: position.position.objectId,
+        token1Info,
+        token2Info,
+        currencyA,
+        currencyB,
+        accountAddress: account.address.toString(),
+      });
+      if (!currencyA || !currencyB) {
+        toast({ title: "Error", description: "Token address not found", variant: "destructive" });
+        setIsRemoving(false);
+        return;
+      }
+      const payload = await getRemoveLiquidityPayload({
+        positionId: position.position.objectId,
+        currencyA,
+        currencyB,
+        accountAddress: account.address.toString(),
+      });
+      console.log('REMOVE PAYLOAD:', payload);
+      const response = await signAndSubmitTransaction({
+        data: {
+          function: payload.function as `${string}::${string}::${string}`,
+          typeArguments: payload.typeArguments,
+          functionArguments: payload.functionArguments
+        },
+        options: { maxGasAmount: 100000 },
+      });
+      toast({
+        title: "Remove Liquidity Success",
+        description: `Transaction hash: ${response.hash.slice(0, 6)}...${response.hash.slice(-4)}`,
+        action: (
+          <ToastAction altText="View in Explorer" onClick={() => window.open(`https://explorer.aptoslabs.com/txn/${response.hash}?network=mainnet`, '_blank')}>
+            View in Explorer
+          </ToastAction>
+        ),
+      });
+      // Обновляем позиции после успеха
+      window.dispatchEvent(new CustomEvent('refreshPositions', { detail: { protocol: 'hyperion' } }));
+    } catch (error) {
+      console.error('Remove liquidity error:', error);
+      toast({ title: "Error", description: "Failed to remove liquidity", variant: "destructive" });
+    } finally {
+      setIsRemoving(false);
+    }
+  };
+
   return (
     <div key={`${position.assetName}-${index}`} className="p-4 border-b last:border-b-0">
       <div className="flex justify-between items-center mb-2">
@@ -67,11 +137,27 @@ function HyperionPosition({ position, index }: HyperionPositionProps) {
             </div>
           )}
           <span className="text-lg font-semibold">{position.position?.pool?.token1Info?.symbol} / {position.position?.pool?.token2Info?.symbol}</span>
-          {position.isActive ? (
-            <span className="px-2 py-1 rounded bg-green-500/10 text-green-600 text-xs font-semibold ml-2">Active</span>
-          ) : (
-            <span className="px-2 py-1 rounded bg-red-500/10 text-red-600 border-red-500/20 text-xs font-semibold ml-2">Inactive</span>
-          )}
+          <TooltipProvider>
+            {position.isActive ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="px-2 py-1 rounded bg-green-500/10 text-green-600 text-xs font-semibold ml-2 cursor-help">Active</span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>You are earning fees and rewards from this position</p>
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="px-2 py-1 rounded bg-red-500/10 text-red-600 border-red-500/20 text-xs font-semibold ml-2 cursor-help">Inactive</span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>This position is not earning fees or rewards</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </TooltipProvider>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-lg font-bold">${parseFloat(position.value || "0").toFixed(2)}</span>
@@ -88,7 +174,7 @@ function HyperionPosition({ position, index }: HyperionPositionProps) {
           )}
           {totalRewards > 0 && (
             <button
-              className="mt-1 px-3 py-1 bg-green-600 text-white rounded text-sm font-semibold disabled:opacity-60"
+              className="px-3 py-1 bg-green-600 text-white rounded text-sm font-semibold disabled:opacity-60"
               onClick={handleClaimRewards}
               disabled={isClaiming}
             >
@@ -97,6 +183,30 @@ function HyperionPosition({ position, index }: HyperionPositionProps) {
           )}
         </div>
       )}
+      
+      {/* Кнопка Remove для всех позиций */}
+      <div className="flex justify-end mt-2">
+        <button
+          className={`px-3 py-1 rounded text-sm font-semibold disabled:opacity-60 transition-all ${
+            position.isActive 
+              ? 'bg-red-300 text-red-800 hover:bg-red-400 border border-red-400' 
+              : 'bg-red-500 text-white hover:bg-red-600 shadow-lg'
+          }`}
+          onClick={handleRemoveLiquidity}
+          disabled={isRemoving || !getTokenAddress(position.position.pool.token1Info) || !getTokenAddress(position.position.pool.token2Info)}
+        >
+          {isRemoving ? 'Removing...' : 'Remove'}
+        </button>
+      </div>
+
+      {/* Модальное окно подтверждения */}
+      <ConfirmRemoveModal
+        isOpen={showRemoveModal}
+        onClose={() => setShowRemoveModal(false)}
+        onConfirm={handleConfirmRemove}
+        isLoading={isRemoving}
+        position={position}
+      />
     </div>
   );
 }
