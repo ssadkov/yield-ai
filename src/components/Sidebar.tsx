@@ -25,34 +25,49 @@ export default function Sidebar() {
   const [jouleValue, setJouleValue] = useState(0);
   const [tappValue, setTappValue] = useState(0);
   const [mesoValue, setMesoValue] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  useEffect(() => {
-    async function loadPortfolio() {
-      if (!account?.address) {
-        setTokens([]);
-        setTotalValue(0);
-        return;
-      }
-
-      try {
-        const portfolioService = new AptosPortfolioService();
-        const portfolio = await portfolioService.getPortfolio(account.address.toString());
-        setTokens(portfolio.tokens);
-        
-        // Вычисляем общую стоимость из токенов
-        const total = portfolio.tokens.reduce((sum, token) => {
-          return sum + (token.value ? parseFloat(token.value) : 0);
-        }, 0);
-        setTotalValue(total);
-      } catch (error) {
-        console.error('Error loading portfolio:', error);
-        setTokens([]);
-        setTotalValue(0);
-      }
+  const loadPortfolio = useCallback(async () => {
+    if (!account?.address) {
+      setTokens([]);
+      setTotalValue(0);
+      return;
     }
 
-    loadPortfolio();
+    try {
+      setIsRefreshing(true);
+      const portfolioService = new AptosPortfolioService();
+      const portfolio = await portfolioService.getPortfolio(account.address.toString());
+      setTokens(portfolio.tokens);
+      
+      // Вычисляем общую стоимость из токенов
+      const total = portfolio.tokens.reduce((sum, token) => {
+        return sum + (token.value ? parseFloat(token.value) : 0);
+      }, 0);
+      setTotalValue(total);
+    } catch (error) {
+      console.error('Error loading portfolio:', error);
+      setTokens([]);
+      setTotalValue(0);
+    } finally {
+      setIsRefreshing(false);
+    }
   }, [account?.address]);
+
+  const handleRefresh = useCallback(async () => {
+    await loadPortfolio();
+    // Сбрасываем значения протоколов, чтобы они перезагрузились
+    setHyperionValue(0);
+    setEchelonValue(0);
+    setAriesValue(0);
+    setJouleValue(0);
+    setTappValue(0);
+    setMesoValue(0);
+  }, [loadPortfolio]);
+
+  useEffect(() => {
+    loadPortfolio();
+  }, [loadPortfolio]);
 
   const handleHyperionValueChange = useCallback((value: number) => {
     setHyperionValue(value);
@@ -108,7 +123,12 @@ export default function Sidebar() {
         <div className="flex-1 overflow-y-auto">
           {account?.address ? (
             <div className="mt-4 space-y-4">
-              <PortfolioCard totalValue={totalAssets.toString()} tokens={tokens} />
+              <PortfolioCard 
+                totalValue={totalAssets.toString()} 
+                tokens={tokens} 
+                onRefresh={handleRefresh}
+                isRefreshing={isRefreshing}
+              />
               {[
                 { component: HyperionPositionsList, value: hyperionValue, name: 'Hyperion' },
                 { component: EchelonPositionsList, value: echelonValue, name: 'Echelon' },

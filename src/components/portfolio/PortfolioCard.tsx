@@ -3,19 +3,23 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { TokenList } from "@/components/portfolio/TokenList";
 import { Token } from "@/lib/types/token";
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useCollapsible } from "@/contexts/CollapsibleContext";
 import { CollapsibleControls } from "@/components/ui/collapsible-controls";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface PortfolioCardProps {
   totalValue: string;
   tokens: Token[];
+  onRefresh?: () => Promise<void>;
+  isRefreshing?: boolean;
 }
 
-export function PortfolioCard({ totalValue, tokens }: PortfolioCardProps) {
+export function PortfolioCard({ totalValue, tokens, onRefresh, isRefreshing }: PortfolioCardProps) {
   const { isExpanded, toggleSection } = useCollapsible();
   const [hideSmallAssets, setHideSmallAssets] = useState(true);
 
@@ -52,7 +56,30 @@ export function PortfolioCard({ totalValue, tokens }: PortfolioCardProps) {
           />
           <Label htmlFor="hideSmallAssets" className="text-sm">Hide assets {'<'}1$</Label>
         </div>
-        <CollapsibleControls />
+        <div className="flex items-center gap-1">
+          {onRefresh && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onRefresh}
+                  disabled={isRefreshing}
+                  className="h-4 w-4 p-0 hover:bg-accent transition-colors"
+                >
+                  <RefreshCw className={cn(
+                    "h-3 w-3",
+                    isRefreshing && "animate-spin"
+                  )} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Refresh all data</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+          <CollapsibleControls />
+        </div>
       </div>
       <Card className="w-full h-full flex flex-col">
         <CardHeader 
