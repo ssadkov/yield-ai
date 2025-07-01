@@ -3,12 +3,14 @@ import React from 'react';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
 import { executeDeposit } from '../transactions/DepositTransaction';
 import { ProtocolKey } from '../transactions/types';
-import { toast } from 'sonner';
+import { useToast } from '@/components/ui/use-toast';
+import { ToastAction } from '@/components/ui/toast';
 import { protocols } from '../protocols/protocolsRegistry';
 
 export function useDeposit() {
   const wallet = useWallet();
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   const deposit = useCallback(async (
     protocolKey: ProtocolKey,
@@ -89,13 +91,9 @@ export function useDeposit() {
             
             if (txData.success && txData.vm_status === "Executed successfully") {
               console.log('Transaction confirmed successfully, showing toast...');
-              toast('Deposit successful!', {
+              toast({
+                title: "Deposit successful!",
                 description: `Transaction hash: ${response.hash.slice(0, 6)}...${response.hash.slice(-4)}`,
-                action: {
-                  label: 'View in Explorer',
-                  onClick: () => window.open(`https://explorer.aptoslabs.com/txn/${response.hash}?network=mainnet`, '_blank')
-                },
-                duration: 5000,
               });
               console.log('Toast should be shown now');
               return response;
@@ -118,7 +116,11 @@ export function useDeposit() {
       return response;
     } catch (error) {
       console.error('Deposit error:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to deposit');
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : 'Failed to deposit',
+        variant: "destructive"
+      });
       throw error;
     } finally {
       setIsLoading(false);

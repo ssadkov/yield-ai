@@ -11,6 +11,7 @@ import { MesoPositions } from "./protocols/MesoPositions";
 import { RefreshCw, Info, ExternalLink } from "lucide-react";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useState } from "react";
+import { useToast } from "@/components/ui/use-toast";
 
 interface ManagePositionsProps {
   protocol: Protocol;
@@ -20,6 +21,7 @@ interface ManagePositionsProps {
 export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
   const { account } = useWallet();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const { toast } = useToast();
 
   const handleRefresh = async () => {
     if (!account?.address) return;
@@ -46,9 +48,20 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
         window.dispatchEvent(new CustomEvent('refreshPositions', { 
           detail: { protocol: apiPath, data: data.data }
         }));
+        toast({
+          title: "Success",
+          description: `${protocol.name} positions refreshed successfully`,
+        });
+      } else {
+        throw new Error('Failed to refresh positions');
       }
     } catch (error) {
       console.error('Error refreshing positions:', error);
+      toast({
+        title: "Error",
+        description: `Failed to refresh ${protocol.name} positions`,
+        variant: "destructive"
+      });
     } finally {
       setIsRefreshing(false);
     }
@@ -89,6 +102,24 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
               <Image src={protocol.logoUrl} alt={protocol.name} width={32} height={32} className="object-contain" />
             )}
             <CardTitle className="text-xl font-bold">{protocol.name} positions</CardTitle>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                    onClick={handleRefresh}
+                    disabled={isRefreshing}
+                  >
+                    <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Refresh positions</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>

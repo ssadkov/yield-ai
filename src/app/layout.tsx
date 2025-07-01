@@ -5,7 +5,7 @@ import { WalletProvider } from "@/lib/WalletProvider";
 import { WalletDataProvider } from "@/contexts/WalletContext";
 import { ProtocolProvider } from "@/lib/contexts/ProtocolContext";
 import { DragDropProvider } from "@/contexts/DragDropContext";
-import { Toaster } from "sonner";
+import { Toaster } from "@/components/ui/toaster";
 import { AlphaBanner } from "@/components/ui/alpha-banner";
 import { Analytics } from "@vercel/analytics/next";
 
@@ -60,13 +60,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </DragDropProvider>
             </ProtocolProvider>
           </WalletDataProvider>
-          <Toaster 
-            richColors 
-            position="top-right"
-            expand={true}
-            closeButton={true}
-            style={{ fontSize: '1rem' }}
-          />
+          <Toaster />
         </WalletProvider>
         <Analytics />
       </body>
