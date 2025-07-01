@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface TappPositionProps {
   position: any;
@@ -49,6 +51,7 @@ function TappPosition({ position, index }: TappPositionProps) {
 
   const totalApr = parseFloat(position.apr?.totalAprPercentage || '0');
   const feeApr = parseFloat(position.apr?.feeAprPercentage || '0');
+  const boostedApr = parseFloat(position.apr?.boostedAprPercentage || '0');
 
   return (
     <div key={`${position.positionAddr}-${index}`} className="p-4 border-b last:border-b-0">
@@ -64,6 +67,23 @@ function TappPosition({ position, index }: TappPositionProps) {
           <span className="px-2 py-1 rounded bg-green-500/10 text-green-600 text-xs font-semibold ml-2">Active</span>
         </div>
         <div className="flex items-center gap-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs font-normal px-2 py-0.5 h-5 cursor-help">
+                  APR: {totalApr.toFixed(2)}%
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="space-y-1">
+                  <p className="font-medium">APR Breakdown</p>
+                  <p className="text-xs">Fee APR: {feeApr.toFixed(2)}%</p>
+                  <p className="text-xs">Boosted APR: {boostedApr.toFixed(2)}%</p>
+                  <p className="text-xs font-semibold">Total APR: {totalApr.toFixed(2)}%</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           <span className="text-lg font-bold">{formatCurrency(totalValue)}</span>
         </div>
       </div>
@@ -89,15 +109,6 @@ function TappPosition({ position, index }: TappPositionProps) {
         </div>
 
         <div className="flex flex-col items-end gap-2 text-sm">
-          <div className="text-right">
-            <div className="text-gray-500">Fee APR</div>
-            <div className="font-semibold text-base">{feeApr.toFixed(2)}%</div>
-          </div>
-          <div className="text-right">
-            <div className="text-gray-500">Total APR</div>
-            <div className="font-semibold text-base">{totalApr.toFixed(2)}%</div>
-          </div>
-
           {rewards.length > 0 && (
             <div className="mt-2 text-right">
               <div className="text-gray-500 mb-1">🎁 Rewards: ${rewardsValue.toFixed(2)}</div>

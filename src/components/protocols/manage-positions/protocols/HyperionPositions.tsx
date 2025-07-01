@@ -11,6 +11,7 @@ import { getRemoveLiquidityPayload } from "@/lib/services/protocols/hyperion/poo
 import { ConfirmRemoveModal } from "@/components/ui/confirm-remove-modal";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
+import { Info } from "lucide-react";
 
 interface HyperionPositionProps {
   position: any;
@@ -203,11 +204,12 @@ function HyperionPosition({ position, index }: HyperionPositionProps) {
             </div>
           )}
           <span className="text-lg font-semibold">{position.position?.pool?.token1Info?.symbol} / {position.position?.pool?.token2Info?.symbol}</span>
+          
           <TooltipProvider>
             {position.isActive ? (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-base font-semibold px-3 py-1 ml-2 cursor-help">
+                  <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-xs font-normal px-2 py-0.5 h-5 ml-2 cursor-help">
                     Active
                   </Badge>
                 </TooltipTrigger>
@@ -218,7 +220,7 @@ function HyperionPosition({ position, index }: HyperionPositionProps) {
             ) : (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 text-base font-semibold px-3 py-1 ml-2 cursor-help">
+                  <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 text-xs font-normal px-2 py-0.5 h-5 ml-2 cursor-help">
                     Inactive
                   </Badge>
                 </TooltipTrigger>
@@ -228,12 +230,30 @@ function HyperionPosition({ position, index }: HyperionPositionProps) {
               </Tooltip>
             )}
           </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className="w-4 h-4 flex items-center justify-center rounded-full hover:bg-gray-200/60 focus:outline-none transition-colors"
+                  onClick={handleViewPoolDetails}
+                  disabled={loadingPoolDetails}
+                  aria-label="Pool details"
+                  type="button"
+                >
+                  <Info className="w-4 h-4 text-gray-400" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <span>Pool details</span>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
         <div className="flex items-center gap-2">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-base font-semibold px-3 py-1 cursor-help">
+                <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs font-normal px-2 py-0.5 h-5 cursor-help">
                   APR: {totalAPR.toFixed(2)}%
                 </Badge>
               </TooltipTrigger>
@@ -263,15 +283,8 @@ function HyperionPosition({ position, index }: HyperionPositionProps) {
           </>
         )}
         
-        {/* Кнопки Claim, View Pool и Remove */}
+        {/* Кнопки Claim и Remove */}
         <div className="flex gap-2 mt-1">
-          <button
-            className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-semibold disabled:opacity-60 hover:bg-blue-700"
-            onClick={handleViewPoolDetails}
-            disabled={loadingPoolDetails}
-          >
-            {loadingPoolDetails ? 'Loading...' : 'View Pool'}
-          </button>
           {totalRewards > 0 && (
             <button
               className="px-3 py-1 bg-green-600 text-white rounded text-sm font-semibold disabled:opacity-60"

@@ -136,7 +136,7 @@ export function EchelonPositions() {
                   <div>
                     <div className="flex items-center gap-2">
                       <div className="text-lg">{tokenInfo?.symbol || position.coin.substring(0, 4).toUpperCase()}</div>
-                      <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-base font-semibold px-3 py-1">
+                      <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-xs font-normal px-2 py-0.5 h-5">
                         Supply
                       </Badge>
                     </div>
@@ -147,7 +147,7 @@ export function EchelonPositions() {
                 </div>
                 <div className="text-right">
                   <div className="flex items-center gap-2 mb-1">
-                    <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-base font-semibold px-3 py-1">
+                    <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-xs font-normal px-2 py-0.5 h-5">
                       APY: {apy !== null ? (apy * 100).toFixed(2) + '%' : 'N/A'}
                     </Badge>
                     <div className="text-lg font-bold">${value.toFixed(2)}</div>
