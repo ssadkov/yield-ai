@@ -544,6 +544,246 @@ export async function GET() {
           }
         }
       },
+      "/api/protocols/hyperion/pools/{poolId}": {
+        get: {
+          tags: ["protocols"],
+          summary: "Get Hyperion pool by ID",
+          description: "Returns detailed information about a specific Hyperion pool by its ID",
+          parameters: [
+            {
+              name: "poolId",
+              in: "path",
+              required: true,
+              schema: {
+                type: "string"
+              },
+              description: "Pool ID",
+              example: "0x76d9ab75b28e5e9be6268c88a3d223237d23467a3dd5c8703a69f1fbeda23478"
+            }
+          ],
+          responses: {
+            "200": {
+              description: "Successful response",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: {
+                        type: "boolean",
+                        example: true
+                      },
+                      data: {
+                        type: "object",
+                        properties: {
+                          poolId: {
+                            type: "string",
+                            example: "0x76d9ab75b28e5e9be6268c88a3d223237d23467a3dd5c8703a69f1fbeda23478"
+                          },
+                          token1: {
+                            type: "string",
+                            example: "0x000000000000000000000000000000000000000000000000000000000000000a"
+                          },
+                          token2: {
+                            type: "string",
+                            example: "0x1ff8bf54987b665fd0aa8b317a22a60f5927675d35021473a85d720e254ed77e"
+                          },
+                          feeTier: {
+                            type: "number",
+                            example: 3
+                          },
+                          currentTick: {
+                            type: "number",
+                            example: 48400
+                          },
+                          sqrtPrice: {
+                            type: "string",
+                            example: "207424390474109573907"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              description: "Bad request",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      error: {
+                        type: "string",
+                        example: "Pool ID is required"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "404": {
+              description: "Pool not found",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      error: {
+                        type: "string",
+                        example: "Pool not found"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              description: "Server error",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      error: {
+                        type: "string",
+                        example: "Failed to fetch pool"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/api/protocols/hyperion/pools/by-tokens": {
+        get: {
+          tags: ["protocols"],
+          summary: "Get Hyperion pool by token pair and fee tier",
+          description: "Returns a specific Hyperion pool by token pair and fee tier",
+          parameters: [
+            {
+              name: "token1",
+              in: "query",
+              required: true,
+              schema: {
+                type: "string"
+              },
+              description: "First token address",
+              example: "0x000000000000000000000000000000000000000000000000000000000000000a"
+            },
+            {
+              name: "token2",
+              in: "query",
+              required: true,
+              schema: {
+                type: "string"
+              },
+              description: "Second token address",
+              example: "0x1ff8bf54987b665fd0aa8b317a22a60f5927675d35021473a85d720e254ed77e"
+            },
+            {
+              name: "feeTier",
+              in: "query",
+              required: true,
+              schema: {
+                type: "number"
+              },
+              description: "Fee tier index",
+              example: 3
+            }
+          ],
+          responses: {
+            "200": {
+              description: "Successful response",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: {
+                        type: "boolean",
+                        example: true
+                      },
+                      data: {
+                        type: "object",
+                        properties: {
+                          poolId: {
+                            type: "string",
+                            example: "0x76d9ab75b28e5e9be6268c88a3d223237d23467a3dd5c8703a69f1fbeda23478"
+                          },
+                          token1: {
+                            type: "string",
+                            example: "0x000000000000000000000000000000000000000000000000000000000000000a"
+                          },
+                          token2: {
+                            type: "string",
+                            example: "0x1ff8bf54987b665fd0aa8b317a22a60f5927675d35021473a85d720e254ed77e"
+                          },
+                          currentTick: {
+                            type: "number",
+                            example: 48400
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "400": {
+              description: "Bad request",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      error: {
+                        type: "string",
+                        example: "token1, token2, and feeTier are required"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "404": {
+              description: "Pool not found",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      error: {
+                        type: "string",
+                        example: "Pool not found"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              description: "Server error",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      error: {
+                        type: "string",
+                        example: "Failed to fetch pool"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
       "/api/protocols/hyperion/userPositions": {
         get: {
           tags: ["protocols"],

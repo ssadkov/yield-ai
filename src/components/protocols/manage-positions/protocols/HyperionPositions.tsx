@@ -21,6 +21,10 @@ function HyperionPosition({ position, index }: HyperionPositionProps) {
   const [isClaiming, setIsClaiming] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
   const [showRemoveModal, setShowRemoveModal] = useState(false);
+  const [showPoolDetails, setShowPoolDetails] = useState(false);
+  const [poolDetails, setPoolDetails] = useState<any>(null);
+  const [loadingPoolDetails, setLoadingPoolDetails] = useState(false);
+  const [poolAPR, setPoolAPR] = useState({ feeAPR: 0, farmAPR: 0 });
   const { signAndSubmitTransaction, account } = useWallet();
   const { toast } = useToast();
 
@@ -28,6 +32,36 @@ function HyperionPosition({ position, index }: HyperionPositionProps) {
   const farmRewards = position.farm?.unclaimed?.reduce((sum: number, r: any) => sum + parseFloat(r.amountUSD || "0"), 0) || 0;
   const feeRewards = position.fees?.unclaimed?.reduce((sum: number, r: any) => sum + parseFloat(r.amountUSD || "0"), 0) || 0;
   const totalRewards = farmRewards + feeRewards;
+
+  // Получаем poolId из позиции
+  const poolId = position.position?.pool?.poolId;
+
+  // Загружаем APR из пула при изменении poolId
+  useEffect(() => {
+    async function fetchPoolAPR() {
+      if (!poolId) return;
+      
+      try {
+        const response = await fetch(`/api/protocols/hyperion/pools/${poolId}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+            setPoolAPR({
+              feeAPR: parseFloat(data.data[0].feeAPR || "0"),
+              farmAPR: parseFloat(data.data[0].farmAPR || "0"),
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching pool APR:', error);
+      }
+    }
+
+    fetchPoolAPR();
+  }, [poolId]);
+
+  // Считаем общий APR
+  const totalAPR = poolAPR.feeAPR + poolAPR.farmAPR;
 
   const handleClaimRewards = async () => {
     if (!signAndSubmitTransaction || !account?.address) return;
@@ -64,6 +98,37 @@ function HyperionPosition({ position, index }: HyperionPositionProps) {
   function getTokenAddress(info: any) {
     return info?.assetType || info?.coinType || info?.tokenAddress || info?.faType || null;
   }
+
+  // Load pool details by ID
+  const handleViewPoolDetails = async () => {
+    if (!position.position?.pool?.poolId) {
+      toast({ title: "Error", description: "Pool ID not found", variant: "destructive" });
+      return;
+    }
+
+    try {
+      setLoadingPoolDetails(true);
+      const response = await fetch(`/api/protocols/hyperion/pools/${position.position.pool.poolId}`);
+      
+      if (!response.ok) {
+        throw new Error(`API returned status ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setPoolDetails(data.data);
+        setShowPoolDetails(true);
+      } else {
+        toast({ title: "Error", description: "Failed to load pool details", variant: "destructive" });
+      }
+    } catch (error) {
+      console.error('Error loading pool details:', error);
+      toast({ title: "Error", description: "Failed to load pool details", variant: "destructive" });
+    } finally {
+      setLoadingPoolDetails(false);
+    }
+  };
 
   // Remove Liquidity
   const handleRemoveLiquidity = async () => {
@@ -165,6 +230,23 @@ function HyperionPosition({ position, index }: HyperionPositionProps) {
           </TooltipProvider>
         </div>
         <div className="flex items-center gap-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-base font-semibold px-3 py-1 cursor-help">
+                  APR: {totalAPR.toFixed(2)}%
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="space-y-1">
+                  <p className="font-medium">APR Breakdown</p>
+                  <p className="text-xs">Fee APR: {poolAPR.feeAPR.toFixed(2)}%</p>
+                  <p className="text-xs">Farm APR: {poolAPR.farmAPR.toFixed(2)}%</p>
+                  <p className="text-xs font-semibold">Total APR: {totalAPR.toFixed(2)}%</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           <span className="text-lg font-bold">${parseFloat(position.value || "0").toFixed(2)}</span>
         </div>
       </div>
@@ -181,8 +263,15 @@ function HyperionPosition({ position, index }: HyperionPositionProps) {
           </>
         )}
         
-        {/* Кнопки Claim и Remove */}
+        {/* Кнопки Claim, View Pool и Remove */}
         <div className="flex gap-2 mt-1">
+          <button
+            className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-semibold disabled:opacity-60 hover:bg-blue-700"
+            onClick={handleViewPoolDetails}
+            disabled={loadingPoolDetails}
+          >
+            {loadingPoolDetails ? 'Loading...' : 'View Pool'}
+          </button>
           {totalRewards > 0 && (
             <button
               className="px-3 py-1 bg-green-600 text-white rounded text-sm font-semibold disabled:opacity-60"
@@ -214,6 +303,104 @@ function HyperionPosition({ position, index }: HyperionPositionProps) {
         isLoading={isRemoving}
         position={position}
       />
+
+      {/* Модальное окно деталей пула */}
+      {showPoolDetails && poolDetails && (
+        (() => {
+          // Если poolDetails — массив, берём первый элемент
+          const poolData = Array.isArray(poolDetails) ? poolDetails[0] : poolDetails;
+          const { id, dailyVolumeUSD, feesUSD, tvlUSD, feeAPR, farmAPR, pool } = poolData;
+          return (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold">Pool Details</h2>
+                  <button
+                    onClick={() => setShowPoolDetails(false)}
+                    className="text-gray-500 hover:text-gray-700 text-2xl"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <h3 className="font-semibold text-gray-700">Pool ID</h3>
+                      <p className="text-sm font-mono break-all">{id}</p>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-700">Fee Tier</h3>
+                      <p className="text-sm">{pool.feeTier}</p>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-700">Current Tick</h3>
+                      <p className="text-sm">{pool.currentTick}</p>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-700">Sqrt Price</h3>
+                      <p className="text-sm font-mono break-all">{pool.sqrtPrice}</p>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-700">Fee APR</h3>
+                      <p className="text-sm text-green-600">{parseFloat(feeAPR || "0").toFixed(2)}%</p>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-700">Farm APR</h3>
+                      <p className="text-sm text-blue-600">{parseFloat(farmAPR || "0").toFixed(2)}%</p>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-700">Total APR</h3>
+                      <p className="text-sm font-bold text-purple-600">{(parseFloat(feeAPR || "0") + parseFloat(farmAPR || "0")).toFixed(2)}%</p>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-700">TVL USD</h3>
+                      <p className="text-sm">${parseFloat(tvlUSD || "0").toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-700">Daily Volume USD</h3>
+                      <p className="text-sm">${parseFloat(dailyVolumeUSD || "0").toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-700">Fees USD (24h)</h3>
+                      <p className="text-sm">${parseFloat(feesUSD || "0").toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <h3 className="font-semibold text-gray-700 mb-2">Token 1</h3>
+                      <div className="bg-gray-50 p-3 rounded flex items-center gap-2">
+                        {pool.token1Info?.logoUrl && <img src={pool.token1Info.logoUrl} alt={pool.token1Info.symbol} className="w-8 h-8 rounded-full object-contain" />}
+                        <div>
+                          <div className="font-bold">{pool.token1Info?.symbol}</div>
+                          <div className="text-xs text-gray-500">{pool.token1Info?.name}</div>
+                          <div className="text-xs font-mono break-all">{pool.token1}</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-700 mb-2">Token 2</h3>
+                      <div className="bg-gray-50 p-3 rounded flex items-center gap-2">
+                        {pool.token2Info?.logoUrl && <img src={pool.token2Info.logoUrl} alt={pool.token2Info.symbol} className="w-8 h-8 rounded-full object-contain" />}
+                        <div>
+                          <div className="font-bold">{pool.token2Info?.symbol}</div>
+                          <div className="text-xs text-gray-500">{pool.token2Info?.name}</div>
+                          <div className="text-xs font-mono break-all">{pool.token2}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-700 mb-2">Raw Pool Data</h3>
+                    <pre className="bg-gray-50 p-3 rounded text-xs overflow-x-auto">
+                      {JSON.stringify(poolData, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()
+      )}
     </div>
   );
 }
