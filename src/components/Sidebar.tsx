@@ -77,6 +77,18 @@ export default function Sidebar() {
     setMesoValue(value);
   }, []);
 
+  // Считаем сумму по кошельку
+  const walletTotal = tokens.reduce((sum, token) => {
+    const value = token.value ? parseFloat(token.value) : 0;
+    return sum + (isNaN(value) ? 0 : value);
+  }, 0);
+
+  // Считаем сумму по всем протоколам
+  const totalProtocolsValue = hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue;
+
+  // Итоговая сумма
+  const totalAssets = walletTotal + totalProtocolsValue;
+
   return (
     <div className="hidden md:flex w-[340px] p-4 border-r h-screen flex-col">
       <div className="flex items-center justify-between mb-4 shrink-0">
@@ -94,7 +106,7 @@ export default function Sidebar() {
       <div className="flex-1 overflow-y-auto">
         {account?.address ? (
           <div className="mt-4 space-y-4">
-            <PortfolioCard totalValue={totalValue.toString()} tokens={tokens} />
+            <PortfolioCard totalValue={totalAssets.toString()} tokens={tokens} />
             {[
               { component: HyperionPositionsList, value: hyperionValue, name: 'Hyperion' },
               { component: EchelonPositionsList, value: echelonValue, name: 'Echelon' },
