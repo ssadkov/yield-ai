@@ -33,12 +33,18 @@ function TappPosition({ position, index }: TappPositionProps) {
   const token1Value = parseFloat(token1.usd || "0");
   const positionValue = token0Value + token1Value;
 
+  // Считаем только rewards (стимулы)
   const rewardsValue = (position.estimatedIncentives || []).reduce((sum: number, r: any) => sum + parseFloat(r.usd || "0"), 0);
   const totalValue = positionValue + rewardsValue;
 
   const rewards = (position.estimatedIncentives || []).map((r: any) => {
     const amount = parseFloat(r.amount || "0");
     return { ...r, amount };
+  });
+
+  const fees = (position.totalEarnings || []).map((fee: any) => {
+    const amount = parseFloat(fee.amount || "0");
+    return { ...fee, amount };
   });
 
   const totalApr = parseFloat(position.apr?.totalAprPercentage || '0');
@@ -94,7 +100,7 @@ function TappPosition({ position, index }: TappPositionProps) {
 
           {rewards.length > 0 && (
             <div className="mt-2 text-right">
-              <div className="text-gray-500 mb-1">Rewards</div>
+              <div className="text-gray-500 mb-1">🎁 Rewards: ${rewardsValue.toFixed(2)}</div>
               {rewards.map((reward: any, rewardIndex: number) => (
                 <div key={rewardIndex} className="flex items-center justify-end gap-2">
                   {reward.img && (

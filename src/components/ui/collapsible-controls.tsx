@@ -16,9 +16,9 @@ export function CollapsibleControls() {
             variant="ghost"
             size="sm"
             onClick={expandAll}
-            className="h-6 w-6 p-0 hover:bg-accent transition-colors"
+            className="h-4 w-4 p-0 hover:bg-accent transition-colors"
           >
-            <Maximize2 className="h-4 w-4" />
+            <Maximize2 className="h-3 w-3" />
           </Button>
         </TooltipTrigger>
         <TooltipContent>
@@ -32,9 +32,9 @@ export function CollapsibleControls() {
             variant="ghost"
             size="sm"
             onClick={collapseAll}
-            className="h-6 w-6 p-0 hover:bg-accent transition-colors"
+            className="h-4 w-4 p-0 hover:bg-accent transition-colors"
           >
-            <Minimize2 className="h-4 w-4" />
+            <Minimize2 className="h-3 w-3" />
           </Button>
         </TooltipTrigger>
         <TooltipContent>

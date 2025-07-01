@@ -10,6 +10,7 @@ import { sdk } from "@/lib/hyperion";
 import { getRemoveLiquidityPayload } from "@/lib/services/protocols/hyperion/pools";
 import { ConfirmRemoveModal } from "@/components/ui/confirm-remove-modal";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
 
 interface HyperionPositionProps {
   position: any;
@@ -141,7 +142,9 @@ function HyperionPosition({ position, index }: HyperionPositionProps) {
             {position.isActive ? (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="px-2 py-1 rounded bg-green-500/10 text-green-600 text-xs font-semibold ml-2 cursor-help">Active</span>
+                  <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-base font-semibold px-3 py-1 ml-2 cursor-help">
+                    Active
+                  </Badge>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>You are earning fees and rewards from this position</p>
@@ -150,7 +153,9 @@ function HyperionPosition({ position, index }: HyperionPositionProps) {
             ) : (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="px-2 py-1 rounded bg-red-500/10 text-red-600 border-red-500/20 text-xs font-semibold ml-2 cursor-help">Inactive</span>
+                  <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 text-base font-semibold px-3 py-1 ml-2 cursor-help">
+                    Inactive
+                  </Badge>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>This position is not earning fees or rewards</p>

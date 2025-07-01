@@ -112,7 +112,7 @@ export function PositionCard({ position }: PositionProps) {
           <div className="text-base font-medium">${totalValue.toFixed(2)}</div>
           <div className="flex items-center gap-2">
             <div className="text-xs text-muted-foreground text-right">
-              💰 Rewards and fees: ${totalIncentives.toFixed(2)}
+              💰 Rewards: ${totalIncentives.toFixed(2)}
             </div>
           </div>
         </div>
