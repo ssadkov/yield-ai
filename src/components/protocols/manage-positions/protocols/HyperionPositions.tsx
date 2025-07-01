@@ -163,15 +163,21 @@ function HyperionPosition({ position, index }: HyperionPositionProps) {
           <span className="text-lg font-bold">${parseFloat(position.value || "0").toFixed(2)}</span>
         </div>
       </div>
-      {/* Награды */}
-      {(position.farm?.unclaimed?.length > 0 || position.fees?.unclaimed?.length > 0) && (
-        <div className="flex flex-col items-end gap-1 mb-2">
-          {position.farm?.unclaimed?.length > 0 && (
-            <span className="text-base">💰 Farm rewards: ${farmRewards.toFixed(2)}</span>
-          )}
-          {position.fees?.unclaimed?.length > 0 && (
-            <span className="text-base">💸 Fee rewards: ${feeRewards.toFixed(2)}</span>
-          )}
+      {/* Награды и кнопки */}
+      <div className="flex flex-col items-end gap-1 mb-2">
+        {(position.farm?.unclaimed?.length > 0 || position.fees?.unclaimed?.length > 0) && (
+          <>
+            {position.farm?.unclaimed?.length > 0 && (
+              <span className="text-base">💰 Farm rewards: ${farmRewards.toFixed(2)}</span>
+            )}
+            {position.fees?.unclaimed?.length > 0 && (
+              <span className="text-base">💸 Fee rewards: ${feeRewards.toFixed(2)}</span>
+            )}
+          </>
+        )}
+        
+        {/* Кнопки Claim и Remove */}
+        <div className="flex gap-2 mt-1">
           {totalRewards > 0 && (
             <button
               className="px-3 py-1 bg-green-600 text-white rounded text-sm font-semibold disabled:opacity-60"
@@ -181,22 +187,18 @@ function HyperionPosition({ position, index }: HyperionPositionProps) {
               {isClaiming ? 'Claiming...' : 'Claim'}
             </button>
           )}
+          <button
+            className={`px-3 py-1 rounded text-sm font-semibold disabled:opacity-60 transition-all ${
+              position.isActive 
+                ? 'bg-red-300 text-red-800 hover:bg-red-400 border border-red-400' 
+                : 'bg-red-500 text-white hover:bg-red-600 shadow-lg'
+            }`}
+            onClick={handleRemoveLiquidity}
+            disabled={isRemoving || !getTokenAddress(position.position.pool.token1Info) || !getTokenAddress(position.position.pool.token2Info)}
+          >
+            {isRemoving ? 'Removing...' : 'Remove'}
+          </button>
         </div>
-      )}
-      
-      {/* Кнопка Remove для всех позиций */}
-      <div className="flex justify-end mt-2">
-        <button
-          className={`px-3 py-1 rounded text-sm font-semibold disabled:opacity-60 transition-all ${
-            position.isActive 
-              ? 'bg-red-300 text-red-800 hover:bg-red-400 border border-red-400' 
-              : 'bg-red-500 text-white hover:bg-red-600 shadow-lg'
-          }`}
-          onClick={handleRemoveLiquidity}
-          disabled={isRemoving || !getTokenAddress(position.position.pool.token1Info) || !getTokenAddress(position.position.pool.token2Info)}
-        >
-          {isRemoving ? 'Removing...' : 'Remove'}
-        </button>
       </div>
 
       {/* Модальное окно подтверждения */}
