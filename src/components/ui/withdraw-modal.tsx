@@ -66,31 +66,52 @@ export function WithdrawModal({
       const response = await fetch(`/api/protocols/echelon/vault?address=${userAddress}`);
       const data = await response.json();
       
-      if (data.success && data.data?.collaterals?.data) {
-        const collateral = data.data.collaterals.data.find(
+      console.log('WithdrawModal - Vault API response:', data);
+      console.log('WithdrawModal - Looking for market:', position.market);
+      
+      if (data.success && data.data?.data?.collaterals?.data) {
+        console.log('WithdrawModal - Collaterals data:', data.data.data.collaterals.data);
+        const collateral = data.data.data.collaterals.data.find(
           (item: any) => item.key.inner === position.market
         );
         
         if (collateral) {
           setVaultBalance(BigInt(collateral.value));
-          console.log('Vault balance for market', position.market, ':', collateral.value);
+          console.log('WithdrawModal - Vault balance for market', position.market, ':', collateral.value);
         } else {
-          console.log('No collateral found for market:', position.market);
+          console.log('WithdrawModal - No collateral found for market:', position.market);
           setVaultBalance(BigInt(0));
         }
+      } else {
+        console.log('WithdrawModal - Invalid vault data structure:', data);
+        setVaultBalance(BigInt(0));
       }
     } catch (error) {
-      console.error('Error loading vault data:', error);
+      console.error('WithdrawModal - Error loading vault data:', error);
       setVaultBalance(BigInt(0));
     } finally {
       setIsLoadingVault(false);
     }
   };
 
-  // Рассчитываем количество для вывода на основе процента от Vault баланса
-  const withdrawAmount = vaultBalance > 0 
-    ? (vaultBalance * BigInt(percentage[0])) / BigInt(100)
+  // Получаем Available Balance из position (userPositions API)
+  const availableBalance = BigInt(position.supply);
+  const availableBalanceFormatted = Number(availableBalance) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
+
+  // Рассчитываем количество для вывода на основе процента от Available Balance
+  const withdrawAmount = availableBalance > 0 
+    ? (availableBalance * BigInt(percentage[0])) / BigInt(100)
     : BigInt(0);
+
+  console.log('WithdrawModal - Debug state:', {
+    availableBalance: availableBalance.toString(),
+    vaultBalance: vaultBalance.toString(),
+    percentage: percentage[0],
+    withdrawAmount: withdrawAmount.toString(),
+    isLoading,
+    isLoadingVault,
+    withdrawAmountValid: withdrawAmount > 0
+  });
 
   const withdrawAmountFormatted = Number(withdrawAmount) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
 
@@ -115,7 +136,15 @@ export function WithdrawModal({
       return;
     }
 
-    onConfirm(withdrawAmount);
+    // Для payload используем vaultBalance (реальные обёрнутые токены)
+    const payloadAmount = vaultBalance > 0 
+      ? (vaultBalance * BigInt(percentage[0])) / BigInt(100)
+      : BigInt(0);
+
+    console.log('WithdrawModal - Payload amount (vault):', payloadAmount.toString());
+    console.log('WithdrawModal - Display amount (userPositions):', withdrawAmount.toString());
+
+    onConfirm(payloadAmount);
   };
 
   const handleClose = () => {
@@ -189,8 +218,8 @@ export function WithdrawModal({
 
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Vault Balance:</span>
-              <span>{Number(vaultBalance) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8)} {tokenInfo?.symbol}</span>
+              <span className="text-muted-foreground">Available Balance:</span>
+              <span>{availableBalanceFormatted.toFixed(6)} {tokenInfo?.symbol}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Withdraw Amount:</span>
