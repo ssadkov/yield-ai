@@ -41,4 +41,22 @@ export class EchelonProtocol implements BaseProtocol {
       arguments: [marketAddress, amountOctas.toString()]
     };
   }
+
+  async buildWithdraw(marketAddress: string, amountOctas: bigint, token: string) {
+    console.log('Building withdraw for:', { marketAddress, amountOctas, token });
+
+    const tokenInfo = await getTokenInfo(token);
+    console.log('Token info:', tokenInfo);
+
+    const functionName = tokenInfo.isFungible 
+      ? "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::withdraw_fa"
+      : "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::withdraw";
+
+    return {
+      type: "entry_function_payload" as const,
+      function: functionName,
+      type_arguments: tokenInfo.isFungible ? [] : [token],
+      arguments: [marketAddress, amountOctas.toString()]
+    };
+  }
 } 

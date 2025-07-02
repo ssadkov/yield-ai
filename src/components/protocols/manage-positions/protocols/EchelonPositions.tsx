@@ -1,17 +1,22 @@
 'use client';
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import Image from "next/image";
 import tokenList from "@/lib/data/tokenList.json";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useWithdraw } from "@/lib/hooks/useWithdraw";
+import { WithdrawModal } from "@/components/ui/withdraw-modal";
+import echelonMarkets from "@/lib/data/echelonMarkets.json";
 
 interface Position {
   coin: string;
   supply: string;
+  market?: string;
 }
 
 export function EchelonPositions() {
@@ -21,38 +26,56 @@ export function EchelonPositions() {
   const [error, setError] = useState<string | null>(null);
   const [totalValue, setTotalValue] = useState<number>(0);
   const [marketData, setMarketData] = useState<any[]>([]);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
+  const { withdraw, isLoading: isWithdrawing } = useWithdraw();
+
+  // Функция для загрузки позиций
+  const loadPositions = useCallback(async () => {
+    if (!account?.address) return;
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/protocols/echelon/userPositions?address=${account.address}`);
+      const data = await response.json();
+      console.log('EchelonPositions - loadPositions raw data:', data);
+      
+      if (data.success && Array.isArray(data.data)) {
+        const positionsWithValue = data.data.map((position: any) => ({
+          ...position,
+          value: Number(position.amount) * Number(position.price)
+        }));
+        console.log('EchelonPositions - processed positions:', positionsWithValue);
+        setPositions(positionsWithValue);
+      } else {
+        console.log('EchelonPositions - no valid data, setting empty positions');
+        setPositions([]);
+      }
+    } catch (error) {
+      console.error('EchelonPositions - loadPositions error:', error);
+      setPositions([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [account?.address]);
 
   // Загружаем marketData с APY
   useEffect(() => {
     fetch('/api/protocols/echelon/pools')
       .then(res => res.json())
-      .then(data => setMarketData(data.marketData || []));
+      .then(data => {
+        console.log('EchelonPositions - marketData loaded:', data);
+        setMarketData(data.marketData || []);
+      })
+      .catch(error => {
+        console.error('EchelonPositions - marketData load error:', error);
+        console.log('Using local market data due to API error');
+        setMarketData(echelonMarkets.markets);
+      });
   }, []);
 
   useEffect(() => {
-    const fetchPositions = async () => {
-      if (!account?.address) return;
-      setLoading(true);
-      try {
-        const response = await fetch(`/api/protocols/echelon/userPositions?address=${account.address}`);
-        const data = await response.json();
-        if (data.success && Array.isArray(data.data)) {
-          const positionsWithValue = data.data.map((position: any) => ({
-            ...position,
-            value: Number(position.amount) * Number(position.price)
-          }));
-          setPositions(positionsWithValue);
-        } else {
-          setPositions([]);
-        }
-      } catch (error) {
-        setPositions([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchPositions();
-  }, [account?.address]);
+    loadPositions();
+  }, [loadPositions]);
 
   const getTokenInfo = (coinAddress: string) => {
     const token = (tokenList as any).data.data.find(
@@ -96,6 +119,96 @@ export function EchelonPositions() {
     }, 0);
     setTotalValue(total);
   }, [sortedPositions]);
+
+  // Обработчик события обновления позиций
+  useEffect(() => {
+    const handleRefresh = (event: CustomEvent) => {
+      if (event.detail.protocol === 'echelon') {
+        if (event.detail.data && Array.isArray(event.detail.data)) {
+          const positionsWithValue = event.detail.data.map((position: any) => ({
+            ...position,
+            value: Number(position.amount) * Number(position.price)
+          }));
+          setPositions(positionsWithValue);
+        } else {
+          loadPositions();
+        }
+      }
+    };
+
+    window.addEventListener('refreshPositions', handleRefresh as EventListener);
+    return () => {
+      window.removeEventListener('refreshPositions', handleRefresh as EventListener);
+    };
+  }, [loadPositions]);
+
+  // Обработчик открытия модального окна withdraw
+  const handleWithdrawClick = (position: Position) => {
+    setSelectedPosition(position);
+    setShowWithdrawModal(true);
+  };
+
+  // Обработчик подтверждения withdraw
+  const handleWithdrawConfirm = async (amount: bigint) => {
+    if (!selectedPosition) return;
+    
+    try {
+      console.log('Withdraw confirm - selectedPosition:', selectedPosition);
+      console.log('Withdraw confirm - marketData:', marketData);
+      
+      // Если market address нет в позиции, получаем его из API
+      let marketAddress = selectedPosition.market;
+      console.log('Withdraw confirm - initial marketAddress:', marketAddress);
+      
+      if (!marketAddress) {
+        console.log('Withdraw confirm - searching for market by coin:', selectedPosition.coin);
+        const market = marketData.find((m: any) => m.coin === selectedPosition.coin);
+        console.log('Withdraw confirm - found market:', market);
+        marketAddress = market?.market;
+        console.log('Withdraw confirm - marketAddress from marketData:', marketAddress);
+      }
+      
+      // Если все еще нет market address, попробуем получить его через API
+      if (!marketAddress) {
+        console.log('Withdraw confirm - trying to get market address via API');
+        try {
+          const response = await fetch('/api/protocols/echelon/pools');
+          const poolsData = await response.json();
+          const market = poolsData.marketData?.find((m: any) => m.coin === selectedPosition.coin);
+          marketAddress = market?.market;
+          console.log('Withdraw confirm - marketAddress from API:', marketAddress);
+        } catch (apiError) {
+          console.error('Withdraw confirm - API error:', apiError);
+        }
+      }
+      
+      // Если все еще нет market address, используем локальные данные
+      if (!marketAddress) {
+        console.log('Withdraw confirm - trying to get market address from local data');
+        const localMarket = echelonMarkets.markets.find((m: any) => m.coin === selectedPosition.coin);
+        marketAddress = localMarket?.market;
+        console.log('Withdraw confirm - marketAddress from local data:', marketAddress);
+      }
+      
+      if (!marketAddress) {
+        console.error('Withdraw confirm - no market address found');
+        console.error('Withdraw confirm - selectedPosition.coin:', selectedPosition.coin);
+        console.error('Withdraw confirm - marketData length:', marketData.length);
+        console.error('Withdraw confirm - marketData coins:', marketData.map((m: any) => m.coin));
+        throw new Error('Market address not found for this token');
+      }
+      
+      console.log('Withdraw confirm - final marketAddress:', marketAddress);
+      console.log('Withdraw confirm - amount:', amount.toString());
+      console.log('Withdraw confirm - coin:', selectedPosition.coin);
+      
+      await withdraw('echelon', marketAddress, amount, selectedPosition.coin);
+      setShowWithdrawModal(false);
+      setSelectedPosition(null);
+    } catch (error) {
+      console.error('Withdraw failed:', error);
+    }
+  };
 
   if (loading) {
     return <div>Loading positions...</div>;
@@ -153,6 +266,15 @@ export function EchelonPositions() {
                     <div className="text-lg font-bold">${value.toFixed(2)}</div>
                   </div>
                   <div className="text-base text-muted-foreground font-semibold">{amount.toFixed(4)}</div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleWithdrawClick(position)}
+                    disabled={isWithdrawing}
+                    className="mt-2 text-xs"
+                  >
+                    Withdraw
+                  </Button>
                 </div>
               </div>
             </div>
@@ -163,6 +285,22 @@ export function EchelonPositions() {
         <span className="text-xl">Total assets in Echelon:</span>
         <span className="text-xl text-primary font-bold">${totalValue.toFixed(2)}</span>
       </div>
+
+      {/* Withdraw Modal */}
+      {selectedPosition && (
+        <WithdrawModal
+          isOpen={showWithdrawModal}
+          onClose={() => {
+            setShowWithdrawModal(false);
+            setSelectedPosition(null);
+          }}
+          onConfirm={handleWithdrawConfirm}
+          position={selectedPosition}
+          tokenInfo={getTokenInfo(selectedPosition.coin)}
+          isLoading={isWithdrawing}
+          userAddress={account?.address?.toString()}
+        />
+      )}
     </div>
   );
 } 

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import echelonMarkets from '@/lib/data/echelonMarkets.json';
 
 /**
  * @swagger
@@ -54,17 +55,24 @@ export async function GET() {
     if (!response.ok) {
       const text = await response.text();
       console.error('External API error response:', text);
-      throw new Error(`External API returned ${response.status}: ${text}`);
+      console.log('Using local market data due to API error');
+      return NextResponse.json({
+        success: true,
+        marketData: echelonMarkets.markets
+      });
     }
 
     const data = await response.json();
     console.log('External API response data:', data);
+    console.log('External API - marketData length:', data.marketData?.length);
+    console.log('External API - marketData coins:', data.marketData?.map((m: any) => m.coin));
     return NextResponse.json(data);
   } catch (error) {
     console.error("Error fetching Echelon pools:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch pools" },
-      { status: 500 }
-    );
+    console.log('Using local market data due to fetch error');
+    return NextResponse.json({
+      success: true,
+      marketData: echelonMarkets.markets
+    });
   }
 } 
