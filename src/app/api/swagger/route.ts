@@ -371,8 +371,8 @@ export async function GET() {
       "/api/aptos/portfolio": {
         get: {
           tags: ["aptos"],
-          summary: "Get portfolio data for an Aptos address",
-          description: "Returns portfolio information for the specified address with token details and prices",
+          summary: "Get complete portfolio data for an Aptos address",
+          description: "Returns complete portfolio information including wallet tokens and DeFi protocol positions",
           parameters: [
             {
               name: "address",
@@ -393,50 +393,108 @@ export async function GET() {
                   schema: {
                     type: "object",
                     properties: {
-                      data: {
-                        type: "object",
-                        properties: {
-                          tokens: {
-                            type: "array",
-                            items: {
-                              type: "object",
-                              properties: {
-                                address: {
-                                  type: "string",
-                                  example: "0x1::aptos_coin::AptosCoin"
-                                },
-                                name: {
-                                  type: "string",
-                                  example: "Aptos Coin"
-                                },
-                                symbol: {
-                                  type: "string",
-                                  example: "APT"
-                                },
-                                decimals: {
-                                  type: "number",
-                                  example: 8
-                                },
-                                amount: {
-                                  type: "string",
-                                  example: "79995869"
-                                },
-                                price: {
-                                  type: "string",
-                                  example: "3.92"
-                                },
-                                value: {
-                                  type: "string",
-                                  example: "313.58"
-                                }
-                              }
+                      tokens: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            address: {
+                              type: "string",
+                              example: "0x1::aptos_coin::AptosCoin"
+                            },
+                            name: {
+                              type: "string",
+                              example: "Aptos Coin"
+                            },
+                            symbol: {
+                              type: "string",
+                              example: "APT"
+                            },
+                            decimals: {
+                              type: "number",
+                              example: 8
+                            },
+                            amount: {
+                              type: "string",
+                              example: "79995869"
+                            },
+                            price: {
+                              type: "string",
+                              example: "3.92"
+                            },
+                            value: {
+                              type: "string",
+                              example: "313.58"
                             }
                           }
                         }
                       },
-                      status: {
-                        type: "number",
-                        example: 200
+                      protocols: {
+                        type: "object",
+                        properties: {
+                          hyperion: {
+                            type: "array",
+                            items: {
+                              type: "object"
+                            },
+                            description: "Hyperion protocol positions"
+                          },
+                          echelon: {
+                            type: "array",
+                            items: {
+                              type: "object"
+                            },
+                            description: "Echelon protocol positions"
+                          },
+                          aries: {
+                            type: "array",
+                            items: {
+                              type: "object"
+                            },
+                            description: "Aries protocol positions"
+                          },
+                          joule: {
+                            type: "array",
+                            items: {
+                              type: "object"
+                            },
+                            description: "Joule protocol positions"
+                          },
+                          tapp: {
+                            type: "array",
+                            items: {
+                              type: "object"
+                            },
+                            description: "Tapp Exchange positions"
+                          },
+                          meso: {
+                            type: "array",
+                            items: {
+                              type: "object"
+                            },
+                            description: "Meso Finance positions"
+                          }
+                        }
+                      },
+                      totals: {
+                        type: "object",
+                        properties: {
+                          walletValue: {
+                            type: "number",
+                            example: 1234.56,
+                            description: "Total value of wallet tokens"
+                          },
+                          protocolsValue: {
+                            type: "number",
+                            example: 5678.90,
+                            description: "Total value of DeFi protocol positions"
+                          },
+                          totalValue: {
+                            type: "number",
+                            example: 6913.46,
+                            description: "Total portfolio value"
+                          }
+                        }
                       }
                     }
                   }
