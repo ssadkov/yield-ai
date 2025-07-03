@@ -5,6 +5,7 @@ import { createErrorResponse, createSuccessResponse } from '@/lib/utils/http';
 import { FungibleAssetBalance } from '@/lib/types/aptos';
 import { TokenPrice } from '@/lib/types/panora';
 import tokenList from '@/lib/data/tokenList.json';
+import protocolsList from '@/lib/data/protocolsList.json';
 
 interface PortfolioToken {
   address: string;
@@ -25,12 +26,30 @@ interface ProtocolPosition {
 interface PortfolioResponse {
   tokens: PortfolioToken[];
   protocols: {
-    hyperion: any[];
-    echelon: any[];
-    aries: any[];
-    joule: any[];
-    tapp: any[];
-    meso: any[];
+    hyperion: {
+      info: any;
+      positions: any[];
+    };
+    echelon: {
+      info: any;
+      positions: any[];
+    };
+    aries: {
+      info: any;
+      positions: any[];
+    };
+    joule: {
+      info: any;
+      positions: any[];
+    };
+    tapp: {
+      info: any;
+      positions: any[];
+    };
+    meso: {
+      info: any;
+      positions: any[];
+    };
   };
   totals: {
     walletValue: number;
@@ -52,6 +71,29 @@ const getTokenInfo = (coinAddress: string) => {
       logoUrl: token.logoUrl || null,
       decimals: token.decimals,
       usdPrice: token.usdPrice || null
+    };
+  }
+  
+  return null;
+};
+
+// Функция для получения информации о протоколе
+const getProtocolInfo = (protocolName: string) => {
+  const protocol = (protocolsList as any[]).find(
+    (p: any) => p.name.toLowerCase() === protocolName.toLowerCase() || 
+               p.name.toLowerCase().includes(protocolName.toLowerCase())
+  );
+  
+  if (protocol) {
+    return {
+      name: protocol.name,
+      category: protocol.category,
+      logoUrl: protocol.logoUrl,
+      description: protocol.description,
+      url: protocol.url,
+      depositType: protocol.depositType,
+      isDepositEnabled: protocol.isDepositEnabled,
+      managedType: protocol.managedType
     };
   }
   
@@ -104,29 +146,76 @@ const getTokenInfo = (coinAddress: string) => {
  *                   type: object
  *                   properties:
  *                     hyperion:
- *                       type: array
- *                       items:
- *                         type: object
+ *                       type: object
+ *                       properties:
+ *                         info:
+ *                           type: object
+ *                           properties:
+ *                             name:
+ *                               type: string
+ *                             category:
+ *                               type: string
+ *                             logoUrl:
+ *                               type: string
+ *                             description:
+ *                               type: string
+ *                             url:
+ *                               type: string
+ *                             depositType:
+ *                               type: string
+ *                             isDepositEnabled:
+ *                               type: boolean
+ *                             managedType:
+ *                               type: string
+ *                         positions:
+ *                           type: array
+ *                           items:
+ *                             type: object
  *                     echelon:
- *                       type: array
- *                       items:
- *                         type: object
+ *                       type: object
+ *                       properties:
+ *                         info:
+ *                           type: object
+ *                         positions:
+ *                           type: array
+ *                           items:
+ *                             type: object
  *                     aries:
- *                       type: array
- *                       items:
- *                         type: object
+ *                       type: object
+ *                       properties:
+ *                         info:
+ *                           type: object
+ *                         positions:
+ *                           type: array
+ *                           items:
+ *                             type: object
  *                     joule:
- *                       type: array
- *                       items:
- *                         type: object
+ *                       type: object
+ *                       properties:
+ *                         info:
+ *                           type: object
+ *                         positions:
+ *                           type: array
+ *                           items:
+ *                             type: object
  *                     tapp:
- *                       type: array
- *                       items:
- *                         type: object
+ *                       type: object
+ *                       properties:
+ *                         info:
+ *                           type: object
+ *                         positions:
+ *                           type: array
+ *                           items:
+ *                             type: object
  *                     meso:
- *                       type: array
- *                       items:
- *                         type: object
+ *                       type: object
+ *                       properties:
+ *                         info:
+ *                           type: object
+ *                         positions:
+ *                           type: array
+ *                           items:
+ *                             type: object
  *                 totals:
  *                   type: object
  *                   properties:
@@ -220,19 +309,19 @@ export async function GET(request: Request) {
 
     // Get protocol positions
     const protocols: {
-      hyperion: any[];
-      echelon: any[];
-      aries: any[];
-      joule: any[];
-      tapp: any[];
-      meso: any[];
+      hyperion: { info: any; positions: any[] };
+      echelon: { info: any; positions: any[] };
+      aries: { info: any; positions: any[] };
+      joule: { info: any; positions: any[] };
+      tapp: { info: any; positions: any[] };
+      meso: { info: any; positions: any[] };
     } = {
-      hyperion: [],
-      echelon: [],
-      aries: [],
-      joule: [],
-      tapp: [],
-      meso: []
+      hyperion: { info: getProtocolInfo('Hyperion'), positions: [] },
+      echelon: { info: getProtocolInfo('Echelon'), positions: [] },
+      aries: { info: getProtocolInfo('Aries'), positions: [] },
+      joule: { info: getProtocolInfo('Joule'), positions: [] },
+      tapp: { info: getProtocolInfo('Tapp Exchange'), positions: [] },
+      meso: { info: getProtocolInfo('Meso Finance'), positions: [] }
     };
 
     let protocolsValue = 0;
@@ -247,7 +336,7 @@ export async function GET(request: Request) {
       if (hyperionResponse.ok) {
         const hyperionData = await hyperionResponse.json();
         if (hyperionData.success && Array.isArray(hyperionData.data)) {
-          protocols.hyperion = hyperionData.data.map((pos: any) => ({
+          protocols.hyperion.positions = hyperionData.data.map((pos: any) => ({
             symbol: `${pos.position?.pool?.token1Info?.symbol || 'Unknown'}/${pos.position?.pool?.token2Info?.symbol || 'Unknown'}`,
             amount: pos.value || "0",
             value: parseFloat(pos.value || "0"),
@@ -263,7 +352,7 @@ export async function GET(request: Request) {
               token2: pos.position?.pool?.token2Info
             }
           }));
-          protocolsValue += protocols.hyperion.reduce((sum, pos) => sum + pos.value + pos.rewards.total, 0);
+          protocolsValue += protocols.hyperion.positions.reduce((sum: number, pos: any) => sum + pos.value + pos.rewards.total, 0);
         }
       }
 
@@ -272,7 +361,7 @@ export async function GET(request: Request) {
       if (echelonResponse.ok) {
         const echelonData = await echelonResponse.json();
         if (echelonData.success && Array.isArray(echelonData.data)) {
-          protocols.echelon = echelonData.data.map((pos: any) => {
+          protocols.echelon.positions = echelonData.data.map((pos: any) => {
             const tokenInfo = getTokenInfo(pos.coin);
             const amount = pos.supply / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
             const value = tokenInfo?.usdPrice ? amount * parseFloat(tokenInfo.usdPrice) : 0;
@@ -288,7 +377,7 @@ export async function GET(request: Request) {
               supply: pos.supply
             };
           });
-          protocolsValue += protocols.echelon.reduce((sum, pos) => sum + pos.value, 0);
+          protocolsValue += protocols.echelon.positions.reduce((sum: number, pos: any) => sum + pos.value, 0);
         }
       }
 
@@ -346,8 +435,8 @@ export async function GET(request: Request) {
             }
           });
           
-          protocols.aries = ariesPositions;
-          protocolsValue += protocols.aries.reduce((sum, pos) => sum + pos.value, 0);
+                      protocols.aries.positions = ariesPositions;
+            protocolsValue += protocols.aries.positions.reduce((sum: number, pos: any) => sum + pos.value, 0);
         }
       }
 
@@ -406,8 +495,8 @@ export async function GET(request: Request) {
             }
           });
           
-          protocols.joule = joulePositions;
-          protocolsValue += protocols.joule.reduce((sum, pos) => sum + pos.value, 0);
+          protocols.joule.positions = joulePositions;
+          protocolsValue += protocols.joule.positions.reduce((sum: number, pos: any) => sum + pos.value, 0);
         }
       }
 
@@ -416,7 +505,7 @@ export async function GET(request: Request) {
       if (tappResponse.ok) {
         const tappData = await tappResponse.json();
         if (tappData.success && Array.isArray(tappData.data)) {
-          protocols.tapp = tappData.data.map((pos: any) => {
+          protocols.tapp.positions = tappData.data.map((pos: any) => {
             const value = (pos.estimatedWithdrawals || []).reduce((sum: number, token: any) => sum + parseFloat(token.usd || "0"), 0);
             const incentives = (pos.estimatedIncentives || []).reduce((sum: number, incentive: any) => sum + parseFloat(incentive.usd || "0"), 0);
             
@@ -435,7 +524,7 @@ export async function GET(request: Request) {
               }
             };
           });
-          protocolsValue += protocols.tapp.reduce((sum, pos) => sum + pos.value + pos.rewards.total, 0);
+          protocolsValue += protocols.tapp.positions.reduce((sum: number, pos: any) => sum + pos.value + pos.rewards.total, 0);
         }
       }
 
@@ -444,7 +533,7 @@ export async function GET(request: Request) {
       if (mesoResponse.ok) {
         const mesoData = await mesoResponse.json();
         if (mesoData.success && Array.isArray(mesoData.data)) {
-          protocols.meso = mesoData.data.map((pos: any) => {
+          protocols.meso.positions = mesoData.data.map((pos: any) => {
             const tokenInfo = getTokenInfo(pos.assetName);
             const amount = parseFloat(pos.balance) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
             const value = tokenInfo?.usdPrice ? amount * parseFloat(tokenInfo.usdPrice) : 0;
@@ -458,7 +547,7 @@ export async function GET(request: Request) {
               assetName: pos.assetName
             };
           });
-          protocolsValue += protocols.meso.reduce((sum, pos) => sum + pos.value, 0);
+          protocolsValue += protocols.meso.positions.reduce((sum: number, pos: any) => sum + pos.value, 0);
         }
       }
     } catch (error) {
@@ -467,7 +556,8 @@ export async function GET(request: Request) {
 
     const totalValue = walletValue + protocolsValue;
 
-    const response: PortfolioResponse = {
+    const response: PortfolioResponse & { dateTime: string } = {
+      dateTime: new Date().toISOString(),
       tokens,
       protocols,
       totals: {

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { sdk } from "@/lib/hyperion";
 
 /**
  * @swagger
@@ -56,35 +57,31 @@ export async function GET(request: Request) {
       );
     }
 
-    // Получаем данные из внешнего API
-    const externalApiUrl = `https://yield-a.vercel.app/api/hyperion/userPositions?address=${address}`;
-    const response = await fetch(externalApiUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'application/json',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Origin': 'http://localhost:3000',
-        'Referer': 'http://localhost:3000/'
-      }
+    // Получаем позиции через локальный SDK
+    const positions = await sdk.Position.fetchAllPositionsByAddress({
+      address: address
     });
     
-    if (!response.ok) {
-      throw new Error(`External API returned ${response.status}`);
-    }
-
-    const data = await response.json();
-    return NextResponse.json(data, {
+    // Возвращаем данные с настройками кэширования
+    return NextResponse.json({
+      success: true,
+      data: positions
+    }, {
       headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
+        'Cache-Control': 'public, max-age=2, s-maxage=2, stale-while-revalidate=4',
+        'Cdn-Cache-Control': 'max-age=2',
+        'Surrogate-Control': 'max-age=2'
       }
     });
   } catch (error) {
-    console.error("Error fetching Hyperion user positions:", error);
+    console.error("❌ Hyperion user positions error:", error);
+    // Возвращаем пустой массив при ошибках (как в Echelon)
     return NextResponse.json(
-      { error: "Failed to fetch user positions" },
-      { status: 500 }
+      {
+        success: true,
+        data: []
+      },
+      { status: 200 }
     );
   }
 } 

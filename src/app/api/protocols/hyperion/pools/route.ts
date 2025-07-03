@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { sdk } from "@/lib/hyperion";
 
 /**
  * @swagger
@@ -41,21 +42,29 @@ import { NextResponse } from 'next/server';
  */
 export async function GET() {
   try {
-    // Получаем данные из внешнего API
-    const externalApiUrl = "https://yield-a.vercel.app/api/hyperion/pools";
-    const response = await fetch(externalApiUrl);
+    // Получаем все пулы через локальный SDK
+    const pools = await sdk.Pool.fetchAllPools();
     
-    if (!response.ok) {
-      throw new Error(`External API returned ${response.status}`);
-    }
-
-    const data = await response.json();
-    return NextResponse.json(data);
+    // Возвращаем данные с настройками кэширования
+    return NextResponse.json({
+      success: true,
+      data: pools
+    }, {
+      headers: {
+        'Cache-Control': 'public, max-age=2, s-maxage=2, stale-while-revalidate=4',
+        'Cdn-Cache-Control': 'max-age=2',
+        'Surrogate-Control': 'max-age=2'
+      }
+    });
   } catch (error) {
-    console.error("Error fetching Hyperion pools:", error);
+    console.error("❌ Hyperion pools error:", error);
+    // Возвращаем пустой массив при ошибках
     return NextResponse.json(
-      { error: "Failed to fetch pools" },
-      { status: 500 }
+      {
+        success: true,
+        data: []
+      },
+      { status: 200 }
     );
   }
 } 
