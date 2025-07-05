@@ -435,7 +435,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
               <TableHeader>
                 <TableRow>
                   <TableHead>Token</TableHead>
-                  <TableHead className="hidden md:table-cell">Provider</TableHead>
                   <TableHead>Protocol</TableHead>
                   <TableHead>
                     <Tooltip>
@@ -497,7 +496,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                   <div className="flex flex-col">
                                     <span>{displaySymbol}</span>
                                     {/* Provider под токеном на мобильных */}
-                                    <span className="text-xs text-muted-foreground block md:hidden">{getProvider(item)}</span>
+                                    {/* <span className="text-xs text-muted-foreground block md:hidden">{getProvider(item)}</span> */}
                                   </div>
                                 </div>
                               </TooltipTrigger>
@@ -512,12 +511,12 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                       <p className="text-xs">Price: ${tokenInfo.usdPrice}</p>
                                     </>
                                   )}
+                                  <p className="text-xs">Provider: {getProvider(item)}</p>
                                 </div>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
                         </TableCell>
-                        <TableCell className="hidden md:table-cell">{getProvider(item)}</TableCell>
                         <TableCell>
                           <Badge variant="outline">{item.protocol}</Badge>
                         </TableCell>
