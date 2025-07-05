@@ -294,26 +294,28 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                     {isDex ? (
                                       // DEX pool display with two tokens
                                       <div className="flex items-center gap-2">
-                                        {item.token1Info?.logoUrl && (
-                                          <img 
-                                            src={item.token1Info.logoUrl} 
-                                            alt={item.token1Info.symbol} 
-                                            width={24} 
-                                            height={24} 
-                                            className="object-contain rounded" 
-                                          />
-                                        )}
+                                        <div className="flex">
+                                          {item.token1Info?.logoUrl && (
+                                            <Avatar className="w-6 h-6">
+                                              <img 
+                                                src={item.token1Info.logoUrl} 
+                                                alt={item.token1Info.symbol} 
+                                                className="object-contain" 
+                                              />
+                                            </Avatar>
+                                          )}
+                                          {item.token2Info?.logoUrl && (
+                                            <Avatar className="w-6 h-6 -ml-2">
+                                              <img 
+                                                src={item.token2Info.logoUrl} 
+                                                alt={item.token2Info.symbol} 
+                                                className="object-contain" 
+                                              />
+                                            </Avatar>
+                                          )}
+                                        </div>
                                         <span>{item.token1Info?.symbol || '-'}</span>
                                         <span className="text-gray-400">/</span>
-                                        {item.token2Info?.logoUrl && (
-                                          <img 
-                                            src={item.token2Info.logoUrl} 
-                                            alt={item.token2Info.symbol} 
-                                            width={24} 
-                                            height={24} 
-                                            className="object-contain rounded" 
-                                          />
-                                        )}
                                         <span>{item.token2Info?.symbol || '-'}</span>
                                       </div>
                                     ) : (
@@ -450,26 +452,28 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                   {isDex ? (
                                     // DEX pool display with two tokens
                                     <div className="flex items-center gap-2">
-                                      {bestPool.token1Info?.logoUrl && (
-                                        <img 
-                                          src={bestPool.token1Info.logoUrl} 
-                                          alt={bestPool.token1Info.symbol} 
-                                          width={24} 
-                                          height={24} 
-                                          className="object-contain rounded" 
-                                        />
-                                      )}
+                                      <div className="flex">
+                                        {bestPool.token1Info?.logoUrl && (
+                                          <Avatar className="w-6 h-6">
+                                            <img 
+                                              src={bestPool.token1Info.logoUrl} 
+                                              alt={bestPool.token1Info.symbol} 
+                                              className="object-contain" 
+                                            />
+                                          </Avatar>
+                                        )}
+                                        {bestPool.token2Info?.logoUrl && (
+                                          <Avatar className="w-6 h-6 -ml-2">
+                                            <img 
+                                              src={bestPool.token2Info.logoUrl} 
+                                              alt={bestPool.token2Info.symbol} 
+                                              className="object-contain" 
+                                            />
+                                          </Avatar>
+                                        )}
+                                      </div>
                                       <span>{bestPool.token1Info?.symbol || '-'}</span>
                                       <span className="text-gray-400">/</span>
-                                      {bestPool.token2Info?.logoUrl && (
-                                        <img 
-                                          src={bestPool.token2Info.logoUrl} 
-                                          alt={bestPool.token2Info.symbol} 
-                                          width={24} 
-                                          height={24} 
-                                          className="object-contain rounded" 
-                                        />
-                                      )}
                                       <span>{bestPool.token2Info?.symbol || '-'}</span>
                                     </div>
                                   ) : (
@@ -655,26 +659,28 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                   {isDex ? (
                                     // DEX pool display with two tokens
                                     <div className="flex items-center gap-2">
-                                      {item.token1Info?.logoUrl && (
-                                        <img 
-                                          src={item.token1Info.logoUrl} 
-                                          alt={item.token1Info.symbol} 
-                                          width={20} 
-                                          height={20} 
-                                          className="object-contain rounded" 
-                                        />
-                                      )}
+                                      <div className="flex">
+                                        {item.token1Info?.logoUrl && (
+                                          <Avatar className="w-6 h-6">
+                                            <img 
+                                              src={item.token1Info.logoUrl} 
+                                              alt={item.token1Info.symbol} 
+                                              className="object-contain" 
+                                            />
+                                          </Avatar>
+                                        )}
+                                        {item.token2Info?.logoUrl && (
+                                          <Avatar className="w-6 h-6 -ml-2">
+                                            <img 
+                                              src={item.token2Info.logoUrl} 
+                                              alt={item.token2Info.symbol} 
+                                              className="object-contain" 
+                                            />
+                                          </Avatar>
+                                        )}
+                                      </div>
                                       <span>{item.token1Info?.symbol || '-'}</span>
                                       <span className="text-gray-400">/</span>
-                                      {item.token2Info?.logoUrl && (
-                                        <img 
-                                          src={item.token2Info.logoUrl} 
-                                          alt={item.token2Info.symbol} 
-                                          width={20} 
-                                          height={20} 
-                                          className="object-contain rounded" 
-                                        />
-                                      )}
                                       <span>{item.token2Info?.symbol || '-'}</span>
                                     </div>
                                   ) : (
