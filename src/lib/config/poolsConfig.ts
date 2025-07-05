@@ -14,30 +14,38 @@ export const poolSources: PoolSource[] = [
     enabled: true,
     transform: (data: any) => {
       // Transform Hyperion pools data to InvestmentData format
-      return (data.data || [])
+      const filtered = (data.data || [])
         .filter((pool: any) => {
-          // Filter pools with daily volume > $10,000
+          // Filter pools with daily volume > $100 (reasonable threshold)
           const dailyVolume = parseFloat(pool.dailyVolumeUSD || "0");
-          return dailyVolume > 10000;
-        })
-        .map((pool: any) => {
-          // Calculate total APY from fee APR and farm APR
-          const feeAPR = parseFloat(pool.feeAPR || "0");
-          const farmAPR = parseFloat(pool.farmAPR || "0");
-          const totalAPY = feeAPR + farmAPR;
-          
-          return {
-            asset: `${pool.token1Info?.symbol || 'Unknown'}/${pool.token2Info?.symbol || 'Unknown'}`,
-            provider: 'Hyperion',
-            totalAPY: totalAPY,
-            depositApy: totalAPY, // For DEX pools, deposit APY is the same as total APY
-            borrowAPY: 0, // DEX pools don't have borrowing
-            token: pool.poolId || pool.id,
-            protocol: 'Hyperion',
-            dailyVolumeUSD: parseFloat(pool.dailyVolumeUSD || "0"),
-            tvlUSD: parseFloat(pool.tvlUSD || "0")
-          };
+          return dailyVolume > 100;
         });
+      
+      return filtered.map((pool: any) => {
+        // Calculate total APY from fee APR and farm APR
+        const feeAPR = parseFloat(pool.feeAPR || "0");
+        const farmAPR = parseFloat(pool.farmAPR || "0");
+        const totalAPY = feeAPR + farmAPR;
+        
+        // Get token info from pool object
+        const token1Info = pool.pool?.token1Info || pool.token1Info;
+        const token2Info = pool.pool?.token2Info || pool.token2Info;
+        
+        return {
+          asset: `${token1Info?.symbol || 'Unknown'}/${token2Info?.symbol || 'Unknown'}`,
+          provider: 'Hyperion',
+          totalAPY: totalAPY,
+          depositApy: totalAPY, // For DEX pools, deposit APY is the same as total APY
+          borrowAPY: 0, // DEX pools don't have borrowing
+          token: pool.poolId || pool.id,
+          protocol: 'Hyperion',
+          dailyVolumeUSD: parseFloat(pool.dailyVolumeUSD || "0"),
+          tvlUSD: parseFloat(pool.tvlUSD || "0"),
+          // Include token information for DEX pools
+          token1Info: token1Info,
+          token2Info: token2Info
+        };
+      });
     }
   },
   // Example of how to add a new protocol API

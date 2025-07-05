@@ -211,8 +211,12 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {data
                   .filter(item => {
-                    // Фильтруем исключенные токены Echelon
+                    // Фильтруем исключенные токены Echelon и Hyperion
                     if (item.protocol === 'Echelon' && EXCLUDED_ECHELON_TOKENS.includes(item.token)) {
+                      return false;
+                    }
+                    // Исключаем Hyperion из Lite вкладки
+                    if (item.protocol === 'Hyperion') {
                       return false;
                     }
                     return item.asset.toUpperCase().includes('USDT') || 
@@ -228,12 +232,18 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                     const logoUrl = tokenInfo?.logoUrl;
                     const protocol = getProtocolByName(item.protocol);
 
+                    // Check if this is a DEX pool with two tokens
+                    const isDex = !!(item.token1Info && item.token2Info);
+
                     console.log('Token debug:', {
                       item,
                       tokenInfo,
                       displaySymbol,
                       priceUSD: Number(tokenInfo?.usdPrice || 0),
-                      usdPrice: tokenInfo?.usdPrice
+                      usdPrice: tokenInfo?.usdPrice,
+                      isDex,
+                      token1Info: item.token1Info,
+                      token2Info: item.token2Info
                     });
 
                     return (
@@ -250,31 +260,78 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                               <Tooltip>
                                 <TooltipTrigger>
                                   <div className="flex items-center gap-2">
-                                    {logoUrl && (
-                                      <div className="w-6 h-6 relative">
-                                        <Image 
-                                          src={logoUrl} 
-                                          alt={displaySymbol}
-                                          width={24}
-                                          height={24}
-                                          className="object-contain"
-                                        />
+                                    {isDex ? (
+                                      // DEX pool display with two tokens
+                                      <div className="flex items-center gap-2">
+                                        {item.token1Info?.logoUrl && (
+                                          <img 
+                                            src={item.token1Info.logoUrl} 
+                                            alt={item.token1Info.symbol} 
+                                            width={24} 
+                                            height={24} 
+                                            className="object-contain rounded" 
+                                          />
+                                        )}
+                                        <span>{item.token1Info?.symbol || '-'}</span>
+                                        <span className="text-gray-400">/</span>
+                                        {item.token2Info?.logoUrl && (
+                                          <img 
+                                            src={item.token2Info.logoUrl} 
+                                            alt={item.token2Info.symbol} 
+                                            width={24} 
+                                            height={24} 
+                                            className="object-contain rounded" 
+                                          />
+                                        )}
+                                        <span>{item.token2Info?.symbol || '-'}</span>
                                       </div>
+                                    ) : (
+                                      // Lending pool display (existing logic)
+                                      <>
+                                        {logoUrl && (
+                                          <div className="w-6 h-6 relative">
+                                            <Image 
+                                              src={logoUrl} 
+                                              alt={displaySymbol}
+                                              width={24}
+                                              height={24}
+                                              className="object-contain"
+                                            />
+                                          </div>
+                                        )}
+                                        <span>{displaySymbol}</span>
+                                      </>
                                     )}
-                                    <span>{displaySymbol}</span>
                                   </div>
                                 </TooltipTrigger>
                                 <TooltipContent>
                                   <div className="space-y-1">
                                     <p className="font-medium">Token Info</p>
                                     <p className="text-xs">Address: {item.token}</p>
-                                    {tokenInfo && (
+                                    {isDex ? (
+                                      // DEX tooltip content
                                       <>
-                                        <p className="text-xs">Name: {tokenInfo.name}</p>
-                                        <p className="text-xs">Symbol: {tokenInfo.symbol}</p>
-                                        <p className="text-xs">Price: ${tokenInfo.usdPrice}</p>
+                                        <p className="text-xs">Type: DEX Pool</p>
+                                        <p className="text-xs">Token 1: {item.token1Info?.symbol} ({item.token1Info?.name})</p>
+                                        <p className="text-xs">Token 2: {item.token2Info?.symbol} ({item.token2Info?.name})</p>
+                                        {item.dailyVolumeUSD && (
+                                          <p className="text-xs">Volume: ${item.dailyVolumeUSD.toLocaleString()}</p>
+                                        )}
+                                        {item.tvlUSD && (
+                                          <p className="text-xs">TVL: ${item.tvlUSD.toLocaleString()}</p>
+                                        )}
                                       </>
+                                    ) : (
+                                      // Lending tooltip content (existing logic)
+                                      tokenInfo && (
+                                        <>
+                                          <p className="text-xs">Name: {tokenInfo.name}</p>
+                                          <p className="text-xs">Symbol: {tokenInfo.symbol}</p>
+                                          <p className="text-xs">Price: ${tokenInfo.usdPrice}</p>
+                                        </>
+                                      )
                                     )}
+                                    <p className="text-xs">Provider: {getProvider(item)}</p>
                                   </div>
                                 </TooltipContent>
                               </Tooltip>
@@ -289,9 +346,9 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                             protocol={protocol!} 
                             className="mt-4 w-full"
                             tokenIn={{
-                              symbol: displaySymbol,
-                              logo: tokenInfo?.logoUrl || '',
-                              decimals: tokenInfo?.decimals || 8,
+                              symbol: isDex ? (item.token1Info?.symbol || 'Unknown') : displaySymbol,
+                              logo: isDex ? (item.token1Info?.logoUrl || '') : (tokenInfo?.logoUrl || ''),
+                              decimals: isDex ? (item.token1Info?.decimals || 8) : (tokenInfo?.decimals || 8),
                               address: item.token
                             }}
                             balance={BigInt(1000000000)} // TODO: Get real balance
@@ -313,10 +370,15 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   { symbol: 'ETH', exact: false }
                 ].map(({ symbol, exact }) => {
                   const bestPool = data
-                    .filter(item => exact 
-                      ? item.asset.toUpperCase() === symbol
-                      : item.asset.toUpperCase().includes(symbol)
-                    )
+                    .filter(item => {
+                      // Исключаем Hyperion из Lite вкладки
+                      if (item.protocol === 'Hyperion') {
+                        return false;
+                      }
+                      return exact 
+                        ? item.asset.toUpperCase() === symbol
+                        : item.asset.toUpperCase().includes(symbol);
+                    })
                     .sort((a, b) => b.totalAPY - a.totalAPY)[0];
 
                   if (!bestPool) return null;
@@ -326,12 +388,18 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   const logoUrl = tokenInfo?.logoUrl;
                   const protocol = getProtocolByName(bestPool.protocol);
 
+                  // Check if this is a DEX pool with two tokens
+                  const isDex = !!(bestPool.token1Info && bestPool.token2Info);
+
                   console.log('Token debug:', {
                     item: bestPool,
                     tokenInfo,
                     displaySymbol,
                     priceUSD: Number(tokenInfo?.usdPrice || 0),
-                    usdPrice: tokenInfo?.usdPrice
+                    usdPrice: tokenInfo?.usdPrice,
+                    isDex,
+                    token1Info: bestPool.token1Info,
+                    token2Info: bestPool.token2Info
                   });
 
                   return (
@@ -348,31 +416,78 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                             <Tooltip>
                               <TooltipTrigger>
                                 <div className="flex items-center gap-2">
-                                  {logoUrl && (
-                                    <div className="w-6 h-6 relative">
-                                      <Image 
-                                        src={logoUrl} 
-                                        alt={displaySymbol}
-                                        width={24}
-                                        height={24}
-                                        className="object-contain"
-                                      />
+                                  {isDex ? (
+                                    // DEX pool display with two tokens
+                                    <div className="flex items-center gap-2">
+                                      {bestPool.token1Info?.logoUrl && (
+                                        <img 
+                                          src={bestPool.token1Info.logoUrl} 
+                                          alt={bestPool.token1Info.symbol} 
+                                          width={24} 
+                                          height={24} 
+                                          className="object-contain rounded" 
+                                        />
+                                      )}
+                                      <span>{bestPool.token1Info?.symbol || '-'}</span>
+                                      <span className="text-gray-400">/</span>
+                                      {bestPool.token2Info?.logoUrl && (
+                                        <img 
+                                          src={bestPool.token2Info.logoUrl} 
+                                          alt={bestPool.token2Info.symbol} 
+                                          width={24} 
+                                          height={24} 
+                                          className="object-contain rounded" 
+                                        />
+                                      )}
+                                      <span>{bestPool.token2Info?.symbol || '-'}</span>
                                     </div>
+                                  ) : (
+                                    // Lending pool display (existing logic)
+                                    <>
+                                      {logoUrl && (
+                                        <div className="w-6 h-6 relative">
+                                          <Image 
+                                            src={logoUrl} 
+                                            alt={displaySymbol}
+                                            width={24}
+                                            height={24}
+                                            className="object-contain"
+                                          />
+                                        </div>
+                                      )}
+                                      <span>{displaySymbol}</span>
+                                    </>
                                   )}
-                                  <span>{displaySymbol}</span>
                                 </div>
                               </TooltipTrigger>
                               <TooltipContent>
                                 <div className="space-y-1">
                                   <p className="font-medium">Token Info</p>
                                   <p className="text-xs">Address: {bestPool.token}</p>
-                                  {tokenInfo && (
+                                  {isDex ? (
+                                    // DEX tooltip content
                                     <>
-                                      <p className="text-xs">Name: {tokenInfo.name}</p>
-                                      <p className="text-xs">Symbol: {tokenInfo.symbol}</p>
-                                      <p className="text-xs">Price: ${tokenInfo.usdPrice}</p>
+                                      <p className="text-xs">Type: DEX Pool</p>
+                                      <p className="text-xs">Token 1: {bestPool.token1Info?.symbol} ({bestPool.token1Info?.name})</p>
+                                      <p className="text-xs">Token 2: {bestPool.token2Info?.symbol} ({bestPool.token2Info?.name})</p>
+                                      {bestPool.dailyVolumeUSD && (
+                                        <p className="text-xs">Volume: ${bestPool.dailyVolumeUSD.toLocaleString()}</p>
+                                      )}
+                                      {bestPool.tvlUSD && (
+                                        <p className="text-xs">TVL: ${bestPool.tvlUSD.toLocaleString()}</p>
+                                      )}
                                     </>
+                                  ) : (
+                                    // Lending tooltip content (existing logic)
+                                    tokenInfo && (
+                                      <>
+                                        <p className="text-xs">Name: {tokenInfo.name}</p>
+                                        <p className="text-xs">Symbol: {tokenInfo.symbol}</p>
+                                        <p className="text-xs">Price: ${tokenInfo.usdPrice}</p>
+                                      </>
+                                    )
                                   )}
+                                  <p className="text-xs">Provider: {getProvider(bestPool)}</p>
                                 </div>
                               </TooltipContent>
                             </Tooltip>
@@ -387,9 +502,9 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                           protocol={protocol!} 
                           className="mt-4 w-full"
                           tokenIn={{
-                            symbol: displaySymbol,
-                            logo: tokenInfo?.logoUrl || '',
-                            decimals: tokenInfo?.decimals || 8,
+                            symbol: isDex ? (bestPool.token1Info?.symbol || 'Unknown') : displaySymbol,
+                            logo: isDex ? (bestPool.token1Info?.logoUrl || '') : (tokenInfo?.logoUrl || ''),
+                            decimals: isDex ? (bestPool.token1Info?.decimals || 8) : (tokenInfo?.decimals || 8),
                             address: bestPool.token
                           }}
                           balance={BigInt(1000000000)} // TODO: Get real balance
@@ -455,7 +570,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                 {filteredData
                   .filter(item => {
                     const tokenInfo = getTokenInfo(item.asset, item.token);
-                    return item.asset.includes('::') || tokenInfo;
+                    // Включаем все пулы: с tokenInfo, с :: в asset, или DEX-пулы с token1Info/token2Info
+                    return item.asset.includes('::') || tokenInfo || (item.token1Info && item.token2Info);
                   })
                   .sort((a, b) => b.totalAPY - a.totalAPY)
                   .map((item, index) => {
@@ -465,12 +581,18 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                     const logoUrl = tokenInfo?.logoUrl;
                     const protocol = getProtocolByName(item.protocol);
 
+                    // Check if this is a DEX pool with two tokens
+                    const isDex = !!(item.token1Info && item.token2Info);
+
                     console.log('Token debug:', {
                       item,
                       tokenInfo,
                       displaySymbol,
                       priceUSD: Number(tokenInfo?.usdPrice || 0),
-                      usdPrice: tokenInfo?.usdPrice
+                      usdPrice: tokenInfo?.usdPrice,
+                      isDex,
+                      token1Info: item.token1Info,
+                      token2Info: item.token2Info
                     });
 
                     return (
@@ -486,30 +608,76 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <div className="flex items-center gap-2">
-                                  <Avatar className="h-6 w-6">
-                                    {logoUrl ? (
-                                      <AvatarImage src={logoUrl} />
-                                    ) : (
-                                      <AvatarFallback>{displaySymbol.slice(0, 2)}</AvatarFallback>
-                                    )}
-                                  </Avatar>
-                                  <div className="flex flex-col">
-                                    <span>{displaySymbol}</span>
-                                    {/* Provider под токеном на мобильных */}
-                                    {/* <span className="text-xs text-muted-foreground block md:hidden">{getProvider(item)}</span> */}
-                                  </div>
+                                  {isDex ? (
+                                    // DEX pool display with two tokens
+                                    <div className="flex items-center gap-2">
+                                      {item.token1Info?.logoUrl && (
+                                        <img 
+                                          src={item.token1Info.logoUrl} 
+                                          alt={item.token1Info.symbol} 
+                                          width={20} 
+                                          height={20} 
+                                          className="object-contain rounded" 
+                                        />
+                                      )}
+                                      <span>{item.token1Info?.symbol || '-'}</span>
+                                      <span className="text-gray-400">/</span>
+                                      {item.token2Info?.logoUrl && (
+                                        <img 
+                                          src={item.token2Info.logoUrl} 
+                                          alt={item.token2Info.symbol} 
+                                          width={20} 
+                                          height={20} 
+                                          className="object-contain rounded" 
+                                        />
+                                      )}
+                                      <span>{item.token2Info?.symbol || '-'}</span>
+                                    </div>
+                                  ) : (
+                                    // Lending pool display (existing logic)
+                                    <>
+                                      <Avatar className="h-6 w-6">
+                                        {logoUrl ? (
+                                          <AvatarImage src={logoUrl} />
+                                        ) : (
+                                          <AvatarFallback>{displaySymbol.slice(0, 2)}</AvatarFallback>
+                                        )}
+                                      </Avatar>
+                                      <div className="flex flex-col">
+                                        <span>{displaySymbol}</span>
+                                        {/* Provider под токеном на мобильных */}
+                                        {/* <span className="text-xs text-muted-foreground block md:hidden">{getProvider(item)}</span> */}
+                                      </div>
+                                    </>
+                                  )}
                                 </div>
                               </TooltipTrigger>
                               <TooltipContent>
                                 <div className="space-y-1">
                                   <p className="font-medium">Token Info</p>
                                   <p className="text-xs">Address: {item.token}</p>
-                                  {tokenInfo && (
+                                  {isDex ? (
+                                    // DEX tooltip content
                                     <>
-                                      <p className="text-xs">Name: {tokenInfo.name}</p>
-                                      <p className="text-xs">Symbol: {tokenInfo.symbol}</p>
-                                      <p className="text-xs">Price: ${tokenInfo.usdPrice}</p>
+                                      <p className="text-xs">Type: DEX Pool</p>
+                                      <p className="text-xs">Token 1: {item.token1Info?.symbol} ({item.token1Info?.name})</p>
+                                      <p className="text-xs">Token 2: {item.token2Info?.symbol} ({item.token2Info?.name})</p>
+                                      {item.dailyVolumeUSD && (
+                                        <p className="text-xs">Volume: ${item.dailyVolumeUSD.toLocaleString()}</p>
+                                      )}
+                                      {item.tvlUSD && (
+                                        <p className="text-xs">TVL: ${item.tvlUSD.toLocaleString()}</p>
+                                      )}
                                     </>
+                                  ) : (
+                                    // Lending tooltip content (existing logic)
+                                    tokenInfo && (
+                                      <>
+                                        <p className="text-xs">Name: {tokenInfo.name}</p>
+                                        <p className="text-xs">Symbol: {tokenInfo.symbol}</p>
+                                        <p className="text-xs">Price: ${tokenInfo.usdPrice}</p>
+                                      </>
+                                    )
                                   )}
                                   <p className="text-xs">Provider: {getProvider(item)}</p>
                                 </div>
@@ -529,9 +697,9 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                 protocol={protocol} 
                                 className="w-full"
                                 tokenIn={{
-                                  symbol: displaySymbol,
-                                  logo: tokenInfo?.logoUrl || '',
-                                  decimals: tokenInfo?.decimals || 8,
+                                  symbol: isDex ? (item.token1Info?.symbol || 'Unknown') : displaySymbol,
+                                  logo: isDex ? (item.token1Info?.logoUrl || '') : (tokenInfo?.logoUrl || ''),
+                                  decimals: isDex ? (item.token1Info?.decimals || 8) : (tokenInfo?.decimals || 8),
                                   address: item.token
                                 }}
                                 balance={BigInt(1000000000)} // TODO: Get real balance
