@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { useAmountInput } from "@/hooks/useAmountInput";
 import { Loader2 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
+import { useDragDrop } from "@/contexts/DragDropContext";
 
 interface WithdrawModalProps {
   isOpen: boolean;
@@ -45,6 +46,7 @@ export function WithdrawModal({
   isLoading = false,
   userAddress
 }: WithdrawModalProps) {
+  const { closeAllModals } = useDragDrop();
   const [amount, setAmount] = useState("");
   const [error, setError] = useState("");
   const [vaultBalance, setVaultBalance] = useState<bigint>(BigInt(0));
@@ -151,6 +153,7 @@ export function WithdrawModal({
     setPercentage([100]);
     setError("");
     onClose();
+    closeAllModals();
   };
 
   // Сбрасываем состояние при открытии/закрытии модального окна

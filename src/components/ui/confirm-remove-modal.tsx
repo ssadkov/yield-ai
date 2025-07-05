@@ -7,6 +7,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useDragDrop } from "@/contexts/DragDropContext";
 
 interface ConfirmRemoveModalProps {
   isOpen: boolean;
@@ -23,10 +24,17 @@ export function ConfirmRemoveModal({
   isLoading,
   position
 }: ConfirmRemoveModalProps) {
+  const { closeAllModals } = useDragDrop();
   const token1Symbol = position?.position?.pool?.token1Info?.symbol || 'Token1';
   const token2Symbol = position?.position?.pool?.token2Info?.symbol || 'Token2';
   const positionValue = parseFloat(position?.value || "0").toFixed(2);
   const isActive = position?.isActive;
+
+  console.log('ConfirmRemoveModal: Render', {
+    isOpen,
+    positionId: position?.position?.objectId,
+    timestamp: new Date().toISOString()
+  });
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -67,7 +75,10 @@ export function ConfirmRemoveModal({
         <DialogFooter className="flex gap-2">
           <Button
             variant="outline"
-            onClick={onClose}
+            onClick={() => {
+              onClose();
+              closeAllModals();
+            }}
             disabled={isLoading}
           >
             Cancel

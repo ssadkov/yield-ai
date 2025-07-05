@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
@@ -32,7 +32,8 @@ export function EchelonPositions() {
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
   const { withdraw, isLoading: isWithdrawing } = useWithdraw();
-  const { startDrag, endDrag, state } = useDragDrop();
+  const { startDrag, endDrag, state, closePositionModal, closeAllModals, setPositionConfirmHandler } = useDragDrop();
+  const isModalOpenRef = useRef(false);
 
   // Функция для загрузки позиций
   const loadPositions = useCallback(async () => {
@@ -146,19 +147,33 @@ export function EchelonPositions() {
     };
   }, [loadPositions]);
 
-  // Обработчик события открытия withdraw модалки через drag and drop
+  // Обработчик события для вызова withdraw
   useEffect(() => {
-    const handleOpenWithdrawModal = (event: CustomEvent) => {
-      const { position, tokenInfo } = event.detail;
-      setSelectedPosition(position);
-      setShowWithdrawModal(true);
+    const handleTriggerWithdraw = (event: CustomEvent) => {
+      const { positionId } = event.detail;
+      
+      // Проверяем, не открыта ли уже модалка
+      if (isModalOpenRef.current) {
+        console.log('EchelonPositions: Modal already open, ignoring event');
+        return;
+      }
+      
+      const position = positions.find(p => p.coin === positionId);
+      if (position) {
+        console.log('EchelonPositions: Handling triggerWithdraw event', {
+          positionId: position.coin,
+          isModalOpen: isModalOpenRef.current
+        });
+        isModalOpenRef.current = true;
+        handleWithdrawClick(position);
+      }
     };
 
-    window.addEventListener('openWithdrawModal', handleOpenWithdrawModal as EventListener);
+    window.addEventListener('triggerWithdraw', handleTriggerWithdraw as EventListener);
     return () => {
-      window.removeEventListener('openWithdrawModal', handleOpenWithdrawModal as EventListener);
+      window.removeEventListener('triggerWithdraw', handleTriggerWithdraw as EventListener);
     };
-  }, []);
+  }, [positions]);
 
   // Обработчик открытия модального окна withdraw
   const handleWithdrawClick = (position: Position) => {
@@ -255,10 +270,25 @@ export function EchelonPositions() {
       await withdraw('echelon', marketAddress, amount, selectedPosition.coin);
       setShowWithdrawModal(false);
       setSelectedPosition(null);
+      isModalOpenRef.current = false;
+      closePositionModal(selectedPosition.coin);
     } catch (error) {
       console.error('Withdraw failed:', error);
     }
   };
+
+  // Регистрируем обработчик подтверждения транзакции в DragDropContext
+  useEffect(() => {
+    const confirmHandler = async () => {
+      if (selectedPosition) {
+        await handleWithdrawConfirm(BigInt(selectedPosition.supply));
+      }
+    };
+    setPositionConfirmHandler(confirmHandler);
+    return () => {
+      setPositionConfirmHandler(null);
+    };
+  }, [setPositionConfirmHandler, selectedPosition, handleWithdrawConfirm]);
 
   if (loading) {
     return <div>Loading positions...</div>;
@@ -359,6 +389,11 @@ export function EchelonPositions() {
           onClose={() => {
             setShowWithdrawModal(false);
             setSelectedPosition(null);
+            isModalOpenRef.current = false;
+            if (selectedPosition) {
+              closePositionModal(selectedPosition.coin);
+            }
+            closeAllModals();
           }}
           onConfirm={handleWithdrawConfirm}
           position={selectedPosition}

@@ -1,10 +1,12 @@
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useRef } from 'react';
 import { DragData, DragDropState, DropValidationResult } from '@/types/dragDrop';
 import { InvestmentData } from '@/types/investments';
 import { DepositModal } from '@/components/ui/deposit-modal';
 import { SwapAndDepositModal } from '@/components/ui/swap-and-deposit-modal';
+import { WithdrawModal } from '@/components/ui/withdraw-modal';
+import { ConfirmRemoveModal } from '@/components/ui/confirm-remove-modal';
 import { getProtocolByName } from '@/lib/protocols/getProtocolsList';
 import { ProtocolKey } from '@/lib/transactions/types';
 import tokenList from '@/lib/data/tokenList.json';
@@ -20,12 +22,24 @@ interface DragDropContextType {
   isSwapModalOpen: boolean;
   closeDepositModal: () => void;
   closeSwapModal: () => void;
+  closePositionModal: (positionId: string) => void;
+  closeAllModals: () => void;
   depositModalData: {
     protocol: any;
     tokenIn: any;
     tokenOut: any;
     priceUSD: number;
   } | null;
+  // Модалки позиций
+  isPositionModalOpen: boolean;
+  positionModalData: {
+    type: 'withdraw' | 'removeLiquidity';
+    position: any;
+    protocol: string;
+  } | null;
+  closePositionModalDirect: () => void;
+  // Функция для установки обработчика подтверждения транзакции
+  setPositionConfirmHandler: (handler: (() => Promise<void>) | null) => void;
 }
 
 const DragDropContext = createContext<DragDropContextType | undefined>(undefined);
@@ -41,6 +55,19 @@ export function DragDropProvider({ children }: { children: ReactNode }) {
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
   const [isSwapModalOpen, setIsSwapModalOpen] = useState(false);
   const [depositModalData, setDepositModalData] = useState<any>(null);
+  
+  // Состояние модалок позиций
+  const [isPositionModalOpen, setIsPositionModalOpen] = useState(false);
+  const [positionModalData, setPositionModalData] = useState<any>(null);
+  // Обработчик подтверждения транзакции для позиций
+  const [positionConfirmHandler, setPositionConfirmHandler] = useState<(() => Promise<void>) | null>(null);
+  
+  // Глобальный флаг для предотвращения повторного срабатывания событий
+  const globalEventTriggerRef = useRef(false);
+  // Отслеживание открытых модалок по positionId
+  const openModalsRef = useRef<Set<string>>(new Set());
+  // Отслеживание времени последних событий для debounce
+  const lastEventTimeRef = useRef<Map<string, number>>(new Map());
 
   const startDrag = (data: DragData) => {
     setState(prev => ({
@@ -99,28 +126,41 @@ export function DragDropProvider({ children }: { children: ReactNode }) {
 
     // Если перетаскиваем позицию
     if (dragData.type === 'position') {
-      // Если dropTarget это wallet, проверяем возможность withdraw
+      // Если dropTarget это wallet, проверяем возможность withdraw/removeLiquidity
       if (dropTarget === 'wallet') {
-        // Проверяем, что это позиция Echelon
-        if (dragData.protocol !== 'Echelon') {
+        // Проверяем, что это позиция Echelon или Hyperion
+        if (dragData.protocol === 'Echelon') {
+          // Проверяем, что позиция имеет положительный баланс
+          if (parseFloat(dragData.amount) <= 0) {
+            return {
+              isValid: false,
+              reason: 'Position has no balance to withdraw',
+            };
+          }
+          
+          return {
+            isValid: true,
+            action: 'withdraw',
+          };
+        } else if (dragData.protocol === 'Hyperion') {
+          // Проверяем, что позиция имеет положительную стоимость
+          if (parseFloat(dragData.value || '0') <= 0) {
+            return {
+              isValid: false,
+              reason: 'Position has no value to remove',
+            };
+          }
+          
+          return {
+            isValid: true,
+            action: 'removeLiquidity',
+          };
+        } else {
           return {
             isValid: false,
-            reason: 'Only Echelon positions can be withdrawn to wallet',
+            reason: 'Only Echelon and Hyperion positions can be processed',
           };
         }
-        
-        // Проверяем, что позиция имеет положительный баланс
-        if (parseFloat(dragData.amount) <= 0) {
-          return {
-            isValid: false,
-            reason: 'Position has no balance to withdraw',
-          };
-        }
-        
-        return {
-          isValid: true,
-          action: 'withdraw',
-        };
       }
       
       // Если dropTarget это пул, пока не поддерживаем
@@ -210,21 +250,32 @@ export function DragDropProvider({ children }: { children: ReactNode }) {
         setDepositModalData(modalData);
         setIsSwapModalOpen(true);
       }
-    } else if (validation.isValid && dragData.type === 'position' && validation.action === 'withdraw' && dropTarget === 'wallet') {
-      // Для позиций Echelon открываем локальную модалку через событие
-      if (dragData.protocol === 'Echelon') {
-        // Создаем событие для открытия withdraw модалки
-        const event = new CustomEvent('openWithdrawModal', {
-          detail: {
-            position: {
-              coin: dragData.asset,
-              supply: dragData.supply,
-              market: dragData.market,
-            },
-            tokenInfo: dragData.tokenInfo,
-          }
+    } else if (validation.isValid && dragData.type === 'position' && dropTarget === 'wallet') {
+      // Для позиций Echelon открываем withdraw модалку напрямую
+      if (dragData.protocol === 'Echelon' && validation.action === 'withdraw') {
+        console.log('DragDropContext: Opening Echelon withdraw modal directly', {
+          positionId: dragData.positionId
         });
-        window.dispatchEvent(event);
+        
+        setPositionModalData({
+          type: 'withdraw',
+          position: dragData,
+          protocol: 'Echelon'
+        });
+        setIsPositionModalOpen(true);
+      }
+      // Для позиций Hyperion открываем remove liquidity модалку напрямую
+      else if (dragData.protocol === 'Hyperion' && validation.action === 'removeLiquidity') {
+        console.log('DragDropContext: Opening Hyperion remove liquidity modal directly', {
+          positionId: dragData.positionId
+        });
+        
+        setPositionModalData({
+          type: 'removeLiquidity',
+          position: dragData,
+          protocol: 'Hyperion'
+        });
+        setIsPositionModalOpen(true);
       }
     } else {
       // Показываем ошибку
@@ -244,6 +295,43 @@ export function DragDropProvider({ children }: { children: ReactNode }) {
     setDepositModalData(null);
   };
 
+  // Функция для закрытия модалки позиции
+  const closePositionModal = (positionId: string) => {
+    openModalsRef.current.delete(positionId);
+    console.log('DragDropContext: Closed modal for position', positionId);
+  };
+
+  // Функция для закрытия всех модалок
+  const closeAllModals = () => {
+    // Закрываем все модалки депозита и свопа
+    setIsDepositModalOpen(false);
+    setIsSwapModalOpen(false);
+    setDepositModalData(null);
+    
+    // Закрываем модалки позиций
+    setIsPositionModalOpen(false);
+    setPositionModalData(null);
+    
+    // Очищаем все открытые модалки позиций
+    const openModalsCount = openModalsRef.current.size;
+    openModalsRef.current.clear();
+    
+    // Очищаем историю событий
+    lastEventTimeRef.current.clear();
+    
+    console.log('DragDropContext: Closed all modals', {
+      closedModalsCount: openModalsCount,
+      timestamp: new Date().toISOString()
+    });
+  };
+
+  // Функция для прямого закрытия модалки позиции
+  const closePositionModalDirect = () => {
+    setIsPositionModalOpen(false);
+    setPositionModalData(null);
+    setPositionConfirmHandler(null); // Очищаем обработчик при закрытии
+  };
+
   const value: DragDropContextType = {
     state,
     startDrag,
@@ -254,7 +342,13 @@ export function DragDropProvider({ children }: { children: ReactNode }) {
     isSwapModalOpen,
     closeDepositModal,
     closeSwapModal,
+    closePositionModal,
+    closeAllModals,
     depositModalData,
+    isPositionModalOpen,
+    positionModalData,
+    closePositionModalDirect,
+    setPositionConfirmHandler,
   };
 
   return (
@@ -281,6 +375,57 @@ export function DragDropProvider({ children }: { children: ReactNode }) {
             amount={BigInt(depositModalData.tokenIn.amount || 0)}
             priceUSD={depositModalData.priceUSD}
           />
+        </>
+      )}
+      
+      {/* Модальные окна позиций */}
+      {positionModalData && (
+        <>
+          {/* Withdraw Modal для Echelon */}
+          {positionModalData.type === 'withdraw' && positionModalData.protocol === 'Echelon' && (
+            <WithdrawModal
+              isOpen={isPositionModalOpen}
+              onClose={closePositionModalDirect}
+              onConfirm={async (amount: bigint) => {
+                if (positionConfirmHandler) {
+                  try {
+                    await positionConfirmHandler();
+                  } catch (error) {
+                    console.error('Error in position confirm handler:', error);
+                  }
+                } else {
+                  console.log('No confirm handler set for position:', positionModalData.position);
+                }
+                closePositionModalDirect();
+              }}
+              position={positionModalData.position}
+              tokenInfo={positionModalData.position.tokenInfo}
+              isLoading={false}
+              userAddress={undefined} // Нужно будет передать адрес пользователя
+            />
+          )}
+          
+          {/* Remove Liquidity Modal для Hyperion */}
+          {positionModalData.type === 'removeLiquidity' && positionModalData.protocol === 'Hyperion' && (
+            <ConfirmRemoveModal
+              isOpen={isPositionModalOpen}
+              onClose={closePositionModalDirect}
+              onConfirm={async () => {
+                if (positionConfirmHandler) {
+                  try {
+                    await positionConfirmHandler();
+                  } catch (error) {
+                    console.error('Error in position confirm handler:', error);
+                  }
+                } else {
+                  console.log('No confirm handler set for position:', positionModalData.position);
+                }
+                closePositionModalDirect();
+              }}
+              isLoading={false}
+              position={positionModalData.position}
+            />
+          )}
         </>
       )}
       

@@ -14,9 +14,9 @@ export interface PositionDragData {
   positionId: string;
   asset: string;
   amount: string;
-  positionType: 'lend' | 'borrow';
+  positionType: 'lend' | 'borrow' | 'liquidity';
   protocol: string;
-  // Новые поля для Withdraw
+  // Поля для Echelon
   market?: string;
   supply: string;
   tokenInfo?: {
@@ -25,6 +25,22 @@ export interface PositionDragData {
     decimals: number;
     usdPrice?: string;
   };
+  // Поля для Hyperion
+  poolId?: string;
+  token1Info?: {
+    symbol: string;
+    logoUrl?: string;
+    decimals: number;
+    address: string;
+  };
+  token2Info?: {
+    symbol: string;
+    logoUrl?: string;
+    decimals: number;
+    address: string;
+  };
+  isActive?: boolean;
+  value?: string;
 }
 
 export type DragData = TokenDragData | PositionDragData;
@@ -33,7 +49,7 @@ export interface DropValidationResult {
   isValid: boolean;
   reason?: string;
   requiresSwap?: boolean;
-  action?: 'deposit' | 'withdraw';
+  action?: 'deposit' | 'withdraw' | 'removeLiquidity';
 }
 
 export interface DragDropState {

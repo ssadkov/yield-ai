@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef, memo, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
@@ -12,13 +12,16 @@ import { ConfirmRemoveModal } from "@/components/ui/confirm-remove-modal";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Info } from "lucide-react";
+import { useDragDrop } from "@/contexts/DragDropContext";
+import { PositionDragData } from "@/types/dragDrop";
 
 interface HyperionPositionProps {
   position: any;
   index: number;
 }
 
-function HyperionPosition({ position, index }: HyperionPositionProps) {
+const HyperionPosition = memo(function HyperionPosition({ position, index }: HyperionPositionProps) {
+
   const [isClaiming, setIsClaiming] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
   const [showRemoveModal, setShowRemoveModal] = useState(false);
@@ -28,6 +31,11 @@ function HyperionPosition({ position, index }: HyperionPositionProps) {
   const [poolAPR, setPoolAPR] = useState({ feeAPR: 0, farmAPR: 0 });
   const { signAndSubmitTransaction, account } = useWallet();
   const { toast } = useToast();
+  const { startDrag, endDrag, state, closePositionModal, closeAllModals, setPositionConfirmHandler } = useDragDrop();
+  const isModalOpenRef = useRef(false);
+
+  // Добавляем уникальный идентификатор компонента
+  const componentId = useMemo(() => `hyperion-${position.position?.objectId}-${index}`, [position.position?.objectId, index]);
 
   // Считаем награды
   const farmRewards = position.farm?.unclaimed?.reduce((sum: number, r: any) => sum + parseFloat(r.amountUSD || "0"), 0) || 0;
@@ -60,6 +68,43 @@ function HyperionPosition({ position, index }: HyperionPositionProps) {
 
     fetchPoolAPR();
   }, [poolId]);
+
+  // Обработчик события для вызова remove liquidity
+  const handleTriggerRemoveLiquidity = useCallback((event: CustomEvent) => {
+    const { positionId } = event.detail;
+    
+    // Проверяем, что событие предназначено для этой позиции
+    if (positionId !== position.position.objectId) {
+      return;
+    }
+    
+    // Проверяем, не открыта ли уже модалка
+    if (isModalOpenRef.current) {
+      console.log('HyperionPosition: Modal already open, ignoring event for component', componentId);
+      return;
+    }
+    
+    console.log('HyperionPosition: Handling triggerRemoveLiquidity event', {
+      positionId: position.position.objectId,
+      isModalOpen: isModalOpenRef.current,
+      componentId,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Устанавливаем флаг и открываем модалку
+    isModalOpenRef.current = true;
+    console.log('HyperionPosition: Opening Remove Liquidity modal for component', componentId);
+    handleRemoveLiquidity();
+  }, [position.position.objectId, componentId]);
+
+  useEffect(() => {
+    window.addEventListener('triggerRemoveLiquidity', handleTriggerRemoveLiquidity as EventListener);
+    return () => {
+      window.removeEventListener('triggerRemoveLiquidity', handleTriggerRemoveLiquidity as EventListener);
+    };
+  }, [handleTriggerRemoveLiquidity]);
+
+
 
   // Считаем общий APR
   const totalAPR = poolAPR.feeAPR + poolAPR.farmAPR;
@@ -133,7 +178,45 @@ function HyperionPosition({ position, index }: HyperionPositionProps) {
 
   // Remove Liquidity
   const handleRemoveLiquidity = async () => {
+    console.log('HyperionPosition: handleRemoveLiquidity called for component', componentId);
     setShowRemoveModal(true);
+  };
+
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent) => {
+    const dragData: PositionDragData = {
+      type: 'position',
+      positionId: position.position.objectId,
+      asset: `${position.position.pool.token1Info.symbol}/${position.position.pool.token2Info.symbol}`,
+      amount: position.value,
+      positionType: 'liquidity',
+      protocol: 'Hyperion',
+      supply: position.value, // Для Hyperion используем value как supply
+      poolId: position.position.pool.poolId,
+      token1Info: {
+        symbol: position.position.pool.token1Info.symbol,
+        logoUrl: position.position.pool.token1Info.logoUrl,
+        decimals: position.position.pool.token1Info.decimals || 8,
+        address: getTokenAddress(position.position.pool.token1Info),
+      },
+      token2Info: {
+        symbol: position.position.pool.token2Info.symbol,
+        logoUrl: position.position.pool.token2Info.logoUrl,
+        decimals: position.position.pool.token2Info.decimals || 8,
+        address: getTokenAddress(position.position.pool.token2Info),
+      },
+      isActive: position.isActive,
+      value: position.value,
+    };
+
+    e.dataTransfer.setData('application/json', JSON.stringify(dragData));
+    e.dataTransfer.effectAllowed = 'move';
+    
+    startDrag(dragData);
+  };
+
+  const handleDragEnd = () => {
+    endDrag();
   };
 
   const handleConfirmRemove = async () => {
@@ -141,6 +224,8 @@ function HyperionPosition({ position, index }: HyperionPositionProps) {
     try {
       setIsRemoving(true);
       setShowRemoveModal(false);
+      isModalOpenRef.current = false;
+      closePositionModal(position.position.objectId);
       const token1Info = position.position.pool.token1Info;
       const token2Info = position.position.pool.token2Info;
       const currencyA = getTokenAddress(token1Info);
@@ -194,8 +279,22 @@ function HyperionPosition({ position, index }: HyperionPositionProps) {
     }
   };
 
+  // Регистрируем обработчик подтверждения транзакции в DragDropContext
+  useEffect(() => {
+    setPositionConfirmHandler(handleConfirmRemove);
+    return () => {
+      setPositionConfirmHandler(null);
+    };
+  }, [setPositionConfirmHandler, handleConfirmRemove]);
+
   return (
-    <div key={`${position.assetName}-${index}`} className="p-4 border-b last:border-b-0">
+    <div 
+      key={`${position.assetName}-${index}`} 
+      className="p-4 border-b last:border-b-0 cursor-grab active:cursor-grabbing hover:bg-accent/50 transition-colors"
+      draggable={true}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
       <div className="flex justify-between items-center mb-2">
         <div className="flex items-center gap-2">
           {/* Логотипы токенов */}
@@ -286,34 +385,53 @@ function HyperionPosition({ position, index }: HyperionPositionProps) {
         )}
         
         {/* Кнопки Claim и Remove */}
-        <div className="flex gap-2 mt-1">
-          {totalRewards > 0 && (
+        <div className="flex flex-col gap-1">
+          <div className="flex gap-2">
+            {totalRewards > 0 && (
+              <button
+                className="px-3 py-1 bg-green-600 text-white rounded text-sm font-semibold disabled:opacity-60"
+                onClick={handleClaimRewards}
+                disabled={isClaiming}
+              >
+                {isClaiming ? 'Claiming...' : 'Claim'}
+              </button>
+            )}
             <button
-              className="px-3 py-1 bg-green-600 text-white rounded text-sm font-semibold disabled:opacity-60"
-              onClick={handleClaimRewards}
-              disabled={isClaiming}
+              className={`px-3 py-1 rounded text-sm font-semibold disabled:opacity-60 transition-all ${
+                position.isActive 
+                  ? 'bg-red-300 text-red-800 hover:bg-red-400 border border-red-400' 
+                  : 'bg-red-500 text-white hover:bg-red-600 shadow-lg'
+              }`}
+              onClick={handleRemoveLiquidity}
+              disabled={isRemoving || !getTokenAddress(position.position.pool.token1Info) || !getTokenAddress(position.position.pool.token2Info)}
             >
-              {isClaiming ? 'Claiming...' : 'Claim'}
+              {isRemoving ? 'Removing...' : 'Remove'}
             </button>
-          )}
-          <button
-            className={`px-3 py-1 rounded text-sm font-semibold disabled:opacity-60 transition-all ${
-              position.isActive 
-                ? 'bg-red-300 text-red-800 hover:bg-red-400 border border-red-400' 
-                : 'bg-red-500 text-white hover:bg-red-600 shadow-lg'
-            }`}
-            onClick={handleRemoveLiquidity}
-            disabled={isRemoving || !getTokenAddress(position.position.pool.token1Info) || !getTokenAddress(position.position.pool.token2Info)}
-          >
-            {isRemoving ? 'Removing...' : 'Remove'}
-          </button>
+          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="text-xs text-muted-foreground text-center">
+                  Drag to wallet to remove liquidity
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Drag this position to your wallet to remove liquidity</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
 
       {/* Модальное окно подтверждения */}
       <ConfirmRemoveModal
         isOpen={showRemoveModal}
-        onClose={() => setShowRemoveModal(false)}
+        onClose={() => {
+          setShowRemoveModal(false);
+          isModalOpenRef.current = false;
+          closePositionModal(position.position.objectId);
+          closeAllModals();
+        }}
         onConfirm={handleConfirmRemove}
         isLoading={isRemoving}
         position={position}
@@ -418,13 +536,14 @@ function HyperionPosition({ position, index }: HyperionPositionProps) {
       )}
     </div>
   );
-}
+});
 
 export function HyperionPositions() {
   const { account } = useWallet();
   const [positions, setPositions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isModalOpenRef = useRef(false);
 
   const loadPositions = async () => {
     if (!account?.address) {
@@ -444,8 +563,37 @@ export function HyperionPositions() {
       const data = await response.json();
       
       if (data.success && Array.isArray(data.data)) {
+        // Проверяем дубликаты
+        const positionIds = data.data.map((p: any) => p.position?.objectId);
+        const duplicates = positionIds.filter((id: string, index: number) => positionIds.indexOf(id) !== index);
+        
+        console.log('HyperionPositions: Raw data analysis', {
+          total: data.data.length,
+          positionIds: positionIds,
+          duplicates: duplicates,
+          hasDuplicates: duplicates.length > 0
+        });
+        
+        // Удаляем дубликаты по positionId с более строгой проверкой
+        const seenIds = new Set<string>();
+        const uniquePositions = data.data.filter((position: any) => {
+          const positionId = position.position?.objectId;
+          if (!positionId || seenIds.has(positionId)) {
+            return false;
+          }
+          seenIds.add(positionId);
+          return true;
+        });
+        
+        console.log('HyperionPositions: After deduplication', {
+          total: data.data.length,
+          unique: uniquePositions.length,
+          duplicates: data.data.length - uniquePositions.length,
+          uniquePositionIds: uniquePositions.map((p: any) => p.position?.objectId)
+        });
+        
         // Сортируем позиции по сумме ликвидности
-        const sortedPositions = [...data.data].sort((a, b) => {
+        const sortedPositions = [...uniquePositions].sort((a, b) => {
           const valueA = parseFloat(a.value || "0");
           const valueB = parseFloat(b.value || "0");
           return valueB - valueA;
@@ -465,6 +613,8 @@ export function HyperionPositions() {
 
   // Мемоизируем функцию loadPositions
   const memoizedLoadPositions = useCallback(loadPositions, [account?.address]);
+
+
 
   useEffect(() => {
     memoizedLoadPositions();
@@ -494,6 +644,8 @@ export function HyperionPositions() {
     };
   }, [memoizedLoadPositions]);
 
+
+
   // Считаем общую сумму (позиции + награды)
   const totalValue = positions.reduce((sum, position) => {
     const positionValue = parseFloat(position.value || "0");
@@ -518,11 +670,21 @@ export function HyperionPositions() {
     return null;
   }
 
+
+
+
+
+
+
   return (
     <div className="w-full mb-6 py-2 px-6">
       <div className="space-y-4 text-base">
         {positions.map((position, index) => (
-          <HyperionPosition key={`${position.assetName}-${index}`} position={position} index={index} />
+          <HyperionPosition 
+            key={`hyperion-${position.position?.objectId}-${index}`} 
+            position={position} 
+            index={index} 
+          />
         ))}
         <div className="flex items-center justify-between pt-6 pb-6">
           <span className="text-xl">Total assets in Hyperion:</span>
