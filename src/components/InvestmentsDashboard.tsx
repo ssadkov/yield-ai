@@ -22,6 +22,7 @@ import tokenList from "@/lib/data/tokenList.json";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { ExternalLink } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DepositButton } from "@/components/ui/deposit-button";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import Image from "next/image";
@@ -66,6 +67,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showOnlyStablePools, setShowOnlyStablePools] = useState(true);
   const { selectedProtocol, setSelectedProtocol } = useProtocol();
   const { state, validateDrop, handleDrop } = useDragDrop();
 
@@ -83,6 +85,29 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     
     const tokenInfo = getTokenInfo(item.asset, item.token);
     return tokenInfo?.bridge || 'Unknown';
+  };
+
+  const isStablePool = (item: InvestmentData): boolean => {
+    // Лендинговые пулы всегда считаются стабильными
+    if (item.protocol !== 'Hyperion') {
+      return true;
+    }
+    
+    // Для DEX-пулов Hyperion проверяем совпадающие символы
+    if (item.token1Info && item.token2Info) {
+      const symbol1 = item.token1Info.symbol.toLowerCase();
+      const symbol2 = item.token2Info.symbol.toLowerCase();
+      
+      // Ищем совпадающие символы (минимум 3 символа подряд)
+      for (let i = 0; i <= symbol1.length - 3; i++) {
+        const substring = symbol1.substring(i, i + 3);
+        if (symbol2.includes(substring)) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
   };
 
   useEffect(() => {
@@ -148,6 +173,11 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   const filteredData = data.filter(item => {
     // Фильтруем исключенные токены Echelon
     if (item.protocol === 'Echelon' && EXCLUDED_ECHELON_TOKENS.includes(item.token)) {
+      return false;
+    }
+    
+    // Фильтруем по стабильным пулам, если включен чекбокс
+    if (showOnlyStablePools && !isStablePool(item)) {
       return false;
     }
     
@@ -522,7 +552,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 
         <TabsContent value="pro" className="mt-6">
           <div className="flex items-center gap-2 mb-4">
-            <div className="relative flex-1">
+            <div className="relative flex-1 max-w-md">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search tokens..."
@@ -543,6 +573,19 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   {token}
                 </Button>
               ))}
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="stable-pools"
+                checked={showOnlyStablePools}
+                onCheckedChange={(checked) => setShowOnlyStablePools(checked as boolean)}
+              />
+              <label
+                htmlFor="stable-pools"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Show only stable pools
+              </label>
             </div>
           </div>
           
