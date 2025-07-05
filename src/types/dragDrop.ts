@@ -16,6 +16,15 @@ export interface PositionDragData {
   amount: string;
   positionType: 'lend' | 'borrow';
   protocol: string;
+  // Новые поля для Withdraw
+  market?: string;
+  supply: string;
+  tokenInfo?: {
+    symbol: string;
+    logoUrl?: string;
+    decimals: number;
+    usdPrice?: string;
+  };
 }
 
 export type DragData = TokenDragData | PositionDragData;
@@ -24,6 +33,7 @@ export interface DropValidationResult {
   isValid: boolean;
   reason?: string;
   requiresSwap?: boolean;
+  action?: 'deposit' | 'withdraw';
 }
 
 export interface DragDropState {

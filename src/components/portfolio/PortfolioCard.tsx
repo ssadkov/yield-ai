@@ -11,6 +11,8 @@ import { useCollapsible } from "@/contexts/CollapsibleContext";
 import { CollapsibleControls } from "@/components/ui/collapsible-controls";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useDragDrop } from "@/contexts/DragDropContext";
+import { DragData } from "@/types/dragDrop";
 
 interface PortfolioCardProps {
   totalValue: string;
@@ -22,6 +24,7 @@ interface PortfolioCardProps {
 export function PortfolioCard({ totalValue, tokens, onRefresh, isRefreshing }: PortfolioCardProps) {
   const { isExpanded, toggleSection } = useCollapsible();
   const [hideSmallAssets, setHideSmallAssets] = useState(true);
+  const { state, validateDrop, handleDrop } = useDragDrop();
 
   const filteredTokens = hideSmallAssets 
     ? tokens.filter(token => {
@@ -40,6 +43,41 @@ export function PortfolioCard({ totalValue, tokens, onRefresh, isRefreshing }: P
 
   // Преобразуем totalValue в число для отображения
   const displayTotalValue = parseFloat(totalValue) || 0;
+
+  // Drag and drop handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDragLeave = () => {
+    // Убираем подсветку при уходе курсора
+  };
+
+  const handleDropEvent = (e: React.DragEvent) => {
+    e.preventDefault();
+    
+    try {
+      const dragData = JSON.parse(e.dataTransfer.getData('application/json')) as DragData;
+      handleDrop(dragData, 'wallet');
+    } catch (error) {
+      console.error('Error parsing drag data:', error);
+    }
+  };
+
+  const getDropZoneClassName = () => {
+    if (!state.dragData) {
+      return "";
+    }
+
+    const validation = validateDrop(state.dragData, 'wallet');
+    
+    if (validation.isValid) {
+      return "bg-green-50 border-green-200";
+    } else {
+      return "bg-red-50 border-red-200";
+    }
+  };
 
   return (
     <div>
@@ -81,7 +119,12 @@ export function PortfolioCard({ totalValue, tokens, onRefresh, isRefreshing }: P
           <CollapsibleControls />
         </div>
       </div>
-      <Card className="w-full h-full flex flex-col">
+      <Card 
+        className={`w-full h-full flex flex-col transition-colors ${getDropZoneClassName()}`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDropEvent}
+      >
         <CardHeader 
           className="py-2 cursor-pointer hover:bg-accent/50 transition-colors"
           onClick={() => toggleSection('wallet')}

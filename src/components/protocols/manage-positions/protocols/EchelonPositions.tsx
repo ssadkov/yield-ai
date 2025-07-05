@@ -12,6 +12,9 @@ import { cn } from "@/lib/utils";
 import { useWithdraw } from "@/lib/hooks/useWithdraw";
 import { WithdrawModal } from "@/components/ui/withdraw-modal";
 import echelonMarkets from "@/lib/data/echelonMarkets.json";
+import { useDragDrop } from "@/contexts/DragDropContext";
+import { PositionDragData } from "@/types/dragDrop";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Position {
   coin: string;
@@ -29,6 +32,7 @@ export function EchelonPositions() {
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
   const { withdraw, isLoading: isWithdrawing } = useWithdraw();
+  const { startDrag, endDrag, state } = useDragDrop();
 
   // Функция для загрузки позиций
   const loadPositions = useCallback(async () => {
@@ -142,10 +146,56 @@ export function EchelonPositions() {
     };
   }, [loadPositions]);
 
+  // Обработчик события открытия withdraw модалки через drag and drop
+  useEffect(() => {
+    const handleOpenWithdrawModal = (event: CustomEvent) => {
+      const { position, tokenInfo } = event.detail;
+      setSelectedPosition(position);
+      setShowWithdrawModal(true);
+    };
+
+    window.addEventListener('openWithdrawModal', handleOpenWithdrawModal as EventListener);
+    return () => {
+      window.removeEventListener('openWithdrawModal', handleOpenWithdrawModal as EventListener);
+    };
+  }, []);
+
   // Обработчик открытия модального окна withdraw
   const handleWithdrawClick = (position: Position) => {
     setSelectedPosition(position);
     setShowWithdrawModal(true);
+  };
+
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, position: Position) => {
+    const tokenInfo = getTokenInfo(position.coin);
+    const market = marketData.find((m: any) => m.coin === position.coin);
+    
+    const dragData: PositionDragData = {
+      type: 'position',
+      positionId: position.coin,
+      asset: position.coin,
+      amount: position.supply,
+      positionType: 'lend',
+      protocol: 'Echelon',
+      market: market?.market,
+      supply: position.supply,
+      tokenInfo: tokenInfo ? {
+        symbol: tokenInfo.symbol,
+        logoUrl: tokenInfo.logoUrl,
+        decimals: tokenInfo.decimals,
+        usdPrice: tokenInfo.usdPrice,
+      } : undefined,
+    };
+
+    e.dataTransfer.setData('application/json', JSON.stringify(dragData));
+    e.dataTransfer.effectAllowed = 'move';
+    
+    startDrag(dragData);
+  };
+
+  const handleDragEnd = () => {
+    endDrag();
   };
 
   // Обработчик подтверждения withdraw
@@ -232,7 +282,13 @@ export function EchelonPositions() {
           const apy = getApyForPosition(position);
           
           return (
-            <div key={`${position.coin}-${index}`} className="p-4 border-b last:border-b-0">
+            <div 
+              key={`${position.coin}-${index}`} 
+              className="p-4 border-b last:border-b-0 cursor-grab active:cursor-grabbing hover:bg-accent/50 transition-colors"
+              draggable={true}
+              onDragStart={(e) => handleDragStart(e, position)}
+              onDragEnd={handleDragEnd}
+            >
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
                   {tokenInfo?.logoUrl && (
@@ -266,13 +322,25 @@ export function EchelonPositions() {
                     <div className="text-lg font-bold">${value.toFixed(2)}</div>
                   </div>
                   <div className="text-base text-muted-foreground font-semibold">{amount.toFixed(4)}</div>
-                  <button
-                    className={`px-3 py-1 rounded text-sm font-semibold disabled:opacity-60 transition-all bg-red-500 text-white hover:bg-red-600 shadow-lg mt-2`}
-                    onClick={() => handleWithdrawClick(position)}
-                    disabled={isWithdrawing}
-                  >
-                    {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
-                  </button>
+                  <div className="flex flex-col gap-1 mt-2">
+                    <button
+                      className={`px-3 py-1 rounded text-sm font-semibold disabled:opacity-60 transition-all bg-red-500 text-white hover:bg-red-600 shadow-lg`}
+                      onClick={() => handleWithdrawClick(position)}
+                      disabled={isWithdrawing}
+                    >
+                      {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
+                    </button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="text-xs text-muted-foreground text-center">
+                          Drag to wallet to withdraw
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Drag this position to your wallet to withdraw funds</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
                 </div>
               </div>
             </div>

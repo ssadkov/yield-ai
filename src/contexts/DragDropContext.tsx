@@ -13,8 +13,8 @@ interface DragDropContextType {
   state: DragDropState;
   startDrag: (data: DragData) => void;
   endDrag: () => void;
-  validateDrop: (dragData: DragData, dropTarget: InvestmentData) => DropValidationResult;
-  handleDrop: (dragData: DragData, dropTarget: InvestmentData) => void;
+  validateDrop: (dragData: DragData, dropTarget: InvestmentData | 'wallet') => DropValidationResult;
+  handleDrop: (dragData: DragData, dropTarget: InvestmentData | 'wallet') => void;
   // Модальные окна
   isDepositModalOpen: boolean;
   isSwapModalOpen: boolean;
@@ -59,9 +59,17 @@ export function DragDropProvider({ children }: { children: ReactNode }) {
     }));
   };
 
-  const validateDrop = (dragData: DragData, dropTarget: InvestmentData): DropValidationResult => {
+  const validateDrop = (dragData: DragData, dropTarget: InvestmentData | 'wallet'): DropValidationResult => {
     // Если перетаскиваем токен
     if (dragData.type === 'token') {
+      // Если dropTarget это wallet, то токены нельзя перетаскивать в wallet
+      if (dropTarget === 'wallet') {
+        return {
+          isValid: false,
+          reason: 'Cannot drop tokens into wallet',
+        };
+      }
+      
       // Проверяем совместимость токена с пулом
       const isCompatible = dropTarget.token === dragData.address || 
                           dropTarget.asset.toLowerCase() === dragData.symbol.toLowerCase();
@@ -89,10 +97,42 @@ export function DragDropProvider({ children }: { children: ReactNode }) {
       };
     }
 
-    // Если перетаскиваем позицию (пока не реализовано)
+    // Если перетаскиваем позицию
+    if (dragData.type === 'position') {
+      // Если dropTarget это wallet, проверяем возможность withdraw
+      if (dropTarget === 'wallet') {
+        // Проверяем, что это позиция Echelon
+        if (dragData.protocol !== 'Echelon') {
+          return {
+            isValid: false,
+            reason: 'Only Echelon positions can be withdrawn to wallet',
+          };
+        }
+        
+        // Проверяем, что позиция имеет положительный баланс
+        if (parseFloat(dragData.amount) <= 0) {
+          return {
+            isValid: false,
+            reason: 'Position has no balance to withdraw',
+          };
+        }
+        
+        return {
+          isValid: true,
+          action: 'withdraw',
+        };
+      }
+      
+      // Если dropTarget это пул, пока не поддерживаем
+      return {
+        isValid: false,
+        reason: 'Position dragging to pools not implemented yet',
+      };
+    }
+
     return {
       isValid: false,
-      reason: 'Position dragging not implemented yet',
+      reason: 'Unknown drag data type',
     };
   };
 
@@ -102,10 +142,10 @@ export function DragDropProvider({ children }: { children: ReactNode }) {
     );
   };
 
-  const handleDrop = (dragData: DragData, dropTarget: InvestmentData) => {
+  const handleDrop = (dragData: DragData, dropTarget: InvestmentData | 'wallet') => {
     const validation = validateDrop(dragData, dropTarget);
     
-    if (validation.isValid && dragData.type === 'token') {
+    if (validation.isValid && dragData.type === 'token' && dropTarget !== 'wallet') {
       const protocol = getProtocolByName(dropTarget.protocol);
       const tokenInfo = getTokenInfo(dropTarget.token);
       
@@ -139,7 +179,7 @@ export function DragDropProvider({ children }: { children: ReactNode }) {
         // Открываем внешний сайт
         window.open(protocol.depositUrl, '_blank');
       }
-    } else if (validation.requiresSwap && dragData.type === 'token') {
+    } else if (validation.requiresSwap && dragData.type === 'token' && dropTarget !== 'wallet') {
       // Открываем модальное окно swap + deposit
       const protocol = getProtocolByName(dropTarget.protocol);
       const tokenInfo = getTokenInfo(dropTarget.token);
@@ -169,6 +209,22 @@ export function DragDropProvider({ children }: { children: ReactNode }) {
         
         setDepositModalData(modalData);
         setIsSwapModalOpen(true);
+      }
+    } else if (validation.isValid && dragData.type === 'position' && validation.action === 'withdraw' && dropTarget === 'wallet') {
+      // Для позиций Echelon открываем локальную модалку через событие
+      if (dragData.protocol === 'Echelon') {
+        // Создаем событие для открытия withdraw модалки
+        const event = new CustomEvent('openWithdrawModal', {
+          detail: {
+            position: {
+              coin: dragData.asset,
+              supply: dragData.supply,
+              market: dragData.market,
+            },
+            tokenInfo: dragData.tokenInfo,
+          }
+        });
+        window.dispatchEvent(event);
       }
     } else {
       // Показываем ошибку
@@ -227,6 +283,8 @@ export function DragDropProvider({ children }: { children: ReactNode }) {
           />
         </>
       )}
+      
+
     </DragDropContext.Provider>
   );
 }
