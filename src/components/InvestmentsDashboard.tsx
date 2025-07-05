@@ -229,6 +229,9 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
         />
       )}
 
+      <div className="mb-4 pl-4">
+        <h2 className="text-2xl font-bold">Ideas</h2>
+      </div>
       <Tabs defaultValue="lite" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="lite">Lite</TabsTrigger>
