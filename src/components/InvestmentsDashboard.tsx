@@ -21,6 +21,7 @@ import { ConfirmModal } from "@/components/ui/confirm-modal";
 import tokenList from "@/lib/data/tokenList.json";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { DepositButton } from "@/components/ui/deposit-button";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import Image from "next/image";
@@ -693,18 +694,31 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                         <TableCell className="text-right">
                           <div>
                             {protocol ? (
-                              <DepositButton 
-                                protocol={protocol} 
-                                className="w-full"
-                                tokenIn={{
-                                  symbol: isDex ? (item.token1Info?.symbol || 'Unknown') : displaySymbol,
-                                  logo: isDex ? (item.token1Info?.logoUrl || '') : (tokenInfo?.logoUrl || ''),
-                                  decimals: isDex ? (item.token1Info?.decimals || 8) : (tokenInfo?.decimals || 8),
-                                  address: item.token
-                                }}
-                                balance={BigInt(1000000000)} // TODO: Get real balance
-                                priceUSD={Number(tokenInfo?.usdPrice || 0)}
-                              />
+                              isDex ? (
+                                // Для DEX-пулов Hyperion - прямая ссылка на пул
+                                <Button 
+                                  variant="secondary"
+                                  onClick={() => window.open(`https://hyperion.xyz/pool/${item.token}`, '_blank')}
+                                  className="w-full"
+                                >
+                                  Deposit
+                                  <ExternalLink className="ml-2 h-4 w-4" />
+                                </Button>
+                              ) : (
+                                // Для лендинговых пулов - обычная кнопка Deposit
+                                <DepositButton 
+                                  protocol={protocol} 
+                                  className="w-full"
+                                  tokenIn={{
+                                    symbol: displaySymbol,
+                                    logo: tokenInfo?.logoUrl || '',
+                                    decimals: tokenInfo?.decimals || 8,
+                                    address: item.token
+                                  }}
+                                  balance={BigInt(1000000000)} // TODO: Get real balance
+                                  priceUSD={Number(tokenInfo?.usdPrice || 0)}
+                                />
+                              )
                             ) : (
                               <Button disabled className="w-full">
                                 Protocol not found
