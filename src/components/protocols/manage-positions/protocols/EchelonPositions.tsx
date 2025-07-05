@@ -266,15 +266,13 @@ export function EchelonPositions() {
                     <div className="text-lg font-bold">${value.toFixed(2)}</div>
                   </div>
                   <div className="text-base text-muted-foreground font-semibold">{amount.toFixed(4)}</div>
-                  <Button
-                    variant="outline"
-                    size="sm"
+                  <button
+                    className={`px-3 py-1 rounded text-sm font-semibold disabled:opacity-60 transition-all bg-red-500 text-white hover:bg-red-600 shadow-lg mt-2`}
                     onClick={() => handleWithdrawClick(position)}
                     disabled={isWithdrawing}
-                    className="mt-2 text-xs"
                   >
-                    Withdraw
-                  </Button>
+                    {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
+                  </button>
                 </div>
               </div>
             </div>

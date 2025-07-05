@@ -68,6 +68,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showOnlyStablePools, setShowOnlyStablePools] = useState(true);
+  const [activeTab, setActiveTab] = useState<"lite" | "pro">("lite");
   const { selectedProtocol, setSelectedProtocol } = useProtocol();
   const { state, validateDrop, handleDrop } = useDragDrop();
 
@@ -186,6 +187,26 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     return displaySymbol.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
+  // Данные для текущей вкладки
+  const currentTabData = activeTab === "lite" 
+    ? data.filter(item => {
+        // Фильтруем исключенные токены Echelon
+        if (item.protocol === 'Echelon' && EXCLUDED_ECHELON_TOKENS.includes(item.token)) {
+          return false;
+        }
+        
+        // Показываем только протоколы с нативным депозитом в Lite вкладке
+        const protocol = getProtocolByName(item.protocol);
+        if (!protocol || protocol.depositType !== 'native') {
+          return false;
+        }
+        
+        const tokenInfo = getTokenInfo(item.asset, item.token);
+        const displaySymbol = tokenInfo?.symbol || item.asset;
+        return displaySymbol.toLowerCase().includes(searchQuery.toLowerCase());
+      })
+    : filteredData; // В Pro вкладке используем все отфильтрованные данные
+
   const handleManageClick = (protocol: Protocol) => {
     console.log('Selected protocol:', protocol);
     setSelectedProtocol(protocol);
@@ -232,7 +253,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
       <div className="mb-4 pl-4">
         <h2 className="text-2xl font-bold">Ideas</h2>
       </div>
-      <Tabs defaultValue="lite" className="w-full">
+      <Tabs defaultValue="lite" className="w-full" onValueChange={(value) => setActiveTab(value as "lite" | "pro")}>
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="lite">Lite</TabsTrigger>
           <TabsTrigger value="pro">Pro</TabsTrigger>
@@ -245,12 +266,13 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {data
                   .filter(item => {
-                    // Фильтруем исключенные токены Echelon и Hyperion
+                    // Фильтруем исключенные токены Echelon
                     if (item.protocol === 'Echelon' && EXCLUDED_ECHELON_TOKENS.includes(item.token)) {
                       return false;
                     }
-                    // Исключаем Hyperion из Lite вкладки
-                    if (item.protocol === 'Hyperion') {
+                    // Показываем только протоколы с нативным депозитом в Lite вкладке
+                    const protocol = getProtocolByName(item.protocol);
+                    if (!protocol || protocol.depositType !== 'native') {
                       return false;
                     }
                     return item.asset.toUpperCase().includes('USDT') || 
@@ -260,7 +282,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   .sort((a, b) => b.totalAPY - a.totalAPY)
                   .slice(0, 3)
                   .map((item, index) => {
-                    console.log('Processing item:', item);
                     const tokenInfo = getTokenInfo(item.asset, item.token);
                     const displaySymbol = tokenInfo?.symbol || item.asset;
                     const logoUrl = tokenInfo?.logoUrl;
@@ -268,17 +289,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 
                     // Check if this is a DEX pool with two tokens
                     const isDex = !!(item.token1Info && item.token2Info);
-
-                    console.log('Token debug:', {
-                      item,
-                      tokenInfo,
-                      displaySymbol,
-                      priceUSD: Number(tokenInfo?.usdPrice || 0),
-                      usdPrice: tokenInfo?.usdPrice,
-                      isDex,
-                      token1Info: item.token1Info,
-                      token2Info: item.token2Info
-                    });
 
                     return (
                       <Card 
@@ -401,14 +411,16 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
               <h3 className="text-lg font-semibold mb-4">Fundamentals</h3>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {[
-                  { symbol: 'APT', exact: true },
+                  { symbol: 'APT', exact: false },
                   { symbol: 'BTC', exact: false },
                   { symbol: 'ETH', exact: false }
                 ].map(({ symbol, exact }) => {
+
                   const bestPool = data
                     .filter(item => {
-                      // Исключаем Hyperion из Lite вкладки
-                      if (item.protocol === 'Hyperion') {
+                      // Показываем только протоколы с нативным депозитом в Lite вкладке
+                      const protocol = getProtocolByName(item.protocol);
+                      if (!protocol || protocol.depositType !== 'native') {
                         return false;
                       }
                       return exact 
@@ -426,17 +438,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 
                   // Check if this is a DEX pool with two tokens
                   const isDex = !!(bestPool.token1Info && bestPool.token2Info);
-
-                  console.log('Token debug:', {
-                    item: bestPool,
-                    tokenInfo,
-                    displaySymbol,
-                    priceUSD: Number(tokenInfo?.usdPrice || 0),
-                    usdPrice: tokenInfo?.usdPrice,
-                    isDex,
-                    token1Info: bestPool.token1Info,
-                    token2Info: bestPool.token2Info
-                  });
 
                   return (
                     <Card 
@@ -618,7 +619,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredData
+                {currentTabData
                   .filter(item => {
                     const tokenInfo = getTokenInfo(item.asset, item.token);
                     // Включаем все пулы: с tokenInfo, с :: в asset, или DEX-пулы с token1Info/token2Info
@@ -626,7 +627,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   })
                   .sort((a, b) => b.totalAPY - a.totalAPY)
                   .map((item, index) => {
-                    console.log('Processing item:', item);
                     const tokenInfo = getTokenInfo(item.asset, item.token);
                     const displaySymbol = tokenInfo?.symbol || item.asset;
                     const logoUrl = tokenInfo?.logoUrl;
@@ -634,17 +634,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 
                     // Check if this is a DEX pool with two tokens
                     const isDex = !!(item.token1Info && item.token2Info);
-
-                    console.log('Token debug:', {
-                      item,
-                      tokenInfo,
-                      displaySymbol,
-                      priceUSD: Number(tokenInfo?.usdPrice || 0),
-                      usdPrice: tokenInfo?.usdPrice,
-                      isDex,
-                      token1Info: item.token1Info,
-                      token2Info: item.token2Info
-                    });
 
                     return (
                       <TableRow 
