@@ -3,7 +3,7 @@ import { PositionCard } from "./PositionCard";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import Image from "next/image";
@@ -213,7 +213,20 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
                 </div>
               );
             })}
-            {protocol && <ManagePositionsButton protocol={protocol} />}
+            {/* Ссылка на управление позициями, как у Aries (кнопка-линк) */}
+            {protocol && (
+              <div className="flex justify-center mt-2">
+                <a
+                  href={protocol.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 h-8 px-3 py-1 rounded text-sm font-semibold text-blue-600 hover:bg-blue-50 transition border border-blue-100 bg-white"
+                >
+                  Manage positions
+                  <ExternalLink className="h-4 w-4 ml-1" />
+                </a>
+              </div>
+            )}
           </ScrollArea>
         </CardContent>
       )}
