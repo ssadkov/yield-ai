@@ -20,6 +20,7 @@ interface Position {
   coin: string;
   supply: string;
   market?: string;
+  type?: string; // supply или borrow
 }
 
 export function EchelonPositions() {
@@ -111,15 +112,22 @@ export function EchelonPositions() {
     const amountB = parseFloat(b.supply) / (tokenInfoB?.decimals ? 10 ** tokenInfoB.decimals : 1e8);
     const valueA = tokenInfoA?.usdPrice ? amountA * parseFloat(tokenInfoA.usdPrice) : 0;
     const valueB = tokenInfoB?.usdPrice ? amountB * parseFloat(tokenInfoB.usdPrice) : 0;
+    // borrow всегда ниже supply
+    if ((a.type === 'borrow') !== (b.type === 'borrow')) {
+      return a.type === 'borrow' ? 1 : -1;
+    }
     return valueB - valueA;
   });
 
-  // Считаем общую сумму
+  // Считаем общую сумму: supply плюсуем, borrow вычитаем
   useEffect(() => {
     const total = sortedPositions.reduce((sum, position) => {
       const tokenInfo = getTokenInfo(position.coin);
       const amount = parseFloat(position.supply) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
       const value = tokenInfo?.usdPrice ? amount * parseFloat(tokenInfo.usdPrice) : 0;
+      if (position.type === 'borrow') {
+        return sum - value;
+      }
       return sum + value;
     }, 0);
     setTotalValue(total);
@@ -310,11 +318,15 @@ export function EchelonPositions() {
           const amount = parseFloat(position.supply) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
           const value = tokenInfo?.usdPrice ? amount * parseFloat(tokenInfo.usdPrice) : 0;
           const apy = getApyForPosition(position);
+          const isBorrow = position.type === 'borrow';
           
           return (
             <div 
               key={`${position.coin}-${index}`} 
-              className="p-4 border-b last:border-b-0 cursor-grab active:cursor-grabbing hover:bg-accent/50 transition-colors"
+              className={cn(
+                'p-4 border-b last:border-b-0 cursor-grab active:cursor-grabbing hover:bg-accent/50 transition-colors',
+                isBorrow && 'bg-red-50'
+              )}
               draggable={true}
               onDragStart={(e) => handleDragStart(e, position)}
               onDragEnd={handleDragEnd}
@@ -335,8 +347,16 @@ export function EchelonPositions() {
                   <div>
                     <div className="flex items-center gap-2">
                       <div className="text-lg">{tokenInfo?.symbol || position.coin.substring(0, 4).toUpperCase()}</div>
-                      <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-xs font-normal px-2 py-0.5 h-5">
-                        Supply
+                      <Badge 
+                        variant="outline" 
+                        className={cn(
+                          isBorrow
+                            ? 'bg-red-500/10 text-red-600 border-red-500/20'
+                            : 'bg-green-500/10 text-green-600 border-green-500/20',
+                          'text-xs font-normal px-2 py-0.5 h-5'
+                        )}
+                      >
+                        {isBorrow ? 'Borrow' : 'Supply'}
                       </Badge>
                     </div>
                     <div className="text-base text-muted-foreground mt-0.5">
@@ -346,7 +366,12 @@ export function EchelonPositions() {
                 </div>
                 <div className="text-right">
                   <div className="flex items-center gap-2 mb-1">
-                    <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-xs font-normal px-2 py-0.5 h-5">
+                    <Badge variant="outline" className={cn(
+                      isBorrow
+                        ? 'bg-red-500/10 text-red-600 border-red-500/20'
+                        : 'bg-green-500/10 text-green-600 border-green-500/20',
+                      'text-xs font-normal px-2 py-0.5 h-5')}
+                    >
                       APY: {apy !== null ? (apy * 100).toFixed(2) + '%' : 'N/A'}
                     </Badge>
                     <div className="text-lg font-bold">${value.toFixed(2)}</div>
@@ -354,7 +379,11 @@ export function EchelonPositions() {
                   <div className="text-base text-muted-foreground font-semibold">{amount.toFixed(4)}</div>
                   <div className="flex flex-col gap-1 mt-2">
                     <button
-                      className={`px-3 py-1 rounded text-sm font-semibold disabled:opacity-60 transition-all bg-red-500 text-white hover:bg-red-600 shadow-lg`}
+                      className={cn(
+                        'px-3 py-1 rounded text-sm font-semibold disabled:opacity-60 transition-all',
+                        isBorrow ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-green-500 text-white hover:bg-green-600',
+                        'shadow-lg'
+                      )}
                       onClick={() => handleWithdrawClick(position)}
                       disabled={isWithdrawing}
                     >

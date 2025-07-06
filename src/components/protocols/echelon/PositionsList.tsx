@@ -22,6 +22,7 @@ interface Position {
   supply: number;
   supplyApr: number;
   amount?: number;
+  type?: string; // supply или borrow
 }
 
 interface TokenInfo {
@@ -99,13 +100,15 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
     loadPositions();
   }, [walletAddress]);
 
-  // Считаем общую сумму в долларах
+  // Считаем общую сумму в долларах: supply плюсуем, borrow вычитаем
   const totalValue = positions.reduce((sum, position) => {
     const tokenInfo = getTokenInfo(position.coin);
-    // Используем supply, если есть, иначе amount (для совместимости с API)
     const rawAmount = position.supply ?? position.amount ?? 0;
     const amount = rawAmount / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
     const value = tokenInfo?.usdPrice ? amount * parseFloat(tokenInfo.usdPrice) : 0;
+    if (position.type === 'borrow') {
+      return sum - value;
+    }
     return sum + value;
   }, 0);
 
@@ -171,9 +174,9 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
               const rawAmount = position.supply ?? position.amount ?? 0;
               const amount = rawAmount / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
               const value = tokenInfo?.usdPrice ? (amount * parseFloat(tokenInfo.usdPrice)).toFixed(2) : 'N/A';
-              
+              const isBorrow = position.type === 'borrow';
               return (
-                <div key={`${position.coin}-${index}`} className="mb-2">
+                <div key={`${position.coin}-${index}`} className={cn('mb-2', isBorrow && 'bg-red-50 rounded')}> 
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       {tokenInfo?.logoUrl && (
@@ -188,7 +191,15 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
                         </div>
                       )}
                       <div>
-                        <div className="text-sm font-medium">{tokenInfo?.symbol || position.coin.substring(0, 4).toUpperCase()}</div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">{tokenInfo?.symbol || position.coin.substring(0, 4).toUpperCase()}</span>
+                          <span className={cn(
+                            'text-xs font-semibold px-2 py-0.5 rounded',
+                            isBorrow ? 'bg-red-500/10 text-red-600 border border-red-500/20' : 'bg-green-500/10 text-green-600 border border-green-500/20')
+                          }>
+                            {isBorrow ? 'Borrow' : 'Supply'}
+                          </span>
+                        </div>
                         <div className="text-xs text-muted-foreground">
                           ${tokenInfo?.usdPrice ? parseFloat(tokenInfo.usdPrice).toFixed(2) : 'N/A'}
                         </div>
