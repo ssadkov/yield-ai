@@ -21,6 +21,7 @@ interface Position {
   coin: string;
   supply: number;
   supplyApr: number;
+  amount?: number;
 }
 
 interface TokenInfo {
@@ -101,7 +102,9 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
   // Считаем общую сумму в долларах
   const totalValue = positions.reduce((sum, position) => {
     const tokenInfo = getTokenInfo(position.coin);
-    const amount = position.supply / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
+    // Используем supply, если есть, иначе amount (для совместимости с API)
+    const rawAmount = position.supply ?? position.amount ?? 0;
+    const amount = rawAmount / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
     const value = tokenInfo?.usdPrice ? amount * parseFloat(tokenInfo.usdPrice) : 0;
     return sum + value;
   }, 0);
@@ -110,8 +113,10 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
   const sortedPositions = [...positions].sort((a, b) => {
     const tokenInfoA = getTokenInfo(a.coin);
     const tokenInfoB = getTokenInfo(b.coin);
-    const amountA = a.supply / (tokenInfoA?.decimals ? 10 ** tokenInfoA.decimals : 1e8);
-    const amountB = b.supply / (tokenInfoB?.decimals ? 10 ** tokenInfoB.decimals : 1e8);
+    const rawAmountA = a.supply ?? a.amount ?? 0;
+    const rawAmountB = b.supply ?? b.amount ?? 0;
+    const amountA = rawAmountA / (tokenInfoA?.decimals ? 10 ** tokenInfoA.decimals : 1e8);
+    const amountB = rawAmountB / (tokenInfoB?.decimals ? 10 ** tokenInfoB.decimals : 1e8);
     const valueA = tokenInfoA?.usdPrice ? amountA * parseFloat(tokenInfoA.usdPrice) : 0;
     const valueB = tokenInfoB?.usdPrice ? amountB * parseFloat(tokenInfoB.usdPrice) : 0;
     return valueB - valueA;
@@ -163,7 +168,8 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
           <ScrollArea className="h-full">
             {sortedPositions.map((position, index) => {
               const tokenInfo = getTokenInfo(position.coin);
-              const amount = position.supply / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
+              const rawAmount = position.supply ?? position.amount ?? 0;
+              const amount = rawAmount / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
               const value = tokenInfo?.usdPrice ? (amount * parseFloat(tokenInfo.usdPrice)).toFixed(2) : 'N/A';
               
               return (
