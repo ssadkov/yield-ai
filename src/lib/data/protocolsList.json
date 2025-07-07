@@ -62,5 +62,16 @@
     "depositUrl": "https://tapp.exchange/pool",
     "isDepositEnabled": false,
     "managedType": "native"
+  },
+  {
+    "name": "Auro Finance",
+    "category": "Lending",
+    "url": "https://app.auro.finance?ref=Y7RSIC14LS4F",
+    "logoUrl": "https://app.auro.finance/logo.png",
+    "description": "Auro Finance is an advanced DeFi protocol that enables users to gain rewards and liquidity from their staked APT without any lockups. Through Auro Finance, users can borrow USDA, the platform's native stablecoin, against multiple collateral options, allowing them to utilize their holdings without selling them.",
+    "depositType": "external",
+    "depositUrl": "https://app.auro.finance?ref=Y7RSIC14LS4F",
+    "isDepositEnabled": false,
+    "managedType": "native"
   }
 ] 

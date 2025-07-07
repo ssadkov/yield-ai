@@ -167,6 +167,7 @@ See `src/lib/examples/newProtocolExample.ts` for a complete example.
 - Aries
 - Tapp Exchange
 - Meso Finance
+- **Auro Finance** (placeholder implementation)
 
 ## Adding New Categories
 

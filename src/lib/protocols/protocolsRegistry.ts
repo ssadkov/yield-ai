@@ -3,6 +3,7 @@ import { JouleProtocol } from "./joule";
 import { AriesProtocol } from "./aries";
 import { HyperionProtocol } from "./hyperion";
 import { MesoProtocol } from "./meso";
+import { AuroProtocol } from "./auro";
 import { BaseProtocol } from "./BaseProtocol";
 import { ProtocolKey } from "../transactions/types";
 
@@ -12,4 +13,5 @@ export const protocols: Record<ProtocolKey, BaseProtocol> = {
   aries: new AriesProtocol(),
   hyperion: new HyperionProtocol(),
   meso: new MesoProtocol(),
+  auro: new AuroProtocol(),
 }; 
