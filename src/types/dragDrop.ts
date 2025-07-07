@@ -18,7 +18,7 @@ export interface PositionDragData {
   protocol: string;
   // Поля для Echelon
   market?: string;
-  supply: string;
+  supply?: string;
   tokenInfo?: {
     symbol: string;
     logoUrl?: string;

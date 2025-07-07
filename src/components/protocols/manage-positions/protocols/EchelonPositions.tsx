@@ -18,7 +18,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 
 interface Position {
   coin: string;
-  supply: string;
+  amount: number | string;
   market?: string;
   type?: string; // supply или borrow
 }
@@ -108,8 +108,8 @@ export function EchelonPositions() {
   const sortedPositions = [...positions].sort((a, b) => {
     const tokenInfoA = getTokenInfo(a.coin);
     const tokenInfoB = getTokenInfo(b.coin);
-    const amountA = parseFloat(a.supply) / (tokenInfoA?.decimals ? 10 ** tokenInfoA.decimals : 1e8);
-    const amountB = parseFloat(b.supply) / (tokenInfoB?.decimals ? 10 ** tokenInfoB.decimals : 1e8);
+    const amountA = parseFloat(String(a.amount)) / (tokenInfoA?.decimals ? 10 ** tokenInfoA.decimals : 1e8);
+    const amountB = parseFloat(String(b.amount)) / (tokenInfoB?.decimals ? 10 ** tokenInfoB.decimals : 1e8);
     const valueA = tokenInfoA?.usdPrice ? amountA * parseFloat(tokenInfoA.usdPrice) : 0;
     const valueB = tokenInfoB?.usdPrice ? amountB * parseFloat(tokenInfoB.usdPrice) : 0;
     // borrow всегда ниже supply
@@ -123,7 +123,7 @@ export function EchelonPositions() {
   useEffect(() => {
     const total = sortedPositions.reduce((sum, position) => {
       const tokenInfo = getTokenInfo(position.coin);
-      const amount = parseFloat(position.supply) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
+      const amount = parseFloat(String(position.amount)) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
       const value = tokenInfo?.usdPrice ? amount * parseFloat(tokenInfo.usdPrice) : 0;
       if (position.type === 'borrow') {
         return sum - value;
@@ -148,11 +148,10 @@ export function EchelonPositions() {
       type: 'position',
       positionId: position.coin,
       asset: position.coin,
-      amount: position.supply,
+      amount: String(position.amount),
       positionType: 'lend',
       protocol: 'Echelon',
       market: market?.market,
-      supply: position.supply,
       tokenInfo: tokenInfo ? {
         symbol: tokenInfo.symbol,
         logoUrl: tokenInfo.logoUrl,
@@ -252,7 +251,7 @@ export function EchelonPositions() {
       <ScrollArea>
         {sortedPositions.map((position, index) => {
           const tokenInfo = getTokenInfo(position.coin);
-          const rawAmount = parseFloat(position.supply);
+          const rawAmount = typeof position.amount === 'number' ? position.amount : parseFloat(position.amount);
           const amount = !isNaN(rawAmount) && tokenInfo?.decimals ? rawAmount / 10 ** tokenInfo.decimals : 0;
           const value = tokenInfo?.usdPrice ? (amount * parseFloat(tokenInfo.usdPrice)).toFixed(2) : 'N/A';
           const apy = getApyForPosition(position);
@@ -262,12 +261,10 @@ export function EchelonPositions() {
             <div 
               key={`${position.coin}-${index}`} 
               className={cn(
-                'p-4 border-b last:border-b-0 cursor-grab active:cursor-grabbing hover:bg-accent/50 transition-colors',
+                'p-4 border-b last:border-b-0 transition-colors',
                 isBorrow && 'bg-red-50'
               )}
-              draggable={true}
-              onDragStart={(e) => handleDragStart(e, position)}
-              onDragEnd={handleDragEnd}
+              draggable={false}
             >
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
@@ -316,27 +313,19 @@ export function EchelonPositions() {
                   </div>
                   <div className="text-base text-muted-foreground font-semibold">{amount.toFixed(4)}</div>
                   <div className="flex flex-col gap-1 mt-2">
-                    <button
-                      className={cn(
-                        'px-3 py-1 rounded text-sm font-semibold disabled:opacity-60 transition-all',
-                        isBorrow ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-green-500 text-white hover:bg-green-600',
-                        'shadow-lg'
-                      )}
-                      onClick={() => handleWithdrawClick(position)}
-                      disabled={isWithdrawing}
-                    >
-                      {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
-                    </button>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="text-xs text-muted-foreground text-center">
-                          Drag to wallet to withdraw
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Drag this position to your wallet to withdraw funds</p>
-                      </TooltipContent>
-                    </Tooltip>
+                    {!isBorrow && (
+                      <button
+                        className={cn(
+                          'px-3 py-1 rounded text-sm font-semibold disabled:opacity-60 transition-all',
+                          'bg-green-500 text-white hover:bg-green-600',
+                          'shadow-lg'
+                        )}
+                        onClick={() => handleWithdrawClick(position)}
+                        disabled={isWithdrawing}
+                      >
+                        {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -363,7 +352,7 @@ export function EchelonPositions() {
             closeAllModals();
           }}
           onConfirm={handleWithdrawConfirm}
-          position={selectedPosition}
+          position={{ ...selectedPosition, supply: String(selectedPosition.amount) }}
           tokenInfo={getTokenInfo(selectedPosition.coin)}
           isLoading={isWithdrawing}
           userAddress={account?.address?.toString()}
