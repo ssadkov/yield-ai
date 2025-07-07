@@ -3,6 +3,15 @@ import { NextRequest, NextResponse } from 'next/server';
 // Auro Finance contract addresses (mainnet)
 const AURO_ADDRESS = "0x50a340a19e6ada1be07192c042786ca6a9651d5c845acc8727e8c6416a56a32c";
 
+// Helper function to normalize collection id
+function normalizeCollectionId(id: string): string {
+  if (id.startsWith("0x") && id.length === 66) return id;
+  if (id.startsWith("0x") && id.length === 65) {
+    return "0x0" + id.slice(2);
+  }
+  return id; // fallback
+}
+
 export async function GET(request: NextRequest) {
   try {
     console.log('=== Auro API Route Started ===');
@@ -50,10 +59,15 @@ export async function GET(request: NextRequest) {
 
     const collectionAddress = data[0];
     console.log('Collection address:', collectionAddress);
+    
+    // Стандартизируем адрес коллекции
+    const standardizedAddress = normalizeCollectionId(collectionAddress);
+    console.log('Standardized address:', standardizedAddress);
 
     const result = {
       success: true,
       collectionAddress: collectionAddress,
+      standardizedCollectionAddress: standardizedAddress,
       message: "Collection address retrieved successfully"
     };
 

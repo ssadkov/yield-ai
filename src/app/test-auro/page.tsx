@@ -16,6 +16,7 @@ export default function TestAuroPage() {
   const [positions, setPositions] = useState<string[]>([]);
   const [positionInfo, setPositionInfo] = useState<any[]>([]);
   const [collectionAddress, setCollectionAddress] = useState<string>("");
+  const [standardizedCollectionAddress, setStandardizedCollectionAddress] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [authError, setAuthError] = useState<boolean>(false);
   const [debugInfo, setDebugInfo] = useState<string>("");
@@ -37,6 +38,7 @@ export default function TestAuroPage() {
     setPositions([]);
     setPositionInfo([]);
     setCollectionAddress("");
+    setStandardizedCollectionAddress("");
 
     try {
       const apiUrl = `/api/protocols/auro/userPositions?address=${encodeURIComponent(walletAddress)}`;
@@ -62,6 +64,7 @@ export default function TestAuroPage() {
         setPositions(data.positions || []);
         setPositionInfo(data.positionInfo || []);
         setCollectionAddress(data.collectionAddress || "");
+        setStandardizedCollectionAddress(data.standardizedCollectionAddress || "");
       } else {
         throw new Error(data.error || "Failed to fetch positions");
       }
@@ -167,6 +170,12 @@ export default function TestAuroPage() {
                 <Label className="text-xs text-muted-foreground">Collection Address:</Label>
                 <p className="font-mono text-sm break-all">{collectionAddress}</p>
               </div>
+              {standardizedCollectionAddress && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Standardized Address:</Label>
+                  <p className="font-mono text-sm break-all">{standardizedCollectionAddress}</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
