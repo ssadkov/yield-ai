@@ -191,12 +191,19 @@ export default function TestAuroPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {positions.map((position, index) => (
-                <div key={index} className="p-3 border rounded-lg">
+              {positions.map((position: any, index: number) => (
+                <div key={position.storage_id} className="p-3 border rounded-lg">
                   <div className="flex items-center justify-between">
                     <div>
                       <Badge variant="secondary">Position NFT #{index + 1}</Badge>
-                      <p className="text-sm font-mono mt-1">{position}</p>
+                      <p className="text-sm font-mono mt-1">Storage ID: {position.storage_id}</p>
+                      <p className="text-sm font-mono mt-1">Name: {position.current_token_data?.token_name}</p>
+                      {position.current_token_data?.token_uri && (
+                        <a href={position.current_token_data.token_uri} target="_blank" rel="noopener noreferrer" className="text-xs underline text-blue-600">
+                          Token URI
+                        </a>
+                      )}
+                      <p className="text-xs mt-1">Collection: {position.current_token_data?.current_collection?.collection_name}</p>
                     </div>
                   </div>
                 </div>

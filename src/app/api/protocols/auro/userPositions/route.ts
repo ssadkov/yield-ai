@@ -64,11 +64,70 @@ export async function GET(request: NextRequest) {
     const standardizedAddress = normalizeCollectionId(collectionAddress);
     console.log('Standardized address:', standardizedAddress);
 
+    // Новый GraphQL-запрос для поиска позиций по collection_id
+    const query = `
+      query GetUserAuroPositions($owner: String!, $collectionId: String!) {
+        current_token_ownerships_v2(
+          where: {
+            owner_address: { _eq: $owner },
+            amount: { _gt: "0" },
+            current_token_data: {
+              collection_id: { _eq: $collectionId }
+            }
+          }
+        ) {
+          storage_id
+          amount
+          current_token_data {
+            token_name
+            token_uri
+            token_data_id
+            collection_id
+            current_collection {
+              collection_name
+              creator_address
+            }
+          }
+        }
+      }
+    `;
+
+    const variables = {
+      owner: address,
+      collectionId: standardizedAddress,
+    };
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (process.env.APTOS_API_KEY) {
+      headers['Authorization'] = `Bearer ${process.env.APTOS_API_KEY}`;
+    }
+
+    const indexerResponse = await fetch("https://indexer.mainnet.aptoslabs.com/v1/graphql", {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ query, variables })
+    });
+
+    if (!indexerResponse.ok) {
+      const errorText = await indexerResponse.text();
+      throw new Error(`Indexer API error: ${indexerResponse.status} - ${errorText}`);
+    }
+
+    const indexerData = await indexerResponse.json();
+    if (indexerData.errors) {
+      throw new Error(`GraphQL errors: ${JSON.stringify(indexerData.errors)}`);
+    }
+
+    const positions = (indexerData.data?.current_token_ownerships_v2 || []);
+
     const result = {
       success: true,
       collectionAddress: collectionAddress,
       standardizedCollectionAddress: standardizedAddress,
-      message: "Collection address retrieved successfully"
+      positions,
+      message: "Collection address and user positions retrieved successfully"
     };
 
     console.log('Returning result:', JSON.stringify(result, null, 2));
