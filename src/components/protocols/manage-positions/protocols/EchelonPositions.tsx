@@ -133,56 +133,6 @@ export function EchelonPositions() {
     setTotalValue(total);
   }, [sortedPositions]);
 
-  // Обработчик события обновления позиций
-  useEffect(() => {
-    const handleRefresh = (event: CustomEvent) => {
-      if (event.detail.protocol === 'echelon') {
-        if (event.detail.data && Array.isArray(event.detail.data)) {
-          const positionsWithValue = event.detail.data.map((position: any) => ({
-            ...position,
-            value: Number(position.amount) * Number(position.price)
-          }));
-          setPositions(positionsWithValue);
-        } else {
-          loadPositions();
-        }
-      }
-    };
-
-    window.addEventListener('refreshPositions', handleRefresh as EventListener);
-    return () => {
-      window.removeEventListener('refreshPositions', handleRefresh as EventListener);
-    };
-  }, [loadPositions]);
-
-  // Обработчик события для вызова withdraw
-  useEffect(() => {
-    const handleTriggerWithdraw = (event: CustomEvent) => {
-      const { positionId } = event.detail;
-      
-      // Проверяем, не открыта ли уже модалка
-      if (isModalOpenRef.current) {
-        console.log('EchelonPositions: Modal already open, ignoring event');
-        return;
-      }
-      
-      const position = positions.find(p => p.coin === positionId);
-      if (position) {
-        console.log('EchelonPositions: Handling triggerWithdraw event', {
-          positionId: position.coin,
-          isModalOpen: isModalOpenRef.current
-        });
-        isModalOpenRef.current = true;
-        handleWithdrawClick(position);
-      }
-    };
-
-    window.addEventListener('triggerWithdraw', handleTriggerWithdraw as EventListener);
-    return () => {
-      window.removeEventListener('triggerWithdraw', handleTriggerWithdraw as EventListener);
-    };
-  }, [positions]);
-
   // Обработчик открытия модального окна withdraw
   const handleWithdrawClick = (position: Position) => {
     setSelectedPosition(position);
@@ -285,19 +235,6 @@ export function EchelonPositions() {
     }
   };
 
-  // Регистрируем обработчик подтверждения транзакции в DragDropContext
-  useEffect(() => {
-    const confirmHandler = async () => {
-      if (selectedPosition) {
-        await handleWithdrawConfirm(BigInt(selectedPosition.supply));
-      }
-    };
-    setPositionConfirmHandler(confirmHandler);
-    return () => {
-      setPositionConfirmHandler(null);
-    };
-  }, [setPositionConfirmHandler, selectedPosition, handleWithdrawConfirm]);
-
   if (loading) {
     return <div>Loading positions...</div>;
   }
@@ -315,8 +252,9 @@ export function EchelonPositions() {
       <ScrollArea>
         {sortedPositions.map((position, index) => {
           const tokenInfo = getTokenInfo(position.coin);
-          const amount = parseFloat(position.supply) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
-          const value = tokenInfo?.usdPrice ? amount * parseFloat(tokenInfo.usdPrice) : 0;
+          const rawAmount = parseFloat(position.supply);
+          const amount = !isNaN(rawAmount) && tokenInfo?.decimals ? rawAmount / 10 ** tokenInfo.decimals : 0;
+          const value = tokenInfo?.usdPrice ? (amount * parseFloat(tokenInfo.usdPrice)).toFixed(2) : 'N/A';
           const apy = getApyForPosition(position);
           const isBorrow = position.type === 'borrow';
           
@@ -374,7 +312,7 @@ export function EchelonPositions() {
                     >
                       APY: {apy !== null ? (apy * 100).toFixed(2) + '%' : 'N/A'}
                     </Badge>
-                    <div className="text-lg font-bold">${value.toFixed(2)}</div>
+                    <div className="text-lg font-bold">${value}</div>
                   </div>
                   <div className="text-base text-muted-foreground font-semibold">{amount.toFixed(4)}</div>
                   <div className="flex flex-col gap-1 mt-2">
