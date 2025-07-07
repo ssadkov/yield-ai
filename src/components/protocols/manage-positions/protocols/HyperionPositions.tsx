@@ -12,8 +12,6 @@ import { ConfirmRemoveModal } from "@/components/ui/confirm-remove-modal";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Info } from "lucide-react";
-import { useDragDrop } from "@/contexts/DragDropContext";
-import { PositionDragData } from "@/types/dragDrop";
 
 interface HyperionPositionProps {
   position: any;
@@ -31,8 +29,6 @@ const HyperionPosition = memo(function HyperionPosition({ position, index }: Hyp
   const [poolAPR, setPoolAPR] = useState({ feeAPR: 0, farmAPR: 0 });
   const { signAndSubmitTransaction, account } = useWallet();
   const { toast } = useToast();
-  const { startDrag, endDrag, state, closePositionModal, closeAllModals, setPositionConfirmHandler } = useDragDrop();
-  const isModalOpenRef = useRef(false);
 
   // Добавляем уникальный идентификатор компонента
   const componentId = useMemo(() => `hyperion-${position.position?.objectId}-${index}`, [position.position?.objectId, index]);
@@ -68,43 +64,6 @@ const HyperionPosition = memo(function HyperionPosition({ position, index }: Hyp
 
     fetchPoolAPR();
   }, [poolId]);
-
-  // Обработчик события для вызова remove liquidity
-  const handleTriggerRemoveLiquidity = useCallback((event: CustomEvent) => {
-    const { positionId } = event.detail;
-    
-    // Проверяем, что событие предназначено для этой позиции
-    if (positionId !== position.position.objectId) {
-      return;
-    }
-    
-    // Проверяем, не открыта ли уже модалка
-    if (isModalOpenRef.current) {
-      console.log('HyperionPosition: Modal already open, ignoring event for component', componentId);
-      return;
-    }
-    
-    console.log('HyperionPosition: Handling triggerRemoveLiquidity event', {
-      positionId: position.position.objectId,
-      isModalOpen: isModalOpenRef.current,
-      componentId,
-      timestamp: new Date().toISOString()
-    });
-    
-    // Устанавливаем флаг и открываем модалку
-    isModalOpenRef.current = true;
-    console.log('HyperionPosition: Opening Remove Liquidity modal for component', componentId);
-    handleRemoveLiquidity();
-  }, [position.position.objectId, componentId]);
-
-  useEffect(() => {
-    window.addEventListener('triggerRemoveLiquidity', handleTriggerRemoveLiquidity as EventListener);
-    return () => {
-      window.removeEventListener('triggerRemoveLiquidity', handleTriggerRemoveLiquidity as EventListener);
-    };
-  }, [handleTriggerRemoveLiquidity]);
-
-
 
   // Считаем общий APR
   const totalAPR = poolAPR.feeAPR + poolAPR.farmAPR;
@@ -182,50 +141,11 @@ const HyperionPosition = memo(function HyperionPosition({ position, index }: Hyp
     setShowRemoveModal(true);
   };
 
-  // Drag and drop handlers
-  const handleDragStart = (e: React.DragEvent) => {
-    const dragData: PositionDragData = {
-      type: 'position',
-      positionId: position.position.objectId,
-      asset: `${position.position.pool.token1Info.symbol}/${position.position.pool.token2Info.symbol}`,
-      amount: position.value,
-      positionType: 'liquidity',
-      protocol: 'Hyperion',
-      supply: position.value, // Для Hyperion используем value как supply
-      poolId: position.position.pool.poolId,
-      token1Info: {
-        symbol: position.position.pool.token1Info.symbol,
-        logoUrl: position.position.pool.token1Info.logoUrl,
-        decimals: position.position.pool.token1Info.decimals || 8,
-        address: getTokenAddress(position.position.pool.token1Info),
-      },
-      token2Info: {
-        symbol: position.position.pool.token2Info.symbol,
-        logoUrl: position.position.pool.token2Info.logoUrl,
-        decimals: position.position.pool.token2Info.decimals || 8,
-        address: getTokenAddress(position.position.pool.token2Info),
-      },
-      isActive: position.isActive,
-      value: position.value,
-    };
-
-    e.dataTransfer.setData('application/json', JSON.stringify(dragData));
-    e.dataTransfer.effectAllowed = 'move';
-    
-    startDrag(dragData);
-  };
-
-  const handleDragEnd = () => {
-    endDrag();
-  };
-
   const handleConfirmRemove = async () => {
     if (!signAndSubmitTransaction || !account?.address) return;
     try {
       setIsRemoving(true);
       setShowRemoveModal(false);
-      isModalOpenRef.current = false;
-      closePositionModal(position.position.objectId);
       const token1Info = position.position.pool.token1Info;
       const token2Info = position.position.pool.token2Info;
       const currencyA = getTokenAddress(token1Info);
@@ -279,21 +199,10 @@ const HyperionPosition = memo(function HyperionPosition({ position, index }: Hyp
     }
   };
 
-  // Регистрируем обработчик подтверждения транзакции в DragDropContext
-  useEffect(() => {
-    setPositionConfirmHandler(handleConfirmRemove);
-    return () => {
-      setPositionConfirmHandler(null);
-    };
-  }, [setPositionConfirmHandler, handleConfirmRemove]);
-
   return (
     <div 
       key={`${position.assetName}-${index}`} 
-      className="p-4 border-b last:border-b-0 cursor-grab active:cursor-grabbing hover:bg-accent/50 transition-colors"
-      draggable={true}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
+      className="p-4 border-b last:border-b-0 hover:bg-accent/50 transition-colors"
     >
       <div className="flex justify-between items-center mb-2">
         <div className="flex items-center gap-2">
@@ -408,18 +317,6 @@ const HyperionPosition = memo(function HyperionPosition({ position, index }: Hyp
               {isRemoving ? 'Removing...' : 'Remove'}
             </button>
           </div>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="text-xs text-muted-foreground text-center">
-                  Drag to wallet to remove liquidity
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Drag this position to your wallet to remove liquidity</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
         </div>
       </div>
 
@@ -428,9 +325,6 @@ const HyperionPosition = memo(function HyperionPosition({ position, index }: Hyp
         isOpen={showRemoveModal}
         onClose={() => {
           setShowRemoveModal(false);
-          isModalOpenRef.current = false;
-          closePositionModal(position.position.objectId);
-          closeAllModals();
         }}
         onConfirm={handleConfirmRemove}
         isLoading={isRemoving}
@@ -543,10 +437,11 @@ export function HyperionPositions() {
   const [positions, setPositions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const isModalOpenRef = useRef(false);
 
   const loadPositions = async () => {
+    console.log('[HyperionPositions] loadPositions called');
     if (!account?.address) {
+      console.log('[HyperionPositions] No account address');
       setPositions([]);
       return;
     }
@@ -554,26 +449,24 @@ export function HyperionPositions() {
     try {
       setLoading(true);
       setError(null);
+      console.log('[HyperionPositions] Fetching:', `/api/protocols/hyperion/userPositions?address=${account.address}`);
       const response = await fetch(`/api/protocols/hyperion/userPositions?address=${account.address}`);
-      
+      console.log('[HyperionPositions] Response status:', response.status);
       if (!response.ok) {
         throw new Error(`API returned status ${response.status}`);
       }
-      
       const data = await response.json();
-      
+      console.log('[HyperionPositions] Response data:', data);
       if (data.success && Array.isArray(data.data)) {
         // Проверяем дубликаты
         const positionIds = data.data.map((p: any) => p.position?.objectId);
         const duplicates = positionIds.filter((id: string, index: number) => positionIds.indexOf(id) !== index);
-        
         console.log('HyperionPositions: Raw data analysis', {
           total: data.data.length,
           positionIds: positionIds,
           duplicates: duplicates,
           hasDuplicates: duplicates.length > 0
         });
-        
         // Удаляем дубликаты по positionId с более строгой проверкой
         const seenIds = new Set<string>();
         const uniquePositions = data.data.filter((position: any) => {
@@ -584,14 +477,12 @@ export function HyperionPositions() {
           seenIds.add(positionId);
           return true;
         });
-        
         console.log('HyperionPositions: After deduplication', {
           total: data.data.length,
           unique: uniquePositions.length,
           duplicates: data.data.length - uniquePositions.length,
           uniquePositionIds: uniquePositions.map((p: any) => p.position?.objectId)
         });
-        
         // Сортируем позиции по сумме ликвидности
         const sortedPositions = [...uniquePositions].sort((a, b) => {
           const valueA = parseFloat(a.value || "0");
@@ -600,21 +491,21 @@ export function HyperionPositions() {
         });
         setPositions(sortedPositions);
       } else {
+        console.log('[HyperionPositions] No valid data, setting positions to []');
         setPositions([]);
       }
     } catch (err) {
-      console.error('Error loading Hyperion positions:', err);
+      console.error('[HyperionPositions] Error loading positions:', err);
       setError('Failed to load positions');
       setPositions([]);
     } finally {
       setLoading(false);
+      console.log('[HyperionPositions] Loading set to false');
     }
   };
 
   // Мемоизируем функцию loadPositions
   const memoizedLoadPositions = useCallback(loadPositions, [account?.address]);
-
-
 
   useEffect(() => {
     memoizedLoadPositions();
@@ -644,8 +535,6 @@ export function HyperionPositions() {
     };
   }, [memoizedLoadPositions]);
 
-
-
   // Считаем общую сумму (позиции + награды)
   const totalValue = positions.reduce((sum, position) => {
     const positionValue = parseFloat(position.value || "0");
@@ -669,12 +558,6 @@ export function HyperionPositions() {
   if (positions.length === 0) {
     return null;
   }
-
-
-
-
-
-
 
   return (
     <div className="w-full mb-6 py-2 px-6">
