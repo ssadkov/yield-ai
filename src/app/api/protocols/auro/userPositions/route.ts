@@ -122,11 +122,29 @@ export async function GET(request: NextRequest) {
 
     const positions = (indexerData.data?.current_token_ownerships_v2 || []);
 
+    // Получаем подробную информацию о позициях через view-функцию
+    let rawPositionInfo = null;
+    if (positions.length > 0) {
+      const positionAddresses = positions.map((p: any) => p.storage_id);
+      const payloadPositionInfo = {
+        function: `${AURO_ADDRESS}::auro_view::multiple_position_info`,
+        type_arguments: [],
+        arguments: [positionAddresses],
+      };
+      const viewResponse = await fetch('https://fullnode.mainnet.aptoslabs.com/v1/view', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payloadPositionInfo),
+      });
+      rawPositionInfo = await viewResponse.json();
+    }
+
     const result = {
       success: true,
       collectionAddress: collectionAddress,
       standardizedCollectionAddress: standardizedAddress,
       positions,
+      rawPositionInfo,
       message: "Collection address and user positions retrieved successfully"
     };
 
