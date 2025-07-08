@@ -244,15 +244,35 @@ export default function TestAuroPage() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <Label className="text-xs text-muted-foreground">Collateral Amount</Label>
-                      <p className="font-medium">{info.collateralAmount || "0"} APT</p>
+                      <p className="font-medium">{info.collateralAmount || "0"} {info.collateralSymbol || "Unknown"}</p>
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Debt Amount</Label>
-                      <p className="font-medium">{info.debtAmount || "0"} USDA</p>
+                      <p className="font-medium">{info.debtAmount || "0"} {info.debtSymbol || "USDA"}</p>
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Liquidation Price</Label>
                       <p className="font-medium">${info.liquidatePrice || "0"}</p>
+                    </div>
+                  </div>
+                  
+                  {/* Добавляем дополнительную информацию о токенах */}
+                  <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Collateral Token</Label>
+                        <p className="font-mono text-xs break-all">{info.collateralTokenAddress || "Unknown"}</p>
+                        {info.collateralTokenInfo && (
+                          <p className="text-xs text-muted-foreground">
+                            Decimals: {info.collateralTokenInfo.decimals} | 
+                            Price: ${info.collateralTokenInfo.usdPrice || "N/A"}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Pool Address</Label>
+                        <p className="font-mono text-xs break-all">{info.poolAddress || "Unknown"}</p>
+                      </div>
                     </div>
                   </div>
                 </div>

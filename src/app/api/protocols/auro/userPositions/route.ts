@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 // Auro Finance contract addresses (mainnet)
 const AURO_ADDRESS = "0x50a340a19e6ada1be07192c042786ca6a9651d5c845acc8727e8c6416a56a32c";
 const AURO_ROUTER_ADDRESS = '0xd039ef33e378c10544491855a2ef99cd77bf1a610fd52cc43117cd96e1c73465';
+
 // Helper function to normalize collection id
 function normalizeCollectionId(id: string): string {
   if (id.startsWith("0x") && id.length === 66) return id;
@@ -10,6 +11,49 @@ function normalizeCollectionId(id: string): string {
     return "0x0" + id.slice(2);
   }
   return id; // fallback
+}
+
+// Helper function to get token info from tokenList.json
+function getTokenInfo(tokenAddress: string) {
+  const tokenList = require('@/lib/data/tokenList.json');
+  return tokenList.data.data.find((token: any) => 
+    token.tokenAddress === tokenAddress || 
+    token.faAddress === tokenAddress
+  );
+}
+
+// Helper function to get collateral token for a pool
+async function getCollateralToken(poolAddress: string): Promise<string | null> {
+  try {
+    const viewPayload = {
+      function: `${AURO_ADDRESS}::auro_pool::collateral_token`,
+      type_arguments: [],
+      arguments: [poolAddress]
+    };
+
+    console.log('Getting collateral token for pool:', poolAddress);
+    
+    const response = await fetch('https://fullnode.mainnet.aptoslabs.com/v1/view', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(viewPayload)
+    });
+
+    if (!response.ok) {
+      console.error('Failed to get collateral token for pool:', poolAddress);
+      return null;
+    }
+
+    const data = await response.json();
+    const tokenAddress = data[0];
+    console.log('Collateral token for pool', poolAddress, ':', tokenAddress);
+    return tokenAddress;
+  } catch (error) {
+    console.error('Error getting collateral token for pool:', poolAddress, error);
+    return null;
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -129,36 +173,15 @@ export async function GET(request: NextRequest) {
       const positionAddresses = positions.map((p: any) => p.storage_id);
 
       type PositionInfo = {
-        collateral_pool: string;  // pool address
+        collateral_pool: {
+          inner: string;
+        };  // pool address
         asset_amount: string;
         debt_amount: string;
         liquidate_price: string;
       };
 
       try {
-        // Сначала протестируем простую view-функцию через fetch
-        const testPayload = {
-          function: `${AURO_ROUTER_ADDRESS}::auro_view::reward_pools`,
-          type_arguments: [],
-          arguments: []
-        };
-
-        console.log("Testing fetch with reward_pools function:", testPayload.function);
-        
-        const testResponse = await fetch('https://fullnode.mainnet.aptoslabs.com/v1/view', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(testPayload)
-        });
-        
-        if (testResponse.ok) {
-          const testResult = await testResponse.json();
-          console.log("Test fetch response:", testResult);
-        } else {
-          const errorText = await testResponse.text();
-          console.error("Test fetch error:", testResponse.status, errorText);
-        }
-
         // Теперь вызываем основную функцию через fetch
         const payloadPositionInfo = {
           function: `${AURO_ROUTER_ADDRESS}::auro_view::multiple_position_info`,
@@ -181,14 +204,43 @@ export async function GET(request: NextRequest) {
           if (positionInfoResult && Array.isArray(positionInfoResult) && positionInfoResult.length > 0) {
             const positionsData = positionInfoResult[0] as PositionInfo[];
             if (Array.isArray(positionsData)) {
-              positionInfo = positionsData.map((x: any, index: number) => {
-                return {
-                  address: positionAddresses[index],
-                  collateralAmount: (Number(x.asset_amount) / 1e8).toFixed(2),
-                  debtAmount: (Number(x.debt_amount) / 1e8).toFixed(2),
-                  liquidatePrice: (Number(x.liquidate_price) / 1e8).toFixed(2),
-                };
-              });
+              // Получаем информацию о токенах для каждой позиции
+              const positionInfoWithTokens = await Promise.all(
+                positionsData.map(async (x: any, index: number) => {
+                  const poolAddress = x.collateral_pool?.inner;
+                  let collateralTokenAddress = null;
+                  let collateralTokenInfo = null;
+                  
+                  if (poolAddress) {
+                    collateralTokenAddress = await getCollateralToken(poolAddress);
+                    if (collateralTokenAddress) {
+                      collateralTokenInfo = getTokenInfo(collateralTokenAddress);
+                    }
+                  }
+                  
+                  // Получаем информацию о токене долга (предполагаем USDA)
+                  const debtTokenInfo = getTokenInfo("0x5e156f1207d0ebfa19a9eeff00d62a282278fb8719f4fab3a586a0a2c0fffbea::coin::T");
+                  
+                  // Используем правильные decimals для каждого токена
+                  const collateralDecimals = collateralTokenInfo?.decimals || 8;
+                  const debtDecimals = debtTokenInfo?.decimals || 8;
+                  
+                  return {
+                    address: positionAddresses[index],
+                    poolAddress: poolAddress,
+                    collateralTokenAddress: collateralTokenAddress,
+                    collateralTokenInfo: collateralTokenInfo,
+                    debtTokenInfo: debtTokenInfo,
+                    collateralAmount: (Number(x.asset_amount) / Math.pow(10, collateralDecimals)).toFixed(4),
+                    debtAmount: (Number(x.debt_amount) / Math.pow(10, debtDecimals)).toFixed(4),
+                    liquidatePrice: (Number(x.liquidate_price) / Math.pow(10, 8)).toFixed(2), // Price обычно в 8 decimals
+                    collateralSymbol: collateralTokenInfo?.symbol || 'Unknown',
+                    debtSymbol: debtTokenInfo?.symbol || 'USDA',
+                  };
+                })
+              );
+              
+              positionInfo = positionInfoWithTokens;
             }
           }
           rawPositionInfo = positionInfoResult;
