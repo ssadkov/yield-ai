@@ -5,22 +5,34 @@ import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { ChevronDown } from "lucide-react";
+import { ManagePositionsButton } from "../../ManagePositionsButton";
+import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
+import { useCollapsible } from "@/contexts/CollapsibleContext";
 
-export function AuroPositions() {
+interface AuroPositionsProps {
+  address?: string;
+  onPositionsValueChange?: (value: number) => void;
+}
+
+export function AuroPositions({ address, onPositionsValueChange }: AuroPositionsProps) {
   const { account } = useWallet();
   const [positions, setPositions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState(true);
+  const { isExpanded, toggleSection } = useCollapsible();
 
+  const walletAddress = address || account?.address;
+  const protocol = getProtocolByName("Auro Finance");
+
+  // useEffect для загрузки позиций
   useEffect(() => {
-    if (!account?.address) {
+    if (!walletAddress) {
       setPositions([]);
       return;
     }
     setLoading(true);
     setError(null);
-    fetch(`/api/protocols/auro/userPositions?address=${account.address}`)
+    fetch(`/api/protocols/auro/userPositions?address=${walletAddress}`)
       .then(res => res.json())
       .then(data => {
         setPositions(Array.isArray(data.positionInfo) ? data.positionInfo : []);
@@ -30,9 +42,30 @@ export function AuroPositions() {
         setPositions([]);
       })
       .finally(() => setLoading(false));
-  }, [account?.address]);
+  }, [walletAddress]);
 
-  if (!account?.address) return null;
+  // Сортировка по value (по убыванию)
+  const sortedPositions = [...positions].sort((a, b) => {
+    const valueA = a.collateralTokenInfo?.usdPrice ? parseFloat(a.collateralAmount) * parseFloat(a.collateralTokenInfo.usdPrice) : 0;
+    const valueB = b.collateralTokenInfo?.usdPrice ? parseFloat(b.collateralAmount) * parseFloat(b.collateralTokenInfo.usdPrice) : 0;
+    return valueB - valueA;
+  });
+
+  // Сумма активов
+  const totalValue = sortedPositions.reduce((sum, pos) => {
+    const v = pos.collateralTokenInfo?.usdPrice ? parseFloat(pos.collateralAmount) * parseFloat(pos.collateralTokenInfo.usdPrice) : 0;
+    return sum + v;
+  }, 0);
+
+  // useEffect для передачи суммы наверх
+  useEffect(() => {
+    if (onPositionsValueChange) {
+      onPositionsValueChange(totalValue);
+    }
+  }, [totalValue, onPositionsValueChange]);
+
+  // Только после хуков — return
+  if (!walletAddress) return null;
   if (loading) {
     return (
       <Card>
@@ -68,24 +101,11 @@ export function AuroPositions() {
   }
   if (!positions || positions.length === 0) return null;
 
-  // Сортировка по value (по убыванию)
-  const sortedPositions = [...positions].sort((a, b) => {
-    const valueA = a.collateralTokenInfo?.usdPrice ? parseFloat(a.collateralAmount) * parseFloat(a.collateralTokenInfo.usdPrice) : 0;
-    const valueB = b.collateralTokenInfo?.usdPrice ? parseFloat(b.collateralAmount) * parseFloat(b.collateralTokenInfo.usdPrice) : 0;
-    return valueB - valueA;
-  });
-
-  // Сумма активов
-  const totalValue = sortedPositions.reduce((sum, pos) => {
-    const v = pos.collateralTokenInfo?.usdPrice ? parseFloat(pos.collateralAmount) * parseFloat(pos.collateralTokenInfo.usdPrice) : 0;
-    return sum + v;
-  }, 0);
-
   return (
     <Card className="w-full">
       <CardHeader 
         className="py-2 cursor-pointer hover:bg-accent/50 transition-colors"
-        onClick={() => setExpanded(e => !e)}
+        onClick={() => toggleSection('auro')}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -104,12 +124,12 @@ export function AuroPositions() {
             <div className="text-lg">${totalValue.toFixed(2)}</div>
             <ChevronDown className={cn(
               "h-5 w-5 transition-transform",
-              expanded ? "transform rotate-0" : "transform -rotate-90"
+              isExpanded('auro') ? "transform rotate-0" : "transform -rotate-90"
             )} />
           </div>
         </div>
       </CardHeader>
-      {expanded && (
+      {isExpanded('auro') && (
         <CardContent className="flex-1 overflow-y-auto px-3 pt-0">
           <div className="space-y-2">
             {sortedPositions.map((pos, idx) => {
@@ -174,6 +194,8 @@ export function AuroPositions() {
                 </div>
               );
             })}
+            {/* Кнопка Manage Positions — как у Echelon */}
+            {protocol && <ManagePositionsButton protocol={protocol} />}
           </div>
         </CardContent>
       )}

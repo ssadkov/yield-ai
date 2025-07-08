@@ -33,6 +33,7 @@ import { useProtocol } from "@/lib/contexts/ProtocolContext";
 import { useDragDrop } from "@/contexts/DragDropContext";
 import { DragData } from "@/types/dragDrop";
 import { cn } from "@/lib/utils";
+import { CollapsibleProvider } from "@/contexts/CollapsibleContext";
 
 // Список адресов токенов Echelon, которые нужно исключить из отображения
 const EXCLUDED_ECHELON_TOKENS = [
@@ -244,10 +245,12 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   return (
     <div className={className}>
       {selectedProtocol && (
-        <ManagePositions 
-          protocol={selectedProtocol} 
-          onClose={() => setSelectedProtocol(null)} 
-        />
+        <CollapsibleProvider>
+          <ManagePositions 
+            protocol={selectedProtocol} 
+            onClose={() => setSelectedProtocol(null)} 
+          />
+        </CollapsibleProvider>
       )}
 
       <div className="mb-4 pl-4">
