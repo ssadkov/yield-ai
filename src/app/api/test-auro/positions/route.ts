@@ -3,7 +3,7 @@ import { Aptos, Network, InputViewFunctionData, AptosConfig } from "@aptos-labs/
 
 // Auro Finance contract addresses (mainnet)
 const AURO_ADDRESS = "0x50a340a19e6ada1be07192c042786ca6a9651d5c845acc8727e8c6416a56a32c";
-const AURO_ROUTER_ADDRESS = "0x50a340a19e6ada1be07192c042786ca6a9651d5c845acc8727e8c6416a56a32c";
+const AURO_ROUTER_ADDRESS = "0xd039ef33e378c10544491855a2ef99cd77bf1a610fd52cc43117cd96e1c73465";
 
 // Helper function to standardize address format
 function standardizeAddress(address: string): string {
@@ -52,7 +52,11 @@ export async function GET(request: NextRequest) {
     const data = await resp.json();
     const positions = (data.data?.current_token_ownerships_v2 || []).map((x: any) => x.storage_id);
 
-    return NextResponse.json({ positions });
+    // Получаем подробную информацию о позициях
+    const detailedPositions = await getPositionInfo(positions);
+    console.log("[test_auro] detailedPositions:", detailedPositions);
+
+    return NextResponse.json({ positions: detailedPositions });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: "Failed to fetch user positions" }, { status: 500 });
@@ -68,35 +72,31 @@ async function getPositionInfo(positionsAddress: string[]): Promise<any[]> {
       return [];
     }
 
-    // Call the view function to get position info
-    const viewPayload = {
+    const aptosConfig = new AptosConfig({
+      network: Network.MAINNET,
+      fullnode: "https://fullnode.mainnet.aptoslabs.com"
+    });
+    const aptos = new Aptos(aptosConfig);
+
+    // Call the view function to get position info using SDK
+    const payloadPositionInfo: InputViewFunctionData = {
       function: `${AURO_ROUTER_ADDRESS}::auro_view::multiple_position_info`,
-      type_arguments: [],
-      arguments: [positionsAddress]
+      typeArguments: [],
+      functionArguments: [positionsAddress], // обычный массив storage_id строк
     };
 
-    console.log("Calling view function:", viewPayload.function);
+    console.log("Calling view function:", payloadPositionInfo.function);
     
-    const viewResponse = await fetch('https://fullnode.mainnet.aptoslabs.com/v1/view', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(viewPayload)
-    });
-
-    if (viewResponse.ok) {
-      const viewData = await viewResponse.json();
-      console.log("View function response:", viewData);
-      
-      if (viewData && Array.isArray(viewData)) {
-        return viewData.map((position: any, index: number) => ({
-          address: positionsAddress[index],
-          collateralAmount: position.asset_amount ? (parseInt(position.asset_amount) / 1e8).toFixed(2) : "0",
-          debtAmount: position.debt_amount ? (parseInt(position.debt_amount) / 1e8).toFixed(2) : "0",
-          liquidatePrice: position.liquidate_price ? (parseInt(position.liquidate_price) / 1e8).toFixed(2) : "0",
-        }));
-      }
+    const [rawPositionInfo] = await aptos.view({ payload: payloadPositionInfo });
+    console.log("View function response:", rawPositionInfo);
+    
+    if (rawPositionInfo && Array.isArray(rawPositionInfo)) {
+      return rawPositionInfo.map((position: any, index: number) => ({
+        address: positionsAddress[index],
+        collateralAmount: position.asset_amount ? (parseInt(position.asset_amount) / 1e8).toFixed(2) : "0",
+        debtAmount: position.debt_amount ? (parseInt(position.debt_amount) / 1e8).toFixed(2) : "0",
+        liquidatePrice: position.liquidate_price ? (parseInt(position.liquidate_price) / 1e8).toFixed(2) : "0",
+      }));
     }
 
     // If view function fails, try to get basic info from indexer

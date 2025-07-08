@@ -244,15 +244,15 @@ export default function TestAuroPage() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <Label className="text-xs text-muted-foreground">Collateral Amount</Label>
-                      <p className="font-medium">{info.collateralAmount?.toFixed(2) || 0} APT</p>
+                      <p className="font-medium">{info.collateralAmount || "0"} APT</p>
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Debt Amount</Label>
-                      <p className="font-medium">{info.debtAmount?.toFixed(2) || 0} USDA</p>
+                      <p className="font-medium">{info.debtAmount || "0"} USDA</p>
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground">Liquidation Price</Label>
-                      <p className="font-medium">${info.liquidatePrice?.toFixed(2) || 0}</p>
+                      <p className="font-medium">${info.liquidatePrice || "0"}</p>
                     </div>
                   </div>
                 </div>
