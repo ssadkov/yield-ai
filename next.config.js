@@ -24,7 +24,8 @@ const nextConfig = {
       'app.joule.finance',
       'app.echelon.market',
       'tapp.exchange',
-      'app.meso.finance'
+      'app.meso.finance',
+      'app.auro.finance'
     ],
   },
 }
