@@ -14,7 +14,7 @@ import { PositionsList as AriesPositionsList } from "./protocols/aries/Positions
 import { PositionsList as JoulePositionsList } from "./protocols/joule/PositionsList";
 import { PositionsList as TappPositionsList } from "./protocols/tapp/PositionsList";
 import { PositionsList as MesoPositionsList } from "./protocols/meso/PositionsList";
-import { AuroPositions } from "./protocols/manage-positions/protocols/AuroPositions";
+import { PositionsList as AuroPositionsList } from "./protocols/auro/PositionsList";
 
 export default function Sidebar() {
   const { account } = useWallet();
@@ -143,7 +143,7 @@ export default function Sidebar() {
                 { component: JoulePositionsList, value: jouleValue, name: 'Joule' },
                 { component: TappPositionsList, value: tappValue, name: 'Tapp Exchange' },
                 { component: MesoPositionsList, value: mesoValue, name: 'Meso Finance' },
-                { component: AuroPositions, value: auroValue, name: 'Auro Finance' }
+                { component: AuroPositionsList, value: auroValue, name: 'Auro Finance' }
               ]
                 .sort((a, b) => b.value - a.value)
                 .map(({ component: Component, name }) => (
