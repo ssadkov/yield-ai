@@ -51,10 +51,15 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
     return valueB - valueA;
   });
 
-  // Сумма активов
+  // Сумма активов (Collateral - Debt) - только для заголовка
   const totalValue = sortedPositions.reduce((sum, pos) => {
-    const v = pos.collateralTokenInfo?.usdPrice ? parseFloat(pos.collateralAmount) * parseFloat(pos.collateralTokenInfo.usdPrice) : 0;
-    return sum + v;
+    // Сумма по collateral позициям
+    const collateralValue = pos.collateralTokenInfo?.usdPrice ? parseFloat(pos.collateralAmount) * parseFloat(pos.collateralTokenInfo.usdPrice) : 0;
+    
+    // Сумма по debt позициям (вычитаем)
+    const debtValue = pos.debtTokenInfo?.usdPrice ? parseFloat(pos.debtAmount) * parseFloat(pos.debtTokenInfo.usdPrice) : 0;
+    
+    return sum + collateralValue - debtValue;
   }, 0);
 
   // useEffect для передачи суммы наверх
