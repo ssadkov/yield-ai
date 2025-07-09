@@ -108,34 +108,58 @@ export default function MobileTabs() {
               {account?.address ? (
                 <>
                   <PortfolioCard totalValue={totalValue} tokens={tokens} />
-                  <HyperionPositionsList 
-                    address={account.address.toString()} 
-                    onPositionsValueChange={handleHyperionValueChange}
-                  />
-                  <EchelonPositionsList 
-                    address={account.address.toString()} 
-                    onPositionsValueChange={handleEchelonValueChange}
-                  />
-                  <AriesPositionsList 
-                    address={account.address.toString()} 
-                    onPositionsValueChange={handleAriesValueChange}
-                  />
-                  <JoulePositionsList 
-                    address={account.address.toString()} 
-                    onPositionsValueChange={handleJouleValueChange}
-                  />
-                  <TappPositionsList 
-                    address={account.address.toString()} 
-                    onPositionsValueChange={handleTappValueChange}
-                  />
-                  <MesoPositionsList 
-                    address={account.address.toString()} 
-                    onPositionsValueChange={handleMesoValueChange}
-                  />
-                  <AuroPositionsList 
-                    address={account.address.toString()} 
-                    onPositionsValueChange={handleAuroValueChange}
-                  />
+                  {[
+                    { 
+                      component: HyperionPositionsList, 
+                      value: hyperionValue, 
+                      name: 'Hyperion',
+                      handler: handleHyperionValueChange
+                    },
+                    { 
+                      component: EchelonPositionsList, 
+                      value: echelonValue, 
+                      name: 'Echelon',
+                      handler: handleEchelonValueChange
+                    },
+                    { 
+                      component: AriesPositionsList, 
+                      value: ariesValue, 
+                      name: 'Aries',
+                      handler: handleAriesValueChange
+                    },
+                    { 
+                      component: JoulePositionsList, 
+                      value: jouleValue, 
+                      name: 'Joule',
+                      handler: handleJouleValueChange
+                    },
+                    { 
+                      component: TappPositionsList, 
+                      value: tappValue, 
+                      name: 'Tapp Exchange',
+                      handler: handleTappValueChange
+                    },
+                    { 
+                      component: MesoPositionsList, 
+                      value: mesoValue, 
+                      name: 'Meso Finance',
+                      handler: handleMesoValueChange
+                    },
+                    { 
+                      component: AuroPositionsList, 
+                      value: auroValue, 
+                      name: 'Auro Finance',
+                      handler: handleAuroValueChange
+                    }
+                  ]
+                    .sort((a, b) => b.value - a.value)
+                    .map(({ component: Component, name, handler }) => (
+                      <Component
+                        key={name}
+                        address={account.address.toString()}
+                        onPositionsValueChange={handler}
+                      />
+                    ))}
                 </>
               ) : (
                 <div className="mt-6 p-4 bg-muted rounded-lg">
