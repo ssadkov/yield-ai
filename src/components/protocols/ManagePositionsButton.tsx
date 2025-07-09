@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Settings, ExternalLink } from "lucide-react";
 import { Protocol } from "@/lib/protocols/getProtocolsList";
 import { useProtocol } from "@/lib/contexts/ProtocolContext";
+import { useMobileManagement } from "@/contexts/MobileManagementContext";
 
 interface ManagePositionsButtonProps {
   protocol: Protocol;
@@ -9,14 +10,28 @@ interface ManagePositionsButtonProps {
 
 export function ManagePositionsButton({ protocol }: ManagePositionsButtonProps) {
   const { setSelectedProtocol } = useProtocol();
+  const { setActiveTab, scrollToTop } = useMobileManagement();
 
   const handleClick = () => {
     if (protocol.managedType === "native") {
+      // Для мобильной версии переключаем на вкладку Ideas
+      if (setActiveTab) {
+        setActiveTab("ideas");
+        // Скролл к верху страницы после переключения
+        setTimeout(() => {
+          if (scrollToTop) {
+            scrollToTop();
+          }
+        }, 300);
+      }
+      
+      // Для десктопной версии устанавливаем выбранный протокол
       setSelectedProtocol(protocol);
-      window.scrollTo({
-        top: 0,
-        behavior: 'smooth'
-      });
+      
+      // Скролл к верху страницы для десктопной версии
+      if (typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     } else if (protocol.managedType === "external" && protocol.url) {
       window.open(protocol.url, "_blank");
     }
@@ -24,9 +39,9 @@ export function ManagePositionsButton({ protocol }: ManagePositionsButtonProps) 
 
   return (
     <div className="flex justify-center mt-2">
-      <Button
+      <Button 
         variant="ghost"
-        size="sm"
+        size="sm" 
         className="h-8 gap-2"
         onClick={handleClick}
       >
