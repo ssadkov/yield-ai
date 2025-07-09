@@ -109,7 +109,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
               const debtPrice = pos.debtTokenInfo?.usdPrice ? parseFloat(pos.debtTokenInfo.usdPrice).toFixed(2) : 'N/A';
               const value = pos.collateralTokenInfo?.usdPrice ? (parseFloat(collateral) * parseFloat(pos.collateralTokenInfo.usdPrice)).toFixed(2) : 'N/A';
               return (
-                <div key={pos.address || idx} className={cn('mb-2', parseFloat(debt) > 0 && 'bg-red-50 rounded')}>
+                <div key={pos.address || idx} className="mb-2">
                   {/* Collateral строка */}
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2 min-w-0">
@@ -138,23 +138,30 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
                   </div>
                   {/* Debt строка — всегда на новой строке, как borrow в Echelon */}
                   {parseFloat(debt) > 0 && (
-                    <div className="flex items-center gap-2 mt-2">
-                      {debtLogo && (
-                        <div className="w-6 h-6 relative shrink-0">
-                          <Image src={debtLogo} alt={debtSymbol} width={24} height={24} className="object-contain" />
+                    <div className="flex justify-between items-center mt-2 bg-red-50 rounded">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {debtLogo && (
+                          <div className="w-6 h-6 relative shrink-0">
+                            <Image src={debtLogo} alt={debtSymbol} width={24} height={24} className="object-contain" />
+                          </div>
+                        )}
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium truncate max-w-[80px]">{debtSymbol}</span>
+                            <span className={cn(
+                              'text-xs font-semibold px-2 py-0.5 rounded border',
+                              'bg-red-500/10 text-red-600 border-red-500/20')
+                            }>
+                              Debt
+                            </span>
+                          </div>
+                          <div className="text-xs text-muted-foreground">${debtPrice}</div>
                         </div>
-                      )}
-                      <span className="text-sm font-medium truncate max-w-[80px]">{debtSymbol}</span>
-                      <span className={cn(
-                        'text-xs font-semibold px-2 py-0.5 rounded border',
-                        'bg-red-500/10 text-red-600 border-red-500/20')
-                      }>
-                        Debt
-                      </span>
-                      <span className="text-xs text-muted-foreground">{debt} {debtSymbol}</span>
-                      {debtPrice !== 'N/A' && (
-                        <span className="text-xs text-muted-foreground ml-2">${debtPrice}</span>
-                      )}
+                      </div>
+                      <div className="text-right ml-4">
+                        <div className="text-sm font-medium">${(parseFloat(debt) * parseFloat(debtPrice)).toFixed(2)}</div>
+                        <div className="text-xs text-muted-foreground">{debt} {debtSymbol}</div>
+                      </div>
                     </div>
                   )}
                 </div>
