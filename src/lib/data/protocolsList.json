@@ -72,6 +72,6 @@
     "depositType": "external",
     "depositUrl": "https://app.auro.finance?ref=Y7RSIC14LS4F",
     "isDepositEnabled": false,
-    "managedType": "external"
+    "managedType": "native"
   }
 ] 

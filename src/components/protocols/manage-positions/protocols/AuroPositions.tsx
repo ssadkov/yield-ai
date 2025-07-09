@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import Image from "next/image";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { ChevronDown } from "lucide-react";
 import { ManagePositionsButton } from "../../ManagePositionsButton";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
-import { useCollapsible } from "@/contexts/CollapsibleContext";
 
 interface AuroPositionsProps {
   address?: string;
@@ -19,7 +18,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
   const [positions, setPositions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { isExpanded, toggleSection } = useCollapsible();
+  const [totalValue, setTotalValue] = useState<number>(0);
 
   const walletAddress = address || account?.address;
   const protocol = getProtocolByName("Auro Finance");
@@ -52,153 +51,189 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
   });
 
   // Сумма активов
-  const totalValue = sortedPositions.reduce((sum, pos) => {
-    const v = pos.collateralTokenInfo?.usdPrice ? parseFloat(pos.collateralAmount) * parseFloat(pos.collateralTokenInfo.usdPrice) : 0;
-    return sum + v;
-  }, 0);
-
-  // useEffect для передачи суммы наверх
   useEffect(() => {
+    const total = sortedPositions.reduce((sum, pos) => {
+      const collateralValue = pos.collateralTokenInfo?.usdPrice ? parseFloat(pos.collateralAmount) * parseFloat(pos.collateralTokenInfo.usdPrice) : 0;
+      const debtValue = pos.debtTokenInfo?.usdPrice ? parseFloat(pos.debtAmount) * parseFloat(pos.debtTokenInfo.usdPrice) : 0;
+      return sum + collateralValue - debtValue;
+    }, 0);
+    setTotalValue(total);
+    
     if (onPositionsValueChange) {
-      onPositionsValueChange(totalValue);
+      onPositionsValueChange(total);
     }
-  }, [totalValue, onPositionsValueChange]);
+  }, [sortedPositions, onPositionsValueChange]);
 
-  // Только после хуков — return
+  // Заглушка для APR - потом подтянем реальные данные
+  const getCollateralAPR = (collateralSymbol: string) => {
+    // TODO: Подтянуть реальные APR данные
+    const mockAPRs: { [key: string]: number } = {
+      'APT': 3.5,
+      'USDC': 2.1,
+      'USDT': 2.0,
+      'BTC': 1.8,
+      'ETH': 2.5
+    };
+    return mockAPRs[collateralSymbol] || 2.0;
+  };
+
+  const getDebtAPR = (debtSymbol: string) => {
+    // TODO: Подтянуть реальные APR данные
+    const mockAPRs: { [key: string]: number } = {
+      'USDA': 4.2,
+      'USDC': 3.8,
+      'USDT': 3.9
+    };
+    return mockAPRs[debtSymbol] || 4.0;
+  };
+
   if (!walletAddress) return null;
+  
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <img src="https://app.auro.finance/logo.png" alt="Auro Finance" className="w-6 h-6 rounded" />
-            Auro Finance
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="animate-pulse space-y-3">
-            <div className="h-6 bg-muted rounded w-1/2" />
-            <div className="h-4 bg-muted rounded w-1/3" />
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-4 text-base">
+        <div className="animate-pulse space-y-3">
+          <div className="h-6 bg-muted rounded w-1/2" />
+          <div className="h-4 bg-muted rounded w-1/3" />
+          <div className="h-6 bg-muted rounded w-2/3" />
+          <div className="h-4 bg-muted rounded w-1/2" />
+        </div>
+      </div>
     );
   }
+  
   if (error) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <img src="https://app.auro.finance/logo.png" alt="Auro Finance" className="w-6 h-6 rounded" />
-            Auro Finance
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-red-500 text-center py-4">{error}</p>
-        </CardContent>
-      </Card>
+      <div className="space-y-4 text-base">
+        <div className="text-red-500 text-center py-4">{error}</div>
+      </div>
     );
   }
+  
   if (!positions || positions.length === 0) return null;
 
   return (
-    <Card className="w-full">
-      <CardHeader 
-        className="py-2 cursor-pointer hover:bg-accent/50 transition-colors"
-        onClick={() => toggleSection('auro')}
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 relative">
-              <Image 
-                src="https://app.auro.finance/logo.png" 
-                alt="Auro Finance"
-                width={20}
-                height={20}
-                className="object-contain"
-              />
-            </div>
-            <CardTitle className="text-lg">Auro Finance</CardTitle>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-lg">${totalValue.toFixed(2)}</div>
-            <ChevronDown className={cn(
-              "h-5 w-5 transition-transform",
-              isExpanded('auro') ? "transform rotate-0" : "transform -rotate-90"
-            )} />
-          </div>
-        </div>
-      </CardHeader>
-      {isExpanded('auro') && (
-        <CardContent className="flex-1 overflow-y-auto px-3 pt-0">
-          <div className="space-y-2">
-            {sortedPositions.map((pos, idx) => {
-              const collateral = pos.collateralAmount;
-              const collateralSymbol = pos.collateralSymbol;
-              const collateralLogo = pos.collateralTokenInfo?.logoUrl;
-              const collateralPrice = pos.collateralTokenInfo?.usdPrice ? parseFloat(pos.collateralTokenInfo.usdPrice).toFixed(2) : 'N/A';
-              const debt = pos.debtAmount;
-              const debtSymbol = pos.debtSymbol;
-              const debtLogo = pos.debtTokenInfo?.logoUrl;
-              const debtPrice = pos.debtTokenInfo?.usdPrice ? parseFloat(pos.debtTokenInfo.usdPrice).toFixed(2) : 'N/A';
-              const value = pos.collateralTokenInfo?.usdPrice ? (parseFloat(collateral) * parseFloat(pos.collateralTokenInfo.usdPrice)).toFixed(2) : 'N/A';
-              return (
-                <div key={pos.address || idx} className={cn('mb-2', parseFloat(debt) > 0 && 'bg-red-50 rounded')}>
-                  {/* Collateral строка */}
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2 min-w-0">
-                      {collateralLogo && (
-                        <div className="w-6 h-6 relative shrink-0">
-                          <Image src={collateralLogo} alt={collateralSymbol} width={24} height={24} className="object-contain" />
-                        </div>
-                      )}
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium truncate max-w-[80px]">{collateralSymbol}</span>
-                          <span className={cn(
-                            'text-xs font-semibold px-2 py-0.5 rounded border',
-                            'bg-green-500/10 text-green-600 border-green-500/20')
-                          }>
-                            Collateral
-                          </span>
-                        </div>
-                        <div className="text-xs text-muted-foreground">${collateralPrice}</div>
-                      </div>
-                    </div>
-                    <div className="text-right ml-4">
-                      <div className="text-sm font-medium">${value}</div>
-                      <div className="text-xs text-muted-foreground">{collateral} {collateralSymbol}</div>
-                    </div>
-                  </div>
-                  {/* Debt строка — всегда на новой строке, как borrow в Echelon */}
-                  {parseFloat(debt) > 0 && (
-                    <div className="flex items-center gap-2 mt-2 ml-8">
-                      {debtLogo && (
-                        <div className="w-6 h-6 relative shrink-0">
-                          <Image src={debtLogo} alt={debtSymbol} width={24} height={24} className="object-contain" />
-                        </div>
-                      )}
-                      <span className="text-sm font-medium truncate max-w-[80px]">{debtSymbol}</span>
-                      <span className={cn(
-                        'text-xs font-semibold px-2 py-0.5 rounded border',
-                        'bg-red-500/10 text-red-600 border-red-500/20')
-                      }>
-                        Debt
-                      </span>
-                      <span className="text-xs text-muted-foreground">{debt} {debtSymbol}</span>
-                      {debtPrice !== 'N/A' && (
-                        <span className="text-xs text-muted-foreground ml-2">${debtPrice}</span>
-                      )}
+    <div className="space-y-4 text-base">
+      <ScrollArea>
+        {sortedPositions.map((pos, idx) => {
+          const collateral = pos.collateralAmount;
+          const collateralSymbol = pos.collateralSymbol;
+          const collateralLogo = pos.collateralTokenInfo?.logoUrl;
+          const collateralPrice = pos.collateralTokenInfo?.usdPrice ? parseFloat(pos.collateralTokenInfo.usdPrice).toFixed(2) : 'N/A';
+          const collateralValue = pos.collateralTokenInfo?.usdPrice ? (parseFloat(collateral) * parseFloat(pos.collateralTokenInfo.usdPrice)).toFixed(2) : 'N/A';
+          const collateralAPR = getCollateralAPR(collateralSymbol);
+          
+          const debt = pos.debtAmount;
+          const debtSymbol = pos.debtSymbol;
+          const debtLogo = pos.debtTokenInfo?.logoUrl;
+          const debtPrice = pos.debtTokenInfo?.usdPrice ? parseFloat(pos.debtTokenInfo.usdPrice).toFixed(2) : 'N/A';
+          const debtValue = pos.debtTokenInfo?.usdPrice ? (parseFloat(debt) * parseFloat(pos.debtTokenInfo.usdPrice)).toFixed(2) : 'N/A';
+          const debtAPR = getDebtAPR(debtSymbol);
+          
+          const hasDebt = parseFloat(debt) > 0;
+          
+                      return (
+              <div 
+                key={pos.address || idx} 
+                className="p-4 border-b last:border-b-0 transition-colors"
+              >
+              {/* Collateral позиция */}
+              <div className="flex justify-between items-center mb-3">
+                <div className="flex items-center gap-2">
+                  {collateralLogo && (
+                    <div className="w-8 h-8 relative">
+                      <Image 
+                        src={collateralLogo} 
+                        alt={collateralSymbol}
+                        width={32}
+                        height={32}
+                        className="object-contain"
+                      />
                     </div>
                   )}
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-lg">{collateralSymbol}</div>
+                      <Badge 
+                        variant="outline" 
+                        className="bg-green-500/10 text-green-600 border-green-500/20 text-xs font-normal px-2 py-0.5 h-5"
+                      >
+                        Collateral
+                      </Badge>
+                    </div>
+                    <div className="text-base text-muted-foreground mt-0.5">
+                      ${collateralPrice}
+                    </div>
+                  </div>
                 </div>
-              );
-            })}
-            {/* Кнопка Manage Positions — как у Echelon */}
-            {protocol && <ManagePositionsButton protocol={protocol} />}
-          </div>
-        </CardContent>
-      )}
-    </Card>
+                <div className="text-right">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-xs font-normal px-2 py-0.5 h-5">
+                      APR: {collateralAPR.toFixed(2)}%
+                    </Badge>
+                    <div className="text-lg font-bold">${collateralValue}</div>
+                  </div>
+                  <div className="text-base text-muted-foreground font-semibold">
+                    {parseFloat(collateral).toFixed(4)} {collateralSymbol}
+                  </div>
+                </div>
+              </div>
+
+              {/* Debt позиция - если есть */}
+              {hasDebt && (
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    {debtLogo && (
+                      <div className="w-8 h-8 relative">
+                        <Image 
+                          src={debtLogo} 
+                          alt={debtSymbol}
+                          width={32}
+                          height={32}
+                          className="object-contain"
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <div className="text-lg">{debtSymbol}</div>
+                        <Badge 
+                          variant="outline" 
+                          className="bg-red-500/10 text-red-600 border-red-500/20 text-xs font-normal px-2 py-0.5 h-5"
+                        >
+                          Debt
+                        </Badge>
+                      </div>
+                      <div className="text-base text-muted-foreground mt-0.5">
+                        ${debtPrice}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 text-xs font-normal px-2 py-0.5 h-5">
+                        APR: {debtAPR.toFixed(2)}%
+                      </Badge>
+                      <div className="text-lg font-bold text-red-600">-${debtValue}</div>
+                    </div>
+                    <div className="text-base text-muted-foreground font-semibold">
+                      {parseFloat(debt).toFixed(4)} {debtSymbol}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </ScrollArea>
+      
+      <div className="flex items-center justify-between pt-6 pb-6">
+        <span className="text-xl">Total assets in Auro Finance:</span>
+        <span className="text-xl text-primary font-bold">${totalValue.toFixed(2)}</span>
+      </div>
+
+      {/* Кнопка Manage Positions */}
+      {protocol && <ManagePositionsButton protocol={protocol} />}
+    </div>
   );
 } 
