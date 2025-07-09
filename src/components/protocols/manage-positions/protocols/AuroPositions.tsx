@@ -20,6 +20,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [totalValue, setTotalValue] = useState<number>(0);
+  const [poolsData, setPoolsData] = useState<any[]>([]);
 
   const walletAddress = address || account?.address;
   const protocol = getProtocolByName("Auro Finance");
@@ -44,6 +45,20 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
       .finally(() => setLoading(false));
   }, [walletAddress]);
 
+  // useEffect для загрузки данных пулов
+  useEffect(() => {
+    fetch('/api/protocols/auro/pools')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.data)) {
+          setPoolsData(data.data);
+        }
+      })
+      .catch(error => {
+        console.error('Error loading Auro pools data:', error);
+      });
+  }, []);
+
   // Сортировка по value (по убыванию)
   const sortedPositions = [...positions].sort((a, b) => {
     const valueA = a.collateralTokenInfo?.usdPrice ? parseFloat(a.collateralAmount) * parseFloat(a.collateralTokenInfo.usdPrice) : 0;
@@ -65,27 +80,30 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
     }
   }, [sortedPositions, onPositionsValueChange]);
 
-  // Заглушка для APR - потом подтянем реальные данные
-  const getCollateralAPR = (collateralSymbol: string) => {
-    // TODO: Подтянуть реальные APR данные
-    const mockAPRs: { [key: string]: number } = {
-      'APT': 3.5,
-      'USDC': 2.1,
-      'USDT': 2.0,
-      'BTC': 1.8,
-      'ETH': 2.5
+  // Получение реальных APR данных из API
+  const getCollateralAPRData = (poolAddress: string) => {
+    const pool = poolsData.find(p => p.poolAddress === poolAddress);
+    if (!pool) return { totalApr: 0, supplyApr: 0, supplyIncentiveApr: 0, stakingApr: 0 };
+    
+    return {
+      totalApr: pool.totalSupplyApr || 0,
+      supplyApr: pool.supplyApr || 0,
+      supplyIncentiveApr: pool.supplyIncentiveApr || 0,
+      stakingApr: pool.stakingApr || 0,
+      rewardPoolAddress: pool.rewardPoolAddress
     };
-    return mockAPRs[collateralSymbol] || 2.0;
   };
 
-  const getDebtAPR = (debtSymbol: string) => {
-    // TODO: Подтянуть реальные APR данные
-    const mockAPRs: { [key: string]: number } = {
-      'USDA': 4.2,
-      'USDC': 3.8,
-      'USDT': 3.9
+  const getDebtAPRData = () => {
+    const borrowPool = poolsData.find(p => p.poolAddress === 'BORROW');
+    if (!borrowPool) return { totalApr: 0, borrowApr: 0, borrowIncentiveApr: 0 };
+    
+    return {
+      totalApr: borrowPool.totalBorrowApr || 0,
+      borrowApr: borrowPool.borrowApr || 0,
+      borrowIncentiveApr: borrowPool.borrowIncentiveApr || 0,
+      rewardPoolAddress: borrowPool.rewardPoolAddress
     };
-    return mockAPRs[debtSymbol] || 4.0;
   };
 
   if (!walletAddress) return null;
@@ -122,14 +140,14 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
           const collateralLogo = pos.collateralTokenInfo?.logoUrl;
           const collateralPrice = pos.collateralTokenInfo?.usdPrice ? parseFloat(pos.collateralTokenInfo.usdPrice).toFixed(2) : 'N/A';
           const collateralValue = pos.collateralTokenInfo?.usdPrice ? (parseFloat(collateral) * parseFloat(pos.collateralTokenInfo.usdPrice)).toFixed(2) : 'N/A';
-          const collateralAPR = getCollateralAPR(collateralSymbol);
+          const collateralAPRData = getCollateralAPRData(pos.poolAddress);
           
           const debt = pos.debtAmount;
           const debtSymbol = pos.debtSymbol;
           const debtLogo = pos.debtTokenInfo?.logoUrl;
           const debtPrice = pos.debtTokenInfo?.usdPrice ? parseFloat(pos.debtTokenInfo.usdPrice).toFixed(2) : 'N/A';
           const debtValue = pos.debtTokenInfo?.usdPrice ? (parseFloat(debt) * parseFloat(pos.debtTokenInfo.usdPrice)).toFixed(2) : 'N/A';
-          const debtAPR = getDebtAPR(debtSymbol);
+          const debtAPRData = getDebtAPRData();
           
           const hasDebt = parseFloat(debt) > 0;
           
@@ -183,13 +201,38 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                     </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-xs font-normal px-2 py-0.5 h-5">
-                      APR: {collateralAPR.toFixed(2)}%
-                    </Badge>
-                    <div className="text-lg font-bold">${collateralValue}</div>
-                  </div>
+                                  <div className="text-right">
+                    <div className="flex items-center gap-2 mb-1">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-xs font-normal px-2 py-0.5 h-5 cursor-help">
+                              APR: {collateralAPRData.totalApr.toFixed(2)}%
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent className="w-80 p-3 bg-black text-white border-gray-700">
+                            <div className="space-y-2">
+                              <div className="font-semibold text-sm text-white">APR Breakdown</div>
+                              <div className="text-xs space-y-1 text-gray-200">
+                                <div><span className="font-medium text-white">Supply APR:</span> {collateralAPRData.supplyApr.toFixed(2)}%</div>
+                                <div><span className="font-medium text-white">Incentive APR:</span> {collateralAPRData.supplyIncentiveApr.toFixed(2)}%</div>
+                                <div><span className="font-medium text-white">Staking APR:</span> {collateralAPRData.stakingApr.toFixed(2)}%</div>
+                                <div className="border-t border-gray-600 pt-1 mt-1">
+                                  <span className="font-semibold text-white">Total APR: {collateralAPRData.totalApr.toFixed(2)}%</span>
+                                </div>
+                                {collateralAPRData.rewardPoolAddress && (
+                                  <div className="mt-2">
+                                    <span className="font-medium text-white">Reward Pool:</span>
+                                    <code className="bg-gray-800 px-1 rounded text-xs text-gray-100 block mt-1">{collateralAPRData.rewardPoolAddress}</code>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <div className="text-lg font-bold">${collateralValue}</div>
+                    </div>
                   <div className="text-base text-muted-foreground font-semibold">
                     {parseFloat(collateral).toFixed(4)} {collateralSymbol}
                   </div>
@@ -244,9 +287,33 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                   </div>
                   <div className="text-right">
                     <div className="flex items-center gap-2 mb-1">
-                      <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 text-xs font-normal px-2 py-0.5 h-5">
-                        APR: {debtAPR.toFixed(2)}%
-                      </Badge>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 text-xs font-normal px-2 py-0.5 h-5 cursor-help">
+                              APR: {debtAPRData.totalApr.toFixed(2)}%
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent className="w-80 p-3 bg-black text-white border-gray-700">
+                            <div className="space-y-2">
+                              <div className="font-semibold text-sm text-white">APR Breakdown</div>
+                              <div className="text-xs space-y-1 text-gray-200">
+                                <div><span className="font-medium text-white">Borrow APR:</span> {debtAPRData.borrowApr.toFixed(2)}%</div>
+                                <div><span className="font-medium text-white">Incentive APR:</span> {debtAPRData.borrowIncentiveApr.toFixed(2)}%</div>
+                                <div className="border-t border-gray-600 pt-1 mt-1">
+                                  <span className="font-semibold text-white">Total APR: {debtAPRData.totalApr.toFixed(2)}%</span>
+                                </div>
+                                {debtAPRData.rewardPoolAddress && (
+                                  <div className="mt-2">
+                                    <span className="font-medium text-white">Reward Pool:</span>
+                                    <code className="bg-gray-800 px-1 rounded text-xs text-gray-100 block mt-1">{debtAPRData.rewardPoolAddress}</code>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                       <div className="text-lg font-bold text-red-600">-${debtValue}</div>
                     </div>
                     <div className="text-base text-muted-foreground font-semibold">
