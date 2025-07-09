@@ -46,14 +46,17 @@ export function EchelonPositions() {
       console.log('EchelonPositions - loadPositions raw data:', data);
       
       if (data.success && Array.isArray(data.data)) {
-        const positionsWithValue = data.data.map((position: any) => ({
-          ...position,
-          value: Number(position.amount) * Number(position.price)
-        }));
-        console.log('EchelonPositions - processed positions:', positionsWithValue);
-        setPositions(positionsWithValue);
+        console.log('EchelonPositions - data.data length:', data.data.length);
+        console.log('EchelonPositions - data.data:', data.data);
+        
+        // Просто устанавливаем позиции без дополнительной обработки
+        console.log('EchelonPositions - setting positions with length:', data.data.length);
+        setPositions(data.data);
       } else {
         console.log('EchelonPositions - no valid data, setting empty positions');
+        console.log('EchelonPositions - data.success:', data.success);
+        console.log('EchelonPositions - data.data type:', typeof data.data);
+        console.log('EchelonPositions - data.data:', data.data);
         setPositions([]);
       }
     } catch (error) {
@@ -242,7 +245,12 @@ export function EchelonPositions() {
     return <div className="text-red-500">{error}</div>;
   }
 
+  console.log('EchelonPositions - render - positions length:', positions.length);
+  console.log('EchelonPositions - render - positions:', positions);
+  console.log('EchelonPositions - render - sortedPositions length:', sortedPositions.length);
+
   if (positions.length === 0) {
+    console.log('EchelonPositions - render - returning null because positions.length === 0');
     return null;
   }
 
