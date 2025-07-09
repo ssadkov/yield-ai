@@ -218,8 +218,8 @@ export async function GET(request: NextRequest) {
                     }
                   }
                   
-                  // Получаем информацию о токене долга (предполагаем USDA)
-                  const debtTokenInfo = getTokenInfo("0x5e156f1207d0ebfa19a9eeff00d62a282278fb8719f4fab3a586a0a2c0fffbea::coin::T");
+                  // Получаем информацию о токене долга (USDA)
+                  const debtTokenInfo = getTokenInfo("0x534e4c3dc0f038dab1a8259e89301c4da58779a5d482fb354a41c08147e6b9ec");
                   
                   // Используем правильные decimals для каждого токена
                   const collateralDecimals = collateralTokenInfo?.decimals || 8;

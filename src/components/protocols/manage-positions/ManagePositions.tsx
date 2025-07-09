@@ -30,10 +30,14 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
     try {
       setIsRefreshing(true);
       
-      // Специальная обработка для Tapp Exchange
+      // Специальная обработка для разных протоколов
       let apiPath = protocol.name.toLowerCase();
       if (protocol.name.toLowerCase().includes('tapp')) {
         apiPath = 'tapp';
+      } else if (protocol.name.toLowerCase().includes('auro')) {
+        apiPath = 'auro';
+      } else if (protocol.name.toLowerCase().includes('meso')) {
+        apiPath = 'meso';
       }
       
       const response = await fetch(`/api/protocols/${apiPath}/userPositions?address=${account.address}`);
