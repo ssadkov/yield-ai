@@ -98,10 +98,14 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
     const borrowPool = poolsData.find(p => p.poolAddress === 'BORROW');
     if (!borrowPool) return { totalApr: 0, borrowApr: 0, borrowIncentiveApr: 0 };
     
+    const borrowApr = borrowPool.borrowApr || 0;
+    const incentiveApr = borrowPool.borrowIncentiveApr || 0;
+    const totalApr = incentiveApr - borrowApr; // Разность: Incentive - Borrow
+    
     return {
-      totalApr: borrowPool.totalBorrowApr || 0,
-      borrowApr: borrowPool.borrowApr || 0,
-      borrowIncentiveApr: borrowPool.borrowIncentiveApr || 0,
+      totalApr: totalApr,
+      borrowApr: borrowApr,
+      borrowIncentiveApr: incentiveApr,
       rewardPoolAddress: borrowPool.rewardPoolAddress
     };
   };
@@ -290,7 +294,15 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 text-xs font-normal px-2 py-0.5 h-5 cursor-help">
+                            <Badge 
+                              variant="outline" 
+                              className={cn(
+                                "text-xs font-normal px-2 py-0.5 h-5 cursor-help",
+                                debtAPRData.totalApr > 0 
+                                  ? "bg-green-500/10 text-green-600 border-green-500/20"
+                                  : "bg-red-500/10 text-red-600 border-red-500/20"
+                              )}
+                            >
                               APR: {debtAPRData.totalApr.toFixed(2)}%
                             </Badge>
                           </TooltipTrigger>
@@ -298,10 +310,10 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                             <div className="space-y-2">
                               <div className="font-semibold text-sm text-white">APR Breakdown</div>
                               <div className="text-xs space-y-1 text-gray-200">
-                                <div><span className="font-medium text-white">Borrow APR:</span> {debtAPRData.borrowApr.toFixed(2)}%</div>
-                                <div><span className="font-medium text-white">Incentive APR:</span> {debtAPRData.borrowIncentiveApr.toFixed(2)}%</div>
+                                <div><span className="font-medium text-white">Borrow APR:</span> -{debtAPRData.borrowApr.toFixed(2)}%</div>
+                                <div><span className="font-medium text-white">Incentive APR:</span> +{debtAPRData.borrowIncentiveApr.toFixed(2)}%</div>
                                 <div className="border-t border-gray-600 pt-1 mt-1">
-                                  <span className="font-semibold text-white">Total APR: {debtAPRData.totalApr.toFixed(2)}%</span>
+                                  <span className="font-semibold text-white">Net APR: {debtAPRData.totalApr.toFixed(2)}%</span>
                                 </div>
                                 {debtAPRData.rewardPoolAddress && (
                                   <div className="mt-2">
