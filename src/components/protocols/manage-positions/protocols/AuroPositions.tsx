@@ -4,6 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { ManagePositionsButton } from "../../ManagePositionsButton";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
@@ -140,17 +141,33 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
               {/* Collateral позиция */}
               <div className="flex justify-between items-center mb-3">
                 <div className="flex items-center gap-2">
-                  {collateralLogo && (
-                    <div className="w-8 h-8 relative">
-                      <Image 
-                        src={collateralLogo} 
-                        alt={collateralSymbol}
-                        width={32}
-                        height={32}
-                        className="object-contain"
-                      />
-                    </div>
-                  )}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="w-8 h-8 relative cursor-help">
+                          {collateralLogo && (
+                            <Image 
+                              src={collateralLogo} 
+                              alt={collateralSymbol}
+                              width={32}
+                              height={32}
+                              className="object-contain"
+                            />
+                          )}
+                        </div>
+                      </TooltipTrigger>
+                                              <TooltipContent className="w-[768px] p-4 bg-black text-white border-gray-700">
+                          <div className="space-y-3">
+                            <div className="font-semibold text-sm text-white">{collateralSymbol} Collateral</div>
+                            <div className="text-xs space-y-2 text-gray-200">
+                              <div><span className="font-medium text-white">Position ID:</span> <code className="bg-gray-800 px-2 py-1 rounded text-xs text-gray-100 block mt-1">{pos.address}</code></div>
+                              <div><span className="font-medium text-white">Pool ID:</span> <code className="bg-gray-800 px-2 py-1 rounded text-xs text-gray-100 block mt-1">{pos.poolAddress}</code></div>
+                              <div><span className="font-medium text-white">Token Address:</span> <code className="bg-gray-800 px-2 py-1 rounded text-xs text-gray-100 block mt-1">{pos.collateralTokenAddress}</code></div>
+                            </div>
+                          </div>
+                        </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                   <div>
                     <div className="flex items-center gap-2">
                       <div className="text-lg">{collateralSymbol}</div>
@@ -183,17 +200,33 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
               {hasDebt && (
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
-                    {debtLogo && (
-                      <div className="w-8 h-8 relative">
-                        <Image 
-                          src={debtLogo} 
-                          alt={debtSymbol}
-                          width={32}
-                          height={32}
-                          className="object-contain"
-                        />
-                      </div>
-                    )}
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="w-8 h-8 relative cursor-help">
+                            {debtLogo && (
+                              <Image 
+                                src={debtLogo} 
+                                alt={debtSymbol}
+                                width={32}
+                                height={32}
+                                className="object-contain"
+                              />
+                            )}
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent className="w-[768px] p-4 bg-black text-white border-gray-700">
+                          <div className="space-y-3">
+                            <div className="font-semibold text-sm text-white">{debtSymbol} Debt</div>
+                            <div className="text-xs space-y-2 text-gray-200">
+                              <div><span className="font-medium text-white">Position ID:</span> <code className="bg-gray-800 px-2 py-1 rounded text-xs text-gray-100 block mt-1">{pos.address}</code></div>
+                              <div><span className="font-medium text-white">Pool ID:</span> <code className="bg-gray-800 px-2 py-1 rounded text-xs text-gray-100 block mt-1">{pos.poolAddress}</code></div>
+                              <div><span className="font-medium text-white">Liquidation Price:</span> <code className="bg-gray-800 px-2 py-1 rounded text-xs text-gray-100 block mt-1">${pos.liquidatePrice}</code></div>
+                            </div>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                     <div>
                       <div className="flex items-center gap-2">
                         <div className="text-lg">{debtSymbol}</div>
