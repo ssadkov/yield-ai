@@ -7,6 +7,10 @@ import { PortfolioCard } from "./portfolio/PortfolioCard";
 import { PositionsList as HyperionPositionsList } from "./protocols/hyperion/PositionsList";
 import { PositionsList as EchelonPositionsList } from "./protocols/echelon/PositionsList";
 import { PositionsList as AriesPositionsList } from "./protocols/aries/PositionsList";
+import { PositionsList as JoulePositionsList } from "./protocols/joule/PositionsList";
+import { PositionsList as TappPositionsList } from "./protocols/tapp/PositionsList";
+import { PositionsList as MesoPositionsList } from "./protocols/meso/PositionsList";
+import { PositionsList as AuroPositionsList } from "./protocols/auro/PositionsList";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { AptosPortfolioService } from "@/lib/services/aptos/portfolio";
 import { Token } from "@/lib/types/token";
@@ -22,6 +26,10 @@ export default function MobileTabs() {
   const [hyperionValue, setHyperionValue] = useState<number>(0);
   const [echelonValue, setEchelonValue] = useState<number>(0);
   const [ariesValue, setAriesValue] = useState<number>(0);
+  const [jouleValue, setJouleValue] = useState<number>(0);
+  const [tappValue, setTappValue] = useState<number>(0);
+  const [mesoValue, setMesoValue] = useState<number>(0);
+  const [auroValue, setAuroValue] = useState<number>(0);
 
   useEffect(() => {
     async function loadPortfolio() {
@@ -37,14 +45,14 @@ export default function MobileTabs() {
         }, 0);
 
         setTokens(portfolio.tokens);
-        setTotalValue((total + hyperionValue + echelonValue + ariesValue).toFixed(2));
+        setTotalValue((total + hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue).toFixed(2));
       } catch (error) {
         console.error("Failed to load portfolio:", error);
       }
     }
 
     loadPortfolio();
-  }, [account?.address, hyperionValue, echelonValue, ariesValue]);
+  }, [account?.address, hyperionValue, echelonValue, ariesValue, jouleValue, tappValue, mesoValue, auroValue]);
 
   // Обработчики изменения суммы позиций в протоколах
   const handleHyperionValueChange = (value: number) => {
@@ -57,6 +65,22 @@ export default function MobileTabs() {
 
   const handleAriesValueChange = (value: number) => {
     setAriesValue(value);
+  };
+
+  const handleJouleValueChange = (value: number) => {
+    setJouleValue(value);
+  };
+
+  const handleTappValueChange = (value: number) => {
+    setTappValue(value);
+  };
+
+  const handleMesoValueChange = (value: number) => {
+    setMesoValue(value);
+  };
+
+  const handleAuroValueChange = (value: number) => {
+    setAuroValue(value);
   };
 
   return (
@@ -95,6 +119,22 @@ export default function MobileTabs() {
                   <AriesPositionsList 
                     address={account.address.toString()} 
                     onPositionsValueChange={handleAriesValueChange}
+                  />
+                  <JoulePositionsList 
+                    address={account.address.toString()} 
+                    onPositionsValueChange={handleJouleValueChange}
+                  />
+                  <TappPositionsList 
+                    address={account.address.toString()} 
+                    onPositionsValueChange={handleTappValueChange}
+                  />
+                  <MesoPositionsList 
+                    address={account.address.toString()} 
+                    onPositionsValueChange={handleMesoValueChange}
+                  />
+                  <AuroPositionsList 
+                    address={account.address.toString()} 
+                    onPositionsValueChange={handleAuroValueChange}
                   />
                 </>
               ) : (
