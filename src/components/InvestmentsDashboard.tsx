@@ -34,6 +34,7 @@ import { useDragDrop } from "@/contexts/DragDropContext";
 import { DragData } from "@/types/dragDrop";
 import { cn } from "@/lib/utils";
 import { CollapsibleProvider } from "@/contexts/CollapsibleContext";
+import { useMobileManagement } from "@/contexts/MobileManagementContext";
 
 // Список адресов токенов Echelon, которые нужно исключить из отображения
 const EXCLUDED_ECHELON_TOKENS = [
@@ -72,6 +73,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   const [activeTab, setActiveTab] = useState<"lite" | "pro">("lite");
   const { selectedProtocol, setSelectedProtocol } = useProtocol();
   const { state, validateDrop, handleDrop } = useDragDrop();
+  const { setActiveTab: setMobileTab } = useMobileManagement();
 
   const getTokenInfo = (asset: string, tokenAddress?: string): Token | undefined => {
     if (tokenAddress) {
@@ -248,7 +250,12 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
         <CollapsibleProvider>
           <ManagePositions 
             protocol={selectedProtocol} 
-            onClose={() => setSelectedProtocol(null)} 
+            onClose={() => {
+              setSelectedProtocol(null);
+              if (setMobileTab) {
+                setMobileTab('assets');
+              }
+            }} 
           />
         </CollapsibleProvider>
       )}

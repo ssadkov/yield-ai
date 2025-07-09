@@ -4,7 +4,6 @@ import { createContext, useContext, ReactNode } from "react";
 interface MobileManagementContextType {
   setActiveTab: ((tab: "ideas" | "assets" | "chat") => void) | null;
   scrollToTop: (() => void) | null;
-  goToAssets: (() => void) | null;
 }
 
 const MobileManagementContext = createContext<MobileManagementContextType | undefined>(undefined);
@@ -12,16 +11,14 @@ const MobileManagementContext = createContext<MobileManagementContextType | unde
 export function MobileManagementProvider({ 
   children, 
   setActiveTab,
-  scrollToTop,
-  goToAssets
+  scrollToTop
 }: { 
   children: ReactNode;
   setActiveTab: (tab: "ideas" | "assets" | "chat") => void;
   scrollToTop: () => void;
-  goToAssets: () => void;
 }) {
   return (
-    <MobileManagementContext.Provider value={{ setActiveTab, scrollToTop, goToAssets }}>
+    <MobileManagementContext.Provider value={{ setActiveTab, scrollToTop }}>
       {children}
     </MobileManagementContext.Provider>
   );
@@ -32,8 +29,7 @@ export function useMobileManagement() {
   if (context === undefined) {
     return {
       setActiveTab: null,
-      scrollToTop: null,
-      goToAssets: null
+      scrollToTop: null
     };
   }
   return context;

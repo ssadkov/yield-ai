@@ -40,11 +40,6 @@ function MobileTabsContent() {
     }
   };
 
-  // Функция для перехода на вкладку Assets
-  const goToAssets = () => {
-    setTab("assets");
-  };
-
   useEffect(() => {
     async function loadPortfolio() {
       if (!account?.address) return;
@@ -98,7 +93,7 @@ function MobileTabsContent() {
   };
 
   return (
-    <MobileManagementProvider setActiveTab={setTab} scrollToTop={scrollToTop} goToAssets={goToAssets}>
+    <MobileManagementProvider setActiveTab={setTab} scrollToTop={scrollToTop}>
       <CollapsibleProvider>
         <div className="flex flex-col h-screen max-h-screen">
           {/* Header - fixed at top */}
