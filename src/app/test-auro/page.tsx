@@ -134,9 +134,13 @@ export default function TestAuroPage() {
       if (!positionsResponse.ok || !positionsData.success) {
         throw new Error("Failed to fetch positions");
       }
+      
+      console.log('Raw positionInfo from API:', positionsData.positionInfo);
+      
       const positionsInfo = (positionsData.positionInfo || []).map((pos: any) => ({
         address: pos.address,
-        poolAddress: pos.poolAddress
+        poolAddress: pos.poolAddress,
+        debtAmount: pos.debtAmount
       }));
       if (positionsInfo.length === 0) {
         setUserRewards([]);
@@ -149,9 +153,14 @@ export default function TestAuroPage() {
       if (!poolsResponse.ok || !poolsDataRaw.success) {
         throw new Error("Failed to fetch pools");
       }
+      
+      console.log('Raw poolsData from API:', poolsDataRaw.data);
+      
       const poolsData = (poolsDataRaw.data || []).map((pool: any) => ({
+        type: pool.type,
         poolAddress: pool.poolAddress,
-        rewardPoolAddress: pool.rewardPoolAddress
+        rewardPoolAddress: pool.rewardPoolAddress,
+        borrowRewardsPoolAddress: pool.borrowRewardsPoolAddress
       }));
       if (poolsData.length === 0) {
         setUserRewards([]);

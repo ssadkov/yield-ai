@@ -161,7 +161,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
   };
 
   const getDebtAPRData = () => {
-    const borrowPool = poolsData.find(p => p.poolAddress === 'BORROW');
+    const borrowPool = poolsData.find(p => p.type === 'BORROW');
     if (!borrowPool) return { totalApr: 0, borrowApr: 0, borrowIncentiveApr: 0 };
     
     const borrowApr = borrowPool.borrowApr || 0;
@@ -172,7 +172,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
       totalApr: totalApr,
       borrowApr: borrowApr,
       borrowIncentiveApr: incentiveApr,
-      rewardPoolAddress: borrowPool.rewardPoolAddress
+      rewardPoolAddress: borrowPool.borrowRewardsPoolAddress
     };
   };
 

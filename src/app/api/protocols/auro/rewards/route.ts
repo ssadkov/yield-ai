@@ -27,16 +27,64 @@ export async function POST(request: NextRequest) {
 
     // Формируем пары (позиция, collateral reward pool) и (позиция, borrow reward pool)
     const pairs: Array<{ position: string, pool: string }> = [];
+    console.log('=== Начинаем формирование пар ===');
+    console.log('Количество позиций:', positionsInfo.length);
+    console.log('Количество пулов:', poolsData.length);
+    
     for (const pos of positionsInfo) {
-      if (!pos.address || !pos.poolAddress) continue;
-      const pool = poolsData.find(p => p.poolAddress === pos.poolAddress);
-      if (pool && pool.rewardPoolAddress) {
-        pairs.push({ position: pos.address, pool: pool.rewardPoolAddress });
+      console.log('Обрабатываем позицию:', {
+        address: pos.address,
+        poolAddress: pos.poolAddress,
+        debtAmount: pos.debtAmount,
+        hasDebt: pos.debtAmount && parseFloat(pos.debtAmount) > 0
+      });
+      
+      if (!pos.address || !pos.poolAddress) {
+        console.log('Пропускаем позицию - нет address или poolAddress');
+        continue;
       }
-      if (pos.hasDebt && pool && pool.borrowRewardPoolAddress) {
-        pairs.push({ position: pos.address, pool: pool.borrowRewardPoolAddress });
+      
+      // Находим collateral pool
+      const collateralPool = poolsData.find(p => p.poolAddress === pos.poolAddress);
+      console.log('Найденный collateral pool:', collateralPool ? {
+        type: collateralPool.type,
+        poolAddress: collateralPool.poolAddress,
+        rewardPoolAddress: collateralPool.rewardPoolAddress
+      } : 'НЕ НАЙДЕН');
+      
+      if (collateralPool && collateralPool.rewardPoolAddress) {
+        pairs.push({ position: pos.address, pool: collateralPool.rewardPoolAddress });
+        console.log('Добавлена collateral пара:', { position: pos.address, pool: collateralPool.rewardPoolAddress });
+      }
+      
+      // Проверяем, есть ли долг у позиции
+      const hasDebt = pos.debtAmount && parseFloat(pos.debtAmount) > 0;
+      console.log('Проверка долга:', { debtAmount: pos.debtAmount, hasDebt });
+      
+      if (hasDebt) {
+        // Ищем borrow pool (пул типа BORROW) - он один для всех позиций
+        const borrowPool = poolsData.find(p => p.type === 'BORROW');
+        console.log('Найденный borrow pool:', borrowPool ? {
+          type: borrowPool.type,
+          poolAddress: borrowPool.poolAddress,
+          borrowRewardsPoolAddress: borrowPool.borrowRewardsPoolAddress
+        } : 'НЕ НАЙДЕН');
+        
+        if (borrowPool && borrowPool.borrowRewardsPoolAddress) {
+          pairs.push({ position: pos.address, pool: borrowPool.borrowRewardsPoolAddress });
+          console.log('Добавлена borrow пара:', { position: pos.address, pool: borrowPool.borrowRewardsPoolAddress });
+        } else {
+          console.log('Borrow пара НЕ добавлена - нет borrowPool или borrowRewardsPoolAddress');
+        }
+      } else {
+        console.log('Долга нет - borrow пара не нужна');
       }
     }
+    
+    console.log('=== Итоговые пары ===');
+    console.log('Всего пар:', pairs.length);
+    console.log('Пары:', pairs);
+
     if (pairs.length === 0) {
       return NextResponse.json({ success: true, data: [], message: 'No valid pairs found' });
     }

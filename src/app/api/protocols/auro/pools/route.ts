@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
     const poolsData = data.map((item: any) => {
       if (item.type === 'COLLATERAL') {
         return {
+          type: item.type,
           poolAddress: item.address,
           poolName: item.pool.name,
           collateralTokenAddress: item.pool.collateralTokenAddress,
@@ -40,12 +41,14 @@ export async function GET(request: NextRequest) {
         };
       } else if (item.type === 'BORROW') {
         return {
+          type: item.type,
           poolAddress: item.address,
           poolName: item.pool.name,
           borrowApr: item.pool.borrowApr || 0,
           borrowIncentiveApr: item.pool.borrowIncentiveApr || 0,
           totalBorrowApr: (item.pool.borrowApr || 0) + (item.pool.borrowIncentiveApr || 0),
           rewardPoolAddress: item.pool.rewardPoolAddress,
+          borrowRewardsPoolAddress: item.pool.borrowRewardsPool,
           tvl: item.pool.tvl,
           token: item.pool.token
         };
