@@ -20,6 +20,17 @@ export default function TestAuroPage() {
   const [error, setError] = useState<string | null>(null);
   const [authError, setAuthError] = useState<boolean>(false);
   const [debugInfo, setDebugInfo] = useState<string>("");
+  
+  // New states for pools debugging
+  const [poolsData, setPoolsData] = useState<any[]>([]);
+  const [rewardPoolsAddress, setRewardPoolsAddress] = useState<string[]>([]);
+  const [poolsLoading, setPoolsLoading] = useState(false);
+  const [poolsError, setPoolsError] = useState<string | null>(null);
+  
+  // New states for user rewards
+  const [userRewards, setUserRewards] = useState<any[]>([]);
+  const [rewardsLoading, setRewardsLoading] = useState(false);
+  const [rewardsError, setRewardsError] = useState<string | null>(null);
 
   // Auro Finance addresses (mainnet)
   const AURO_ADDRESS = "0x50a340a19e6ada1be07192c042786ca6a9651d5c845acc8727e8c6416a56a32c";
@@ -74,6 +85,96 @@ export default function TestAuroPage() {
       setDebugInfo(prev => prev + `\nError: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFetchPools = async () => {
+    setPoolsLoading(true);
+    setPoolsError(null);
+    setPoolsData([]);
+    setRewardPoolsAddress([]);
+
+    try {
+      const response = await fetch('/api/protocols/auro/pools');
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        setPoolsData(data.data || []);
+        
+        // Extract reward pool addresses
+        const rewardPools = data.data
+          ?.map((pool: any) => pool.rewardPoolAddress)
+          .filter(Boolean) || [];
+        setRewardPoolsAddress(rewardPools);
+      } else {
+        throw new Error(data.error || "Failed to fetch pools");
+      }
+    } catch (err) {
+      console.error("Error fetching Auro pools:", err);
+      setPoolsError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setPoolsLoading(false);
+    }
+  };
+
+  const handleFetchUserRewards = async () => {
+    if (!walletAddress) {
+      setRewardsError("Please enter a wallet address first");
+      return;
+    }
+
+    setRewardsLoading(true);
+    setRewardsError(null);
+    setUserRewards([]);
+
+    try {
+      // Получаем позиции
+      const positionsResponse = await fetch(`/api/protocols/auro/userPositions?address=${encodeURIComponent(walletAddress)}`);
+      const positionsData = await positionsResponse.json();
+      if (!positionsResponse.ok || !positionsData.success) {
+        throw new Error("Failed to fetch positions");
+      }
+      const positionsInfo = (positionsData.positionInfo || []).map((pos: any) => ({
+        address: pos.address,
+        poolAddress: pos.poolAddress
+      }));
+      if (positionsInfo.length === 0) {
+        setUserRewards([]);
+        return;
+      }
+
+      // Получаем пулы
+      const poolsResponse = await fetch('/api/protocols/auro/pools');
+      const poolsDataRaw = await poolsResponse.json();
+      if (!poolsResponse.ok || !poolsDataRaw.success) {
+        throw new Error("Failed to fetch pools");
+      }
+      const poolsData = (poolsDataRaw.data || []).map((pool: any) => ({
+        poolAddress: pool.poolAddress,
+        rewardPoolAddress: pool.rewardPoolAddress
+      }));
+      if (poolsData.length === 0) {
+        setUserRewards([]);
+        return;
+      }
+
+      // Запрос наград
+      const rewardsResponse = await fetch('/api/protocols/auro/rewards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ positionsInfo, poolsData })
+      });
+      const rewardsData = await rewardsResponse.json();
+      if (rewardsResponse.ok && rewardsData.success) {
+        setUserRewards(rewardsData.data || []);
+      } else {
+        throw new Error(rewardsData.error || "Failed to fetch rewards");
+      }
+    } catch (err) {
+      console.error("Error fetching user rewards:", err);
+      setRewardsError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setRewardsLoading(false);
     }
   };
 
@@ -310,6 +411,122 @@ export default function TestAuroPage() {
               </div>
             )}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* New Pools Debug Block */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Step 4: Pools Data (Debug)</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Fetch and inspect pools data and reward pool addresses
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <Button 
+              onClick={handleFetchPools} 
+              disabled={poolsLoading}
+            >
+              {poolsLoading ? "Loading..." : "Fetch Pools"}
+            </Button>
+          </div>
+
+          {poolsError && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-600 text-sm">
+                {poolsError}
+              </p>
+            </div>
+          )}
+
+          {poolsData.length > 0 && (
+            <div className="space-y-4">
+              <div>
+                <Label className="text-xs text-muted-foreground">Pools Data ({poolsData.length} pools):</Label>
+                <div className="mt-2 p-3 bg-gray-50 border rounded-lg">
+                  <pre className="text-xs overflow-auto whitespace-pre-wrap">
+                    {JSON.stringify(poolsData, null, 2)}
+                  </pre>
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-xs text-muted-foreground">Reward Pool Addresses ({rewardPoolsAddress.length} addresses):</Label>
+                <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  {rewardPoolsAddress.length > 0 ? (
+                    <div className="space-y-1">
+                      {rewardPoolsAddress.map((address, index) => (
+                        <div key={index} className="text-xs font-mono break-all">
+                          {index + 1}. {address}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500">No reward pool addresses found</p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-xs text-muted-foreground">Reward Pool Addresses (JSON):</Label>
+                <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <pre className="text-xs overflow-auto whitespace-pre-wrap">
+                    {JSON.stringify(rewardPoolsAddress, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* New User Rewards Block */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Step 5: User Rewards (Debug)</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Fetch and inspect user rewards data
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <Button 
+              onClick={handleFetchUserRewards} 
+              disabled={rewardsLoading || !walletAddress}
+            >
+              {rewardsLoading ? "Loading..." : "Fetch User Rewards"}
+            </Button>
+          </div>
+
+          {rewardsError && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-600 text-sm">
+                {rewardsError}
+              </p>
+            </div>
+          )}
+
+          {userRewards.length > 0 && (
+            <div className="space-y-4">
+              <div>
+                <Label className="text-xs text-muted-foreground">User Rewards Data ({userRewards.length} rewards):</Label>
+                <div className="mt-2 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                  <pre className="text-xs overflow-auto whitespace-pre-wrap">
+                    {JSON.stringify(userRewards, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!rewardsLoading && !rewardsError && userRewards.length === 0 && walletAddress && (
+            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-yellow-800 text-sm">
+                No rewards found for this wallet. This is normal if the wallet has no positions or no claimable rewards.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
