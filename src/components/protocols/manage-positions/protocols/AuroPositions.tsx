@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from "@/lib/utils";
 import { ManagePositionsButton } from "../../ManagePositionsButton";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
+import { useClaimRewards } from '@/lib/hooks/useClaimRewards';
 
 interface AuroPositionsProps {
   address?: string;
@@ -22,6 +23,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
   const [totalValue, setTotalValue] = useState<number>(0);
   const [poolsData, setPoolsData] = useState<any[]>([]);
   const [rewardsData, setRewardsData] = useState<{ [positionAddress: string]: { collateral: any[], borrow: any[] } }>({});
+  const { claimRewards, isLoading: isClaiming } = useClaimRewards();
 
   const walletAddress = address || account?.address;
   const protocol = getProtocolByName("Auro Finance");
@@ -274,6 +276,50 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
     const borrowRewards = rewardsData[positionAddress]?.borrow || [];
     return [...collateralRewards, ...borrowRewards];
   };
+
+  // Собираем все positionIds и tokenTypes для claim
+  const getClaimablePositionsAndTokens = () => {
+    const positionIds: string[] = [];
+    const tokenTypesSet = new Set<string>();
+    Object.entries(rewardsData).forEach(([positionId, rewards]) => {
+      const hasRewards =
+        (rewards.collateral && rewards.collateral.length > 0) ||
+        (rewards.borrow && rewards.borrow.length > 0);
+      if (hasRewards) {
+        positionIds.push(positionId);
+        [...(rewards.collateral || []), ...(rewards.borrow || [])].forEach((reward: any) => {
+          if (reward && reward.key) tokenTypesSet.add(reward.key);
+        });
+      }
+    });
+    return { positionIds, tokenTypes: Array.from(tokenTypesSet) };
+  };
+
+  const handleClaimAllRewards = async () => {
+    const { positionIds, tokenTypes } = getClaimablePositionsAndTokens();
+    if (positionIds.length === 0 || tokenTypes.length === 0) return;
+    try {
+      await claimRewards('auro', positionIds, tokenTypes);
+    } catch (e) {
+      // Ошибка уже обработана в hook
+    }
+  };
+
+  // Подсчет общей суммы claimable rewards (USD)
+  const totalClaimableRewards = Object.keys(rewardsData).reduce((sum, positionId) => {
+    const rewards = rewardsData[positionId];
+    let localSum = 0;
+    if (rewards) {
+      [...(rewards.collateral || []), ...(rewards.borrow || [])].forEach((reward: any) => {
+        const tokenInfo = getRewardTokenInfoHelper(reward.key);
+        if (tokenInfo && tokenInfo.price) {
+          const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
+          localSum += amount * tokenInfo.price;
+        }
+      });
+    }
+    return sum + localSum;
+  }, 0);
 
   if (!walletAddress) return null;
   
@@ -678,16 +724,27 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
         <div className="text-right">
           <span className="text-xl text-primary font-bold">${totalValue.toFixed(2)}</span>
           {totalRewardsValue > 0 && (
-            <div className="text-sm text-muted-foreground mt-1 flex items-center justify-end gap-1">
-              <span>💰</span>
-              <span>including rewards ${totalRewardsValue.toFixed(2)}</span>
+            <div className="text-sm text-muted-foreground mt-1 flex flex-col items-end gap-1">
+              <div className="flex items-center gap-1">
+                <span>💰</span>
+                <span>including rewards ${totalRewardsValue.toFixed(2)}</span>
+              </div>
+              {totalClaimableRewards > 0 && (
+                <button
+                  className="px-3 py-1 bg-green-600 text-white rounded text-sm font-semibold disabled:opacity-60"
+                  onClick={handleClaimAllRewards}
+                  disabled={isClaiming || totalClaimableRewards === 0}
+                >
+                  {isClaiming ? 'Claiming...' : `Claim rewards`}
+                </button>
+              )}
             </div>
           )}
         </div>
       </div>
 
-      {/* Кнопка Manage Positions */}
-      {protocol && <ManagePositionsButton protocol={protocol} />}
+
+
     </div>
   );
 } 
