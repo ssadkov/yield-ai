@@ -8,6 +8,8 @@ import { ChevronDown } from "lucide-react";
 import { ManagePositionsButton } from "../ManagePositionsButton";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import { useCollapsible } from "@/contexts/CollapsibleContext";
+import tokenList from "@/lib/data/tokenList.json";
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 interface PositionsListProps {
   address?: string;
@@ -19,10 +21,124 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
   const [positions, setPositions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rewardsData, setRewardsData] = useState<any>({});
+  const [totalRewardsValue, setTotalRewardsValue] = useState<number>(0);
   const { isExpanded, toggleSection } = useCollapsible();
 
   const walletAddress = address || account?.address;
   const protocol = getProtocolByName("Auro Finance");
+
+  // Функция для получения информации о токене наград
+  const getRewardTokenInfoHelper = (tokenAddress: string) => {
+    const cleanAddress = tokenAddress.startsWith('@') ? tokenAddress.slice(1) : tokenAddress;
+    const fullAddress = cleanAddress.startsWith('0x') ? cleanAddress : `0x${cleanAddress}`;
+    const token = (tokenList as any).data.data.find((token: any) => 
+      token.tokenAddress === fullAddress || 
+      token.faAddress === fullAddress
+    );
+    if (!token) return undefined;
+    return {
+      address: token.tokenAddress,
+      faAddress: token.faAddress,
+      symbol: token.symbol,
+      icon_uri: token.logoUrl,
+      decimals: token.decimals,
+      price: token.usdPrice
+    };
+  };
+
+  // Функция для расчета стоимости наград для конкретной позиции
+  const calculateRewardsValue = (positionAddress: string) => {
+    if (!rewardsData[positionAddress]) return 0;
+    let totalValue = 0;
+    let collateralSum = 0;
+    let borrowSum = 0;
+    // Считаем collateral rewards
+    rewardsData[positionAddress].collateral.forEach((reward: any) => {
+      if (!reward || !reward.key || !reward.value) return;
+      const tokenInfo = getRewardTokenInfoHelper(reward.key);
+      if (!tokenInfo || !tokenInfo.price) return;
+      const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
+      const value = amount * tokenInfo.price;
+      totalValue += value;
+      collateralSum += value;
+    });
+    // Считаем borrow rewards
+    rewardsData[positionAddress].borrow.forEach((reward: any) => {
+      if (!reward || !reward.key || !reward.value) return;
+      const tokenInfo = getRewardTokenInfoHelper(reward.key);
+      if (!tokenInfo || !tokenInfo.price) return;
+      const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
+      const value = amount * tokenInfo.price;
+      totalValue += value;
+      borrowSum += value;
+    });
+    if (process.env.NODE_ENV === 'development') {
+      // Логируем по каждой позиции
+      console.log('[Auro Sidebar] Rewards for position', positionAddress, {
+        collateralSum,
+        borrowSum,
+        totalValue,
+        raw: rewardsData[positionAddress]
+      });
+    }
+    return totalValue;
+  };
+
+  // Функция для расчета общей стоимости всех наград
+  const calculateTotalRewardsValue = () => {
+    let total = 0;
+    Object.keys(rewardsData).forEach(positionAddress => {
+      total += calculateRewardsValue(positionAddress);
+    });
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Auro Sidebar] Total rewards value:', total, rewardsData);
+    }
+    return total;
+  };
+
+  // Функция для загрузки наград
+  const fetchRewards = async () => {
+    if (!walletAddress || positions.length === 0) return;
+    
+    try {
+      // Сначала загружаем данные о пулах
+      const poolsResponse = await fetch(`/api/protocols/auro/pools`);
+      if (!poolsResponse.ok) {
+        throw new Error(`Pools API returned status ${poolsResponse.status}`);
+      }
+      const poolsData = await poolsResponse.json();
+      
+      if (!poolsData.success || !poolsData.data) {
+        throw new Error('Failed to load pools data');
+      }
+
+      // Отправляем POST запрос с данными о позициях и пулах
+      const response = await fetch(`/api/protocols/auro/rewards`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          positionsInfo: positions,
+          poolsData: poolsData.data
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API returned status ${response.status}`);
+      }
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        setRewardsData(data.data);
+        const totalRewards = calculateTotalRewardsValue();
+        setTotalRewardsValue(totalRewards);
+      }
+    } catch (error) {
+      console.error('Error fetching Auro rewards:', error);
+    }
+  };
 
   // useEffect для загрузки позиций
   useEffect(() => {
@@ -44,6 +160,13 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
       .finally(() => setLoading(false));
   }, [walletAddress]);
 
+  // useEffect для загрузки наград
+  useEffect(() => {
+    if (walletAddress && positions.length > 0) {
+      fetchRewards();
+    }
+  }, [walletAddress, positions]);
+
   // Сортировка по value (по убыванию)
   const sortedPositions = [...positions].sort((a, b) => {
     const valueA = a.collateralTokenInfo?.usdPrice ? parseFloat(a.collateralAmount) * parseFloat(a.collateralTokenInfo.usdPrice) : 0;
@@ -51,7 +174,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
     return valueB - valueA;
   });
 
-  // Сумма активов (Collateral - Debt) - только для заголовка
+  // Сумма активов (Collateral - Debt + Rewards) - включая награды
   const totalValue = sortedPositions.reduce((sum, pos) => {
     // Сумма по collateral позициям
     const collateralValue = pos.collateralTokenInfo?.usdPrice ? parseFloat(pos.collateralAmount) * parseFloat(pos.collateralTokenInfo.usdPrice) : 0;
@@ -59,7 +182,10 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
     // Сумма по debt позициям (вычитаем)
     const debtValue = pos.debtTokenInfo?.usdPrice ? parseFloat(pos.debtAmount) * parseFloat(pos.debtTokenInfo.usdPrice) : 0;
     
-    return sum + collateralValue - debtValue;
+    // Добавляем награды для этой позиции
+    const positionRewards = calculateRewardsValue(pos.address);
+    
+    return sum + collateralValue - debtValue + positionRewards;
   }, 0);
 
   // useEffect для передачи суммы наверх
@@ -172,6 +298,69 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
                 </div>
               );
             })}
+            {/* Total Rewards */}
+            {totalRewardsValue > 0 && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center justify-between pt-2 border-t border-gray-200 cursor-help">
+                      <span className="text-sm text-muted-foreground">🎁 Total rewards:</span>
+                      <span className="text-sm font-medium">${totalRewardsValue.toFixed(2)}</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
+                    <div className="text-xs font-semibold mb-1">Rewards breakdown:</div>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {Object.entries(rewardsData).map(([positionAddress, rewards]: [string, any], idx) => {
+                        const collateralRows = (rewards.collateral || []).map((reward: any, i: number) => {
+                          const tokenInfo = getRewardTokenInfoHelper(reward.key);
+                          if (!tokenInfo) return null;
+                          const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
+                          const value = tokenInfo.price ? (amount * tokenInfo.price).toFixed(2) : 'N/A';
+                          return (
+                            <div key={`collateral-${positionAddress}-${i}`} className="flex items-center gap-2">
+                              {tokenInfo.icon_uri && (
+                                <img src={tokenInfo.icon_uri} alt={tokenInfo.symbol} className="w-3 h-3 rounded-full" />
+                              )}
+                              <span>{tokenInfo.symbol}</span>
+                              <span className="text-gray-400">Collateral</span>
+                              <span>{amount.toFixed(6)}</span>
+                              <span className="text-gray-300">${value}</span>
+                            </div>
+                          );
+                        });
+                        const borrowRows = (rewards.borrow || []).map((reward: any, i: number) => {
+                          const tokenInfo = getRewardTokenInfoHelper(reward.key);
+                          if (!tokenInfo) return null;
+                          const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
+                          const value = tokenInfo.price ? (amount * tokenInfo.price).toFixed(2) : 'N/A';
+                          return (
+                            <div key={`borrow-${positionAddress}-${i}`} className="flex items-center gap-2">
+                              {tokenInfo.icon_uri && (
+                                <img src={tokenInfo.icon_uri} alt={tokenInfo.symbol} className="w-3 h-3 rounded-full" />
+                              )}
+                              <span>{tokenInfo.symbol}</span>
+                              <span className="text-blue-400">Borrow</span>
+                              <span>{amount.toFixed(6)}</span>
+                              <span className="text-gray-300">${value}</span>
+                            </div>
+                          );
+                        });
+                        if (collateralRows.length === 0 && borrowRows.length === 0) return null;
+                        return (
+                          <div key={positionAddress} className="mb-1">
+                            <div className="text-[10px] text-gray-400 mb-0.5">Position: {positionAddress.slice(0, 6)}...{positionAddress.slice(-4)}</div>
+                            {collateralRows}
+                            {borrowRows}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+            
             {/* Кнопка Manage Positions */}
             {protocol && <ManagePositionsButton protocol={protocol} />}
           </div>
