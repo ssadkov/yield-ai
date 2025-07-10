@@ -28,7 +28,7 @@ export default function TestAuroPage() {
   const [poolsError, setPoolsError] = useState<string | null>(null);
   
   // New states for user rewards
-  const [userRewards, setUserRewards] = useState<any[]>([]);
+  const [userRewards, setUserRewards] = useState<{ [positionAddress: string]: { collateral: any[], borrow: any[] } }>({});
   const [rewardsLoading, setRewardsLoading] = useState(false);
   const [rewardsError, setRewardsError] = useState<string | null>(null);
 
@@ -125,7 +125,7 @@ export default function TestAuroPage() {
 
     setRewardsLoading(true);
     setRewardsError(null);
-    setUserRewards([]);
+    setUserRewards({}); // Clear previous rewards
 
     try {
       // Получаем позиции
@@ -143,7 +143,7 @@ export default function TestAuroPage() {
         debtAmount: pos.debtAmount
       }));
       if (positionsInfo.length === 0) {
-        setUserRewards([]);
+        setUserRewards({});
         return;
       }
 
@@ -163,7 +163,7 @@ export default function TestAuroPage() {
         borrowRewardsPoolAddress: pool.borrowRewardsPoolAddress
       }));
       if (poolsData.length === 0) {
-        setUserRewards([]);
+        setUserRewards({});
         return;
       }
 
@@ -175,7 +175,8 @@ export default function TestAuroPage() {
       });
       const rewardsData = await rewardsResponse.json();
       if (rewardsResponse.ok && rewardsData.success) {
-        setUserRewards(rewardsData.data || []);
+        setUserRewards(rewardsData.data || {});
+        console.log('Rewards data structure:', rewardsData.data);
       } else {
         throw new Error(rewardsData.error || "Failed to fetch rewards");
       }
@@ -516,20 +517,62 @@ export default function TestAuroPage() {
             </div>
           )}
 
-          {userRewards.length > 0 && (
+          {Object.keys(userRewards).length > 0 && (
             <div className="space-y-4">
               <div>
-                <Label className="text-xs text-muted-foreground">User Rewards Data ({userRewards.length} rewards):</Label>
+                <Label className="text-xs text-muted-foreground">User Rewards Data ({Object.keys(userRewards).length} positions):</Label>
                 <div className="mt-2 p-3 bg-purple-50 border border-purple-200 rounded-lg">
                   <pre className="text-xs overflow-auto whitespace-pre-wrap">
                     {JSON.stringify(userRewards, null, 2)}
                   </pre>
                 </div>
               </div>
+              
+              {/* Отображение наград по позициям */}
+              <div>
+                <Label className="text-xs text-muted-foreground">Rewards by Position:</Label>
+                <div className="mt-2 space-y-3">
+                  {Object.entries(userRewards).map(([positionAddress, rewards]: [string, any]) => (
+                    <div key={positionAddress} className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="font-semibold text-sm mb-2">Position: {positionAddress.substring(0, 8)}...</div>
+                      
+                      {/* Collateral Rewards */}
+                      {rewards.collateral && rewards.collateral.length > 0 && (
+                        <div className="mb-3">
+                          <div className="text-sm font-medium text-blue-800 mb-1">🎁 Collateral Rewards:</div>
+                          <div className="space-y-1">
+                            {rewards.collateral.map((reward: any, idx: number) => (
+                              <div key={idx} className="text-xs flex justify-between">
+                                <span>Token: {reward.key.substring(0, 8)}...</span>
+                                <span>Amount: {reward.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Borrow Rewards */}
+                      {rewards.borrow && rewards.borrow.length > 0 && (
+                        <div>
+                          <div className="text-sm font-medium text-green-800 mb-1">💳 Borrow Rewards:</div>
+                          <div className="space-y-1">
+                            {rewards.borrow.map((reward: any, idx: number) => (
+                              <div key={idx} className="text-xs flex justify-between">
+                                <span>Token: {reward.key.substring(0, 8)}...</span>
+                                <span>Amount: {reward.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
-          {!rewardsLoading && !rewardsError && userRewards.length === 0 && walletAddress && (
+          {!rewardsLoading && !rewardsError && Object.keys(userRewards).length === 0 && walletAddress && (
             <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
               <p className="text-yellow-800 text-sm">
                 No rewards found for this wallet. This is normal if the wallet has no positions or no claimable rewards.

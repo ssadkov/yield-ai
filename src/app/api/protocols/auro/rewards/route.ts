@@ -92,6 +92,15 @@ export async function POST(request: NextRequest) {
 
     // Для каждой пары делаем отдельный вызов claimable_rewards
     const rewardsData: any[] = [];
+    const positionRewardsMap: { [positionAddress: string]: { collateral: any[], borrow: any[] } } = {};
+    
+    // Инициализируем map для всех позиций
+    for (const pos of positionsInfo) {
+      if (pos.address) {
+        positionRewardsMap[pos.address] = { collateral: [], borrow: [] };
+      }
+    }
+    
     for (const { position, pool } of pairs) {
       try {
         console.log('Вызов claimable_rewards:', { position, pool });
@@ -112,6 +121,18 @@ export async function POST(request: NextRequest) {
             result = s0;
           }
           rewardsData.push(result);
+          
+          // Определяем тип награды (collateral или borrow) и добавляем в соответствующую категорию
+          const positionData = positionRewardsMap[position];
+          if (positionData) {
+            // Проверяем, является ли это borrow pool
+            const isBorrowPool = poolsData.find(p => p.borrowRewardsPoolAddress === pool);
+            if (isBorrowPool) {
+              positionData.borrow.push(result);
+            } else {
+              positionData.collateral.push(result);
+            }
+          }
         } else {
           rewardsData.push({ key: '', value: '0' });
         }
@@ -121,18 +142,35 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Приводим к единому виду
-    const rewardsWithTokenInfo = rewardsData.map((reward: any) => {
-      if (!reward || typeof reward !== 'object') return null;
-      return {
-        key: reward.key || reward.token || '',
-        value: reward.value || reward.amount || '0',
+    // Приводим к единому виду и группируем по позициям
+    const processedPositionRewards: { [positionAddress: string]: { collateral: any[], borrow: any[] } } = {};
+    
+    for (const [positionAddress, rewards] of Object.entries(positionRewardsMap)) {
+      processedPositionRewards[positionAddress] = {
+        collateral: rewards.collateral
+          .map((reward: any) => {
+            if (!reward || typeof reward !== 'object') return null;
+            return {
+              key: reward.key || reward.token || '',
+              value: reward.value || reward.amount || '0',
+            };
+          })
+          .filter(Boolean),
+        borrow: rewards.borrow
+          .map((reward: any) => {
+            if (!reward || typeof reward !== 'object') return null;
+            return {
+              key: reward.key || reward.token || '',
+              value: reward.value || reward.amount || '0',
+            };
+          })
+          .filter(Boolean)
       };
-    }).filter(Boolean);
+    }
 
     const result = {
       success: true,
-      data: rewardsWithTokenInfo,
+      data: processedPositionRewards,
       message: "Rewards data retrieved successfully",
       debug: {
         pairs

@@ -21,7 +21,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
   const [error, setError] = useState<string | null>(null);
   const [totalValue, setTotalValue] = useState<number>(0);
   const [poolsData, setPoolsData] = useState<any[]>([]);
-  const [rewardsData, setRewardsData] = useState<any[]>([]);
+  const [rewardsData, setRewardsData] = useState<{ [positionAddress: string]: { collateral: any[], borrow: any[] } }>({});
 
   const walletAddress = address || account?.address;
   const protocol = getProtocolByName("Auro Finance");
@@ -69,23 +69,32 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
         console.log('Fetching rewards for positions:', positions.length);
         console.log('Available pools:', poolsData.length);
         
-        // Собираем адреса позиций и пулов наград
-        const positionsAddress = positions.map(pos => pos.address).filter(Boolean);
-        const rewardPoolsAddress = poolsData
-          .map(pool => pool.rewardPoolAddress)
-          .filter(Boolean);
+        // Формируем positionsInfo в нужном формате
+        const positionsInfo = positions.map(pos => ({
+          address: pos.address,
+          poolAddress: pos.poolAddress,
+          debtAmount: pos.debtAmount
+        }));
 
-        console.log('Positions addresses:', positionsAddress);
-        console.log('Reward pools addresses:', rewardPoolsAddress);
+        // Формируем poolsData в нужном формате
+        const formattedPoolsData = poolsData.map(pool => ({
+          type: pool.type,
+          poolAddress: pool.poolAddress,
+          rewardPoolAddress: pool.rewardPoolAddress,
+          borrowRewardsPoolAddress: pool.borrowRewardsPoolAddress
+        }));
 
-        if (positionsAddress.length === 0 || rewardPoolsAddress.length === 0) {
-          console.log('No positions or reward pools found');
+        console.log('Positions info:', positionsInfo);
+        console.log('Formatted pools data:', formattedPoolsData);
+
+        if (positionsInfo.length === 0 || formattedPoolsData.length === 0) {
+          console.log('No positions or pools found');
           return;
         }
 
         const requestBody = {
-          positionsAddress,
-          rewardPoolsAddress
+          positionsInfo,
+          poolsData: formattedPoolsData
         };
 
         console.log('Sending request:', requestBody);
@@ -104,21 +113,21 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
           const data = await response.json();
           console.log('Rewards response:', data);
           
-          if (data.success && Array.isArray(data.data)) {
+          if (data.success && data.data) {
             setRewardsData(data.data);
             console.log('Set rewards data:', data.data);
           } else {
             console.log('Invalid rewards response format:', data);
-            setRewardsData([]);
+            setRewardsData({});
           }
         } else {
           const errorText = await response.text();
           console.error('Rewards API error:', response.status, errorText);
-          setRewardsData([]);
+          setRewardsData({});
         }
       } catch (error) {
         console.error('Error loading rewards:', error);
-        setRewardsData([]);
+        setRewardsData({});
       }
     };
 
@@ -206,9 +215,9 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
 
   // Получение наград для позиции
   const getPositionRewards = (positionAddress: string) => {
-    return rewardsData.filter(reward => 
-      reward.key && reward.value && parseFloat(reward.value) > 0
-    );
+    const collateralRewards = rewardsData[positionAddress]?.collateral || [];
+    const borrowRewards = rewardsData[positionAddress]?.borrow || [];
+    return [...collateralRewards, ...borrowRewards];
   };
 
   if (!walletAddress) return null;
@@ -291,36 +300,73 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                               )}
                             </div>
                             {/* Rewards section */}
-                            {rewardsData && rewardsData.length > 0 && (
-                              <div className="border-t border-gray-600 pt-3 mt-3">
-                                <div className="font-semibold text-sm text-white mb-2">🎁 Claimable Rewards</div>
-                                <div className="space-y-2">
-                                  {rewardsData.map((reward, rewardIdx) => {
-                                    if (!reward || !reward.key || !reward.value) return null;
-                                    const tokenInfo = getRewardTokenInfo(reward.key);
-                                    if (!tokenInfo) return null;
-                                    const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
-                                    const value = tokenInfo.price ? (amount * tokenInfo.price).toFixed(2) : 'N/A';
-                                    return (
-                                      <div key={rewardIdx} className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                          {tokenInfo.icon_uri && (
-                                            <img src={tokenInfo.icon_uri} alt={tokenInfo.symbol} className="w-4 h-4 rounded-full" />
-                                          )}
-                                          <span className="text-white font-medium">{tokenInfo.symbol}</span>
-                                        </div>
-                                        <div className="text-right">
-                                          <div className="text-white font-semibold">{amount.toFixed(6)}</div>
-                                          {value !== 'N/A' && (
-                                            <div className="text-gray-300 text-xs">${value}</div>
-                                          )}
-                                        </div>
+                              {rewardsData[pos.address] && (
+                                <div className="border-t border-gray-600 pt-3 mt-3">
+                                  {/* Collateral Rewards */}
+                                  {rewardsData[pos.address].collateral.length > 0 && (
+                                    <div className="mb-3">
+                                      <div className="font-semibold text-sm text-white mb-2">🎁 Collateral Rewards</div>
+                                      <div className="space-y-2">
+                                        {rewardsData[pos.address].collateral.map((reward, rewardIdx) => {
+                                          if (!reward || !reward.key || !reward.value) return null;
+                                          const tokenInfo = getRewardTokenInfo(reward.key);
+                                          if (!tokenInfo) return null;
+                                          const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
+                                          const value = tokenInfo.price ? (amount * tokenInfo.price).toFixed(2) : 'N/A';
+                                          return (
+                                            <div key={rewardIdx} className="flex items-center justify-between">
+                                              <div className="flex items-center gap-2">
+                                                {tokenInfo.icon_uri && (
+                                                  <img src={tokenInfo.icon_uri} alt={tokenInfo.symbol} className="w-4 h-4 rounded-full" />
+                                                )}
+                                                <span className="text-white font-medium">{tokenInfo.symbol}</span>
+                                              </div>
+                                              <div className="text-right">
+                                                <div className="text-white font-semibold">{amount.toFixed(6)}</div>
+                                                {value !== 'N/A' && (
+                                                  <div className="text-gray-300 text-xs">${value}</div>
+                                                )}
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
                                       </div>
-                                    );
-                                  })}
+                                    </div>
+                                  )}
+                                  
+                                  {/* Borrow Rewards */}
+                                  {rewardsData[pos.address].borrow.length > 0 && (
+                                    <div>
+                                      <div className="font-semibold text-sm text-white mb-2">💳 Borrow Rewards</div>
+                                      <div className="space-y-2">
+                                        {rewardsData[pos.address].borrow.map((reward, rewardIdx) => {
+                                          if (!reward || !reward.key || !reward.value) return null;
+                                          const tokenInfo = getRewardTokenInfo(reward.key);
+                                          if (!tokenInfo) return null;
+                                          const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
+                                          const value = tokenInfo.price ? (amount * tokenInfo.price).toFixed(2) : 'N/A';
+                                          return (
+                                            <div key={rewardIdx} className="flex items-center justify-between">
+                                              <div className="flex items-center gap-2">
+                                                {tokenInfo.icon_uri && (
+                                                  <img src={tokenInfo.icon_uri} alt={tokenInfo.symbol} className="w-4 h-4 rounded-full" />
+                                                )}
+                                                <span className="text-white font-medium">{tokenInfo.symbol}</span>
+                                              </div>
+                                              <div className="text-right">
+                                                <div className="text-white font-semibold">{amount.toFixed(6)}</div>
+                                                {value !== 'N/A' && (
+                                                  <div className="text-gray-300 text-xs">${value}</div>
+                                                )}
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
-                              </div>
-                            )}
+                              )}
                           </div>
                         </TooltipContent>
                     </Tooltip>
@@ -409,36 +455,71 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                               )}
                             </div>
                             {/* Rewards section */}
-                            {rewardsData && rewardsData.length > 0 && (
+                            {rewardsData[pos.address] && (
                               <div className="border-t border-gray-600 pt-3 mt-3">
-                                <div className="font-semibold text-sm text-white mb-2">🎁 Claimable Rewards</div>
-                                <div className="space-y-2">
-                                  {rewardsData.map((reward, rewardIdx) => {
-                                    if (!reward || !reward.key || !reward.value) return null;
-                                    const tokenInfo = getRewardTokenInfo(reward.key);
-                                    if (!tokenInfo) return null;
-                                    
-                                    const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
-                                    const value = tokenInfo.price ? (amount * tokenInfo.price).toFixed(2) : 'N/A';
-                                    
-                                    return (
-                                      <div key={rewardIdx} className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                          {tokenInfo.icon_uri && (
-                                            <img src={tokenInfo.icon_uri} alt={tokenInfo.symbol} className="w-4 h-4 rounded-full" />
-                                          )}
-                                          <span className="text-white font-medium">{tokenInfo.symbol}</span>
-                                        </div>
-                                        <div className="text-right">
-                                          <div className="text-white font-semibold">{amount.toFixed(6)}</div>
-                                          {value !== 'N/A' && (
-                                            <div className="text-gray-300 text-xs">${value}</div>
-                                          )}
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
+                                {/* Collateral Rewards */}
+                                {rewardsData[pos.address].collateral.length > 0 && (
+                                  <div className="mb-3">
+                                    <div className="font-semibold text-sm text-white mb-2">🎁 Collateral Rewards</div>
+                                    <div className="space-y-2">
+                                      {rewardsData[pos.address].collateral.map((reward, rewardIdx) => {
+                                        if (!reward || !reward.key || !reward.value) return null;
+                                        const tokenInfo = getRewardTokenInfo(reward.key);
+                                        if (!tokenInfo) return null;
+                                        const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
+                                        const value = tokenInfo.price ? (amount * tokenInfo.price).toFixed(2) : 'N/A';
+                                        return (
+                                          <div key={rewardIdx} className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                              {tokenInfo.icon_uri && (
+                                                <img src={tokenInfo.icon_uri} alt={tokenInfo.symbol} className="w-4 h-4 rounded-full" />
+                                              )}
+                                              <span className="text-white font-medium">{tokenInfo.symbol}</span>
+                                            </div>
+                                            <div className="text-right">
+                                              <div className="text-white font-semibold">{amount.toFixed(6)}</div>
+                                              {value !== 'N/A' && (
+                                                <div className="text-gray-300 text-xs">${value}</div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {/* Borrow Rewards */}
+                                {rewardsData[pos.address].borrow.length > 0 && (
+                                  <div>
+                                    <div className="font-semibold text-sm text-white mb-2">💳 Borrow Rewards</div>
+                                    <div className="space-y-2">
+                                      {rewardsData[pos.address].borrow.map((reward, rewardIdx) => {
+                                        if (!reward || !reward.key || !reward.value) return null;
+                                        const tokenInfo = getRewardTokenInfo(reward.key);
+                                        if (!tokenInfo) return null;
+                                        const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
+                                        const value = tokenInfo.price ? (amount * tokenInfo.price).toFixed(2) : 'N/A';
+                                        return (
+                                          <div key={rewardIdx} className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                              {tokenInfo.icon_uri && (
+                                                <img src={tokenInfo.icon_uri} alt={tokenInfo.symbol} className="w-4 h-4 rounded-full" />
+                                              )}
+                                              <span className="text-white font-medium">{tokenInfo.symbol}</span>
+                                            </div>
+                                            <div className="text-right">
+                                              <div className="text-white font-semibold">{amount.toFixed(6)}</div>
+                                              {value !== 'N/A' && (
+                                                <div className="text-gray-300 text-xs">${value}</div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
