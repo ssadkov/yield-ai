@@ -304,7 +304,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div className="flex items-center justify-between pt-2 border-t border-gray-200 cursor-help">
-                      <span className="text-sm text-muted-foreground">🎁 Total rewards:</span>
+                      <span className="text-sm text-muted-foreground">💰 Total rewards:</span>
                       <span className="text-sm font-medium">${totalRewardsValue.toFixed(2)}</span>
                     </div>
                   </TooltipTrigger>

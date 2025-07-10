@@ -440,7 +440,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                       {/* Collateral Rewards */}
                       {rewardsData[pos.address].collateral.length > 0 && (
                         <div className="mb-2">
-                          <div className="text-xs font-medium text-gray-600 mb-1">🎁 Collateral Rewards</div>
+                          <div className="text-xs font-medium text-gray-600 mb-1">💰 Collateral Rewards</div>
                           <div className="space-y-1">
                             {rewardsData[pos.address].collateral.map((reward, rewardIdx) => {
                               if (!reward || !reward.key || !reward.value) return null;
@@ -679,7 +679,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
           <span className="text-xl text-primary font-bold">${totalValue.toFixed(2)}</span>
           {totalRewardsValue > 0 && (
             <div className="text-sm text-muted-foreground mt-1 flex items-center justify-end gap-1">
-              <span>🎁</span>
+              <span>💰</span>
               <span>including rewards ${totalRewardsValue.toFixed(2)}</span>
             </div>
           )}
