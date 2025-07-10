@@ -256,7 +256,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
                             'text-xs font-semibold px-2 py-0.5 rounded border',
                             'bg-green-500/10 text-green-600 border-green-500/20')
                           }>
-                            Collateral
+                            Supply
                           </span>
                         </div>
                         <div className="text-xs text-muted-foreground">${collateralPrice}</div>
@@ -283,7 +283,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
                               'text-xs font-semibold px-2 py-0.5 rounded border',
                               'bg-red-500/10 text-red-600 border-red-500/20')
                             }>
-                              Debt
+                              Borrow
                             </span>
                           </div>
                           <div className="text-xs text-muted-foreground">${debtPrice}</div>
@@ -323,7 +323,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
                                 <img src={tokenInfo.icon_uri} alt={tokenInfo.symbol} className="w-3 h-3 rounded-full" />
                               )}
                               <span>{tokenInfo.symbol}</span>
-                              <span className="text-gray-400">Collateral</span>
+                              <span className="text-gray-400">Supply</span>
                               <span>{amount.toFixed(6)}</span>
                               <span className="text-gray-300">${value}</span>
                             </div>

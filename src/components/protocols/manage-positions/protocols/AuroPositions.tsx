@@ -391,7 +391,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                       </TooltipTrigger>
                       <TooltipContent className="w-[768px] p-4 bg-black text-white border-gray-700">
                         <div className="space-y-3">
-                          <div className="font-semibold text-sm text-white">{collateralSymbol} Collateral</div>
+                                                      <div className="font-semibold text-sm text-white">{collateralSymbol} Supply</div>
                           <div className="text-xs space-y-2 text-gray-200">
                             <div><span className="font-medium text-white">Position ID:</span> <code className="bg-gray-800 px-2 py-1 rounded text-xs text-gray-100 block mt-1">{pos.address}</code></div>
                             <div><span className="font-medium text-white">Pool ID:</span> <code className="bg-gray-800 px-2 py-1 rounded text-xs text-gray-100 block mt-1">{pos.poolAddress}</code></div>
@@ -425,7 +425,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                         variant="outline" 
                         className="bg-green-500/10 text-green-600 border-green-500/20 text-xs font-normal px-2 py-0.5 h-5"
                       >
-                        Collateral
+                                                  Supply
                       </Badge>
                     </div>
                     <div className="text-base text-muted-foreground mt-0.5">
@@ -486,7 +486,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                       {/* Collateral Rewards */}
                       {rewardsData[pos.address].collateral.length > 0 && (
                         <div className="mb-2">
-                          <div className="text-xs font-medium text-gray-600 mb-1">💰 Collateral Rewards</div>
+                          <div className="text-xs font-medium text-gray-600 mb-1">💰 Supply Rewards</div>
                           <div className="space-y-1">
                             {rewardsData[pos.address].collateral.map((reward, rewardIdx) => {
                               if (!reward || !reward.key || !reward.value) return null;
@@ -594,7 +594,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                         </TooltipTrigger>
                         <TooltipContent className="w-[768px] p-4 bg-black text-white border-gray-700">
                           <div className="space-y-3">
-                            <div className="font-semibold text-sm text-white">{debtSymbol} Debt</div>
+                            <div className="font-semibold text-sm text-white">{debtSymbol} Borrow</div>
                             <div className="text-xs space-y-2 text-gray-200">
                               <div><span className="font-medium text-white">Position ID:</span> <code className="bg-gray-800 px-2 py-1 rounded text-xs text-gray-100 block mt-1">{pos.address}</code></div>
                               <div><span className="font-medium text-white">Pool ID:</span> <code className="bg-gray-800 px-2 py-1 rounded text-xs text-gray-100 block mt-1">{pos.poolAddress}</code></div>
@@ -615,7 +615,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                           variant="outline" 
                           className="bg-red-500/10 text-red-600 border-red-500/20 text-xs font-normal px-2 py-0.5 h-5"
                         >
-                          Debt
+                          Borrow
                         </Badge>
                       </div>
                       <div className="text-base text-muted-foreground mt-0.5">
