@@ -16,9 +16,9 @@ export const poolSources: PoolSource[] = [
       // Transform Hyperion pools data to InvestmentData format
       const filtered = (data.data || [])
         .filter((pool: any) => {
-          // Filter pools with daily volume > $100 (reasonable threshold)
+          // Filter pools with daily volume > $1000 (reasonable threshold)
           const dailyVolume = parseFloat(pool.dailyVolumeUSD || "0");
-          return dailyVolume > 100;
+          return dailyVolume > 1000;
         });
       
       return filtered.map((pool: any) => {
@@ -42,6 +42,60 @@ export const poolSources: PoolSource[] = [
           dailyVolumeUSD: parseFloat(pool.dailyVolumeUSD || "0"),
           tvlUSD: parseFloat(pool.tvlUSD || "0"),
           // Include token information for DEX pools
+          token1Info: token1Info,
+          token2Info: token2Info
+        };
+      });
+    }
+  },
+  // Tapp Exchange pools API
+  {
+    name: 'Tapp Exchange Pools API',
+    url: '/api/protocols/tapp/pools',
+    enabled: true,
+    transform: (data: any) => {
+      // Transform Tapp pools data to InvestmentData format
+      const filtered = (data.data || [])
+        .filter((pool: any) => {
+          // Filter pools with daily volume > $1000 (reasonable threshold)
+          const dailyVolume = parseFloat(pool.volume_7d || "0") / 7; // Convert 7d volume to daily
+          return dailyVolume > 1000;
+        });
+      
+      return filtered.map((pool: any) => {
+        // APR is already in decimal form from our API wrapper
+        const totalAPY = parseFloat(pool.apr || "0") * 100; // Convert to percentage
+        
+        // Create token info objects for DEX display
+        const token1Info = {
+          symbol: pool.token_a || 'Unknown',
+          name: pool.token_a || 'Unknown',
+          logoUrl: pool.tokens?.[0]?.img || undefined,
+          decimals: 8
+        };
+        
+        const token2Info = {
+          symbol: pool.token_b || 'Unknown',
+          name: pool.token_b || 'Unknown',
+          logoUrl: pool.tokens?.[1]?.img || undefined,
+          decimals: 8
+        };
+        
+        return {
+          asset: `${pool.token_a || 'Unknown'}/${pool.token_b || 'Unknown'}`,
+          provider: 'Tapp Exchange',
+          totalAPY: totalAPY,
+          depositApy: totalAPY, // For DEX pools, deposit APY is the same as total APY
+          borrowAPY: 0, // DEX pools don't have borrowing
+          token: pool.pool_id || pool.id,
+          protocol: 'Tapp Exchange',
+          dailyVolumeUSD: parseFloat(pool.volume_7d || "0") / 7, // Convert 7d volume to daily
+          tvlUSD: parseFloat(pool.tvl || "0"),
+          // Include additional pool information
+          feeTier: parseFloat(pool.fee_tier || "0"),
+          volume7d: parseFloat(pool.volume_7d || "0"),
+          poolType: pool.poolType,
+          // Include token information for DEX display
           token1Info: token1Info,
           token2Info: token2Info
         };

@@ -19,6 +19,10 @@ export interface InvestmentData {
   // Token information for DEX pools
   token1Info?: TokenInfo;
   token2Info?: TokenInfo;
+  // Additional DEX pool information
+  poolType?: string;
+  feeTier?: number;
+  volume7d?: number;
 }
 
 export interface InvestmentsResponse {

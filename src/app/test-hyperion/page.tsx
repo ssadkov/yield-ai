@@ -16,7 +16,7 @@ export default function TestHyperionPage() {
   const [transformedPools, setTransformedPools] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [volumeThreshold, setVolumeThreshold] = useState(10000);
+  const [volumeThreshold, setVolumeThreshold] = useState(1000);
 
   const testHyperionPools = async () => {
     setLoading(true);

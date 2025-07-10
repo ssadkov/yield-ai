@@ -92,23 +92,33 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   };
 
   const isStablePool = (item: InvestmentData): boolean => {
-    // Лендинговые пулы всегда считаются стабильными
-    if (item.protocol !== 'Hyperion') {
-      return true;
-    }
-    
-    // Для DEX-пулов Hyperion проверяем совпадающие символы
+    // Для DEX-пулов проверяем, являются ли они стабильными парами
     if (item.token1Info && item.token2Info) {
       const symbol1 = item.token1Info.symbol.toLowerCase();
       const symbol2 = item.token2Info.symbol.toLowerCase();
       
-      // Ищем совпадающие символы (минимум 3 символа подряд)
+      // Проверяем стабильные токены
+      const stableTokens = ['usdt', 'usdc', 'dai', 'busd', 'tusd', 'gusd', 'frax'];
+      const isStable1 = stableTokens.some(token => symbol1.includes(token));
+      const isStable2 = stableTokens.some(token => symbol2.includes(token));
+      
+      // Если оба токена стабильные, это стабильная пара
+      if (isStable1 && isStable2) {
+        return true;
+      }
+      
+      // Ищем совпадающие символы (минимум 3 символа подряд) для других случаев
       for (let i = 0; i <= symbol1.length - 3; i++) {
         const substring = symbol1.substring(i, i + 3);
         if (symbol2.includes(substring)) {
           return true;
         }
       }
+    }
+    
+    // Для лендинговых пулов (не DEX) считаем стабильными
+    if (!item.token1Info && !item.token2Info) {
+      return true;
     }
     
     return false;
@@ -615,16 +625,17 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   <TableHead>Protocol</TableHead>
                   <TableHead>
                     <Tooltip>
-                      <TooltipTrigger>Supply APY</TooltipTrigger>
-                      <TooltipContent>Annual % yield from supply</TooltipContent>
+                      <TooltipTrigger>Supply</TooltipTrigger>
+                      <TooltipContent>APR - Annual % yield from supply</TooltipContent>
                     </Tooltip>
                   </TableHead>
                   <TableHead>
                     <Tooltip>
-                      <TooltipTrigger>Borrow APY</TooltipTrigger>
-                      <TooltipContent>Annual % cost or reward from borrowing</TooltipContent>
+                      <TooltipTrigger>Borrow</TooltipTrigger>
+                      <TooltipContent>APR - Annual % cost or reward from borrowing</TooltipContent>
                     </Tooltip>
                   </TableHead>
+                  <TableHead>Type</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -632,8 +643,12 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                 {currentTabData
                   .filter(item => {
                     const tokenInfo = getTokenInfo(item.asset, item.token);
+                    const hasTokenInfo = !!tokenInfo;
+                    const hasAssetColon = item.asset.includes('::');
+                    const hasDexTokens = !!(item.token1Info && item.token2Info);
+                    
                     // Включаем все пулы: с tokenInfo, с :: в asset, или DEX-пулы с token1Info/token2Info
-                    return item.asset.includes('::') || tokenInfo || (item.token1Info && item.token2Info);
+                    return hasAssetColon || hasTokenInfo || hasDexTokens;
                   })
                   .sort((a, b) => b.totalAPY - a.totalAPY)
                   .map((item, index) => {
@@ -712,6 +727,9 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                     // DEX tooltip content
                                     <>
                                       <p className="text-xs">Type: DEX Pool</p>
+                                      {item.poolType && (
+                                        <p className="text-xs">Pool Type: {item.poolType}</p>
+                                      )}
                                       <p className="text-xs">Token 1: {item.token1Info?.symbol} ({item.token1Info?.name})</p>
                                       <p className="text-xs">Token 2: {item.token2Info?.symbol} ({item.token2Info?.name})</p>
                                       {item.dailyVolumeUSD && (
@@ -742,14 +760,31 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                         </TableCell>
                         <TableCell>{item.depositApy ? `${item.depositApy.toFixed(2)}%` : "-"}</TableCell>
                         <TableCell>{item.borrowAPY ? `${item.borrowAPY.toFixed(2)}%` : "-"}</TableCell>
+                        <TableCell>
+                          {isDex ? (
+                            <Badge variant="secondary" className="text-xs">
+                              {item.poolType || 'DEX'}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-xs">
+                              Lending
+                            </Badge>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right">
                           <div>
                             {protocol ? (
                               isDex ? (
-                                // Для DEX-пулов Hyperion - прямая ссылка на пул
+                                // Для DEX-пулов - прямая ссылка на пул
                                 <Button 
                                   variant="secondary"
-                                  onClick={() => window.open(`https://hyperion.xyz/pool/${item.token}`, '_blank')}
+                                  onClick={() => {
+                                    if (item.protocol === 'Hyperion') {
+                                      window.open(`https://hyperion.xyz/pool/${item.token}`, '_blank');
+                                    } else if (item.protocol === 'Tapp Exchange') {
+                                      window.open(`https://tapp.exchange/pool`, '_blank');
+                                    }
+                                  }}
                                   className="w-full"
                                 >
                                   Deposit

@@ -60,7 +60,7 @@
     "description": "Tapp Exchange is a next-generation DEX built on Aptos, introducing a modular approach to trading",
     "depositType": "external",
     "depositUrl": "https://tapp.exchange/pool",
-    "isDepositEnabled": false,
+    "isDepositEnabled": true,
     "managedType": "native"
   },
   {
