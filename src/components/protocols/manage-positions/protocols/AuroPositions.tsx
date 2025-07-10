@@ -134,26 +134,107 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
     fetchRewards();
   }, [positions, poolsData]);
 
-  // Сортировка по value (по убыванию)
+  // Вспомогательная функция для получения информации о токене награды
+  const getRewardTokenInfoHelper = (tokenAddress: string) => {
+    // Ищем токен в poolsData
+    const pool = poolsData.find(p => p.token?.address === tokenAddress);
+    if (pool?.token) {
+      return {
+        symbol: pool.token.symbol,
+        name: pool.token.name,
+        icon_uri: pool.token.icon_uri,
+        decimals: pool.token.decimals,
+        price: pool.token.price
+      };
+    }
+    
+    // Fallback для AURO токена
+    if (tokenAddress === '0xbcff91abababee684b194219ff2113c26e63d57c8872e6fdaf25a41a45fb7197') {
+      return {
+        symbol: 'AURO',
+        name: 'AURO Finance',
+        icon_uri: 'https://img.auro.finance/auro.png',
+        decimals: 8,
+        price: 0.0069
+      };
+    }
+    
+    return null;
+  };
+
+  // Функция для расчета стоимости наград позиции
+  const calculateRewardsValue = (positionAddress: string) => {
+    let rewardsValue = 0;
+    if (rewardsData[positionAddress]) {
+      // Collateral rewards
+      rewardsData[positionAddress].collateral.forEach((reward: any) => {
+        if (reward && reward.key && reward.value) {
+          const tokenInfo = getRewardTokenInfoHelper(reward.key);
+          if (tokenInfo && tokenInfo.price) {
+            const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
+            rewardsValue += amount * tokenInfo.price;
+          }
+        }
+      });
+      
+      // Borrow rewards
+      rewardsData[positionAddress].borrow.forEach((reward: any) => {
+        if (reward && reward.key && reward.value) {
+          const tokenInfo = getRewardTokenInfoHelper(reward.key);
+          if (tokenInfo && tokenInfo.price) {
+            const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
+            rewardsValue += amount * tokenInfo.price;
+          }
+        }
+      });
+    }
+    return rewardsValue;
+  };
+
+  // Сортировка по value (по убыванию) - включая награды
   const sortedPositions = [...positions].sort((a, b) => {
     const valueA = a.collateralTokenInfo?.usdPrice ? parseFloat(a.collateralAmount) * parseFloat(a.collateralTokenInfo.usdPrice) : 0;
     const valueB = b.collateralTokenInfo?.usdPrice ? parseFloat(b.collateralAmount) * parseFloat(b.collateralTokenInfo.usdPrice) : 0;
-    return valueB - valueA;
+    
+    // Добавляем стоимость наград для сортировки
+    const rewardsValueA = calculateRewardsValue(a.address);
+    const rewardsValueB = calculateRewardsValue(b.address);
+    
+    return (valueB + rewardsValueB) - (valueA + rewardsValueA);
   });
+
+  // Функция для расчета общей стоимости всех наград
+  const calculateTotalRewardsValue = () => {
+    return sortedPositions.reduce((total, pos) => {
+      return total + calculateRewardsValue(pos.address);
+    }, 0);
+  };
+
+  // Мемоизируем общую стоимость наград для оптимизации
+  const totalRewardsValue = calculateTotalRewardsValue();
+  
+  // Пересчитываем сортировку при изменении наград
+  useEffect(() => {
+    // Сортировка уже обновляется автоматически благодаря зависимости от rewardsData
+  }, [rewardsData]);
 
   // Сумма активов
   useEffect(() => {
     const total = sortedPositions.reduce((sum, pos) => {
       const collateralValue = pos.collateralTokenInfo?.usdPrice ? parseFloat(pos.collateralAmount) * parseFloat(pos.collateralTokenInfo.usdPrice) : 0;
       const debtValue = pos.debtTokenInfo?.usdPrice ? parseFloat(pos.debtAmount) * parseFloat(pos.debtTokenInfo.usdPrice) : 0;
-      return sum + collateralValue - debtValue;
+      
+      // Добавляем стоимость наград
+      const rewardsValue = calculateRewardsValue(pos.address);
+      
+      return sum + collateralValue - debtValue + rewardsValue;
     }, 0);
     setTotalValue(total);
     
     if (onPositionsValueChange) {
       onPositionsValueChange(total);
     }
-  }, [sortedPositions, onPositionsValueChange]);
+  }, [sortedPositions, rewardsData, onPositionsValueChange]);
 
   // Получение реальных APR данных из API
   const getCollateralAPRData = (poolAddress: string) => {
@@ -185,33 +266,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
     };
   };
 
-  // Получение информации о токене награды
-  const getRewardTokenInfo = (tokenAddress: string) => {
-    // Ищем токен в poolsData
-    const pool = poolsData.find(p => p.token?.address === tokenAddress);
-    if (pool?.token) {
-      return {
-        symbol: pool.token.symbol,
-        name: pool.token.name,
-        icon_uri: pool.token.icon_uri,
-        decimals: pool.token.decimals,
-        price: pool.token.price
-      };
-    }
-    
-    // Fallback для AURO токена
-    if (tokenAddress === '0xbcff91abababee684b194219ff2113c26e63d57c8872e6fdaf25a41a45fb7197') {
-      return {
-        symbol: 'AURO',
-        name: 'AURO Finance',
-        icon_uri: 'https://img.auro.finance/auro.png',
-        decimals: 8,
-        price: 0.0069
-      };
-    }
-    
-    return null;
-  };
+
 
   // Получение наград для позиции
   const getPositionRewards = (positionAddress: string) => {
@@ -288,87 +343,33 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                           )}
                         </div>
                       </TooltipTrigger>
-                                              <TooltipContent className="w-[768px] p-4 bg-black text-white border-gray-700">
-                          <div className="space-y-3">
-                            <div className="font-semibold text-sm text-white">{collateralSymbol} Collateral</div>
-                            <div className="text-xs space-y-2 text-gray-200">
-                              <div><span className="font-medium text-white">Position ID:</span> <code className="bg-gray-800 px-2 py-1 rounded text-xs text-gray-100 block mt-1">{pos.address}</code></div>
-                              <div><span className="font-medium text-white">Pool ID:</span> <code className="bg-gray-800 px-2 py-1 rounded text-xs text-gray-100 block mt-1">{pos.poolAddress}</code></div>
-                              <div><span className="font-medium text-white">Token Address:</span> <code className="bg-gray-800 px-2 py-1 rounded text-xs text-gray-100 block mt-1">{pos.collateralTokenAddress}</code></div>
-                              {collateralAPRData.rewardPoolAddress && (
-                                <div><span className="font-medium text-white">Reward Pool:</span> <code className="bg-gray-800 px-2 py-1 rounded text-xs text-gray-100 block mt-1">{collateralAPRData.rewardPoolAddress}</code></div>
-                              )}
-                            </div>
-                            {/* Rewards section */}
-                              {rewardsData[pos.address] && (
-                                <div className="border-t border-gray-600 pt-3 mt-3">
-                                  {/* Collateral Rewards */}
-                                  {rewardsData[pos.address].collateral.length > 0 && (
-                                    <div className="mb-3">
-                                      <div className="font-semibold text-sm text-white mb-2">🎁 Collateral Rewards</div>
-                                      <div className="space-y-2">
-                                        {rewardsData[pos.address].collateral.map((reward, rewardIdx) => {
-                                          if (!reward || !reward.key || !reward.value) return null;
-                                          const tokenInfo = getRewardTokenInfo(reward.key);
-                                          if (!tokenInfo) return null;
-                                          const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
-                                          const value = tokenInfo.price ? (amount * tokenInfo.price).toFixed(2) : 'N/A';
-                                          return (
-                                            <div key={rewardIdx} className="flex items-center justify-between">
-                                              <div className="flex items-center gap-2">
-                                                {tokenInfo.icon_uri && (
-                                                  <img src={tokenInfo.icon_uri} alt={tokenInfo.symbol} className="w-4 h-4 rounded-full" />
-                                                )}
-                                                <span className="text-white font-medium">{tokenInfo.symbol}</span>
-                                              </div>
-                                              <div className="text-right">
-                                                <div className="text-white font-semibold">{amount.toFixed(6)}</div>
-                                                {value !== 'N/A' && (
-                                                  <div className="text-gray-300 text-xs">${value}</div>
-                                                )}
-                                              </div>
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    </div>
-                                  )}
-                                  
-                                  {/* Borrow Rewards */}
-                                  {rewardsData[pos.address].borrow.length > 0 && (
-                                    <div>
-                                      <div className="font-semibold text-sm text-white mb-2">💳 Borrow Rewards</div>
-                                      <div className="space-y-2">
-                                        {rewardsData[pos.address].borrow.map((reward, rewardIdx) => {
-                                          if (!reward || !reward.key || !reward.value) return null;
-                                          const tokenInfo = getRewardTokenInfo(reward.key);
-                                          if (!tokenInfo) return null;
-                                          const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
-                                          const value = tokenInfo.price ? (amount * tokenInfo.price).toFixed(2) : 'N/A';
-                                          return (
-                                            <div key={rewardIdx} className="flex items-center justify-between">
-                                              <div className="flex items-center gap-2">
-                                                {tokenInfo.icon_uri && (
-                                                  <img src={tokenInfo.icon_uri} alt={tokenInfo.symbol} className="w-4 h-4 rounded-full" />
-                                                )}
-                                                <span className="text-white font-medium">{tokenInfo.symbol}</span>
-                                              </div>
-                                              <div className="text-right">
-                                                <div className="text-white font-semibold">{amount.toFixed(6)}</div>
-                                                {value !== 'N/A' && (
-                                                  <div className="text-gray-300 text-xs">${value}</div>
-                                                )}
-                                              </div>
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
+                      <TooltipContent className="w-[768px] p-4 bg-black text-white border-gray-700">
+                        <div className="space-y-3">
+                          <div className="font-semibold text-sm text-white">{collateralSymbol} Collateral</div>
+                          <div className="text-xs space-y-2 text-gray-200">
+                            <div><span className="font-medium text-white">Position ID:</span> <code className="bg-gray-800 px-2 py-1 rounded text-xs text-gray-100 block mt-1">{pos.address}</code></div>
+                            <div><span className="font-medium text-white">Pool ID:</span> <code className="bg-gray-800 px-2 py-1 rounded text-xs text-gray-100 block mt-1">{pos.poolAddress}</code></div>
+                            <div><span className="font-medium text-white">Liquidation Price:</span> <code className="bg-gray-800 px-2 py-1 rounded text-xs text-gray-100 block mt-1">${pos.liquidatePrice}</code></div>
+                            {collateralAPRData.rewardPoolAddress && (
+                              <div><span className="font-medium text-white">Reward Pool:</span> <code className="bg-gray-800 px-2 py-1 rounded text-xs text-gray-100 block mt-1">{collateralAPRData.rewardPoolAddress}</code></div>
+                            )}
                           </div>
-                        </TooltipContent>
+                          <div className="text-xs space-y-1 text-gray-200">
+                            <div><span className="font-medium text-white">Supply APR:</span> {collateralAPRData.supplyApr.toFixed(2)}%</div>
+                            <div><span className="font-medium text-white">Incentive APR:</span> {collateralAPRData.supplyIncentiveApr.toFixed(2)}%</div>
+                            <div><span className="font-medium text-white">Staking APR:</span> {collateralAPRData.stakingApr.toFixed(2)}%</div>
+                            <div className="border-t border-gray-600 pt-1 mt-1">
+                              <span className="font-semibold text-white">Total APR: {collateralAPRData.totalApr.toFixed(2)}%</span>
+                            </div>
+                            {collateralAPRData.rewardPoolAddress && (
+                              <div className="mt-2">
+                                <span className="font-medium text-white">Reward Pool:</span>
+                                <code className="bg-gray-800 px-1 rounded text-xs text-gray-100 block mt-1">{collateralAPRData.rewardPoolAddress}</code>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                   <div>
@@ -386,41 +387,143 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                     </div>
                   </div>
                 </div>
-                                  <div className="text-right">
-                    <div className="flex items-center gap-2 mb-1">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-xs font-normal px-2 py-0.5 h-5 cursor-help">
-                              APR: {collateralAPRData.totalApr.toFixed(2)}%
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent className="w-80 p-3 bg-black text-white border-gray-700">
-                            <div className="space-y-2">
-                              <div className="font-semibold text-sm text-white">APR Breakdown</div>
-                              <div className="text-xs space-y-1 text-gray-200">
-                                <div><span className="font-medium text-white">Supply APR:</span> {collateralAPRData.supplyApr.toFixed(2)}%</div>
-                                <div><span className="font-medium text-white">Incentive APR:</span> {collateralAPRData.supplyIncentiveApr.toFixed(2)}%</div>
-                                <div><span className="font-medium text-white">Staking APR:</span> {collateralAPRData.stakingApr.toFixed(2)}%</div>
-                                <div className="border-t border-gray-600 pt-1 mt-1">
-                                  <span className="font-semibold text-white">Total APR: {collateralAPRData.totalApr.toFixed(2)}%</span>
-                                </div>
-                                {collateralAPRData.rewardPoolAddress && (
-                                  <div className="mt-2">
-                                    <span className="font-medium text-white">Reward Pool:</span>
-                                    <code className="bg-gray-800 px-1 rounded text-xs text-gray-100 block mt-1">{collateralAPRData.rewardPoolAddress}</code>
-                                  </div>
-                                )}
+                <div className="text-right">
+                  <div className="flex items-center gap-2 mb-1">
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge 
+                            variant="outline" 
+                            className={cn(
+                              "text-xs font-normal px-2 py-0.5 h-5 cursor-help",
+                              collateralAPRData.totalApr > 0 
+                                ? "bg-green-500/10 text-green-600 border-green-500/20"
+                                : "bg-gray-500/10 text-gray-600 border-gray-500/20"
+                            )}
+                          >
+                            APR: {collateralAPRData.totalApr.toFixed(2)}%
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent className="w-80 p-3 bg-black text-white border-gray-700">
+                          <div className="space-y-2">
+                            <div className="font-semibold text-sm text-white">APR Breakdown</div>
+                            <div className="text-xs space-y-1 text-gray-200">
+                              <div><span className="font-medium text-white">Supply APR:</span> {collateralAPRData.supplyApr.toFixed(2)}%</div>
+                              <div><span className="font-medium text-white">Incentive APR:</span> {collateralAPRData.supplyIncentiveApr.toFixed(2)}%</div>
+                              <div><span className="font-medium text-white">Staking APR:</span> {collateralAPRData.stakingApr.toFixed(2)}%</div>
+                              <div className="border-t border-gray-600 pt-1 mt-1">
+                                <span className="font-semibold text-white">Total APR: {collateralAPRData.totalApr.toFixed(2)}%</span>
                               </div>
+                              {collateralAPRData.rewardPoolAddress && (
+                                <div className="mt-2">
+                                  <span className="font-medium text-white">Reward Pool:</span>
+                                  <code className="bg-gray-800 px-1 rounded text-xs text-gray-100 block mt-1">{collateralAPRData.rewardPoolAddress}</code>
+                                </div>
+                              )}
                             </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                      <div className="text-lg font-bold">${collateralValue}</div>
-                    </div>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <div className="text-lg font-bold">${collateralValue}</div>
+                  </div>
                   <div className="text-base text-muted-foreground font-semibold">
                     {parseFloat(collateral).toFixed(4)} {collateralSymbol}
                   </div>
+                  
+                  {/* Rewards section - прямо в карточке */}
+                  {rewardsData[pos.address] && (
+                    rewardsData[pos.address].collateral.length > 0 || 
+                    (!hasDebt && rewardsData[pos.address].borrow.length > 0)
+                  ) && (
+                    <div className="mt-2 pt-2 border-t border-gray-200">
+                      {/* Collateral Rewards */}
+                      {rewardsData[pos.address].collateral.length > 0 && (
+                        <div className="mb-2">
+                          <div className="text-xs font-medium text-gray-600 mb-1">🎁 Collateral Rewards</div>
+                          <div className="space-y-1">
+                            {rewardsData[pos.address].collateral.map((reward, rewardIdx) => {
+                              if (!reward || !reward.key || !reward.value) return null;
+                              const tokenInfo = getRewardTokenInfoHelper(reward.key);
+                              if (!tokenInfo) return null;
+                              const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
+                              const value = tokenInfo.price ? (amount * tokenInfo.price).toFixed(2) : 'N/A';
+                              return (
+                                <TooltipProvider key={rewardIdx}>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div className="flex items-center justify-between text-xs cursor-help">
+                                        <div className="flex items-center gap-1">
+                                        </div>
+                                        <div className="text-right">
+                                          {value !== 'N/A' ? (
+                                            <div className="font-medium">${value}</div>
+                                          ) : (
+                                            <div className="font-medium">{amount.toFixed(4)}</div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="bg-black text-white border-gray-700">
+                                      <div className="text-xs">
+                                        <div className="text-gray-300">{amount.toFixed(6)} {tokenInfo.symbol}</div>
+                                        {value !== 'N/A' && (
+                                          <div className="text-gray-300">${value}</div>
+                                        )}
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Borrow Rewards - показываем в collateral секции, если нет debt */}
+                      {!hasDebt && rewardsData[pos.address].borrow.length > 0 && (
+                        <div>
+                          <div className="text-xs font-medium text-gray-600 mb-1">💳 Borrow Rewards</div>
+                          <div className="space-y-1">
+                            {rewardsData[pos.address].borrow.map((reward, rewardIdx) => {
+                              if (!reward || !reward.key || !reward.value) return null;
+                              const tokenInfo = getRewardTokenInfoHelper(reward.key);
+                              if (!tokenInfo) return null;
+                              const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
+                              const value = tokenInfo.price ? (amount * tokenInfo.price).toFixed(2) : 'N/A';
+                              return (
+                                <TooltipProvider key={rewardIdx}>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div className="flex items-center justify-between text-xs cursor-help">
+                                        <div className="flex items-center gap-1">
+                                        </div>
+                                        <div className="text-right">
+                                          {value !== 'N/A' ? (
+                                            <div className="font-medium">${value}</div>
+                                          ) : (
+                                            <div className="font-medium">{amount.toFixed(4)}</div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="bg-black text-white border-gray-700">
+                                      <div className="text-xs">
+                                        <div className="text-gray-300">{amount.toFixed(6)} {tokenInfo.symbol}</div>
+                                        {value !== 'N/A' && (
+                                          <div className="text-gray-300">${value}</div>
+                                        )}
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -454,74 +557,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                                 <div><span className="font-medium text-white">Reward Pool:</span> <code className="bg-gray-800 px-2 py-1 rounded text-xs text-gray-100 block mt-1">{debtAPRData.rewardPoolAddress}</code></div>
                               )}
                             </div>
-                            {/* Rewards section */}
-                            {rewardsData[pos.address] && (
-                              <div className="border-t border-gray-600 pt-3 mt-3">
-                                {/* Collateral Rewards */}
-                                {rewardsData[pos.address].collateral.length > 0 && (
-                                  <div className="mb-3">
-                                    <div className="font-semibold text-sm text-white mb-2">🎁 Collateral Rewards</div>
-                                    <div className="space-y-2">
-                                      {rewardsData[pos.address].collateral.map((reward, rewardIdx) => {
-                                        if (!reward || !reward.key || !reward.value) return null;
-                                        const tokenInfo = getRewardTokenInfo(reward.key);
-                                        if (!tokenInfo) return null;
-                                        const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
-                                        const value = tokenInfo.price ? (amount * tokenInfo.price).toFixed(2) : 'N/A';
-                                        return (
-                                          <div key={rewardIdx} className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                              {tokenInfo.icon_uri && (
-                                                <img src={tokenInfo.icon_uri} alt={tokenInfo.symbol} className="w-4 h-4 rounded-full" />
-                                              )}
-                                              <span className="text-white font-medium">{tokenInfo.symbol}</span>
-                                            </div>
-                                            <div className="text-right">
-                                              <div className="text-white font-semibold">{amount.toFixed(6)}</div>
-                                              {value !== 'N/A' && (
-                                                <div className="text-gray-300 text-xs">${value}</div>
-                                              )}
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                )}
-                                
-                                {/* Borrow Rewards */}
-                                {rewardsData[pos.address].borrow.length > 0 && (
-                                  <div>
-                                    <div className="font-semibold text-sm text-white mb-2">💳 Borrow Rewards</div>
-                                    <div className="space-y-2">
-                                      {rewardsData[pos.address].borrow.map((reward, rewardIdx) => {
-                                        if (!reward || !reward.key || !reward.value) return null;
-                                        const tokenInfo = getRewardTokenInfo(reward.key);
-                                        if (!tokenInfo) return null;
-                                        const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
-                                        const value = tokenInfo.price ? (amount * tokenInfo.price).toFixed(2) : 'N/A';
-                                        return (
-                                          <div key={rewardIdx} className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                              {tokenInfo.icon_uri && (
-                                                <img src={tokenInfo.icon_uri} alt={tokenInfo.symbol} className="w-4 h-4 rounded-full" />
-                                              )}
-                                              <span className="text-white font-medium">{tokenInfo.symbol}</span>
-                                            </div>
-                                            <div className="text-right">
-                                              <div className="text-white font-semibold">{amount.toFixed(6)}</div>
-                                              {value !== 'N/A' && (
-                                                <div className="text-gray-300 text-xs">${value}</div>
-                                              )}
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            )}
+
                           </div>
                         </TooltipContent>
                       </Tooltip>
@@ -583,6 +619,52 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                     <div className="text-base text-muted-foreground font-semibold">
                       {parseFloat(debt).toFixed(4)} {debtSymbol}
                     </div>
+                    
+                    {/* Rewards section для debt позиции */}
+                    {rewardsData[pos.address] && rewardsData[pos.address].borrow.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-gray-200">
+                        {/* Borrow Rewards для debt позиции */}
+                        <div>
+                          <div className="text-xs font-medium text-gray-600 mb-1">💳 Borrow Rewards</div>
+                          <div className="space-y-1">
+                            {rewardsData[pos.address].borrow.map((reward, rewardIdx) => {
+                              if (!reward || !reward.key || !reward.value) return null;
+                              const tokenInfo = getRewardTokenInfoHelper(reward.key);
+                              if (!tokenInfo) return null;
+                              const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
+                              const value = tokenInfo.price ? (amount * tokenInfo.price).toFixed(2) : 'N/A';
+                              return (
+                                <TooltipProvider key={rewardIdx}>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div className="flex items-center justify-between text-xs cursor-help">
+                                        <div className="flex items-center gap-1">
+                                        </div>
+                                        <div className="text-right">
+                                          {value !== 'N/A' ? (
+                                            <div className="font-medium">${value}</div>
+                                          ) : (
+                                            <div className="font-medium">{amount.toFixed(4)}</div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="bg-black text-white border-gray-700">
+                                      <div className="text-xs">
+                                        <div className="text-gray-300">{amount.toFixed(6)} {tokenInfo.symbol}</div>
+                                        {value !== 'N/A' && (
+                                          <div className="text-gray-300">${value}</div>
+                                        )}
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -593,7 +675,15 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
       
       <div className="flex items-center justify-between pt-6 pb-6">
         <span className="text-xl">Total assets in Auro Finance:</span>
-        <span className="text-xl text-primary font-bold">${totalValue.toFixed(2)}</span>
+        <div className="text-right">
+          <span className="text-xl text-primary font-bold">${totalValue.toFixed(2)}</span>
+          {totalRewardsValue > 0 && (
+            <div className="text-sm text-muted-foreground mt-1 flex items-center justify-end gap-1">
+              <span>🎁</span>
+              <span>including rewards ${totalRewardsValue.toFixed(2)}</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Кнопка Manage Positions */}
