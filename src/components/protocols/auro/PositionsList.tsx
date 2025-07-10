@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
@@ -29,7 +29,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
   const protocol = getProtocolByName("Auro Finance");
 
   // Функция для получения информации о токене наград
-  const getRewardTokenInfoHelper = (tokenAddress: string) => {
+  const getRewardTokenInfoHelper = useCallback((tokenAddress: string) => {
     const cleanAddress = tokenAddress.startsWith('@') ? tokenAddress.slice(1) : tokenAddress;
     const fullAddress = cleanAddress.startsWith('0x') ? cleanAddress : `0x${cleanAddress}`;
     const token = (tokenList as any).data.data.find((token: any) => 
@@ -45,10 +45,10 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
       decimals: token.decimals,
       price: token.usdPrice
     };
-  };
+  }, []);
 
   // Функция для расчета стоимости наград для конкретной позиции
-  const calculateRewardsValue = (positionAddress: string) => {
+  const calculateRewardsValue = useCallback((positionAddress: string) => {
     if (!rewardsData[positionAddress]) return 0;
     let totalValue = 0;
     let collateralSum = 0;
@@ -83,10 +83,10 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
       });
     }
     return totalValue;
-  };
+  }, [rewardsData, getRewardTokenInfoHelper]);
 
   // Функция для расчета общей стоимости всех наград
-  const calculateTotalRewardsValue = () => {
+  const calculateTotalRewardsValue = useCallback(() => {
     let total = 0;
     Object.keys(rewardsData).forEach(positionAddress => {
       total += calculateRewardsValue(positionAddress);
@@ -95,11 +95,11 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
       console.log('[Auro Sidebar] Total rewards value:', total, rewardsData);
     }
     return total;
-  };
+  }, [rewardsData, calculateRewardsValue]);
 
   // Функция для загрузки наград
-  const fetchRewards = async () => {
-    if (!walletAddress || positions.length === 0) return;
+  const fetchRewards = useCallback(async (positionsData: any[]) => {
+    if (!walletAddress || positionsData.length === 0) return;
     
     try {
       // Сначала загружаем данные о пулах
@@ -120,7 +120,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          positionsInfo: positions,
+          positionsInfo: positionsData,
           poolsData: poolsData.data
         })
       });
@@ -132,40 +132,82 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
       
       if (data.success && data.data) {
         setRewardsData(data.data);
-        const totalRewards = calculateTotalRewardsValue();
+        // Рассчитываем общую стоимость наград напрямую
+        let totalRewards = 0;
+        Object.keys(data.data).forEach(positionAddress => {
+          const positionRewards = data.data[positionAddress];
+          if (positionRewards) {
+            // Считаем collateral rewards
+            positionRewards.collateral?.forEach((reward: any) => {
+              if (!reward || !reward.key || !reward.value) return;
+              const tokenInfo = getRewardTokenInfoHelper(reward.key);
+              if (!tokenInfo || !tokenInfo.price) return;
+              const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
+              const value = amount * tokenInfo.price;
+              totalRewards += value;
+            });
+            // Считаем borrow rewards
+            positionRewards.borrow?.forEach((reward: any) => {
+              if (!reward || !reward.key || !reward.value) return;
+              const tokenInfo = getRewardTokenInfoHelper(reward.key);
+              if (!tokenInfo || !tokenInfo.price) return;
+              const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
+              const value = amount * tokenInfo.price;
+              totalRewards += value;
+            });
+          }
+        });
         setTotalRewardsValue(totalRewards);
       }
     } catch (error) {
       console.error('Error fetching Auro rewards:', error);
     }
-  };
+  }, [walletAddress, getRewardTokenInfoHelper]);
 
-  // useEffect для загрузки позиций
+  // Объединенный useEffect для загрузки позиций и наград
   useEffect(() => {
     if (!walletAddress) {
       setPositions([]);
+      setRewardsData({});
+      setTotalRewardsValue(0);
       return;
     }
-    setLoading(true);
-    setError(null);
-    fetch(`/api/protocols/auro/userPositions?address=${walletAddress}`)
-      .then(res => res.json())
-      .then(data => {
-        setPositions(Array.isArray(data.positionInfo) ? data.positionInfo : []);
-      })
-      .catch(err => {
+
+    const loadData = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        // Загружаем позиции
+        const positionsResponse = await fetch(`/api/protocols/auro/userPositions?address=${walletAddress}`);
+        if (!positionsResponse.ok) {
+          throw new Error(`Positions API returned status ${positionsResponse.status}`);
+        }
+        
+        const positionsData = await positionsResponse.json();
+        const positionsArray = Array.isArray(positionsData.positionInfo) ? positionsData.positionInfo : [];
+        setPositions(positionsArray);
+        
+        // Загружаем награды только если есть позиции
+        if (positionsArray.length > 0) {
+          await fetchRewards(positionsArray);
+        } else {
+          setRewardsData({});
+          setTotalRewardsValue(0);
+        }
+      } catch (err) {
+        console.error('Error loading Auro data:', err);
         setError("Failed to load Auro Finance positions");
         setPositions([]);
-      })
-      .finally(() => setLoading(false));
-  }, [walletAddress]);
+        setRewardsData({});
+        setTotalRewardsValue(0);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // useEffect для загрузки наград
-  useEffect(() => {
-    if (walletAddress && positions.length > 0) {
-      fetchRewards();
-    }
-  }, [walletAddress, positions]);
+    loadData();
+  }, [walletAddress, fetchRewards]);
 
   // Сортировка по value (по убыванию)
   const sortedPositions = [...positions].sort((a, b) => {
@@ -175,23 +217,25 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
   });
 
   // Сумма активов (Collateral - Debt + Rewards) - включая награды
-  const totalValue = sortedPositions.reduce((sum, pos) => {
-    // Сумма по collateral позициям
-    const collateralValue = pos.collateralTokenInfo?.usdPrice ? parseFloat(pos.collateralAmount) * parseFloat(pos.collateralTokenInfo.usdPrice) : 0;
-    
-    // Сумма по debt позициям (вычитаем)
-    const debtValue = pos.debtTokenInfo?.usdPrice ? parseFloat(pos.debtAmount) * parseFloat(pos.debtTokenInfo.usdPrice) : 0;
-    
-    // Добавляем награды для этой позиции
-    const positionRewards = calculateRewardsValue(pos.address);
-    
-    return sum + collateralValue - debtValue + positionRewards;
-  }, 0);
+  const totalValue = useCallback(() => {
+    return sortedPositions.reduce((sum, pos) => {
+      // Сумма по collateral позициям
+      const collateralValue = pos.collateralTokenInfo?.usdPrice ? parseFloat(pos.collateralAmount) * parseFloat(pos.collateralTokenInfo.usdPrice) : 0;
+      
+      // Сумма по debt позициям (вычитаем)
+      const debtValue = pos.debtTokenInfo?.usdPrice ? parseFloat(pos.debtAmount) * parseFloat(pos.debtTokenInfo.usdPrice) : 0;
+      
+      // Добавляем награды для этой позиции
+      const positionRewards = calculateRewardsValue(pos.address);
+      
+      return sum + collateralValue - debtValue + positionRewards;
+    }, 0);
+  }, [sortedPositions, calculateRewardsValue]);
 
   // useEffect для передачи суммы наверх
   useEffect(() => {
     if (onPositionsValueChange) {
-      onPositionsValueChange(totalValue);
+      onPositionsValueChange(totalValue());
     }
   }, [totalValue, onPositionsValueChange]);
 
@@ -218,7 +262,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
             <CardTitle className="text-lg">Auro Finance</CardTitle>
           </div>
           <div className="flex items-center gap-2">
-            <div className="text-lg">${totalValue.toFixed(2)}</div>
+            <div className="text-lg">${totalValue().toFixed(2)}</div>
             <ChevronDown className={cn(
               "h-5 w-5 transition-transform",
               isExpanded('auro') ? "transform rotate-0" : "transform -rotate-90"
