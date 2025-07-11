@@ -50,6 +50,9 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const address = searchParams.get("address");
 
+    console.log("🔍 Hyperion userPositions API called with address:", address);
+    console.log("🔑 APTOS_API_KEY exists:", !!process.env.APTOS_API_KEY);
+
     if (!address) {
       return NextResponse.json(
         { error: "Address is required" },
@@ -58,8 +61,14 @@ export async function GET(request: Request) {
     }
 
     // Получаем позиции через локальный SDK
+    console.log("📡 Calling Hyperion SDK...");
     const positions = await sdk.Position.fetchAllPositionsByAddress({
       address: address
+    });
+    
+    console.log("✅ Hyperion SDK response:", {
+      positionsCount: Array.isArray(positions) ? positions.length : 'not array',
+      positionsType: typeof positions
     });
     
     // Возвращаем данные с настройками кэширования
@@ -75,6 +84,11 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error("❌ Hyperion user positions error:", error);
+    console.error("❌ Error details:", {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : 'No stack trace'
+    });
     // Возвращаем пустой массив при ошибках (как в Echelon)
     return NextResponse.json(
       {

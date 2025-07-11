@@ -4,5 +4,5 @@ import { initHyperionSDK } from '@hyperionxyz/sdk';
 // Инициализируем SDK с основными параметрами
 export const sdk = initHyperionSDK({
   network: Network.MAINNET,
-  APTOS_API_KEY: process.env.NEXT_PUBLIC_APTOS_API_KEY || "",
+  APTOS_API_KEY: process.env.APTOS_API_KEY || "",
 }); 
