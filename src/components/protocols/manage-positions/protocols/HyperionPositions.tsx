@@ -200,7 +200,8 @@ const HyperionPosition = memo(function HyperionPosition({ position, index }: Hyp
 
   return (
     <div className="p-4 border-b last:border-b-0">
-      <div className="flex justify-between items-start">
+      {/* Desktop layout */}
+      <div className="hidden md:flex justify-between items-start">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
             {/* Значки токенов слева как в TappExchange */}
@@ -338,6 +339,98 @@ const HyperionPosition = memo(function HyperionPosition({ position, index }: Hyp
               {isRemoving ? 'Removing...' : 'Remove'}
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Mobile layout */}
+      <div className="md:hidden space-y-3">
+        {/* Header с токенами и статусом */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {position.position?.pool?.token1Info?.logoUrl && position.position?.pool?.token2Info?.logoUrl && (
+              <div className="flex -space-x-2 mr-2">
+                <img 
+                  src={position.position.pool.token1Info.logoUrl} 
+                  alt={position.position.pool.token1Info.symbol} 
+                  className="w-8 h-8 rounded-full border-2 border-white object-contain"
+                />
+                <img 
+                  src={position.position.pool.token2Info.logoUrl} 
+                  alt={position.position.pool.token2Info.symbol} 
+                  className="w-8 h-8 rounded-full border-2 border-white object-contain"
+                />
+              </div>
+            )}
+            <div className="flex flex-col">
+              <span className="text-lg font-semibold">
+                {position.position?.pool?.token1Info?.symbol || 'Unknown'} / {position.position?.pool?.token2Info?.symbol || 'Unknown'}
+              </span>
+              <div className="flex items-center gap-2 mt-1">
+                {position.isActive ? (
+                  <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-xs font-normal px-2 py-0.5 h-5">
+                    Active
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 text-xs font-normal px-2 py-0.5 h-5">
+                    Inactive
+                  </Badge>
+                )}
+                <button
+                  className="w-4 h-4 flex items-center justify-center rounded-full hover:bg-gray-200/60 focus:outline-none transition-colors"
+                  onClick={handleViewPoolDetails}
+                  disabled={loadingPoolDetails}
+                  aria-label="Pool details"
+                  type="button"
+                >
+                  <Info className="w-4 h-4 text-gray-400" />
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="text-right">
+            <span className="text-lg font-bold">${parseFloat(position.value || "0").toFixed(2)}</span>
+          </div>
+        </div>
+
+        {/* APR и Rewards */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs font-normal px-2 py-0.5 h-5">
+              APR: {totalAPR.toFixed(2)}%
+            </Badge>
+            <span className="text-xs text-gray-500">
+              Fee: {poolAPR.feeAPR.toFixed(2)}% | Farm: {poolAPR.farmAPR.toFixed(2)}%
+            </span>
+          </div>
+          {(position.farm?.unclaimed?.length > 0 || position.fees?.unclaimed?.length > 0) && (
+            <div className="text-sm text-gray-600">
+              💰 ${totalRewards.toFixed(2)}
+            </div>
+          )}
+        </div>
+
+        {/* Кнопки действий */}
+        <div className="flex gap-2">
+          {totalRewards > 0 && (
+            <button
+              className="flex-1 py-2 bg-green-600 text-white rounded text-sm font-semibold disabled:opacity-60"
+              onClick={handleClaimRewards}
+              disabled={isClaiming}
+            >
+              {isClaiming ? 'Claiming...' : 'Claim Rewards'}
+            </button>
+          )}
+          <button
+            className={`flex-1 py-2 rounded text-sm font-semibold disabled:opacity-60 transition-all ${
+              position.isActive 
+                ? 'bg-red-300 text-red-800 hover:bg-red-400 border border-red-400' 
+                : 'bg-red-500 text-white hover:bg-red-600 shadow-lg'
+            }`}
+            onClick={handleRemoveLiquidity}
+            disabled={isRemoving || !getTokenAddress(position.position.pool.token1Info) || !getTokenAddress(position.position.pool.token2Info)}
+          >
+            {isRemoving ? 'Removing...' : 'Remove'}
+          </button>
         </div>
       </div>
 
@@ -592,28 +685,55 @@ export function HyperionPositions() {
           />
         ))}
         <div className="pt-6 pb-6">
-          <div className="flex items-center justify-between">
-            <span className="text-xl">Total assets in Hyperion:</span>
-            <span className="text-xl text-primary font-bold">${totalValue.toFixed(2)}</span>
+          {/* Desktop layout */}
+          <div className="hidden md:block">
+            <div className="flex items-center justify-between">
+              <span className="text-xl">Total assets in Hyperion:</span>
+              <span className="text-xl text-primary font-bold">${totalValue.toFixed(2)}</span>
+            </div>
+            {totalRewards > 0 && (
+              <div className="flex justify-end mt-2">
+                <div className="text-right">
+                  <div className="text-sm text-muted-foreground flex items-center gap-1 justify-end">
+                    <span>💰</span>
+                    <span>including rewards ${totalRewards.toFixed(2)}</span>
+                  </div>
+                  {positionsWithRewards.length > 1 && (
+                    <button
+                      className="px-3 py-1 bg-green-600 text-white rounded text-sm font-semibold disabled:opacity-60 mt-1"
+                      onClick={() => setShowClaimAllModal(true)}
+                    >
+                      Claim All Rewards ({positionsWithRewards.length})
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-          {totalRewards > 0 && (
-            <div className="flex justify-end mt-2">
-              <div className="text-right">
-                <div className="text-sm text-muted-foreground flex items-center gap-1 justify-end">
+
+          {/* Mobile layout */}
+          <div className="md:hidden space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-lg">Total assets in Hyperion:</span>
+              <span className="text-lg text-primary font-bold">${totalValue.toFixed(2)}</span>
+            </div>
+            {totalRewards > 0 && (
+              <div className="space-y-2">
+                <div className="text-sm text-muted-foreground flex items-center gap-1">
                   <span>💰</span>
                   <span>including rewards ${totalRewards.toFixed(2)}</span>
                 </div>
                 {positionsWithRewards.length > 1 && (
                   <button
-                    className="px-3 py-1 bg-green-600 text-white rounded text-sm font-semibold disabled:opacity-60 mt-1"
+                    className="w-full py-2 bg-green-600 text-white rounded text-sm font-semibold disabled:opacity-60"
                     onClick={() => setShowClaimAllModal(true)}
                   >
                     Claim All Rewards ({positionsWithRewards.length})
                   </button>
                 )}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
       
