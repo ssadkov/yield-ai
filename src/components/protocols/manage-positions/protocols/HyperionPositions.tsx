@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef, memo, useMemo } from "react";
-import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useToast } from "@/components/ui/use-toast";
@@ -200,7 +199,7 @@ const HyperionPosition = memo(function HyperionPosition({ position, index }: Hyp
   };
 
   return (
-    <Card className="w-full p-4 mb-4">
+    <div className="p-4 border-b last:border-b-0">
       <div className="flex justify-between items-start">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
@@ -432,7 +431,7 @@ const HyperionPosition = memo(function HyperionPosition({ position, index }: Hyp
           </div>
         </div>
       )}
-    </Card>
+    </div>
   );
 });
 
@@ -547,6 +546,17 @@ export function HyperionPositions() {
     return (farmRewards + feeRewards) > 0;
   });
 
+  // Считаем общую сумму rewards
+  const totalRewards = positions.reduce((sum, position) => {
+    const farmRewards = position.farm?.unclaimed?.reduce((rewardSum: number, reward: { amountUSD: string }) => {
+      return rewardSum + parseFloat(reward.amountUSD || "0");
+    }, 0) || 0;
+    const feeRewards = position.fees?.unclaimed?.reduce((feeSum: number, fee: { amountUSD: string }) => {
+      return feeSum + parseFloat(fee.amountUSD || "0");
+    }, 0) || 0;
+    return sum + farmRewards + feeRewards;
+  }, 0);
+
   // Считаем общую сумму (позиции + награды)
   const totalValue = positions.reduce((sum, position) => {
     const positionValue = parseFloat(position.value || "0");
@@ -581,19 +591,29 @@ export function HyperionPositions() {
             index={index} 
           />
         ))}
-        <div className="flex items-center justify-between pt-6 pb-6">
-          <span className="text-xl">Total assets in Hyperion:</span>
-          <div className="flex items-center gap-4">
+        <div className="pt-6 pb-6">
+          <div className="flex items-center justify-between">
+            <span className="text-xl">Total assets in Hyperion:</span>
             <span className="text-xl text-primary font-bold">${totalValue.toFixed(2)}</span>
-            {positionsWithRewards.length > 1 && (
-              <button
-                className="px-4 py-2 bg-green-600 text-white rounded text-sm font-semibold hover:bg-green-700 transition-colors"
-                onClick={() => setShowClaimAllModal(true)}
-              >
-                Claim All Rewards ({positionsWithRewards.length})
-              </button>
-            )}
           </div>
+          {totalRewards > 0 && (
+            <div className="flex justify-end mt-2">
+              <div className="text-right">
+                <div className="text-sm text-muted-foreground flex items-center gap-1 justify-end">
+                  <span>💰</span>
+                  <span>including rewards ${totalRewards.toFixed(2)}</span>
+                </div>
+                {positionsWithRewards.length > 1 && (
+                  <button
+                    className="px-3 py-1 bg-green-600 text-white rounded text-sm font-semibold disabled:opacity-60 mt-1"
+                    onClick={() => setShowClaimAllModal(true)}
+                  >
+                    Claim All Rewards ({positionsWithRewards.length})
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
       
