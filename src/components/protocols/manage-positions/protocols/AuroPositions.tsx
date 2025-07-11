@@ -371,8 +371,8 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                 key={pos.address || idx} 
                 className="p-4 border-b last:border-b-0 transition-colors"
               >
-              {/* Collateral позиция */}
-              <div className="flex justify-between items-center mb-3">
+              {/* Desktop layout - Collateral позиция */}
+              <div className="hidden md:flex justify-between items-center mb-3">
                 <div className="flex items-center gap-2">
                   <TooltipProvider>
                     <Tooltip>
@@ -573,9 +573,115 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                 </div>
               </div>
 
-              {/* Debt позиция - если есть */}
+              {/* Mobile layout - Collateral позиция */}
+              <div className="md:hidden space-y-3 mb-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {collateralLogo && (
+                      <div className="w-8 h-8 relative">
+                        <Image 
+                          src={collateralLogo} 
+                          alt={collateralSymbol}
+                          width={32}
+                          height={32}
+                          className="object-contain"
+                        />
+                      </div>
+                    )}
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-2">
+                        <div className="text-lg">{collateralSymbol}</div>
+                        <Badge 
+                          variant="outline" 
+                          className="bg-green-500/10 text-green-600 border-green-500/20 text-xs font-normal px-2 py-0.5 h-5"
+                        >
+                          Supply
+                        </Badge>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        ${collateralPrice}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-bold">${collateralValue}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {parseFloat(collateral).toFixed(4)} {collateralSymbol}
+                    </div>
+                  </div>
+                </div>
+
+                {/* APR и ликвидационная цена */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Badge 
+                      variant="outline" 
+                      className={cn(
+                        "text-xs font-normal px-2 py-0.5 h-5",
+                        collateralAPRData.totalApr > 0 
+                          ? "bg-green-500/10 text-green-600 border-green-500/20"
+                          : "bg-gray-500/10 text-gray-600 border-gray-500/20"
+                      )}
+                    >
+                      APR: {collateralAPRData.totalApr.toFixed(2)}%
+                    </Badge>
+                    <span className="text-xs text-gray-500">
+                      Supply: {collateralAPRData.supplyApr.toFixed(2)}% | Incentive: {collateralAPRData.supplyIncentiveApr.toFixed(2)}%
+                    </span>
+                  </div>
+                  <div className="text-xs text-red-600 font-medium">
+                    Liquidation: ${pos.liquidatePrice}
+                  </div>
+                </div>
+
+                {/* Rewards для мобильных */}
+                {rewardsData[pos.address] && rewardsData[pos.address].collateral.length > 0 && (
+                  <div className="bg-gray-50 p-2 rounded">
+                    <div className="text-xs font-medium text-gray-600 mb-1">💰 Supply Rewards</div>
+                    <div className="space-y-1">
+                      {rewardsData[pos.address].collateral.map((reward, rewardIdx) => {
+                        if (!reward || !reward.key || !reward.value) return null;
+                        const tokenInfo = getRewardTokenInfoHelper(reward.key);
+                        if (!tokenInfo) return null;
+                        const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
+                        const value = tokenInfo.price ? (amount * tokenInfo.price).toFixed(2) : 'N/A';
+                        return (
+                          <div key={rewardIdx} className="flex items-center justify-between text-xs">
+                            <span>{amount.toFixed(4)} {tokenInfo.symbol}</span>
+                            <span className="font-medium">{value !== 'N/A' ? `$${value}` : amount.toFixed(4)}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Borrow Rewards для мобильных - если нет debt */}
+                {!hasDebt && rewardsData[pos.address] && rewardsData[pos.address].borrow.length > 0 && (
+                  <div className="bg-gray-50 p-2 rounded">
+                    <div className="text-xs font-medium text-gray-600 mb-1">💳 Borrow Rewards</div>
+                    <div className="space-y-1">
+                      {rewardsData[pos.address].borrow.map((reward, rewardIdx) => {
+                        if (!reward || !reward.key || !reward.value) return null;
+                        const tokenInfo = getRewardTokenInfoHelper(reward.key);
+                        if (!tokenInfo) return null;
+                        const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
+                        const value = tokenInfo.price ? (amount * tokenInfo.price).toFixed(2) : 'N/A';
+                        return (
+                          <div key={rewardIdx} className="flex items-center justify-between text-xs">
+                            <span>{amount.toFixed(4)} {tokenInfo.symbol}</span>
+                            <span className="font-medium">{value !== 'N/A' ? `$${value}` : amount.toFixed(4)}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Desktop layout - Debt позиция */}
               {hasDebt && (
-                <div className="flex justify-between items-center">
+                <div className="hidden md:flex justify-between items-center">
                   <div className="flex items-center gap-2">
                     <TooltipProvider>
                       <Tooltip>
@@ -714,12 +820,99 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                   </div>
                 </div>
               )}
+
+              {/* Mobile layout - Debt позиция */}
+              {hasDebt && (
+                <div className="md:hidden space-y-3 mt-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {debtLogo && (
+                        <div className="w-8 h-8 relative">
+                          <Image 
+                            src={debtLogo} 
+                            alt={debtSymbol}
+                            width={32}
+                            height={32}
+                            className="object-contain"
+                          />
+                        </div>
+                      )}
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <div className="text-lg">{debtSymbol}</div>
+                          <Badge 
+                            variant="outline" 
+                            className="bg-red-500/10 text-red-600 border-red-500/20 text-xs font-normal px-2 py-0.5 h-5"
+                          >
+                            Borrow
+                          </Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          ${debtPrice}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-lg font-bold text-red-600">-${debtValue}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {parseFloat(debt).toFixed(4)} {debtSymbol}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* APR и ликвидационная цена */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Badge 
+                        variant="outline" 
+                        className={cn(
+                          "text-xs font-normal px-2 py-0.5 h-5",
+                          debtAPRData.totalApr > 0 
+                            ? "bg-green-500/10 text-green-600 border-green-500/20"
+                            : "bg-red-500/10 text-red-600 border-red-500/20"
+                        )}
+                      >
+                        APR: {debtAPRData.totalApr.toFixed(2)}%
+                      </Badge>
+                      <span className="text-xs text-gray-500">
+                        Borrow: -{debtAPRData.borrowApr.toFixed(2)}% | Incentive: +{debtAPRData.borrowIncentiveApr.toFixed(2)}%
+                      </span>
+                    </div>
+                    <div className="text-xs text-red-600 font-medium">
+                      Liquidation: ${pos.liquidatePrice}
+                    </div>
+                  </div>
+
+                  {/* Rewards для мобильных */}
+                  {rewardsData[pos.address] && rewardsData[pos.address].borrow.length > 0 && (
+                    <div className="bg-gray-50 p-2 rounded">
+                      <div className="text-xs font-medium text-gray-600 mb-1">💳 Borrow Rewards</div>
+                      <div className="space-y-1">
+                        {rewardsData[pos.address].borrow.map((reward, rewardIdx) => {
+                          if (!reward || !reward.key || !reward.value) return null;
+                          const tokenInfo = getRewardTokenInfoHelper(reward.key);
+                          if (!tokenInfo) return null;
+                          const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
+                          const value = tokenInfo.price ? (amount * tokenInfo.price).toFixed(2) : 'N/A';
+                          return (
+                            <div key={rewardIdx} className="flex items-center justify-between text-xs">
+                              <span>{amount.toFixed(4)} {tokenInfo.symbol}</span>
+                              <span className="font-medium">{value !== 'N/A' ? `$${value}` : amount.toFixed(4)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
       </ScrollArea>
       
-      <div className="flex items-center justify-between pt-6 pb-6">
+      {/* Desktop layout - Total Assets */}
+      <div className="hidden md:flex items-center justify-between pt-6 pb-6">
         <span className="text-xl">Total assets in Auro Finance:</span>
         <div className="text-right">
           <span className="text-xl text-primary font-bold">${totalValue.toFixed(2)}</span>
@@ -741,6 +934,31 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
             </div>
           )}
         </div>
+      </div>
+
+      {/* Mobile layout - Total Assets */}
+      <div className="md:hidden pt-6 pb-6 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-lg">Total assets in Auro Finance:</span>
+          <span className="text-lg text-primary font-bold">${totalValue.toFixed(2)}</span>
+        </div>
+        {totalRewardsValue > 0 && (
+          <div className="space-y-2">
+            <div className="text-sm text-muted-foreground flex items-center gap-1">
+              <span>💰</span>
+              <span>including rewards ${totalRewardsValue.toFixed(2)}</span>
+            </div>
+            {totalClaimableRewards > 0 && (
+              <button
+                className="w-full py-2 bg-green-600 text-white rounded text-sm font-semibold disabled:opacity-60"
+                onClick={handleClaimAllRewards}
+                disabled={isClaiming || totalClaimableRewards === 0}
+              >
+                {isClaiming ? 'Claiming...' : `Claim rewards`}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
 
