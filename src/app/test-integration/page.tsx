@@ -121,7 +121,7 @@ export default function TestIntegrationPage() {
       <div>
         <h1 className="text-2xl font-bold mb-2">Test Integration - Investment Ideas</h1>
         <p className="text-muted-foreground">
-          Testing Tapp Exchange integration with volume filter > $1000/day
+          Testing Tapp Exchange integration with volume filter &gt; $1000/day
         </p>
       </div>
 
