@@ -46,6 +46,12 @@ interface SwapAndDepositModalProps {
     decimals: number;
     address: string;
   };
+  tokenOut?: {
+    symbol: string;
+    logo: string;
+    decimals: number;
+    address: string;
+  };
   amount: bigint;
   priceUSD: number;
 }
@@ -55,6 +61,7 @@ export function SwapAndDepositModal({
   onClose,
   protocol,
   tokenIn,
+  tokenOut,
   amount,
   priceUSD,
 }: SwapAndDepositModalProps) {
@@ -108,22 +115,34 @@ export function SwapAndDepositModal({
       })
       .filter(token =>
         token.value > 0 &&
-        token.tokenInfo &&
-        token.tokenInfo.tokenAddress?.toLowerCase?.() !== tokenIn.address.toLowerCase() &&
-        token.tokenInfo.faAddress?.toLowerCase?.() !== tokenIn.address.toLowerCase()
+        token.tokenInfo
       )
       .sort((a, b) => b.value - a.value);
   }, [tokens, tokenIn.address]);
 
-  // Устанавливаем самый дорогой токен по умолчанию
+  // Устанавливаем перетаскиваемый токен по умолчанию
   useEffect(() => {
-    if (sortedTokens.length > 0) {
-      // selectedToken всегда Token
-      const address = sortedTokens[0].address;
-      const token = getTokenInfo(address);
-      if (token) setSelectedToken(token);
+    if (tokenOut?.address) {
+      const token = getTokenInfo(tokenOut.address);
+      if (token) {
+        setSelectedToken(token);
+      } else {
+        // Fallback: если перетаскиваемый токен не найден, выбираем самый дорогой
+        if (sortedTokens.length > 0) {
+          const address = sortedTokens[0].address;
+          const fallbackToken = getTokenInfo(address);
+          if (fallbackToken) setSelectedToken(fallbackToken);
+        }
+      }
+    } else {
+      // Fallback: если нет tokenOut, выбираем самый дорогой
+      if (sortedTokens.length > 0) {
+        const address = sortedTokens[0].address;
+        const fallbackToken = getTokenInfo(address);
+        if (fallbackToken) setSelectedToken(fallbackToken);
+      }
     }
-  }, [sortedTokens]);
+  }, [sortedTokens, tokenOut?.address]);
 
   const {
     amount: swapAmount,
@@ -139,8 +158,8 @@ export function SwapAndDepositModal({
 
   // Доходность
   const yieldResult = useMemo(() => 
-    calcYield(protocol.apy, amount, tokenIn.decimals),
-    [protocol.apy, amount, tokenIn.decimals]
+    calcYield(protocol.apy, amount, tokenOut?.decimals || 18),
+    [protocol.apy, amount, tokenOut?.decimals]
   );
 
   const handleSwapAndDeposit = async () => {

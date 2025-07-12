@@ -197,11 +197,61 @@ pnpm start
    - Click "Deposit" to be redirected to the protocol's website
    - Complete the deposit on the external platform
 
+### Swap and Deposit Feature
+The Swap and Deposit feature allows you to automatically exchange tokens and deposit them into yield-generating protocols in a single seamless process.
+
+**How it works:**
+1. **Token Selection**: Choose from available tokens in your wallet
+2. **Amount Input**: Enter the amount you want to swap and deposit
+3. **Automatic Swap**: The system automatically exchanges your tokens for the required protocol token
+4. **Instant Deposit**: Received tokens are immediately deposited into the selected protocol
+5. **Real-time Tracking**: Monitor the entire process through the status modal
+
+**Key Features:**
+- **Smart Token Selection**: Automatically suggests the most valuable token from your wallet
+- **Yield Preview**: See estimated daily, weekly, and monthly earnings before confirming
+- **Balance Validation**: Prevents transactions that exceed your wallet balance
+- **Quick Actions**: Use "Half" or "Max" buttons for quick amount selection
+- **Status Monitoring**: Real-time updates on swap and deposit progress
+- **Error Handling**: Clear error messages and retry options if transactions fail
+
+**Supported Protocols:**
+- Echelon (native integration)
+- Joule (native integration)
+- Other protocols with native deposit support
+
+**Benefits:**
+- No need to manually swap tokens first
+- Reduced transaction costs by combining operations
+- Faster access to yield opportunities
+- Simplified user experience for DeFi newcomers
+
 ### Managing Positions
 1. Click "Manage Positions" for any protocol
 2. View your current deposits and earnings
 3. Monitor APY changes and performance
 4. Withdraw funds when needed
+
+### Using Swap and Deposit
+1. **Access the Feature**: 
+   - Drag a token from your portfolio to a protocol that requires a different token
+   - Or click "Swap and Deposit" when available on investment opportunities
+
+2. **Configure the Transaction**:
+   - Select the token you want to swap from your wallet
+   - Enter the amount (use "Half" or "Max" for quick selection)
+   - Review the estimated yield and received amount
+
+3. **Execute the Transaction**:
+   - Click "Swap and Deposit" to start the process
+   - Sign the swap transaction in your wallet
+   - The system will automatically deposit received tokens
+   - Monitor progress through the status modal
+
+4. **Monitor Results**:
+   - Check the status modal for real-time updates
+   - View your new position in the protocol's management section
+   - Track your earnings through the portfolio dashboard
 
 ### Using the AI Chat
 1. Open the chat panel on the right side

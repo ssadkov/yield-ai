@@ -233,16 +233,16 @@ export function DragDropProvider({ children }: { children: ReactNode }) {
             key: protocol.name.toLowerCase() as ProtocolKey
           },
           tokenIn: {
-            symbol: dragData.symbol,
-            logo: dragData.logoUrl || '/file.svg',
-            decimals: dragData.decimals,
-            address: dragData.address
-          },
-          tokenOut: {
             symbol: tokenInfo?.symbol || dropTarget.asset,
             logo: tokenInfo?.logoUrl || '/file.svg',
             decimals: tokenInfo?.decimals || 8,
             address: dropTarget.token
+          },
+          tokenOut: {
+            symbol: dragData.symbol,
+            logo: dragData.logoUrl || '/file.svg',
+            decimals: dragData.decimals,
+            address: dragData.address
           },
           priceUSD: parseFloat(dragData.price) || 0
         };
@@ -372,7 +372,8 @@ export function DragDropProvider({ children }: { children: ReactNode }) {
             onClose={closeSwapModal}
             protocol={depositModalData.protocol}
             tokenIn={depositModalData.tokenIn}
-            amount={BigInt(depositModalData.tokenIn.amount || 0)}
+            tokenOut={depositModalData.tokenOut}
+            amount={BigInt(depositModalData.tokenOut.amount || 0)}
             priceUSD={depositModalData.priceUSD}
           />
         </>
