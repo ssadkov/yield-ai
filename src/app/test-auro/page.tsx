@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,91 +8,89 @@ import { Label } from "@/components/ui/label";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Search, TrendingUp, DollarSign, Shield, Zap } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+
+interface AuroPool {
+  type: string;
+  poolAddress: string;
+  poolName: string;
+  collateralTokenAddress?: string;
+  collateralTokenSymbol?: string;
+  supplyApr?: number;
+  supplyIncentiveApr?: number;
+  stakingApr?: number;
+  totalSupplyApr?: number;
+  borrowApr?: number;
+  borrowIncentiveApr?: number;
+  totalBorrowApr?: number;
+  rewardPoolAddress?: string;
+  borrowRewardsPoolAddress?: string;
+  tvl?: number;
+  ltvBps?: number;
+  liquidationThresholdBps?: number;
+  liquidationFeeBps?: number;
+  borrowAmountFromPool?: number;
+  token?: any;
+}
+
+interface AuroPosition {
+  address: string;
+  poolAddress: string;
+  collateralTokenAddress?: string;
+  collateralTokenInfo?: any;
+  debtTokenInfo?: any;
+  collateralAmount: string;
+  debtAmount: string;
+  liquidatePrice: string;
+  collateralSymbol: string;
+  debtSymbol: string;
+}
 
 export default function TestAuroPage() {
   const { account } = useWallet();
   const [walletAddress, setWalletAddress] = useState(account?.address?.toString() || "");
   const [loading, setLoading] = useState(false);
-  const [positions, setPositions] = useState<string[]>([]);
-  const [positionInfo, setPositionInfo] = useState<any[]>([]);
-  const [collectionAddress, setCollectionAddress] = useState<string>("");
-  const [standardizedCollectionAddress, setStandardizedCollectionAddress] = useState<string>("");
-  const [error, setError] = useState<string | null>(null);
-  const [authError, setAuthError] = useState<boolean>(false);
-  const [debugInfo, setDebugInfo] = useState<string>("");
-  
-  // New states for pools debugging
-  const [poolsData, setPoolsData] = useState<any[]>([]);
-  const [rewardPoolsAddress, setRewardPoolsAddress] = useState<string[]>([]);
   const [poolsLoading, setPoolsLoading] = useState(false);
+  const [positionsLoading, setPositionsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [poolsError, setPoolsError] = useState<string | null>(null);
+  const [positionsError, setPositionsError] = useState<string | null>(null);
   
-  // New states for user rewards
-  const [userRewards, setUserRewards] = useState<{ [positionAddress: string]: { collateral: any[], borrow: any[] } }>({});
-  const [rewardsLoading, setRewardsLoading] = useState(false);
-  const [rewardsError, setRewardsError] = useState<string | null>(null);
+  // Data states
+  const [poolsData, setPoolsData] = useState<AuroPool[]>([]);
+  const [userPositions, setUserPositions] = useState<AuroPosition[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showOnlyStablePools, setShowOnlyStablePools] = useState(true);
+  const [activeTab, setActiveTab] = useState<"pools" | "positions">("pools");
 
-  // Auro Finance addresses (mainnet)
-  const AURO_ADDRESS = "0x50a340a19e6ada1be07192c042786ca6a9651d5c845acc8727e8c6416a56a32c";
-  const AURO_ROUTER_ADDRESS = "0x50a340a19e6ada1be07192c042786ca6a9651d5c845acc8727e8c6416a56a32c";
+  // Load pools data on component mount
+  useEffect(() => {
+    handleFetchPools();
+  }, []);
 
-  const handleFetchPositions = async () => {
-    if (!walletAddress) {
-      setError("Please enter a wallet address");
-      return;
+  // Load positions when wallet address changes
+  useEffect(() => {
+    if (walletAddress) {
+      handleFetchPositions();
     }
-
-    setLoading(true);
-    setError(null);
-    setAuthError(false);
-    setDebugInfo("");
-    setPositions([]);
-    setPositionInfo([]);
-    setCollectionAddress("");
-    setStandardizedCollectionAddress("");
-
-    try {
-      const apiUrl = `/api/protocols/auro/userPositions?address=${encodeURIComponent(walletAddress)}`;
-      setDebugInfo(`Making request to: ${apiUrl}`);
-      
-      const response = await fetch(apiUrl);
-      setDebugInfo(prev => prev + `\nResponse status: ${response.status}`);
-      
-      const data = await response.json();
-      setDebugInfo(prev => prev + `\nResponse data: ${JSON.stringify(data, null, 2)}`);
-      
-      if (response.status === 401) {
-        setAuthError(true);
-        setError(data.details || "Authentication required");
-        return;
-      }
-      
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to fetch positions");
-      }
-      
-      if (data.success) {
-        setPositions(data.positions || []);
-        setPositionInfo(data.positionInfo || []);
-        setCollectionAddress(data.collectionAddress || "");
-        setStandardizedCollectionAddress(data.standardizedCollectionAddress || "");
-      } else {
-        throw new Error(data.error || "Failed to fetch positions");
-      }
-    } catch (err) {
-      console.error("Error fetching Auro positions:", err);
-      setError(err instanceof Error ? err.message : "Unknown error");
-      setDebugInfo(prev => prev + `\nError: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [walletAddress]);
 
   const handleFetchPools = async () => {
     setPoolsLoading(true);
     setPoolsError(null);
     setPoolsData([]);
-    setRewardPoolsAddress([]);
 
     try {
       const response = await fetch('/api/protocols/auro/pools');
@@ -100,12 +98,6 @@ export default function TestAuroPage() {
       
       if (response.ok && data.success) {
         setPoolsData(data.data || []);
-        
-        // Extract reward pool addresses
-        const rewardPools = data.data
-          ?.map((pool: any) => pool.rewardPoolAddress)
-          .filter(Boolean) || [];
-        setRewardPoolsAddress(rewardPools);
       } else {
         throw new Error(data.error || "Failed to fetch pools");
       }
@@ -117,79 +109,81 @@ export default function TestAuroPage() {
     }
   };
 
-  const handleFetchUserRewards = async () => {
-    if (!walletAddress) {
-      setRewardsError("Please enter a wallet address first");
-      return;
-    }
+  const handleFetchPositions = async () => {
+    if (!walletAddress) return;
 
-    setRewardsLoading(true);
-    setRewardsError(null);
-    setUserRewards({}); // Clear previous rewards
+    setPositionsLoading(true);
+    setPositionsError(null);
+    setUserPositions([]);
 
     try {
-      // Получаем позиции
-      const positionsResponse = await fetch(`/api/protocols/auro/userPositions?address=${encodeURIComponent(walletAddress)}`);
-      const positionsData = await positionsResponse.json();
-      if (!positionsResponse.ok || !positionsData.success) {
-        throw new Error("Failed to fetch positions");
-      }
+      const response = await fetch(`/api/protocols/auro/userPositions?address=${encodeURIComponent(walletAddress)}`);
+      const data = await response.json();
       
-      console.log('Raw positionInfo from API:', positionsData.positionInfo);
-      
-      const positionsInfo = (positionsData.positionInfo || []).map((pos: any) => ({
-        address: pos.address,
-        poolAddress: pos.poolAddress,
-        debtAmount: pos.debtAmount
-      }));
-      if (positionsInfo.length === 0) {
-        setUserRewards({});
-        return;
-      }
-
-      // Получаем пулы
-      const poolsResponse = await fetch('/api/protocols/auro/pools');
-      const poolsDataRaw = await poolsResponse.json();
-      if (!poolsResponse.ok || !poolsDataRaw.success) {
-        throw new Error("Failed to fetch pools");
-      }
-      
-      console.log('Raw poolsData from API:', poolsDataRaw.data);
-      
-      const poolsData = (poolsDataRaw.data || []).map((pool: any) => ({
-        type: pool.type,
-        poolAddress: pool.poolAddress,
-        rewardPoolAddress: pool.rewardPoolAddress,
-        borrowRewardsPoolAddress: pool.borrowRewardsPoolAddress
-      }));
-      if (poolsData.length === 0) {
-        setUserRewards({});
-        return;
-      }
-
-      // Запрос наград
-      const rewardsResponse = await fetch('/api/protocols/auro/rewards', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ positionsInfo, poolsData })
-      });
-      const rewardsData = await rewardsResponse.json();
-      if (rewardsResponse.ok && rewardsData.success) {
-        setUserRewards(rewardsData.data || {});
-        console.log('Rewards data structure:', rewardsData.data);
+      if (response.ok && data.success) {
+        setUserPositions(data.positionInfo || []);
       } else {
-        throw new Error(rewardsData.error || "Failed to fetch rewards");
+        throw new Error(data.error || "Failed to fetch positions");
       }
     } catch (err) {
-      console.error("Error fetching user rewards:", err);
-      setRewardsError(err instanceof Error ? err.message : "Unknown error");
+      console.error("Error fetching Auro positions:", err);
+      setPositionsError(err instanceof Error ? err.message : "Unknown error");
     } finally {
-      setRewardsLoading(false);
+      setPositionsLoading(false);
+    }
+  };
+
+  // Filter pools based on search and stable filter
+  const filteredPools = poolsData.filter(pool => {
+    const matchesSearch = pool.poolName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         pool.collateralTokenSymbol?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    if (showOnlyStablePools) {
+      const isStable = pool.collateralTokenSymbol?.toUpperCase().includes('USDT') ||
+                      pool.collateralTokenSymbol?.toUpperCase().includes('USDC') ||
+                      pool.collateralTokenSymbol?.toUpperCase().includes('DAI') ||
+                      pool.collateralTokenSymbol?.toUpperCase().includes('USDA');
+      return matchesSearch && isStable;
+    }
+    
+    return matchesSearch;
+  });
+
+  // Group pools by type
+  const collateralPools = filteredPools.filter(pool => pool.type === 'COLLATERAL');
+  const borrowPools = filteredPools.filter(pool => pool.type === 'BORROW');
+
+  const getTokenLogo = (tokenAddress?: string) => {
+    if (!tokenAddress) return undefined;
+    // You can implement token logo fetching here
+    return undefined;
+  };
+
+  const getPoolTypeIcon = (type: string) => {
+    switch (type) {
+      case 'COLLATERAL':
+        return <Shield className="h-4 w-4 text-green-600" />;
+      case 'BORROW':
+        return <Zap className="h-4 w-4 text-blue-600" />;
+      default:
+        return <DollarSign className="h-4 w-4 text-gray-600" />;
+    }
+  };
+
+  const getPoolTypeLabel = (type: string) => {
+    switch (type) {
+      case 'COLLATERAL':
+        return 'Supply';
+      case 'BORROW':
+        return 'Borrow';
+      default:
+        return type;
     }
   };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
+      {/* Header */}
       <div className="flex items-center gap-4">
         <img 
           src="https://app.auro.finance/logo.png" 
@@ -197,16 +191,17 @@ export default function TestAuroPage() {
           className="w-12 h-12 rounded"
         />
         <div>
-          <h1 className="text-3xl font-bold">Auro Finance Test Page</h1>
+          <h1 className="text-3xl font-bold">Auro Finance - Pro Investment Ideas</h1>
           <p className="text-muted-foreground">
-            Test Auro Finance API integration and position fetching
+            Professional investment opportunities and position management
           </p>
         </div>
       </div>
 
+      {/* Wallet Connection */}
       <Card>
         <CardHeader>
-          <CardTitle>Step 1: Fetch User Positions</CardTitle>
+          <CardTitle>Wallet Connection</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4">
@@ -216,19 +211,12 @@ export default function TestAuroPage() {
                 id="wallet-address"
                 value={walletAddress}
                 onChange={(e) => setWalletAddress(e.target.value)}
-                placeholder="Enter wallet address to test"
+                placeholder="Enter wallet address to view positions"
                 className="mt-1"
               />
             </div>
             
             <div className="flex gap-2">
-              <Button 
-                onClick={handleFetchPositions} 
-                disabled={loading || !walletAddress}
-              >
-                {loading ? "Loading..." : "Fetch Positions"}
-              </Button>
-              
               {account?.address && (
                 <Button 
                   variant="outline"
@@ -241,346 +229,306 @@ export default function TestAuroPage() {
           </div>
 
           {error && (
-            <div className={`p-4 border rounded-lg ${authError ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'}`}>
-              <p className={authError ? 'text-yellow-800' : 'text-red-600'}>
-                {error}
-              </p>
-              {authError && (
-                <div className="mt-2 text-sm text-yellow-700">
-                  <p>To fix this issue:</p>
-                  <ol className="list-decimal list-inside mt-1 space-y-1">
-                    <li>Go to <a href="https://console.aptoslabs.com/" target="_blank" rel="noopener noreferrer" className="underline">Aptos Labs Console</a></li>
-                    <li>Create an account and get your API key</li>
-                    <li>Add <code className="bg-yellow-100 px-1 rounded">APTOS_API_KEY=your_key_here</code> to your <code className="bg-yellow-100 px-1 rounded">.env.local</code> file</li>
-                    <li>Restart the development server</li>
-                  </ol>
-                </div>
-              )}
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-600">{error}</p>
             </div>
           )}
+        </CardContent>
+      </Card>
 
-          {debugInfo && (
-            <div className="p-4 bg-gray-50 border rounded-lg">
-              <Label className="text-xs text-muted-foreground">Debug Information:</Label>
-              <pre className="text-xs mt-1 overflow-auto whitespace-pre-wrap">
-                {debugInfo}
+      {/* Main Content Tabs */}
+      <Tabs defaultValue="pools" className="w-full" onValueChange={(value) => setActiveTab(value as "pools" | "positions")}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="pools">Investment Opportunities</TabsTrigger>
+          <TabsTrigger value="positions">My Positions</TabsTrigger>
+        </TabsList>
+
+        {/* Investment Opportunities Tab */}
+        <TabsContent value="pools" className="space-y-6">
+          {/* Search and Filters */}
+          <div className="flex items-center gap-2 mb-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search pools..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+            <div className="flex gap-1">
+              {['USDT', 'USDC', 'DAI', 'APT'].map((token) => (
+                <Button
+                  key={token}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSearchQuery(token)}
+                  className="h-9 px-2"
+                >
+                  {token}
+                </Button>
+              ))}
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="stable-pools"
+                checked={showOnlyStablePools}
+                onCheckedChange={(checked) => setShowOnlyStablePools(checked as boolean)}
+              />
+              <label
+                htmlFor="stable-pools"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Stable pools only
+              </label>
+            </div>
+          </div>
+
+          {poolsLoading ? (
+            <div className="text-center p-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+              <p className="mt-2 text-muted-foreground">Loading pools...</p>
+            </div>
+          ) : poolsError ? (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-600">{poolsError}</p>
+            </div>
+          ) : (
+            <>
+              {/* Supply Pools */}
+              {collateralPools.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-green-600" />
+                    Supply Pools
+                  </h3>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {collateralPools
+                      .sort((a, b) => (b.totalSupplyApr || 0) - (a.totalSupplyApr || 0))
+                      .map((pool, index) => (
+                        <Card key={pool.poolAddress} className="hover:shadow-lg transition-shadow">
+                          <CardHeader>
+                            <CardTitle className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-6 w-6">
+                                  <AvatarImage src={getTokenLogo(pool.collateralTokenAddress)} />
+                                  <AvatarFallback>{pool.collateralTokenSymbol?.slice(0, 2)}</AvatarFallback>
+                                </Avatar>
+                                <span className="text-sm">{pool.collateralTokenSymbol}</span>
+                              </div>
+                              <Badge variant="outline" className="text-xs">
+                                {getPoolTypeLabel(pool.type)}
+                              </Badge>
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="text-2xl font-bold text-green-600">
+                              {(pool.totalSupplyApr || 0).toFixed(2)}%
+                            </div>
+                            <p className="text-xs text-muted-foreground">Total APY</p>
+                            
+                            <div className="mt-3 space-y-1 text-xs">
+                              {pool.supplyApr && (
+                                <div className="flex justify-between">
+                                  <span>Base APR:</span>
+                                  <span>{(pool.supplyApr).toFixed(2)}%</span>
+                                </div>
+                              )}
+                              {pool.supplyIncentiveApr && (
+                                <div className="flex justify-between">
+                                  <span>Incentive APR:</span>
+                                  <span>{(pool.supplyIncentiveApr).toFixed(2)}%</span>
+                                </div>
+                              )}
+                              {pool.stakingApr && (
+                                <div className="flex justify-between">
+                                  <span>Staking APR:</span>
+                                  <span>{(pool.stakingApr).toFixed(2)}%</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {pool.tvl && (
+                              <div className="mt-3 pt-2 border-t">
+                                <div className="text-xs text-muted-foreground">
+                                  TVL: ${pool.tvl.toLocaleString()}
+                                </div>
+                              </div>
+                            )}
+
+                            <Button className="mt-4 w-full" size="sm">
+                              Supply
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Borrow Pools */}
+              {borrowPools.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Zap className="h-5 w-5 text-blue-600" />
+                    Borrow Pools
+                  </h3>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {borrowPools
+                      .sort((a, b) => (b.totalBorrowApr || 0) - (a.totalBorrowApr || 0))
+                      .map((pool, index) => (
+                        <Card key={pool.poolAddress} className="hover:shadow-lg transition-shadow">
+                          <CardHeader>
+                            <CardTitle className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-6 w-6">
+                                  <AvatarImage src={getTokenLogo(pool.token?.address)} />
+                                  <AvatarFallback>{pool.token?.symbol?.slice(0, 2)}</AvatarFallback>
+                                </Avatar>
+                                <span className="text-sm">{pool.token?.symbol}</span>
+                              </div>
+                              <Badge variant="outline" className="text-xs">
+                                {getPoolTypeLabel(pool.type)}
+                              </Badge>
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="text-2xl font-bold text-blue-600">
+                              {(pool.totalBorrowApr || 0).toFixed(2)}%
+                            </div>
+                            <p className="text-xs text-muted-foreground">Total APR</p>
+                            
+                            <div className="mt-3 space-y-1 text-xs">
+                              {pool.borrowApr && (
+                                <div className="flex justify-between">
+                                  <span>Base APR:</span>
+                                  <span>{(pool.borrowApr).toFixed(2)}%</span>
+                                </div>
+                              )}
+                              {pool.borrowIncentiveApr && (
+                                <div className="flex justify-between">
+                                  <span>Incentive APR:</span>
+                                  <span>{(pool.borrowIncentiveApr).toFixed(2)}%</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {pool.tvl && (
+                              <div className="mt-3 pt-2 border-t">
+                                <div className="text-xs text-muted-foreground">
+                                  TVL: ${pool.tvl.toLocaleString()}
+                                </div>
+                              </div>
+                            )}
+
+                            <Button className="mt-4 w-full" size="sm" variant="outline">
+                              Borrow
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {filteredPools.length === 0 && (
+                <div className="text-center p-8">
+                  <p className="text-muted-foreground">No pools found matching your criteria.</p>
+                </div>
+              )}
+            </>
+          )}
+        </TabsContent>
+
+        {/* My Positions Tab */}
+        <TabsContent value="positions" className="space-y-6">
+          {!walletAddress ? (
+            <div className="text-center p-8">
+              <p className="text-muted-foreground">Please enter a wallet address to view positions.</p>
+            </div>
+          ) : positionsLoading ? (
+            <div className="text-center p-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+              <p className="mt-2 text-muted-foreground">Loading positions...</p>
+            </div>
+          ) : positionsError ? (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-600">{positionsError}</p>
+            </div>
+          ) : userPositions.length > 0 ? (
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Your Positions ({userPositions.length})</h3>
+              <div className="space-y-4">
+                {userPositions.map((position, index) => (
+                  <Card key={position.address}>
+                    <CardHeader>
+                      <CardTitle className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage src={getTokenLogo(position.collateralTokenAddress)} />
+                            <AvatarFallback>{position.collateralSymbol?.slice(0, 2)}</AvatarFallback>
+                          </Avatar>
+                          <span>Position #{index + 1}</span>
+                        </div>
+                        <Badge variant="secondary">Active</Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Collateral</Label>
+                          <p className="font-medium">{position.collateralAmount} {position.collateralSymbol}</p>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Debt</Label>
+                          <p className="font-medium">{position.debtAmount} {position.debtSymbol}</p>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Liquidation Price</Label>
+                          <p className="font-medium">${position.liquidatePrice}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-4 flex gap-2">
+                        <Button size="sm" variant="outline">Add Collateral</Button>
+                        <Button size="sm" variant="outline">Repay Debt</Button>
+                        <Button size="sm" variant="outline">Close Position</Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center p-8">
+              <p className="text-muted-foreground">No positions found for this wallet address.</p>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Debug Information (Collapsible) */}
+      <details className="mt-8">
+        <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
+          Debug Information
+        </summary>
+        <div className="mt-2 p-4 bg-gray-50 border rounded-lg">
+          <div className="space-y-4">
+            <div>
+              <Label className="text-xs text-muted-foreground">Raw Pools Data:</Label>
+              <pre className="text-xs mt-1 overflow-auto whitespace-pre-wrap max-h-40">
+                {JSON.stringify(poolsData, null, 2)}
               </pre>
             </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {collectionAddress && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Collection Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div>
-                <Label className="text-xs text-muted-foreground">Collection Address:</Label>
-                <p className="font-mono text-sm break-all">{collectionAddress}</p>
-              </div>
-              {standardizedCollectionAddress && (
-                <div>
-                  <Label className="text-xs text-muted-foreground">Standardized Address:</Label>
-                  <p className="font-mono text-sm break-all">{standardizedCollectionAddress}</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {positions.length > 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Step 2: Position NFTs Found</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Found {positions.length} position NFT(s) for this wallet
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {positions.map((position: any, index: number) => (
-                <div key={position.storage_id} className="p-3 border rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Badge variant="secondary">Position NFT #{index + 1}</Badge>
-                      <p className="text-sm font-mono mt-1">Storage ID: {position.storage_id}</p>
-                      <p className="text-sm font-mono mt-1">Name: {position.current_token_data?.token_name}</p>
-                      {position.current_token_data?.token_uri && (
-                        <a href={position.current_token_data.token_uri} target="_blank" rel="noopener noreferrer" className="text-xs underline text-blue-600">
-                          Token URI
-                        </a>
-                      )}
-                      <p className="text-xs mt-1">Collection: {position.current_token_data?.current_collection?.collection_name}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      ) : !loading && walletAddress && !error && (
-        <Card>
-          <CardHeader>
-            <CardTitle>No Positions Found</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              No Auro Finance positions found for this wallet address. This is normal if the wallet hasn't used Auro Finance yet.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {positionInfo.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Step 3: Position Information</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Financial data for each position
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {positionInfo.map((info, index) => (
-                <div key={index} className="p-4 border rounded-lg">
-                  <div className="flex items-center justify-between mb-3">
-                    <Badge variant="outline">Position #{index + 1}</Badge>
-                    <p className="text-sm font-mono">{info.address}</p>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Collateral Amount</Label>
-                      <p className="font-medium">{info.collateralAmount || "0"} {info.collateralSymbol || "Unknown"}</p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Debt Amount</Label>
-                      <p className="font-medium">{info.debtAmount || "0"} {info.debtSymbol || "USDA"}</p>
-                    </div>
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Liquidation Price</Label>
-                      <p className="font-medium">${info.liquidatePrice || "0"}</p>
-                    </div>
-                  </div>
-                  
-                  {/* Добавляем дополнительную информацию о токенах */}
-                  <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Collateral Token</Label>
-                        <p className="font-mono text-xs break-all">{info.collateralTokenAddress || "Unknown"}</p>
-                        {info.collateralTokenInfo && (
-                          <p className="text-xs text-muted-foreground">
-                            Decimals: {info.collateralTokenInfo.decimals} | 
-                            Price: ${info.collateralTokenInfo.usdPrice || "N/A"}
-                          </p>
-                        )}
-                      </div>
-                      <div>
-                        <Label className="text-xs text-muted-foreground">Pool Address</Label>
-                        <p className="font-mono text-xs break-all">{info.poolAddress || "Unknown"}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Configuration</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2 text-sm">
             <div>
-              <Label className="text-xs text-muted-foreground">AURO_ADDRESS:</Label>
-              <p className="font-mono text-xs break-all">{AURO_ADDRESS}</p>
+              <Label className="text-xs text-muted-foreground">User Positions:</Label>
+              <pre className="text-xs mt-1 overflow-auto whitespace-pre-wrap max-h-40">
+                {JSON.stringify(userPositions, null, 2)}
+              </pre>
             </div>
-            <Separator />
-            <div>
-              <Label className="text-xs text-muted-foreground">AURO_ROUTER_ADDRESS:</Label>
-              <p className="font-mono text-xs break-all">{AURO_ROUTER_ADDRESS}</p>
-            </div>
-            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-              <p className="text-green-800 text-xs">
-                ✅ Real Auro Finance contract addresses are now configured!
-              </p>
-            </div>
-            {!process.env.APTOS_API_KEY && (
-              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-yellow-800 text-xs">
-                  ⚠️ APTOS_API_KEY not found. Add it to your .env.local file for full functionality.
-                </p>
-              </div>
-            )}
           </div>
-        </CardContent>
-      </Card>
-
-      {/* New Pools Debug Block */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Step 4: Pools Data (Debug)</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Fetch and inspect pools data and reward pool addresses
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Button 
-              onClick={handleFetchPools} 
-              disabled={poolsLoading}
-            >
-              {poolsLoading ? "Loading..." : "Fetch Pools"}
-            </Button>
-          </div>
-
-          {poolsError && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-600 text-sm">
-                {poolsError}
-              </p>
-            </div>
-          )}
-
-          {poolsData.length > 0 && (
-            <div className="space-y-4">
-              <div>
-                <Label className="text-xs text-muted-foreground">Pools Data ({poolsData.length} pools):</Label>
-                <div className="mt-2 p-3 bg-gray-50 border rounded-lg">
-                  <pre className="text-xs overflow-auto whitespace-pre-wrap">
-                    {JSON.stringify(poolsData, null, 2)}
-                  </pre>
-                </div>
-              </div>
-
-              <div>
-                <Label className="text-xs text-muted-foreground">Reward Pool Addresses ({rewardPoolsAddress.length} addresses):</Label>
-                <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  {rewardPoolsAddress.length > 0 ? (
-                    <div className="space-y-1">
-                      {rewardPoolsAddress.map((address, index) => (
-                        <div key={index} className="text-xs font-mono break-all">
-                          {index + 1}. {address}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-gray-500">No reward pool addresses found</p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <Label className="text-xs text-muted-foreground">Reward Pool Addresses (JSON):</Label>
-                <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <pre className="text-xs overflow-auto whitespace-pre-wrap">
-                    {JSON.stringify(rewardPoolsAddress, null, 2)}
-                  </pre>
-                </div>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* New User Rewards Block */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Step 5: User Rewards (Debug)</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Fetch and inspect user rewards data
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Button 
-              onClick={handleFetchUserRewards} 
-              disabled={rewardsLoading || !walletAddress}
-            >
-              {rewardsLoading ? "Loading..." : "Fetch User Rewards"}
-            </Button>
-          </div>
-
-          {rewardsError && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-600 text-sm">
-                {rewardsError}
-              </p>
-            </div>
-          )}
-
-          {Object.keys(userRewards).length > 0 && (
-            <div className="space-y-4">
-              <div>
-                <Label className="text-xs text-muted-foreground">User Rewards Data ({Object.keys(userRewards).length} positions):</Label>
-                <div className="mt-2 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                  <pre className="text-xs overflow-auto whitespace-pre-wrap">
-                    {JSON.stringify(userRewards, null, 2)}
-                  </pre>
-                </div>
-              </div>
-              
-              {/* Отображение наград по позициям */}
-              <div>
-                <Label className="text-xs text-muted-foreground">Rewards by Position:</Label>
-                <div className="mt-2 space-y-3">
-                  {Object.entries(userRewards).map(([positionAddress, rewards]: [string, any]) => (
-                    <div key={positionAddress} className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <div className="font-semibold text-sm mb-2">Position: {positionAddress.substring(0, 8)}...</div>
-                      
-                      {/* Collateral Rewards */}
-                      {rewards.collateral && rewards.collateral.length > 0 && (
-                        <div className="mb-3">
-                          <div className="text-sm font-medium text-blue-800 mb-1">🎁 Collateral Rewards:</div>
-                          <div className="space-y-1">
-                            {rewards.collateral.map((reward: any, idx: number) => (
-                              <div key={idx} className="text-xs flex justify-between">
-                                <span>Token: {reward.key.substring(0, 8)}...</span>
-                                <span>Amount: {reward.value}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Borrow Rewards */}
-                      {rewards.borrow && rewards.borrow.length > 0 && (
-                        <div>
-                          <div className="text-sm font-medium text-green-800 mb-1">💳 Borrow Rewards:</div>
-                          <div className="space-y-1">
-                            {rewards.borrow.map((reward: any, idx: number) => (
-                              <div key={idx} className="text-xs flex justify-between">
-                                <span>Token: {reward.key.substring(0, 8)}...</span>
-                                <span>Amount: {reward.value}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {!rewardsLoading && !rewardsError && Object.keys(userRewards).length === 0 && walletAddress && (
-            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-yellow-800 text-sm">
-                No rewards found for this wallet. This is normal if the wallet has no positions or no claimable rewards.
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        </div>
+      </details>
     </div>
   );
 } 

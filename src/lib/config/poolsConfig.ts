@@ -102,22 +102,45 @@ export const poolSources: PoolSource[] = [
       });
     }
   },
-  // Example of how to add a new protocol API
+  // Auro Finance pools API - Collateral pools only
   {
-    name: 'Example Protocol API',
-    url: 'https://api.example-protocol.com/pools',
-    enabled: false, // Set to true when you have the actual API
+    name: 'Auro Finance Pools API',
+    url: '/api/protocols/auro/pools',
+    enabled: true,
     transform: (data: any) => {
-      // Transform the API response to match InvestmentData format
-      return (data.pools || []).map((pool: any) => ({
-        asset: pool.tokenSymbol || pool.asset,
-        provider: pool.protocol || 'Example Protocol',
-        totalAPY: pool.totalAPY || pool.apy || 0,
-        depositApy: pool.depositAPY || pool.supplyAPY || 0,
-        borrowAPY: pool.borrowAPY || 0,
-        token: pool.tokenAddress || pool.address,
-        protocol: pool.protocolName || 'Example Protocol'
-      }));
+      // Transform Auro pools data to InvestmentData format
+      // Only include COLLATERAL pools (Supply pools)
+      const collateralPools = (data.data || [])
+        .filter((pool: any) => pool.type === 'COLLATERAL')
+        .filter((pool: any) => {
+          // Filter out pools with very low TVL or no APY
+          const tvl = parseFloat(pool.tvl || "0");
+          const totalAPY = (pool.totalSupplyApr || 0);
+          return tvl > 1000 && totalAPY > 0;
+        });
+      
+      return collateralPools.map((pool: any) => {
+        // Calculate total APY from supply components
+        const supplyApr = parseFloat(pool.supplyApr || "0");
+        const supplyIncentiveApr = parseFloat(pool.supplyIncentiveApr || "0");
+        const stakingApr = parseFloat(pool.stakingApr || "0");
+        const totalAPY = supplyApr + supplyIncentiveApr + stakingApr;
+        
+        return {
+          asset: pool.collateralTokenSymbol || 'Unknown',
+          provider: 'Auro Finance',
+          totalAPY: totalAPY,
+          depositApy: totalAPY, // Supply APY is the deposit APY
+          borrowAPY: 0, // We're only including collateral pools
+          token: pool.collateralTokenAddress || pool.poolAddress,
+          protocol: 'Auro Finance',
+          tvlUSD: parseFloat(pool.tvl || "0"),
+          // Additional Auro-specific data
+          poolType: 'Lending',
+          // Store original pool data for reference
+          originalPool: pool
+        };
+      });
     }
   }
 ];
