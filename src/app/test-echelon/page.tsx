@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,13 @@ interface EchelonReward {
   stakeAmount: number;
 }
 
+interface TokenPrice {
+  tokenAddress: string | null;
+  faAddress: string;
+  symbol: string;
+  usdPrice: string;
+}
+
 export default function TestEchelonPage() {
   const { account, signAndSubmitTransaction } = useWallet();
   const [walletAddress, setWalletAddress] = useState(account?.address?.toString() || "");
@@ -34,6 +41,68 @@ export default function TestEchelonPage() {
   const [vaultData, setVaultData] = useState<string>("");
   const [vaultLoading, setVaultLoading] = useState(false);
   const [parsedVaultData, setParsedVaultData] = useState<string>("");
+  const [tokenPrices, setTokenPrices] = useState<Map<string, TokenPrice>>(new Map());
+  const [pricesLoading, setPricesLoading] = useState(false);
+
+  // Function to get token address by symbol
+  const getTokenAddressBySymbol = (symbol: string): string | null => {
+    const token = tokenList.data.data.find((t: any) => 
+      t.symbol.toLowerCase() === symbol.toLowerCase() ||
+      t.name.toLowerCase().includes(symbol.toLowerCase())
+    );
+    return token?.faAddress || token?.tokenAddress || null;
+  };
+
+  // Function to fetch token prices
+  const fetchTokenPrices = async (tokens: string[]) => {
+    if (tokens.length === 0) return;
+
+    setPricesLoading(true);
+    try {
+      // Get unique token addresses
+      const tokenAddresses = tokens
+        .map(token => getTokenAddressBySymbol(token))
+        .filter(Boolean) as string[];
+
+      if (tokenAddresses.length === 0) {
+        setPricesLoading(false);
+        return;
+      }
+
+      const response = await fetch(`/api/panora/prices?chainId=1&addresses=${tokenAddresses.join(',')}`);
+      const data = await response.json();
+
+      if (data.data) {
+        const pricesMap = new Map<string, TokenPrice>();
+        data.data.forEach((price: TokenPrice) => {
+          // Find the token symbol that matches this price
+          const matchingToken = tokens.find(token => {
+            const tokenAddress = getTokenAddressBySymbol(token);
+            return tokenAddress === price.faAddress || tokenAddress === price.tokenAddress;
+          });
+          if (matchingToken) {
+            pricesMap.set(matchingToken, price);
+          }
+        });
+        setTokenPrices(pricesMap);
+      }
+    } catch (error) {
+      console.error('Error fetching token prices:', error);
+    } finally {
+      setPricesLoading(false);
+    }
+  };
+
+  // Calculate total USD value of rewards
+  const calculateTotalUSDValue = (): number => {
+    return rewards.reduce((total, reward) => {
+      const price = tokenPrices.get(reward.token);
+      if (price && price.usdPrice && !isNaN(parseFloat(price.usdPrice))) {
+        return total + (reward.amount * parseFloat(price.usdPrice));
+      }
+      return total;
+    }, 0);
+  };
 
   const handleFetchRewards = async () => {
     if (!walletAddress) {
@@ -61,7 +130,12 @@ export default function TestEchelonPage() {
       }
       
       if (data.success) {
-        setRewards(data.data || []);
+        const rewardsData = data.data || [];
+        setRewards(rewardsData);
+        
+        // Fetch prices for the tokens in rewards
+        const uniqueTokens = [...new Set(rewardsData.map((r: EchelonReward) => r.token))] as string[];
+        await fetchTokenPrices(uniqueTokens);
       } else {
         throw new Error(data.error || "Failed to fetch rewards");
       }
@@ -574,6 +648,15 @@ export default function TestEchelonPage() {
               <div className="flex items-center gap-2">
                 Echelon Rewards
                 <Badge variant="secondary">{rewards.length} rewards found</Badge>
+                {pricesLoading ? (
+                  <Badge variant="outline" className="text-blue-600">
+                    Loading prices...
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-green-600">
+                    Total: ${calculateTotalUSDValue().toFixed(2)}
+                  </Badge>
+                )}
               </div>
               <Button 
                 onClick={handleClaimAllRewards}
@@ -592,6 +675,7 @@ export default function TestEchelonPage() {
                   <TableHead>Token</TableHead>
                   <TableHead>Token Type</TableHead>
                   <TableHead>Amount</TableHead>
+                  <TableHead>USD Value</TableHead>
                   <TableHead>Stake Amount</TableHead>
                   <TableHead>Farming ID</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -612,6 +696,22 @@ export default function TestEchelonPage() {
                      <TableCell>
                        <span className="font-mono text-green-600">
                          {reward.amount.toFixed(6)}
+                       </span>
+                     </TableCell>
+                                         <TableCell>
+                       <span className="font-mono text-gray-600">
+                         {pricesLoading ? (
+                           "Loading..."
+                         ) : (
+                           (() => {
+                             const price = tokenPrices.get(reward.token);
+                             if (price && price.usdPrice && !isNaN(parseFloat(price.usdPrice))) {
+                               const usdValue = reward.amount * parseFloat(price.usdPrice);
+                               return `$${usdValue.toFixed(2)}`;
+                             }
+                             return "N/A";
+                           })()
+                         )}
                        </span>
                      </TableCell>
                     <TableCell>
