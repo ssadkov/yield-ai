@@ -71,7 +71,6 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
     const addresses = new Set<string>();
     
     positions.forEach(position => {
-      // Нормализуем адрес токена
       let cleanAddress = position.coin;
       if (cleanAddress.startsWith('@')) {
         cleanAddress = cleanAddress.slice(1);
@@ -81,8 +80,9 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
       }
       addresses.add(cleanAddress);
     });
-    
-    return Array.from(addresses);
+    const arr = Array.from(addresses);
+    console.log('[Echelon] Token addresses for Panora:', arr);
+    return arr;
   };
 
   // Получаем цену токена из кэша
@@ -94,7 +94,11 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
     if (!cleanAddress.startsWith('0x')) {
       cleanAddress = `0x${cleanAddress}`;
     }
-    return tokenPrices[cleanAddress] || '0';
+    const price = tokenPrices[cleanAddress] || '0';
+    if (cleanAddress.toLowerCase().includes('stapt')) {
+      console.log('[Echelon] getTokenPrice for stAPT:', cleanAddress, '=>', price);
+    }
+    return price;
   };
 
   // Получаем цены токенов через Panora API
@@ -105,6 +109,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
 
       try {
         const response = await pricesService.getPrices(1, addresses);
+        console.log('[Echelon] Panora API response:', response.data);
         if (response.data) {
           const prices: Record<string, string> = {};
           response.data.forEach((price: TokenPrice) => {

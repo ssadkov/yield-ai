@@ -88,15 +88,20 @@ export function PositionCard({ position, onPositionValueChange }: PositionProps)
       const fullAddress = cleanAddress.startsWith('0x') ? cleanAddress : `0x${cleanAddress}`;
       addresses.add(fullAddress);
     });
-    
-    return Array.from(addresses);
+    const arr = Array.from(addresses);
+    console.log('[Joule] Token addresses for Panora:', arr);
+    return arr;
   };
 
   // Получаем цену токена с учетом префиксов
   const getTokenPrice = (address: string): string => {
     const cleanAddress = address.startsWith('@') ? address.slice(1) : address;
     const fullAddress = cleanAddress.startsWith('0x') ? cleanAddress : `0x${cleanAddress}`;
-    return tokenPrices[fullAddress] || '0';
+    const price = tokenPrices[fullAddress] || '0';
+    if (fullAddress.toLowerCase().includes('stapt')) {
+      console.log('[Joule] getTokenPrice for stAPT:', fullAddress, '=>', price);
+    }
+    return price;
   };
 
   // Получаем цены токенов через Panora API
@@ -107,6 +112,7 @@ export function PositionCard({ position, onPositionValueChange }: PositionProps)
 
       try {
         const response = await pricesService.getPrices(1, addresses);
+        console.log('[Joule] Panora API response:', response.data);
         if (response.data) {
           const prices: Record<string, string> = {};
           response.data.forEach((price: TokenPrice) => {

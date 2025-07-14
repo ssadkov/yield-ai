@@ -8,9 +8,11 @@ import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import Image from "next/image";
 import { ManagePositionsButton } from "../ManagePositionsButton";
 import { useCollapsible } from "@/contexts/CollapsibleContext";
-import { parseMesoPosition, formatMesoPosition } from "@/lib/protocols/meso/parser";
+import { parseMesoPosition } from "@/lib/protocols/meso/parser";
 import tokenList from "@/lib/data/tokenList.json";
 import { getMesoTokenByInner } from "@/lib/protocols/meso/tokens";
+import { PanoraPricesService } from "@/lib/services/panora/prices";
+import { TokenPrice } from "@/lib/types/panora";
 
 interface PositionsListProps {
   address?: string;
@@ -21,11 +23,12 @@ interface Position {
   assetName: string;
   balance: string;
   type: 'deposit' | 'debt';
+  inner: string;
   assetInfo: {
     name: string;
     symbol: string;
     decimals: number;
-    logoUrl?: string;
+    logoUrl?: string | null;
     price?: string;
   };
 }
@@ -33,7 +36,7 @@ interface Position {
 interface MesoResponse {
   data: Array<{
     type: string;
-    data: any;
+    data: unknown;
   }>;
 }
 
@@ -54,10 +57,23 @@ function formatTokenAmount(amount: string, decimals: number): string {
   return `${wholePart}.${trimmedFractional}`;
 }
 
+// Функция для получения информации о токене (без цены)
 function getTokenInfo(tokenAddress: string) {
-  return (tokenList as any).data.data.find((token: any) =>
-    token.tokenAddress === tokenAddress || token.faAddress === tokenAddress
+  const token = (tokenList as { data: { data: Array<{ tokenAddress?: string; faAddress?: string; symbol?: string; name?: string; logoUrl?: string; decimals?: number }> } }).data.data.find((t) =>
+    t.tokenAddress === tokenAddress || t.faAddress === tokenAddress
   );
+  
+  if (token) {
+    return {
+      symbol: token.symbol,
+      name: token.name,
+      logoUrl: token.logoUrl || null,
+      decimals: token.decimals,
+      usdPrice: null // Цена будет получена динамически
+    };
+  }
+  
+  return null;
 }
 
 export function PositionsList({ address, onPositionsValueChange }: PositionsListProps) {
@@ -65,11 +81,80 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tokenPrices, setTokenPrices] = useState<Record<string, string>>({});
   const { isExpanded, toggleSection } = useCollapsible();
   const [totalValue, setTotalValue] = useState(0);
+  const pricesService = PanoraPricesService.getInstance();
 
   const walletAddress = address || account?.address?.toString();
   const protocol = getProtocolByName("Meso Finance");
+
+  // Получаем все уникальные адреса токенов из позиций
+  const getAllTokenAddresses = () => {
+    const addresses = new Set<string>();
+
+    positions.forEach(position => {
+      // Теперь используем position.inner
+      let mesoToken = getMesoTokenByInner(position.inner);
+      if (mesoToken?.tokenAddress) {
+        let cleanAddress = mesoToken.tokenAddress;
+        if (cleanAddress.startsWith('@')) {
+          cleanAddress = cleanAddress.slice(1);
+        }
+        if (!cleanAddress.startsWith('0x')) {
+          cleanAddress = `0x${cleanAddress}`;
+        }
+        addresses.add(cleanAddress);
+      }
+    });
+    const arr = Array.from(addresses);
+    console.log('[Meso] Token addresses for Panora:', arr);
+    return arr;
+  };
+
+  // Получаем цену токена из кэша
+  const getTokenPrice = (tokenAddress: string): string => {
+    let cleanAddress = tokenAddress;
+    if (cleanAddress.startsWith('@')) {
+      cleanAddress = cleanAddress.slice(1);
+    }
+    if (!cleanAddress.startsWith('0x')) {
+      cleanAddress = `0x${cleanAddress}`;
+    }
+    const price = tokenPrices[cleanAddress] || '0';
+    // Логируем ВСЕ вызовы, не только stAPT
+    console.log('[Meso] getTokenPrice:', cleanAddress, '=>', price);
+    return price;
+  };
+
+  // Получаем цены токенов через Panora API
+  useEffect(() => {
+    const fetchPrices = async () => {
+      const addresses = getAllTokenAddresses();
+      if (addresses.length === 0) return;
+
+      try {
+        const response = await pricesService.getPrices(1, addresses);
+        console.log('[Meso] Panora API response:', response.data);
+        if (response.data) {
+          const prices: Record<string, string> = {};
+          response.data.forEach((price: TokenPrice) => {
+            if (price.tokenAddress) {
+              prices[price.tokenAddress] = price.usdPrice;
+            }
+            if (price.faAddress) {
+              prices[price.faAddress] = price.usdPrice;
+            }
+          });
+          setTokenPrices(prices);
+        }
+      } catch (error) {
+        console.error('Error fetching token prices:', error);
+      }
+    };
+
+    fetchPrices();
+  }, [positions]);
 
   useEffect(() => {
     async function loadPositions() {
@@ -99,7 +184,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
         console.log('Meso API response:', data);
         
         // Ищем позицию Meso Finance
-        const mesoResource = data.data?.find((resource: any) => 
+        const mesoResource = data.data?.find((resource: { type: string; data: unknown }) => 
           resource.type === '0x68476f9d437e3f32fd262ba898b5e3ee0a23a1d586a6cf29a28add35f253f6f7::lending_pool::UserPosition'
         );
         
@@ -107,62 +192,51 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
           const parsed = parseMesoPosition(mesoResource.data);
           if (parsed) {
             const newPositions: Position[] = [];
-            let totalValueSum = 0;
             
             // Добавляем депозиты
             parsed.deposits.forEach(deposit => {
               const mesoToken = getMesoTokenByInner(deposit.inner);
               const tokenInfo = mesoToken ? getTokenInfo(mesoToken.tokenAddress) : undefined;
-              const amount = formatTokenAmount(deposit.shares, deposit.decimals);
-              const value = tokenInfo?.usdPrice ? 
-                parseFloat(amount) * parseFloat(tokenInfo.usdPrice) : 0;
-              
-              totalValueSum += value;
               
               newPositions.push({
                 assetName: deposit.tokenSymbol,
                 balance: deposit.shares,
                 type: 'deposit',
+                inner: deposit.inner, // добавляем inner
                 assetInfo: {
                   name: deposit.tokenName,
                   symbol: deposit.tokenSymbol,
                   decimals: deposit.decimals,
                   logoUrl: tokenInfo?.logoUrl,
-                  price: tokenInfo?.usdPrice
+                  price: undefined // Цена будет получена динамически
                 }
               });
             });
             
-            // Добавляем займы (вычитаем из общей суммы)
+            // Добавляем займы
             parsed.debts.forEach(debt => {
               const mesoToken = getMesoTokenByInner(debt.inner);
               const tokenInfo = mesoToken ? getTokenInfo(mesoToken.tokenAddress) : undefined;
-              const amount = formatTokenAmount(debt.shares, debt.decimals);
-              const value = tokenInfo?.usdPrice ? 
-                parseFloat(amount) * parseFloat(tokenInfo.usdPrice) : 0;
-              
-              totalValueSum -= value; // Займы уменьшают общую стоимость
               
               newPositions.push({
                 assetName: debt.tokenSymbol,
                 balance: debt.shares,
                 type: 'debt',
+                inner: debt.inner, // добавляем inner
                 assetInfo: {
                   name: debt.tokenName,
                   symbol: debt.tokenSymbol,
                   decimals: debt.decimals,
                   logoUrl: tokenInfo?.logoUrl,
-                  price: tokenInfo?.usdPrice
+                  price: undefined // Цена будет получена динамически
                 }
               });
             });
             
             setPositions(newPositions);
-            setTotalValue(Math.max(0, totalValueSum)); // Не показываем отрицательные значения
           }
         } else {
           setPositions([]);
-          setTotalValue(0);
         }
       } catch (err) {
         console.error('Error loading Meso positions:', err);
@@ -175,6 +249,28 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
 
     loadPositions();
   }, [walletAddress]);
+
+  // Пересчитываем общую стоимость при изменении позиций или цен
+  useEffect(() => {
+    let totalValueSum = 0;
+    
+    positions.forEach(position => {
+      const mesoToken = getMesoTokenByInner(position.inner); // исправлено: было position.balance
+      if (mesoToken?.tokenAddress) {
+        const amount = parseFloat(formatTokenAmount(position.balance, position.assetInfo.decimals));
+        const price = getTokenPrice(mesoToken.tokenAddress);
+        const value = price ? amount * parseFloat(price) : 0;
+        
+        if (position.type === 'deposit') {
+          totalValueSum += value;
+        } else {
+          totalValueSum -= value; // Займы уменьшают общую стоимость
+        }
+      }
+    });
+    
+    setTotalValue(Math.max(0, totalValueSum)); // Не показываем отрицательные значения
+  }, [positions, tokenPrices]);
 
   // Вызываем колбэк при изменении общей суммы позиций
   useEffect(() => {
@@ -195,8 +291,14 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
     // Сортировка по value (стоимости позиции)
     const aAmount = parseFloat(formatTokenAmount(a.balance, a.assetInfo.decimals));
     const bAmount = parseFloat(formatTokenAmount(b.balance, b.assetInfo.decimals));
-    const aValue = a.assetInfo.price ? aAmount * parseFloat(a.assetInfo.price) : 0;
-    const bValue = b.assetInfo.price ? bAmount * parseFloat(b.assetInfo.price) : 0;
+    
+    const mesoTokenA = getMesoTokenByInner(a.inner); // исправлено: было a.balance
+    const mesoTokenB = getMesoTokenByInner(b.inner); // исправлено: было b.balance
+    const priceA = mesoTokenA?.tokenAddress ? getTokenPrice(mesoTokenA.tokenAddress) : '0';
+    const priceB = mesoTokenB?.tokenAddress ? getTokenPrice(mesoTokenB.tokenAddress) : '0';
+    
+    const aValue = aAmount * parseFloat(priceA);
+    const bValue = bAmount * parseFloat(priceB);
     return bValue - aValue;
   });
 
@@ -237,8 +339,10 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
             {sortedPositions.map((position, index) => {
               const amount = formatTokenAmount(position.balance, position.assetInfo.decimals);
               const isDebt = position.type === 'debt';
-              const value = position.assetInfo.price ? 
-                parseFloat(amount) * parseFloat(position.assetInfo.price) : 0;
+              
+              const mesoToken = getMesoTokenByInner(position.inner); // исправлено: было position.balance
+              const price = mesoToken?.tokenAddress ? getTokenPrice(mesoToken.tokenAddress) : '0';
+              const value = parseFloat(amount) * parseFloat(price);
               
               return (
                 <div key={`${position.assetName}-${index}`} className="mb-2">
@@ -267,7 +371,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
                             </div>
                           )}
                         </div>
-                        <div className="text-xs text-muted-foreground">${position.assetInfo.price ? parseFloat(position.assetInfo.price).toFixed(2) : 'N/A'}</div>
+                        <div className="text-xs text-muted-foreground">${parseFloat(price).toFixed(2)}</div>
                       </div>
                     </div>
                     <div className="text-right">
