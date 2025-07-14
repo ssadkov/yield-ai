@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
@@ -9,6 +9,9 @@ import { cn } from "@/lib/utils";
 import { ManagePositionsButton } from "../../ManagePositionsButton";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import { useClaimRewards } from '@/lib/hooks/useClaimRewards';
+import { PanoraPricesService } from "@/lib/services/panora/prices";
+import { TokenPrice } from "@/lib/types/panora";
+import tokenList from "@/lib/data/tokenList.json";
 
 interface AuroPositionsProps {
   address?: string;
@@ -23,10 +26,58 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
   const [totalValue, setTotalValue] = useState<number>(0);
   const [poolsData, setPoolsData] = useState<any[]>([]);
   const [rewardsData, setRewardsData] = useState<{ [positionAddress: string]: { collateral: any[], borrow: any[] } }>({});
+  const [tokenPrices, setTokenPrices] = useState<Record<string, string>>({});
   const { claimRewards, isLoading: isClaiming } = useClaimRewards();
+  const pricesService = PanoraPricesService.getInstance();
 
   const walletAddress = address || account?.address;
   const protocol = getProtocolByName("Auro Finance");
+
+  // Получаем цену токена из кэша
+  const getTokenPrice = useCallback((tokenAddress: string): string => {
+    let cleanAddress = tokenAddress;
+    if (cleanAddress.startsWith('@')) {
+      cleanAddress = cleanAddress.slice(1);
+    }
+    if (!cleanAddress.startsWith('0x')) {
+      cleanAddress = `0x${cleanAddress}`;
+    }
+    const price = tokenPrices[cleanAddress] || '0';
+    console.log('[Auro Managing] getTokenPrice:', cleanAddress, '=>', price);
+    return price;
+  }, [tokenPrices]);
+
+  // Функция для получения информации о токене наград
+  const getRewardTokenInfoHelper = useCallback((tokenAddress: string) => {
+    console.log('[Auro Managing] getRewardTokenInfoHelper called for:', tokenAddress);
+    const cleanAddress = tokenAddress.startsWith('@') ? tokenAddress.slice(1) : tokenAddress;
+    const fullAddress = cleanAddress.startsWith('0x') ? cleanAddress : `0x${cleanAddress}`;
+    console.log('[Auro Managing] Looking for token with address:', fullAddress);
+    
+    const token = (tokenList as any).data.data.find((token: any) => 
+      token.tokenAddress === fullAddress || 
+      token.faAddress === fullAddress
+    );
+    
+    console.log('[Auro Managing] Found token:', token);
+    
+    if (!token) {
+      console.log('[Auro Managing] Token not found for address:', fullAddress);
+      return undefined;
+    }
+    
+    const result = {
+      address: token.tokenAddress,
+      faAddress: token.faAddress,
+      symbol: token.symbol,
+      icon_uri: token.logoUrl,
+      decimals: token.decimals,
+      price: getTokenPrice(fullAddress) // Используем динамическую цену
+    };
+    
+    console.log('[Auro Managing] Returning token info:', result);
+    return result;
+  }, [getTokenPrice]);
 
   // useEffect для загрузки позиций
   useEffect(() => {
@@ -136,36 +187,92 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
     fetchRewards();
   }, [positions, poolsData]);
 
-  // Вспомогательная функция для получения информации о токене награды
-  const getRewardTokenInfoHelper = (tokenAddress: string) => {
-    // Ищем токен в poolsData
-    const pool = poolsData.find(p => p.token?.address === tokenAddress);
-    if (pool?.token) {
-      return {
-        symbol: pool.token.symbol,
-        name: pool.token.name,
-        icon_uri: pool.token.icon_uri,
-        decimals: pool.token.decimals,
-        price: pool.token.price
-      };
-    }
-    
-    // Fallback для AURO токена
-    if (tokenAddress === '0xbcff91abababee684b194219ff2113c26e63d57c8872e6fdaf25a41a45fb7197') {
-      return {
-        symbol: 'AURO',
-        name: 'AURO Finance',
-        icon_uri: 'https://img.auro.finance/auro.png',
-        decimals: 8,
-        price: 0.0069
-      };
-    }
-    
-    return null;
-  };
+  // Получаем цены токенов через Panora API
+  useEffect(() => {
+    const fetchPrices = async () => {
+      // Получаем адреса токенов напрямую
+      const addresses = new Set<string>();
+
+      positions.forEach(position => {
+        // Добавляем collateral токен
+        if (position.collateralTokenAddress) {
+          let cleanAddress = position.collateralTokenAddress;
+          if (cleanAddress.startsWith('@')) {
+            cleanAddress = cleanAddress.slice(1);
+          }
+          if (!cleanAddress.startsWith('0x')) {
+            cleanAddress = `0x${cleanAddress}`;
+          }
+          addresses.add(cleanAddress);
+        }
+        
+        // Добавляем debt токен (USDA)
+        const debtTokenAddress = "0x534e4c3dc0f038dab1a8259e89301c4da58779a5d482fb354a41c08147e6b9ec";
+        addresses.add(debtTokenAddress);
+      });
+
+      // Добавляем адреса токенов наград
+      Object.values(rewardsData).forEach((positionRewards: any) => {
+        if (positionRewards.collateral) {
+          positionRewards.collateral.forEach((reward: any) => {
+            if (reward?.key) {
+              let cleanAddress = reward.key;
+              if (cleanAddress.startsWith('@')) {
+                cleanAddress = cleanAddress.slice(1);
+              }
+              if (!cleanAddress.startsWith('0x')) {
+                cleanAddress = `0x${cleanAddress}`;
+              }
+              addresses.add(cleanAddress);
+            }
+          });
+        }
+        if (positionRewards.borrow) {
+          positionRewards.borrow.forEach((reward: any) => {
+            if (reward?.key) {
+              let cleanAddress = reward.key;
+              if (cleanAddress.startsWith('@')) {
+                cleanAddress = cleanAddress.slice(1);
+              }
+              if (!cleanAddress.startsWith('0x')) {
+                cleanAddress = `0x${cleanAddress}`;
+              }
+              addresses.add(cleanAddress);
+            }
+          });
+        }
+      });
+
+      const addressesArray = Array.from(addresses);
+      console.log('[Auro Managing] Token addresses for Panora:', addressesArray);
+      
+      if (addressesArray.length === 0) return;
+
+      try {
+        const response = await pricesService.getPrices(1, addressesArray);
+        console.log('[Auro Managing] Panora API response:', response.data);
+        if (response.data) {
+          const prices: Record<string, string> = {};
+          response.data.forEach((price: TokenPrice) => {
+            if (price.tokenAddress) {
+              prices[price.tokenAddress] = price.usdPrice;
+            }
+            if (price.faAddress) {
+              prices[price.faAddress] = price.usdPrice;
+            }
+          });
+          setTokenPrices(prices);
+        }
+      } catch (error) {
+        console.error('Error fetching token prices:', error);
+      }
+    };
+
+    fetchPrices();
+  }, [positions, rewardsData, pricesService]);
 
   // Функция для расчета стоимости наград позиции
-  const calculateRewardsValue = (positionAddress: string) => {
+  const calculateRewardsValue = useCallback((positionAddress: string) => {
     let rewardsValue = 0;
     if (rewardsData[positionAddress]) {
       // Collateral rewards
@@ -174,7 +281,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
           const tokenInfo = getRewardTokenInfoHelper(reward.key);
           if (tokenInfo && tokenInfo.price) {
             const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
-            rewardsValue += amount * tokenInfo.price;
+            rewardsValue += amount * parseFloat(tokenInfo.price);
           }
         }
       });
@@ -185,18 +292,20 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
           const tokenInfo = getRewardTokenInfoHelper(reward.key);
           if (tokenInfo && tokenInfo.price) {
             const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
-            rewardsValue += amount * tokenInfo.price;
+            rewardsValue += amount * parseFloat(tokenInfo.price);
           }
         }
       });
     }
     return rewardsValue;
-  };
+  }, [rewardsData, getRewardTokenInfoHelper]);
 
   // Сортировка по value (по убыванию) - включая награды
   const sortedPositions = [...positions].sort((a, b) => {
-    const valueA = a.collateralTokenInfo?.usdPrice ? parseFloat(a.collateralAmount) * parseFloat(a.collateralTokenInfo.usdPrice) : 0;
-    const valueB = b.collateralTokenInfo?.usdPrice ? parseFloat(b.collateralAmount) * parseFloat(b.collateralTokenInfo.usdPrice) : 0;
+    const collateralPriceA = a.collateralTokenAddress ? parseFloat(getTokenPrice(a.collateralTokenAddress)) : 0;
+    const collateralPriceB = b.collateralTokenAddress ? parseFloat(getTokenPrice(b.collateralTokenAddress)) : 0;
+    const valueA = parseFloat(a.collateralAmount) * collateralPriceA;
+    const valueB = parseFloat(b.collateralAmount) * collateralPriceB;
     
     // Добавляем стоимость наград для сортировки
     const rewardsValueA = calculateRewardsValue(a.address);
@@ -206,11 +315,11 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
   });
 
   // Функция для расчета общей стоимости всех наград
-  const calculateTotalRewardsValue = () => {
+  const calculateTotalRewardsValue = useCallback(() => {
     return sortedPositions.reduce((total, pos) => {
       return total + calculateRewardsValue(pos.address);
     }, 0);
-  };
+  }, [sortedPositions, calculateRewardsValue]);
 
   // Мемоизируем общую стоимость наград для оптимизации
   const totalRewardsValue = calculateTotalRewardsValue();
@@ -223,8 +332,11 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
   // Сумма активов
   useEffect(() => {
     const total = sortedPositions.reduce((sum, pos) => {
-      const collateralValue = pos.collateralTokenInfo?.usdPrice ? parseFloat(pos.collateralAmount) * parseFloat(pos.collateralTokenInfo.usdPrice) : 0;
-      const debtValue = pos.debtTokenInfo?.usdPrice ? parseFloat(pos.debtAmount) * parseFloat(pos.debtTokenInfo.usdPrice) : 0;
+      const collateralPrice = pos.collateralTokenAddress ? parseFloat(getTokenPrice(pos.collateralTokenAddress)) : 0;
+      const collateralValue = parseFloat(pos.collateralAmount) * collateralPrice;
+      
+      const debtPrice = parseFloat(getTokenPrice("0x534e4c3dc0f038dab1a8259e89301c4da58779a5d482fb354a41c08147e6b9ec")); // USDA
+      const debtValue = parseFloat(pos.debtAmount) * debtPrice;
       
       // Добавляем стоимость наград
       const rewardsValue = calculateRewardsValue(pos.address);
@@ -236,7 +348,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
     if (onPositionsValueChange) {
       onPositionsValueChange(total);
     }
-  }, [sortedPositions, rewardsData, onPositionsValueChange]);
+  }, [sortedPositions, rewardsData, onPositionsValueChange, calculateRewardsValue, getTokenPrice]);
 
   // Получение реальных APR данных из API
   const getCollateralAPRData = (poolAddress: string) => {
@@ -314,7 +426,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
         const tokenInfo = getRewardTokenInfoHelper(reward.key);
         if (tokenInfo && tokenInfo.price) {
           const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
-          localSum += amount * tokenInfo.price;
+          localSum += amount * parseFloat(tokenInfo.price);
         }
       });
     }
@@ -353,15 +465,15 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
           const collateral = pos.collateralAmount;
           const collateralSymbol = pos.collateralSymbol;
           const collateralLogo = pos.collateralTokenInfo?.logoUrl;
-          const collateralPrice = pos.collateralTokenInfo?.usdPrice ? parseFloat(pos.collateralTokenInfo.usdPrice).toFixed(2) : 'N/A';
-          const collateralValue = pos.collateralTokenInfo?.usdPrice ? (parseFloat(collateral) * parseFloat(pos.collateralTokenInfo.usdPrice)).toFixed(2) : 'N/A';
+          const collateralPrice = pos.collateralTokenAddress ? parseFloat(getTokenPrice(pos.collateralTokenAddress)).toFixed(2) : 'N/A';
+          const collateralValue = pos.collateralTokenAddress ? (parseFloat(collateral) * parseFloat(getTokenPrice(pos.collateralTokenAddress))).toFixed(2) : 'N/A';
           const collateralAPRData = getCollateralAPRData(pos.poolAddress);
           
           const debt = pos.debtAmount;
           const debtSymbol = pos.debtSymbol;
           const debtLogo = pos.debtTokenInfo?.logoUrl;
-          const debtPrice = pos.debtTokenInfo?.usdPrice ? parseFloat(pos.debtTokenInfo.usdPrice).toFixed(2) : 'N/A';
-          const debtValue = pos.debtTokenInfo?.usdPrice ? (parseFloat(debt) * parseFloat(pos.debtTokenInfo.usdPrice)).toFixed(2) : 'N/A';
+          const debtPrice = parseFloat(getTokenPrice("0x534e4c3dc0f038dab1a8259e89301c4da58779a5d482fb354a41c08147e6b9ec")).toFixed(2); // USDA
+          const debtValue = (parseFloat(debt) * parseFloat(getTokenPrice("0x534e4c3dc0f038dab1a8259e89301c4da58779a5d482fb354a41c08147e6b9ec"))).toFixed(2); // USDA
           const debtAPRData = getDebtAPRData();
           
           const hasDebt = parseFloat(debt) > 0;
@@ -493,7 +605,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                               const tokenInfo = getRewardTokenInfoHelper(reward.key);
                               if (!tokenInfo) return null;
                               const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
-                              const value = tokenInfo.price ? (amount * tokenInfo.price).toFixed(2) : 'N/A';
+                              const rewardValue = tokenInfo.price ? (amount * parseFloat(tokenInfo.price)).toFixed(2) : 'N/A';
                               return (
                                 <TooltipProvider key={rewardIdx}>
                                   <Tooltip>
@@ -502,8 +614,8 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                                         <div className="flex items-center gap-1">
                                         </div>
                                         <div className="text-right">
-                                          {value !== 'N/A' ? (
-                                            <div className="font-medium">${value}</div>
+                                          {rewardValue !== 'N/A' ? (
+                                            <div className="font-medium">${rewardValue}</div>
                                           ) : (
                                             <div className="font-medium">{amount.toFixed(4)}</div>
                                           )}
@@ -513,8 +625,8 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                                     <TooltipContent className="bg-black text-white border-gray-700">
                                       <div className="text-xs">
                                         <div className="text-gray-300">{amount.toFixed(6)} {tokenInfo.symbol}</div>
-                                        {value !== 'N/A' && (
-                                          <div className="text-gray-300">${value}</div>
+                                        {rewardValue !== 'N/A' && (
+                                          <div className="text-gray-300">${rewardValue}</div>
                                         )}
                                       </div>
                                     </TooltipContent>
@@ -536,7 +648,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                               const tokenInfo = getRewardTokenInfoHelper(reward.key);
                               if (!tokenInfo) return null;
                               const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
-                              const value = tokenInfo.price ? (amount * tokenInfo.price).toFixed(2) : 'N/A';
+                              const borrowRewardValue = tokenInfo.price ? (amount * parseFloat(tokenInfo.price)).toFixed(2) : 'N/A';
                               return (
                                 <TooltipProvider key={rewardIdx}>
                                   <Tooltip>
@@ -545,8 +657,8 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                                         <div className="flex items-center gap-1">
                                         </div>
                                         <div className="text-right">
-                                          {value !== 'N/A' ? (
-                                            <div className="font-medium">${value}</div>
+                                          {borrowRewardValue !== 'N/A' ? (
+                                            <div className="font-medium">${borrowRewardValue}</div>
                                           ) : (
                                             <div className="font-medium">{amount.toFixed(4)}</div>
                                           )}
@@ -556,8 +668,8 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                                     <TooltipContent className="bg-black text-white border-gray-700">
                                       <div className="text-xs">
                                         <div className="text-gray-300">{amount.toFixed(6)} {tokenInfo.symbol}</div>
-                                        {value !== 'N/A' && (
-                                          <div className="text-gray-300">${value}</div>
+                                        {borrowRewardValue !== 'N/A' && (
+                                          <div className="text-gray-300">${borrowRewardValue}</div>
                                         )}
                                       </div>
                                     </TooltipContent>
@@ -644,11 +756,11 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                         const tokenInfo = getRewardTokenInfoHelper(reward.key);
                         if (!tokenInfo) return null;
                         const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
-                        const value = tokenInfo.price ? (amount * tokenInfo.price).toFixed(2) : 'N/A';
+                        const rewardValue = tokenInfo.price ? (amount * parseFloat(tokenInfo.price)).toFixed(2) : 'N/A';
                         return (
                           <div key={rewardIdx} className="flex items-center justify-between text-xs">
                             <span>{amount.toFixed(4)} {tokenInfo.symbol}</span>
-                            <span className="font-medium">{value !== 'N/A' ? `$${value}` : amount.toFixed(4)}</span>
+                            <span className="font-medium">{rewardValue !== 'N/A' ? `$${rewardValue}` : amount.toFixed(4)}</span>
                           </div>
                         );
                       })}
@@ -666,11 +778,11 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                         const tokenInfo = getRewardTokenInfoHelper(reward.key);
                         if (!tokenInfo) return null;
                         const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
-                        const value = tokenInfo.price ? (amount * tokenInfo.price).toFixed(2) : 'N/A';
+                        const borrowRewardValue = tokenInfo.price ? (amount * parseFloat(tokenInfo.price)).toFixed(2) : 'N/A';
                         return (
                           <div key={rewardIdx} className="flex items-center justify-between text-xs">
                             <span>{amount.toFixed(4)} {tokenInfo.symbol}</span>
-                            <span className="font-medium">{value !== 'N/A' ? `$${value}` : amount.toFixed(4)}</span>
+                            <span className="font-medium">{borrowRewardValue !== 'N/A' ? `$${borrowRewardValue}` : amount.toFixed(4)}</span>
                           </div>
                         );
                       })}
@@ -784,7 +896,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                               const tokenInfo = getRewardTokenInfoHelper(reward.key);
                               if (!tokenInfo) return null;
                               const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
-                              const value = tokenInfo.price ? (amount * tokenInfo.price).toFixed(2) : 'N/A';
+                              const borrowRewardValue = tokenInfo.price ? (amount * parseFloat(tokenInfo.price)).toFixed(2) : 'N/A';
                               return (
                                 <TooltipProvider key={rewardIdx}>
                                   <Tooltip>
@@ -793,8 +905,8 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                                         <div className="flex items-center gap-1">
                                         </div>
                                         <div className="text-right">
-                                          {value !== 'N/A' ? (
-                                            <div className="font-medium">${value}</div>
+                                          {borrowRewardValue !== 'N/A' ? (
+                                            <div className="font-medium">${borrowRewardValue}</div>
                                           ) : (
                                             <div className="font-medium">{amount.toFixed(4)}</div>
                                           )}
@@ -804,8 +916,8 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                                     <TooltipContent className="bg-black text-white border-gray-700">
                                       <div className="text-xs">
                                         <div className="text-gray-300">{amount.toFixed(6)} {tokenInfo.symbol}</div>
-                                        {value !== 'N/A' && (
-                                          <div className="text-gray-300">${value}</div>
+                                        {borrowRewardValue !== 'N/A' && (
+                                          <div className="text-gray-300">${borrowRewardValue}</div>
                                         )}
                                       </div>
                                     </TooltipContent>
@@ -893,11 +1005,11 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                           const tokenInfo = getRewardTokenInfoHelper(reward.key);
                           if (!tokenInfo) return null;
                           const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
-                          const value = tokenInfo.price ? (amount * tokenInfo.price).toFixed(2) : 'N/A';
+                          const borrowRewardValue = tokenInfo.price ? (amount * parseFloat(tokenInfo.price)).toFixed(2) : 'N/A';
                           return (
                             <div key={rewardIdx} className="flex items-center justify-between text-xs">
                               <span>{amount.toFixed(4)} {tokenInfo.symbol}</span>
-                              <span className="font-medium">{value !== 'N/A' ? `$${value}` : amount.toFixed(4)}</span>
+                              <span className="font-medium">{borrowRewardValue !== 'N/A' ? `$${borrowRewardValue}` : amount.toFixed(4)}</span>
                             </div>
                           );
                         })}
