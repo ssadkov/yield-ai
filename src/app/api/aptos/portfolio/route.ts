@@ -361,10 +361,20 @@ export async function GET(request: Request) {
       if (echelonResponse.ok) {
         const echelonData = await echelonResponse.json();
         if (echelonData.success && Array.isArray(echelonData.data)) {
+          // Получаем цены для токенов Echelon
+          const echelonTokenAddresses = echelonData.data.map((pos: any) => pos.coin);
+          const echelonPricesResponse = await pricesService.getPrices(1, echelonTokenAddresses);
+          const echelonPrices = echelonPricesResponse.data;
+          
           protocols.echelon.positions = echelonData.data.map((pos: any) => {
             const tokenInfo = getTokenInfo(pos.coin);
             const amount = pos.supply / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
-            const value = tokenInfo?.usdPrice ? amount * parseFloat(tokenInfo.usdPrice) : 0;
+            
+            // Ищем цену в динамических данных
+            const price = echelonPrices.find((p: TokenPrice) => 
+              p.tokenAddress === pos.coin || p.faAddress === pos.coin
+            );
+            const value = price ? amount * parseFloat(price.usdPrice) : 0;
             
             return {
               symbol: tokenInfo?.symbol || pos.coin.substring(0, 4).toUpperCase(),

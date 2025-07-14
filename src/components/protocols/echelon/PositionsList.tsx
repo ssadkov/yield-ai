@@ -10,6 +10,8 @@ import Image from "next/image";
 import tokenList from "@/lib/data/tokenList.json";
 import { ManagePositionsButton } from "../ManagePositionsButton";
 import { useCollapsible } from "@/contexts/CollapsibleContext";
+import { PanoraPricesService } from "@/lib/services/panora/prices";
+import { TokenPrice } from "@/lib/types/panora";
 
 interface PositionsListProps {
   address?: string;
@@ -38,12 +40,14 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tokenPrices, setTokenPrices] = useState<Record<string, string>>({});
   const { isExpanded, toggleSection } = useCollapsible();
+  const pricesService = PanoraPricesService.getInstance();
 
   const walletAddress = address || account?.address?.toString();
   const protocol = getProtocolByName("Echelon");
 
-  // Функция для поиска информации о токене
+  // Функция для поиска информации о токене (без цены)
   const getTokenInfo = (coinAddress: string): TokenInfo | null => {
     const token = tokenList.data.data.find(
       (t) => t.faAddress === coinAddress || t.tokenAddress === coinAddress
@@ -55,12 +59,71 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
         name: token.name,
         logoUrl: token.logoUrl || null,
         decimals: token.decimals,
-        usdPrice: token.usdPrice || null
+        usdPrice: null // Цена будет получена динамически
       };
     }
     
     return null;
   };
+
+  // Получаем все уникальные адреса токенов из позиций
+  const getAllTokenAddresses = () => {
+    const addresses = new Set<string>();
+    
+    positions.forEach(position => {
+      // Нормализуем адрес токена
+      let cleanAddress = position.coin;
+      if (cleanAddress.startsWith('@')) {
+        cleanAddress = cleanAddress.slice(1);
+      }
+      if (!cleanAddress.startsWith('0x')) {
+        cleanAddress = `0x${cleanAddress}`;
+      }
+      addresses.add(cleanAddress);
+    });
+    
+    return Array.from(addresses);
+  };
+
+  // Получаем цену токена из кэша
+  const getTokenPrice = (coinAddress: string): string => {
+    let cleanAddress = coinAddress;
+    if (cleanAddress.startsWith('@')) {
+      cleanAddress = cleanAddress.slice(1);
+    }
+    if (!cleanAddress.startsWith('0x')) {
+      cleanAddress = `0x${cleanAddress}`;
+    }
+    return tokenPrices[cleanAddress] || '0';
+  };
+
+  // Получаем цены токенов через Panora API
+  useEffect(() => {
+    const fetchPrices = async () => {
+      const addresses = getAllTokenAddresses();
+      if (addresses.length === 0) return;
+
+      try {
+        const response = await pricesService.getPrices(1, addresses);
+        if (response.data) {
+          const prices: Record<string, string> = {};
+          response.data.forEach((price: TokenPrice) => {
+            if (price.tokenAddress) {
+              prices[price.tokenAddress] = price.usdPrice;
+            }
+            if (price.faAddress) {
+              prices[price.faAddress] = price.usdPrice;
+            }
+          });
+          setTokenPrices(prices);
+        }
+      } catch (error) {
+        console.error('Error fetching token prices:', error);
+      }
+    };
+
+    fetchPrices();
+  }, [positions]);
 
   useEffect(() => {
     async function loadPositions() {
@@ -105,7 +168,8 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
     const tokenInfo = getTokenInfo(position.coin);
     const rawAmount = position.supply ?? position.amount ?? 0;
     const amount = rawAmount / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
-    const value = tokenInfo?.usdPrice ? amount * parseFloat(tokenInfo.usdPrice) : 0;
+    const price = getTokenPrice(position.coin);
+    const value = price ? amount * parseFloat(price) : 0;
     if (position.type === 'borrow') {
       return sum - value;
     }
@@ -120,8 +184,10 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
     const rawAmountB = b.supply ?? b.amount ?? 0;
     const amountA = rawAmountA / (tokenInfoA?.decimals ? 10 ** tokenInfoA.decimals : 1e8);
     const amountB = rawAmountB / (tokenInfoB?.decimals ? 10 ** tokenInfoB.decimals : 1e8);
-    const valueA = tokenInfoA?.usdPrice ? amountA * parseFloat(tokenInfoA.usdPrice) : 0;
-    const valueB = tokenInfoB?.usdPrice ? amountB * parseFloat(tokenInfoB.usdPrice) : 0;
+    const priceA = getTokenPrice(a.coin);
+    const priceB = getTokenPrice(b.coin);
+    const valueA = priceA ? amountA * parseFloat(priceA) : 0;
+    const valueB = priceB ? amountB * parseFloat(priceB) : 0;
     return valueB - valueA;
   });
 
@@ -173,7 +239,8 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
               const tokenInfo = getTokenInfo(position.coin);
               const rawAmount = position.supply ?? position.amount ?? 0;
               const amount = rawAmount / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
-              const value = tokenInfo?.usdPrice ? (amount * parseFloat(tokenInfo.usdPrice)).toFixed(2) : 'N/A';
+              const price = getTokenPrice(position.coin);
+              const value = price ? (amount * parseFloat(price)).toFixed(2) : 'N/A';
               const isBorrow = position.type === 'borrow';
               return (
                 <div key={`${position.coin}-${index}`} className={cn('mb-2', isBorrow && 'bg-red-50 rounded')}> 
@@ -201,7 +268,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
                           </span>
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          ${tokenInfo?.usdPrice ? parseFloat(tokenInfo.usdPrice).toFixed(2) : 'N/A'}
+                          ${price ? parseFloat(price).toFixed(2) : 'N/A'}
                         </div>
                       </div>
                     </div>
