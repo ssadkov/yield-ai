@@ -15,6 +15,8 @@ import echelonMarkets from "@/lib/data/echelonMarkets.json";
 import { useDragDrop } from "@/contexts/DragDropContext";
 import { PositionDragData } from "@/types/dragDrop";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { PanoraPricesService } from "@/lib/services/panora/prices";
+import { TokenPrice } from "@/lib/types/panora";
 
 interface Position {
   coin: string;
@@ -32,9 +34,70 @@ export function EchelonPositions() {
   const [marketData, setMarketData] = useState<any[]>([]);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
+  const [tokenPrices, setTokenPrices] = useState<Record<string, string>>({});
   const { withdraw, isLoading: isWithdrawing } = useWithdraw();
   const { startDrag, endDrag, state, closePositionModal, closeAllModals, setPositionConfirmHandler } = useDragDrop();
   const isModalOpenRef = useRef(false);
+  const pricesService = PanoraPricesService.getInstance();
+
+  // Получаем все уникальные адреса токенов из позиций
+  const getAllTokenAddresses = () => {
+    const addresses = new Set<string>();
+    
+    positions.forEach(position => {
+      // Нормализуем адрес токена
+      let cleanAddress = position.coin;
+      if (cleanAddress.startsWith('@')) {
+        cleanAddress = cleanAddress.slice(1);
+      }
+      if (!cleanAddress.startsWith('0x')) {
+        cleanAddress = `0x${cleanAddress}`;
+      }
+      addresses.add(cleanAddress);
+    });
+    
+    return Array.from(addresses);
+  };
+
+  // Получаем цену токена из кэша
+  const getTokenPrice = (coinAddress: string): string => {
+    let cleanAddress = coinAddress;
+    if (cleanAddress.startsWith('@')) {
+      cleanAddress = cleanAddress.slice(1);
+    }
+    if (!cleanAddress.startsWith('0x')) {
+      cleanAddress = `0x${cleanAddress}`;
+    }
+    return tokenPrices[cleanAddress] || '0';
+  };
+
+  // Получаем цены токенов через Panora API
+  useEffect(() => {
+    const fetchPrices = async () => {
+      const addresses = getAllTokenAddresses();
+      if (addresses.length === 0) return;
+
+      try {
+        const response = await pricesService.getPrices(1, addresses);
+        if (response.data) {
+          const prices: Record<string, string> = {};
+          response.data.forEach((price: TokenPrice) => {
+            if (price.tokenAddress) {
+              prices[price.tokenAddress] = price.usdPrice;
+            }
+            if (price.faAddress) {
+              prices[price.faAddress] = price.usdPrice;
+            }
+          });
+          setTokenPrices(prices);
+        }
+      } catch (error) {
+        console.error('Error fetching token prices:', error);
+      }
+    };
+
+    fetchPrices();
+  }, [positions]);
 
   // Функция для загрузки позиций
   const loadPositions = useCallback(async () => {
@@ -96,7 +159,7 @@ export function EchelonPositions() {
       symbol: token.symbol,
       logoUrl: token.logoUrl,
       decimals: token.decimals,
-      usdPrice: token.usdPrice
+      usdPrice: getTokenPrice(coinAddress) // Используем динамическую цену
     };
   };
 
@@ -113,8 +176,10 @@ export function EchelonPositions() {
     const tokenInfoB = getTokenInfo(b.coin);
     const amountA = parseFloat(String(a.amount)) / (tokenInfoA?.decimals ? 10 ** tokenInfoA.decimals : 1e8);
     const amountB = parseFloat(String(b.amount)) / (tokenInfoB?.decimals ? 10 ** tokenInfoB.decimals : 1e8);
-    const valueA = tokenInfoA?.usdPrice ? amountA * parseFloat(tokenInfoA.usdPrice) : 0;
-    const valueB = tokenInfoB?.usdPrice ? amountB * parseFloat(tokenInfoB.usdPrice) : 0;
+    const priceA = getTokenPrice(a.coin);
+    const priceB = getTokenPrice(b.coin);
+    const valueA = priceA ? amountA * parseFloat(priceA) : 0;
+    const valueB = priceB ? amountB * parseFloat(priceB) : 0;
     // borrow всегда ниже supply
     if ((a.type === 'borrow') !== (b.type === 'borrow')) {
       return a.type === 'borrow' ? 1 : -1;
@@ -127,14 +192,15 @@ export function EchelonPositions() {
     const total = sortedPositions.reduce((sum, position) => {
       const tokenInfo = getTokenInfo(position.coin);
       const amount = parseFloat(String(position.amount)) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
-      const value = tokenInfo?.usdPrice ? amount * parseFloat(tokenInfo.usdPrice) : 0;
+      const price = getTokenPrice(position.coin);
+      const value = price ? amount * parseFloat(price) : 0;
       if (position.type === 'borrow') {
         return sum - value;
       }
       return sum + value;
     }, 0);
     setTotalValue(total);
-  }, [sortedPositions]);
+  }, [sortedPositions, tokenPrices]);
 
   // Обработчик открытия модального окна withdraw
   const handleWithdrawClick = (position: Position) => {
@@ -261,7 +327,8 @@ export function EchelonPositions() {
           const tokenInfo = getTokenInfo(position.coin);
           const rawAmount = typeof position.amount === 'number' ? position.amount : parseFloat(position.amount);
           const amount = !isNaN(rawAmount) && tokenInfo?.decimals ? rawAmount / 10 ** tokenInfo.decimals : 0;
-          const value = tokenInfo?.usdPrice ? (amount * parseFloat(tokenInfo.usdPrice)).toFixed(2) : 'N/A';
+          const price = getTokenPrice(position.coin);
+          const value = price ? (amount * parseFloat(price)).toFixed(2) : 'N/A';
           const apy = getApyForPosition(position);
           const isBorrow = position.type === 'borrow';
           
@@ -303,7 +370,7 @@ export function EchelonPositions() {
                       </Badge>
                     </div>
                     <div className="text-base text-muted-foreground mt-0.5">
-                      ${tokenInfo?.usdPrice ? parseFloat(tokenInfo.usdPrice).toFixed(2) : 'N/A'}
+                      ${price ? parseFloat(price).toFixed(2) : 'N/A'}
                     </div>
                   </div>
                 </div>
