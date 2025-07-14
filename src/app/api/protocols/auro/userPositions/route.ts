@@ -82,11 +82,16 @@ export async function GET(request: NextRequest) {
 
     console.log('Calling view function with payload:', viewPayload);
 
+    const viewHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (process.env.APTOS_API_KEY) {
+      viewHeaders['Authorization'] = `Bearer ${process.env.APTOS_API_KEY}`;
+    }
+
     const response = await fetch('https://fullnode.mainnet.aptoslabs.com/v1/view', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: viewHeaders,
       body: JSON.stringify(viewPayload)
     });
 
@@ -193,7 +198,7 @@ export async function GET(request: NextRequest) {
         
         const viewResponse = await fetch('https://fullnode.mainnet.aptoslabs.com/v1/view', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: viewHeaders,
           body: JSON.stringify(payloadPositionInfo)
         });
         
