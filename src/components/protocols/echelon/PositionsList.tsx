@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { PositionCard } from "./PositionCard";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -12,6 +12,7 @@ import { ManagePositionsButton } from "../ManagePositionsButton";
 import { useCollapsible } from "@/contexts/CollapsibleContext";
 import { PanoraPricesService } from "@/lib/services/panora/prices";
 import { TokenPrice } from "@/lib/types/panora";
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 interface PositionsListProps {
   address?: string;
@@ -35,17 +36,44 @@ interface TokenInfo {
   usdPrice: string | null;
 }
 
+interface EchelonReward {
+  token: string;
+  tokenType: string;
+  amount: number;
+  rawAmount: string;
+  farmingId: string;
+  stakeAmount: number;
+}
+
 export function PositionsList({ address, onPositionsValueChange }: PositionsListProps) {
   const { account } = useWallet();
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tokenPrices, setTokenPrices] = useState<Record<string, string>>({});
+  const [rewardsData, setRewardsData] = useState<EchelonReward[]>([]);
+  const [totalRewardsValue, setTotalRewardsValue] = useState<number>(0);
   const { isExpanded, toggleSection } = useCollapsible();
   const pricesService = PanoraPricesService.getInstance();
 
   const walletAddress = address || account?.address?.toString();
   const protocol = getProtocolByName("Echelon");
+
+  // Получаем цену токена из кэша
+  const getTokenPrice = (coinAddress: string): string => {
+    let cleanAddress = coinAddress;
+    if (cleanAddress.startsWith('@')) {
+      cleanAddress = cleanAddress.slice(1);
+    }
+    if (!cleanAddress.startsWith('0x')) {
+      cleanAddress = `0x${cleanAddress}`;
+    }
+    const price = tokenPrices[cleanAddress] || '0';
+    if (cleanAddress.toLowerCase().includes('stapt')) {
+      console.log('[Echelon] getTokenPrice for stAPT:', cleanAddress, '=>', price);
+    }
+    return price;
+  };
 
   // Функция для поиска информации о токене (без цены)
   const getTokenInfo = (coinAddress: string): TokenInfo | null => {
@@ -66,6 +94,98 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
     return null;
   };
 
+  // Функция для получения информации о токене наград
+  const getRewardTokenInfoHelper = useCallback((tokenSymbol: string) => {
+    console.log('[Echelon] getRewardTokenInfoHelper called for:', tokenSymbol);
+    
+    const token = (tokenList as any).data.data.find((token: any) => 
+      token.symbol.toLowerCase() === tokenSymbol.toLowerCase() ||
+      token.name.toLowerCase().includes(tokenSymbol.toLowerCase())
+    );
+    
+    console.log('[Echelon] Found token:', token);
+    
+    if (!token) {
+      console.log('[Echelon] Token not found for symbol:', tokenSymbol);
+      return undefined;
+    }
+    
+    const result = {
+      address: token.tokenAddress,
+      faAddress: token.faAddress,
+      symbol: token.symbol,
+      icon_uri: token.logoUrl,
+      decimals: token.decimals,
+      price: null // Цена будет получена динамически
+    };
+    
+    console.log('[Echelon] Returning token info:', result);
+    return result;
+  }, []);
+
+  // Функция для расчета стоимости наград
+  const calculateRewardsValue = useCallback(() => {
+    console.log('[Echelon] calculateRewardsValue called with rewardsData:', rewardsData);
+    
+    if (!rewardsData || rewardsData.length === 0) {
+      console.log('[Echelon] No rewards data');
+      return 0;
+    }
+    
+    let totalValue = 0;
+    
+    rewardsData.forEach((reward) => {
+      const tokenInfo = getRewardTokenInfoHelper(reward.token);
+      console.log('[Echelon] Token info for reward:', reward.token, tokenInfo);
+      if (!tokenInfo) {
+        console.log('[Echelon] No token info for reward:', reward.token);
+        return;
+      }
+      
+      // Получаем цену динамически
+      const price = getTokenPrice(tokenInfo.faAddress || tokenInfo.address || '');
+      if (!price || price === '0') {
+        console.log('[Echelon] No price for reward:', reward.token);
+        return;
+      }
+      
+      const value = reward.amount * parseFloat(price);
+      totalValue += value;
+      console.log('[Echelon] Reward calculated:', { token: reward.token, amount: reward.amount, value, totalValue });
+    });
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Echelon] Total rewards value:', totalValue, rewardsData);
+    }
+    return totalValue;
+  }, [rewardsData, getRewardTokenInfoHelper, getTokenPrice]);
+
+  // Функция для загрузки наград
+  const fetchRewards = useCallback(async () => {
+    if (!walletAddress) return;
+    
+    try {
+      const response = await fetch(`/api/protocols/echelon/rewards?address=${walletAddress}`);
+      
+      if (!response.ok) {
+        throw new Error(`API returned status ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        console.log('[Echelon] Rewards data received:', data.data);
+        setRewardsData(data.data);
+      } else {
+        console.log('[Echelon] No rewards data or success=false:', data);
+        setRewardsData([]);
+      }
+    } catch (error) {
+      console.error('Error fetching Echelon rewards:', error);
+      setRewardsData([]);
+    }
+  }, [walletAddress]);
+
   // Получаем все уникальные адреса токенов из позиций
   const getAllTokenAddresses = () => {
     const addresses = new Set<string>();
@@ -80,25 +200,21 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
       }
       addresses.add(cleanAddress);
     });
+
+    // Добавляем адреса токенов наград
+    rewardsData.forEach((reward) => {
+      const tokenInfo = getRewardTokenInfoHelper(reward.token);
+      if (tokenInfo?.faAddress) {
+        addresses.add(tokenInfo.faAddress);
+      }
+      if (tokenInfo?.address) {
+        addresses.add(tokenInfo.address);
+      }
+    });
+
     const arr = Array.from(addresses);
     console.log('[Echelon] Token addresses for Panora:', arr);
     return arr;
-  };
-
-  // Получаем цену токена из кэша
-  const getTokenPrice = (coinAddress: string): string => {
-    let cleanAddress = coinAddress;
-    if (cleanAddress.startsWith('@')) {
-      cleanAddress = cleanAddress.slice(1);
-    }
-    if (!cleanAddress.startsWith('0x')) {
-      cleanAddress = `0x${cleanAddress}`;
-    }
-    const price = tokenPrices[cleanAddress] || '0';
-    if (cleanAddress.toLowerCase().includes('stapt')) {
-      console.log('[Echelon] getTokenPrice for stAPT:', cleanAddress, '=>', price);
-    }
-    return price;
   };
 
   // Получаем цены токенов через Panora API
@@ -128,47 +244,63 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
     };
 
     fetchPrices();
-  }, [positions]);
+  }, [positions, rewardsData]);
 
+  // Объединенный useEffect для загрузки позиций и наград
   useEffect(() => {
-    async function loadPositions() {
-      if (!walletAddress) {
-        setPositions([]);
-        return;
-      }
+    if (!walletAddress) {
+      setPositions([]);
+      setRewardsData([]);
+      setTotalRewardsValue(0);
+      return;
+    }
 
+    const loadData = async () => {
+      setLoading(true);
+      setError(null);
+      
       try {
-        setLoading(true);
-        setError(null);
-        const response = await fetch(`/api/protocols/echelon/userPositions?address=${walletAddress}`);
+        // Загружаем позиции
+        const positionsResponse = await fetch(`/api/protocols/echelon/userPositions?address=${walletAddress}`);
         
-        if (!response.ok) {
-          throw new Error(`API returned status ${response.status}`);
+        if (!positionsResponse.ok) {
+          throw new Error(`Positions API returned status ${positionsResponse.status}`);
         }
         
-        const data = await response.json();
-        console.log('Echelon API response:', data);
+        const positionsData = await positionsResponse.json();
+        console.log('Echelon API response:', positionsData);
         
-        if (data.success && Array.isArray(data.data)) {
-          console.log('Setting positions:', data.data);
-          setPositions(data.data);
+        if (positionsData.success && Array.isArray(positionsData.data)) {
+          console.log('Setting positions:', positionsData.data);
+          setPositions(positionsData.data);
         } else {
           console.log('No valid positions data');
           setPositions([]);
         }
+        
+        // Загружаем награды
+        await fetchRewards();
       } catch (err) {
-        console.error('Error loading Echelon positions:', err);
-        setError('Failed to load positions');
+        console.error('Error loading Echelon data:', err);
+        setError('Failed to load Echelon positions');
         setPositions([]);
+        setRewardsData([]);
+        setTotalRewardsValue(0);
       } finally {
         setLoading(false);
       }
-    }
+    };
 
-    loadPositions();
-  }, [walletAddress]);
+    loadData();
+  }, [walletAddress, fetchRewards]);
 
-  // Считаем общую сумму в долларах: supply плюсуем, borrow вычитаем
+  // Обновляем totalRewardsValue когда меняются цены или данные наград
+  useEffect(() => {
+    const newTotalRewardsValue = calculateRewardsValue();
+    setTotalRewardsValue(newTotalRewardsValue);
+  }, [calculateRewardsValue]);
+
+  // Считаем общую сумму в долларах: supply плюсуем, borrow вычитаем, награды плюсуем
   const totalValue = positions.reduce((sum, position) => {
     const tokenInfo = getTokenInfo(position.coin);
     const rawAmount = position.supply ?? position.amount ?? 0;
@@ -179,7 +311,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
       return sum - value;
     }
     return sum + value;
-  }, 0);
+  }, 0) + totalRewardsValue; // Добавляем награды к общей сумме
 
   // Сортируем позиции по значению от большего к меньшему
   const sortedPositions = [...positions].sort((a, b) => {
@@ -285,6 +417,42 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
                 </div>
               );
             })}
+            
+            {/* Total Rewards */}
+            {totalRewardsValue > 0 && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center justify-between pt-2 border-t border-gray-200 cursor-help">
+                      <span className="text-sm text-muted-foreground">💰 Total rewards:</span>
+                      <span className="text-sm font-medium">${totalRewardsValue.toFixed(2)}</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
+                    <div className="text-xs font-semibold mb-1">Rewards breakdown:</div>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                                             {rewardsData.map((reward, idx) => {
+                         const tokenInfo = getRewardTokenInfoHelper(reward.token);
+                         if (!tokenInfo) return null;
+                         const price = getTokenPrice(tokenInfo.faAddress || tokenInfo.address || '');
+                         const value = price && price !== '0' ? (reward.amount * parseFloat(price)).toFixed(2) : 'N/A';
+                         return (
+                           <div key={idx} className="flex items-center gap-2">
+                             {tokenInfo.icon_uri && (
+                               <img src={tokenInfo.icon_uri} alt={tokenInfo.symbol} className="w-3 h-3 rounded-full" />
+                             )}
+                             <span>{tokenInfo.symbol}</span>
+                             <span>{reward.amount.toFixed(6)}</span>
+                             <span className="text-gray-300">${value}</span>
+                           </div>
+                         );
+                       })}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+            
             {/* Кнопка управления позициями, как у других протоколов */}
             {protocol && <ManagePositionsButton protocol={protocol} />}
           </ScrollArea>
