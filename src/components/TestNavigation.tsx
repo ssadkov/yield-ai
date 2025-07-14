@@ -13,7 +13,9 @@ import {
   Database, 
   Settings,
   ArrowLeftRight,
-  Wallet
+  Wallet,
+  Store,
+  Shield
 } from 'lucide-react';
 
 const testPages = [
@@ -59,6 +61,20 @@ const testPages = [
     path: '/test-integration',
     icon: Settings,
     color: 'bg-gray-500'
+  },
+  {
+    name: 'Test Zustand',
+    description: 'Test Zustand state management stores',
+    path: '/test-zustand',
+    icon: Store,
+    color: 'bg-indigo-500'
+  },
+  {
+    name: 'Test Echelon',
+    description: 'Test Echelon protocol integration',
+    path: '/test-echelon',
+    icon: Shield,
+    color: 'bg-yellow-500'
   }
 ];
 

@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/components/ui/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import { WalletConnectButton } from "@/components/WalletConnectButton";
+import tokenList from "@/lib/data/tokenList.json";
 
 interface EchelonReward {
   token: string;
@@ -30,6 +31,9 @@ export default function TestEchelonPage() {
   const [error, setError] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<string>("");
   const [claimingRewards, setClaimingRewards] = useState<Set<string>>(new Set());
+  const [vaultData, setVaultData] = useState<string>("");
+  const [vaultLoading, setVaultLoading] = useState(false);
+  const [parsedVaultData, setParsedVaultData] = useState<string>("");
 
   const handleFetchRewards = async () => {
     if (!walletAddress) {
@@ -68,6 +72,132 @@ export default function TestEchelonPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFetchVaultData = async () => {
+    if (!walletAddress) {
+      setError("Please enter a wallet address");
+      return;
+    }
+
+    setVaultLoading(true);
+    setError(null);
+    setVaultData("");
+
+    try {
+      const apiUrl = `https://fullnode.mainnet.aptoslabs.com/v1/accounts/${walletAddress}/resources`;
+      setDebugInfo(`Fetching vault data from: ${apiUrl}`);
+      
+      const response = await fetch(apiUrl);
+      setDebugInfo(prev => prev + `\nResponse status: ${response.status}`);
+      
+      const data = await response.json();
+      setDebugInfo(prev => prev + `\nTotal resources found: ${data.length}`);
+      
+      // Find lending::Vault resource
+      const vaultResource = data.find((resource: any) => 
+        resource.type === "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::Vault"
+      );
+      
+      if (vaultResource) {
+        setVaultData(JSON.stringify(vaultResource, null, 2));
+        setDebugInfo(prev => prev + `\nVault resource found and displayed below`);
+        
+        // Parse and analyze vault data
+        const parsedData = parseVaultData(vaultResource);
+        setParsedVaultData(JSON.stringify(parsedData, null, 2));
+        setDebugInfo(prev => prev + `\n\nParsed Vault Data:\n${JSON.stringify(parsedData, null, 2)}`);
+      } else {
+        setVaultData("No lending::Vault resource found for this address");
+        setDebugInfo(prev => prev + `\nNo lending::Vault resource found`);
+      }
+    } catch (err) {
+      console.error("Error fetching vault data:", err);
+      setError(err instanceof Error ? err.message : "Unknown error");
+      setDebugInfo(prev => prev + `\nError: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setVaultLoading(false);
+    }
+  };
+
+  const parseVaultData = (vaultResource: any) => {
+    const result = {
+      collaterals: [] as any[],
+      liabilities: [] as any[],
+      marketMapping: {} as Record<string, string>
+    };
+
+    // Load market data for mapping
+    const marketData = [
+      { market: "0x778362f04f7904ba0b76913ec7c0c5cc04e469b0b96929c6998b34910690a740", coin: "0xb30a694a344edee467d9f82330bbe7c3b89f440a1ecd2da1f3bca266560fce69" },
+      { market: "0xac00e90cdadec06d81e0d5ce7a3e93d63d563e982dea0ca15bad2b067f42d2be", coin: "0x357b0b74bc833e95a115ad22604854d6b0fca151cecd94111770e5d6ffc9dc2b" },
+      { market: "0x2c4e0bb55272f9c120ffd5a414c10244005caf9c1b14527cea3df7074c5bf623", coin: "0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b" },
+      { market: "0x761a97787fa8b3ae0cef91ebc2d96e56cc539df5bc88dadabee98ae00363a831", coin: "0x1::aptos_coin::AptosCoin" }
+    ];
+
+    // Helper function to get decimals from token address
+    const getDecimals = (coinAddress: string): number => {
+      const token = tokenList.data.data.find((t: any) => 
+        t.faAddress === coinAddress || 
+        t.tokenAddress === coinAddress ||
+        t.address === coinAddress
+      );
+      
+      if (token) {
+        return token.decimals || 8;
+      }
+      
+      // Default decimals for common tokens
+      if (coinAddress === "0x1::aptos_coin::AptosCoin") return 8;
+      if (coinAddress.includes("::asset::")) return 6; // USDT, USDC
+      
+      return 8; // Default fallback
+    };
+
+    // Parse collaterals
+    if (vaultResource.data.collaterals?.data) {
+      result.collaterals = vaultResource.data.collaterals.data.map((item: any) => {
+        const marketAddress = item.key.inner;
+        const market = marketData.find(m => m.market === marketAddress);
+        const coinAddress = market?.coin || 'Unknown';
+        const decimals = getDecimals(coinAddress);
+        
+        return {
+          marketAddress,
+          coinAddress,
+          decimals,
+          rawAmount: item.value,
+          amount: Number(item.value) / Math.pow(10, decimals)
+        };
+      });
+    }
+
+    // Parse liabilities
+    if (vaultResource.data.liabilities?.data) {
+      result.liabilities = vaultResource.data.liabilities.data.map((item: any) => {
+        const marketAddress = item.key.inner;
+        const market = marketData.find(m => m.market === marketAddress);
+        const coinAddress = market?.coin || 'Unknown';
+        const decimals = getDecimals(coinAddress);
+        
+        return {
+          marketAddress,
+          coinAddress,
+          decimals,
+          principal: {
+            raw: item.value.principal,
+            amount: Number(item.value.principal) / Math.pow(10, decimals)
+          },
+          interestAccumulated: {
+            raw: item.value.interest_accumulated,
+            amount: Number(item.value.interest_accumulated) / Math.pow(10, decimals)
+          },
+          lastInterestRateIndex: item.value.last_interest_rate_index.v
+        };
+      });
+    }
+
+    return result;
   };
 
   const getTokenIcon = (tokenName: string) => {
@@ -348,6 +478,14 @@ export default function TestEchelonPage() {
                 {loading ? "Loading..." : "Fetch Rewards"}
               </Button>
               
+              <Button 
+                onClick={handleFetchVaultData} 
+                disabled={vaultLoading || !walletAddress}
+                variant="outline"
+              >
+                {vaultLoading ? "Loading..." : "Fetch Vault Data"}
+              </Button>
+              
               {account?.address ? (
                 <Button 
                   variant="outline"
@@ -382,6 +520,52 @@ export default function TestEchelonPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Vault Data Display */}
+      {vaultData && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Lending Vault Data (Raw)</CardTitle>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setVaultData("")}
+              >
+                Clear
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="p-4 border rounded-lg bg-blue-50 border-blue-200">
+              <p className="text-sm font-mono text-blue-700 whitespace-pre-wrap">{vaultData}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Parsed Vault Data Display */}
+      {parsedVaultData && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Parsed Vault Data</CardTitle>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setParsedVaultData("")}
+              >
+                Clear
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="p-4 border rounded-lg bg-green-50 border-green-200">
+              <p className="text-sm font-mono text-green-700 whitespace-pre-wrap">{parsedVaultData}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {rewards.length > 0 && (
         <Card>
