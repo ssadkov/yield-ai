@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AptosApiService } from '@/lib/services/aptos/api';
 import { PanoraPricesService } from '@/lib/services/panora/prices';
 import { createErrorResponse, createSuccessResponse } from '@/lib/utils/http';
 import { FungibleAssetBalance } from '@/lib/types/aptos';
@@ -243,13 +242,50 @@ export async function GET(request: Request) {
     }
 
     console.log('Getting complete portfolio for address:', address);
+    console.log('APTOS_API_KEY exists:', !!process.env.APTOS_API_KEY);
     
-    // Get wallet balances
-    const apiService = new AptosApiService();
-    const walletData = await apiService.getBalances(address);
-    console.log('Wallet data:', walletData);
+    // Get wallet balances directly from Aptos API
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    // Add API key if available
+    if (process.env.APTOS_API_KEY) {
+      headers['Authorization'] = `Bearer ${process.env.APTOS_API_KEY}`;
+    }
+
+    const aptosResponse = await fetch(`https://indexer.mainnet.aptoslabs.com/v1/graphql`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        query: `
+          query GetAccountBalances($address: String!) {
+            current_fungible_asset_balances(
+              where: {owner_address: {_eq: $address}, amount: {_gt: "0"}}
+            ) {
+              asset_type
+              amount
+              last_transaction_timestamp
+            }
+          }
+        `,
+        variables: { address },
+      }),
+    });
+
+    if (!aptosResponse.ok) {
+      console.error('Aptos API error:', aptosResponse.status, aptosResponse.statusText);
+      return NextResponse.json(
+        createErrorResponse(new Error(`Aptos API error: ${aptosResponse.status}`)),
+        { status: aptosResponse.status }
+      );
+    }
+
+    const aptosData = await aptosResponse.json();
+    console.log('Aptos API response:', aptosData);
     
-    const balances = walletData.balances;
+    const balances = aptosData.data?.current_fungible_asset_balances || [];
+    console.log('Wallet balances:', balances);
 
     // Get prices for all tokens
     const pricesService = PanoraPricesService.getInstance();
