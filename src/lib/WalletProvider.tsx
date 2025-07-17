@@ -4,6 +4,7 @@ import { AptosWalletAdapterProvider } from "@aptos-labs/wallet-adapter-react";
 import { PropsWithChildren } from "react";
 import { Network, Aptos, AptosConfig } from "@aptos-labs/ts-sdk";
 import { useToast } from "@/components/ui/use-toast";
+import { GasStationService } from "./services/gasStation";
 
 let dappImageURI: string | undefined;
 if (typeof window !== "undefined") {
@@ -13,9 +14,24 @@ if (typeof window !== "undefined") {
 export const WalletProvider = ({ children }: PropsWithChildren) => {
   const { toast } = useToast();
 
-  // Create Aptos config without gas station - it will be configured dynamically
+  // Initialize gas station globally (this was the working version)
+  const gasStationService = GasStationService.getInstance();
+  let transactionSubmitter;
+  
+  if (gasStationService.isAvailable()) {
+    console.log('Gas station initialized globally in WalletProvider');
+    // Use gas station as transaction submitter
+    const gasStationClient = gasStationService.getGasStationClient();
+    if (gasStationClient) {
+      transactionSubmitter = gasStationClient;
+      console.log('Using gas station as transaction submitter');
+    }
+  }
+
+  // Create Aptos config with gas station if available
   const aptosConfig = new AptosConfig({
     network: Network.MAINNET,
+    ...(transactionSubmitter && { transactionSubmitter }),
   });
 
   const aptos = new Aptos(aptosConfig);
@@ -25,7 +41,7 @@ export const WalletProvider = ({ children }: PropsWithChildren) => {
       autoConnect={true}
       dappConfig={{
         network: Network.MAINNET,
-        transactionSubmitter: aptos.config.getTransactionSubmitter(),
+        transactionSubmitter: transactionSubmitter || aptos.config.getTransactionSubmitter(),
         aptosApiKeys: {
           testnet: process.env.NEXT_PUBLIC_APTOS_API_KEY_TESTNET,
           devnet: process.env.NEXT_PUBLIC_APTOS_API_KEY_DEVNET,

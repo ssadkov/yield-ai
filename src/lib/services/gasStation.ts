@@ -1,5 +1,5 @@
 import { GasStationClient, createGasStationClient } from "@aptos-labs/gas-station-client";
-import { Network } from "@aptos-labs/ts-sdk";
+import { Network, AptosConfig } from "@aptos-labs/ts-sdk";
 
 export class GasStationService {
   private static instance: GasStationService;
@@ -47,6 +47,10 @@ export class GasStationService {
       });
 
       console.log('Gas station client initialized successfully');
+      console.log('Gas station client config:', {
+        network: Network.MAINNET,
+        apiKey: apiKey ? `${apiKey.substring(0, 8)}...` : 'undefined'
+      });
     } catch (error) {
       console.error('Failed to initialize gas station client:', error);
       this.gasStationClient = null;
@@ -66,10 +70,27 @@ export class GasStationService {
       throw new Error('Gas station client is not available');
     }
 
-    console.log('Submitting transaction via gas station:', transactionRequest);
+    console.log('Original transaction request:', transactionRequest);
+    
+    // Create Aptos config for gas station
+    const aptosConfig = new AptosConfig({
+      network: Network.MAINNET,
+    });
+    
+    // Format the request for gas station with required parameters
+    const gasStationRequest = {
+      aptosConfig,
+      function: transactionRequest.function,
+      typeArguments: transactionRequest.typeArguments || [],
+      functionArguments: transactionRequest.functionArguments || [],
+      maxGasAmount: transactionRequest.maxGasAmount || 20000,
+      feePayerAddress: process.env.NEXT_PUBLIC_SPONSOR_PRIVATE_KEY || undefined,
+    };
+    
+    console.log('Formatted gas station request:', gasStationRequest);
     
     try {
-      const response = await this.gasStationClient.submitTransaction(transactionRequest);
+      const response = await this.gasStationClient.submitTransaction(gasStationRequest);
       console.log('Gas station transaction submitted successfully:', response);
       return response;
     } catch (error) {

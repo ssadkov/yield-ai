@@ -31,10 +31,6 @@ export function useTransactionSubmitter() {
     // Check APT balance to decide whether to use gas station
     const aptBalance = await AptBalanceService.getAptBalance(wallet.account?.address?.toString() || '');
     console.log('APT balance:', aptBalance);
-    console.log('APT balance type:', typeof aptBalance);
-    console.log('APT balance > 0:', aptBalance > 0);
-    console.log('APT balance === 0:', aptBalance === 0);
-    console.log('APT balance <= 0:', aptBalance <= 0);
     
     if (aptBalance > 0) {
       // User has APT, use regular transaction
@@ -46,15 +42,15 @@ export function useTransactionSubmitter() {
           functionArguments: request.data.functionArguments
         },
         options: {
-          maxGasAmount: request.options?.maxGasAmount || 100000, // Regular transaction can use higher gas limit
+          maxGasAmount: request.options?.maxGasAmount || 100000,
         },
       });
       
       console.log('Regular transaction submitted successfully:', response);
       return response;
     } else {
-      // User has no APT, use gas station
-      console.log('Using gas station (APT balance = 0)');
+      // User has no APT, use gas station with withFeePayer
+      console.log('Using gas station with withFeePayer (APT balance = 0)');
       
       const gasStationService = GasStationService.getInstance();
       
@@ -62,7 +58,7 @@ export function useTransactionSubmitter() {
         throw new Error('Gas station is not available. Please ensure you have APT for gas fees or configure gas station.');
       }
       
-      // Use gas station for transaction with lower gas limit
+      // Use wallet.signAndSubmitTransaction with withFeePayer: true
       const response = await wallet.signAndSubmitTransaction({
         data: {
           function: request.data.function as `${string}::${string}::${string}`,
