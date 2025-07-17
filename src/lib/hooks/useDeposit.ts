@@ -1,13 +1,15 @@
 import { useCallback, useState } from 'react';
 import React from 'react';
-import { useWallet } from '@aptos-labs/wallet-adapter-react';
 import { executeDeposit } from '../transactions/DepositTransaction';
 import { ProtocolKey } from '../transactions/types';
 import { useToast } from '@/components/ui/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import { protocols } from '../protocols/protocolsRegistry';
+import { useTransactionSubmitter } from './useTransactionSubmitter';
+import { useWallet } from '@aptos-labs/wallet-adapter-react';
 
 export function useDeposit() {
+  const { submitTransaction, isConnected, hasSignAndSubmitTransaction } = useTransactionSubmitter();
   const wallet = useWallet();
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -43,12 +45,11 @@ export function useDeposit() {
 
       console.log('Submitting transaction with payload:', payload);
       console.log('Wallet state:', { 
-        hasSignAndSubmitTransaction: !!wallet.signAndSubmitTransaction,
-        signAndSubmitTransactionType: typeof wallet.signAndSubmitTransaction,
-        isConnected: wallet.connected
+        hasSignAndSubmitTransaction,
+        isConnected
       });
 
-      if (!wallet.connected || !wallet.signAndSubmitTransaction) {
+      if (!isConnected || !hasSignAndSubmitTransaction) {
         throw new Error('Wallet not connected');
       }
 
@@ -63,9 +64,9 @@ export function useDeposit() {
         }))
       });
 
-      const response = await wallet.signAndSubmitTransaction({
+      const response = await submitTransaction({
         data: {
-          function: payload.function as `${string}::${string}::${string}`,
+          function: payload.function,
           typeArguments: payload.type_arguments,
           functionArguments: payload.arguments
         },
@@ -125,7 +126,7 @@ export function useDeposit() {
     } finally {
       setIsLoading(false);
     }
-  }, [wallet, setIsLoading]);
+  }, [submitTransaction, isConnected, hasSignAndSubmitTransaction, wallet, toast]);
 
   return {
     deposit,

@@ -11,8 +11,10 @@
   "dependencies": {
     "@aptos-labs/derived-wallet-ethereum": "^0.3.0",
     "@aptos-labs/derived-wallet-solana": "^0.3.0",
-    "@aptos-labs/ts-sdk": "^1.39.0",
-    "@aptos-labs/wallet-adapter-react": "^6.1.2",
+    "@aptos-labs/gas-station-client": "^1.1.1",
+    "@aptos-labs/ts-sdk": "^3.1.1",
+    "@aptos-labs/wallet-adapter-core": "^6.0.0",
+    "@aptos-labs/wallet-adapter-react": "^7.0.0",
     "@dnd-kit/core": "^6.3.1",
     "@hyperionxyz/sdk": "^0.0.13",
     "@panoraexchange/swap-sdk": "^1.0.8",
@@ -39,6 +41,7 @@
     "next": "^15.3.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "styled-jsx": "^5.1.7",
     "tailwind-merge": "^3.3.0",
     "zustand": "^5.0.6"
   },
