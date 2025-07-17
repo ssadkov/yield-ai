@@ -6,13 +6,14 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "postinstall": "npm install --legacy-peer-deps"
   },
   "dependencies": {
     "@aptos-labs/derived-wallet-ethereum": "^0.3.0",
     "@aptos-labs/derived-wallet-solana": "^0.3.0",
     "@aptos-labs/gas-station-client": "^1.1.1",
-    "@aptos-labs/ts-sdk": "^3.1.1",
+    "@aptos-labs/ts-sdk": "^2.0.1",
     "@aptos-labs/wallet-adapter-core": "^6.0.0",
     "@aptos-labs/wallet-adapter-react": "^7.0.0",
     "@dnd-kit/core": "^6.3.1",
