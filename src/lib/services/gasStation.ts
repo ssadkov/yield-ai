@@ -64,38 +64,4 @@ export class GasStationService {
   public isAvailable(): boolean {
     return this.gasStationClient !== null;
   }
-
-  public async submitTransaction(transactionRequest: any) {
-    if (!this.gasStationClient) {
-      throw new Error('Gas station client is not available');
-    }
-
-    console.log('Original transaction request:', transactionRequest);
-    
-    // Create Aptos config for gas station
-    const aptosConfig = new AptosConfig({
-      network: Network.MAINNET,
-    });
-    
-    // Format the request for gas station with required parameters
-    const gasStationRequest = {
-      aptosConfig,
-      function: transactionRequest.function,
-      typeArguments: transactionRequest.typeArguments || [],
-      functionArguments: transactionRequest.functionArguments || [],
-      maxGasAmount: transactionRequest.maxGasAmount || 20000,
-      feePayerAddress: process.env.NEXT_PUBLIC_SPONSOR_PRIVATE_KEY || undefined,
-    };
-    
-    console.log('Formatted gas station request:', gasStationRequest);
-    
-    try {
-      const response = await this.gasStationClient.submitTransaction(gasStationRequest);
-      console.log('Gas station transaction submitted successfully:', response);
-      return response;
-    } catch (error) {
-      console.error('Gas station transaction failed:', error);
-      throw error;
-    }
-  }
 } 

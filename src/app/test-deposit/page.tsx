@@ -9,7 +9,6 @@ import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useDeposit } from "@/lib/hooks/useDeposit";
 import { useTransactionSubmitter } from "@/lib/hooks/useTransactionSubmitter";
 import { Badge } from "@/components/ui/badge";
-import { AptBalanceService } from "@/lib/services/aptBalance";
 import { GasStationService } from "@/lib/services/gasStation";
 
 // Available tokens for testing
@@ -53,34 +52,9 @@ export default function TestDepositPage() {
   const [selectedTokenIndex, setSelectedTokenIndex] = useState(0); // USDC by default
   const [amount, setAmount] = useState("1000000"); // 1 USDC (6 decimals)
   const [protocolKey, setProtocolKey] = useState("echelon");
-  const [aptBalance, setAptBalance] = useState<number | null>(null);
-  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const [gasStationAvailable, setGasStationAvailable] = useState(false);
 
   const selectedToken = AVAILABLE_TOKENS[selectedTokenIndex];
-
-  // Load APT balance when wallet connects
-  useEffect(() => {
-    const loadAptBalance = async () => {
-      if (!account?.address) {
-        setAptBalance(null);
-        return;
-      }
-
-      setIsLoadingBalance(true);
-      try {
-        const balance = await AptBalanceService.getAptBalance(account.address.toString());
-        setAptBalance(balance);
-      } catch (error) {
-        console.error('Failed to load APT balance:', error);
-        setAptBalance(null);
-      } finally {
-        setIsLoadingBalance(false);
-      }
-    };
-
-    loadAptBalance();
-  }, [account?.address]);
 
   // Check gas station availability
   useEffect(() => {
@@ -182,17 +156,11 @@ export default function TestDepositPage() {
               </div>
             </div>
             <div>
-              <Label>APT Balance</Label>
+              <Label>Transaction Method</Label>
               <div className="mt-2">
-                {isLoadingBalance ? (
-                  <Badge variant="secondary">Loading...</Badge>
-                ) : aptBalance !== null ? (
-                  <Badge variant={aptBalance > 0 ? "default" : "destructive"}>
-                    {aptBalance > 0 ? `${aptBalance.toFixed(4)} APT` : "0 APT (Gas Station)"}
-                  </Badge>
-                ) : (
-                  <Badge variant="secondary">Unknown</Badge>
-                )}
+                <Badge variant="default">
+                  Gas Station (withFeePayer: true)
+                </Badge>
               </div>
             </div>
             <div>
@@ -260,7 +228,7 @@ export default function TestDepositPage() {
               disabled={!connected || isLoading}
               className="flex-1"
             >
-              {isLoading ? "Testing..." : `Test ${selectedToken.symbol} Deposit`}
+              {isLoading ? "Processing..." : "Test Deposit"}
             </Button>
             <Button 
               onClick={handleTestDirectSubmitter} 
@@ -270,13 +238,6 @@ export default function TestDepositPage() {
             >
               Test Direct Submitter
             </Button>
-          </div>
-
-          <div className="text-sm text-gray-600">
-            <p>This page tests the new unified transaction submitter with Echelon protocol.</p>
-            <p>Selected token: <strong>{selectedToken.symbol}</strong> ({selectedToken.address})</p>
-            <p>Market: <strong>{selectedToken.market}</strong></p>
-            <p>Check the browser console for detailed logs.</p>
           </div>
         </CardContent>
       </Card>
