@@ -1,5 +1,6 @@
 import { Aptos, AptosConfig, Network } from '@aptos-labs/ts-sdk';
 import { http } from '@/lib/utils/http';
+import { AptosApiService } from './api';
 
 interface FungibleAssetBalance {
   asset_type: string;
@@ -31,28 +32,13 @@ export class AptosWalletService {
   async getBalances(address: string) {
     try {
       console.log('Getting balances for address:', address);
-      const response = await fetch('/api/aptos/balances', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ address }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch balances');
-      }
-
-      const data = await response.json();
+      
+      // Use AptosApiService directly instead of making HTTP request
+      const apiService = new AptosApiService();
+      const data = await apiService.getBalances(address);
+      
       console.log('Balances response:', data);
-
-      if (!data.data?.current_fungible_asset_balances) {
-        return { balances: [] };
-      }
-
-      return {
-        balances: data.data.current_fungible_asset_balances
-      };
+      return data;
     } catch (error) {
       console.error('Failed to fetch Aptos balances:', error);
       return { balances: [] };

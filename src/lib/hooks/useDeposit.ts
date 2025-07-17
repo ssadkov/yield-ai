@@ -71,7 +71,7 @@ export function useDeposit() {
           functionArguments: payload.arguments
         },
         options: {
-          maxGasAmount: 100000,
+          // Let useTransactionSubmitter determine the appropriate gas limit based on APT balance
         },
       });
       console.log('Transaction response:', response);

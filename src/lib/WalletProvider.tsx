@@ -2,7 +2,7 @@
 
 import { AptosWalletAdapterProvider } from "@aptos-labs/wallet-adapter-react";
 import { PropsWithChildren } from "react";
-import { Network } from "@aptos-labs/ts-sdk";
+import { Network, Aptos, AptosConfig } from "@aptos-labs/ts-sdk";
 import { useToast } from "@/components/ui/use-toast";
 
 let dappImageURI: string | undefined;
@@ -13,11 +13,19 @@ if (typeof window !== "undefined") {
 export const WalletProvider = ({ children }: PropsWithChildren) => {
   const { toast } = useToast();
 
+  // Create Aptos config without gas station - it will be configured dynamically
+  const aptosConfig = new AptosConfig({
+    network: Network.MAINNET,
+  });
+
+  const aptos = new Aptos(aptosConfig);
+
   return (
     <AptosWalletAdapterProvider
       autoConnect={true}
       dappConfig={{
         network: Network.MAINNET,
+        transactionSubmitter: aptos.config.getTransactionSubmitter(),
         aptosApiKeys: {
           testnet: process.env.NEXT_PUBLIC_APTOS_API_KEY_TESTNET,
           devnet: process.env.NEXT_PUBLIC_APTOS_API_KEY_DEVNET,
