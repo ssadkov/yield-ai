@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
-import { AptBalanceService } from '../services/aptBalance';
 import { GasStationService } from '../services/gasStation';
+import { AptBalanceService } from '../services/aptBalance';
 
 export interface TransactionPayload {
   function: string;
