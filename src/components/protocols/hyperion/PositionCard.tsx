@@ -91,7 +91,7 @@ export function PositionCard({ position, isManageView = false }: PositionProps) 
           functionArguments: payload.functionArguments
         },
         options: {
-          maxGasAmount: 100000,
+          maxGasAmount: 20000, // Network limit is 20000
         },
       });
 

@@ -187,7 +187,7 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, amount, fromToken, 
         try {
           txResult = await wallet.signAndSubmitTransaction({
             data: modifiedPayload,
-            options: { maxGasAmount: 100000 },
+            options: { maxGasAmount: 20000 }, // Network limit is 20000
           });
         } catch (e: any) {
           // Попробовать без обертки, если ошибка формата

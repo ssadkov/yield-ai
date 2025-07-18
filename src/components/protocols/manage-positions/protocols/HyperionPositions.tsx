@@ -81,7 +81,7 @@ const HyperionPosition = memo(function HyperionPosition({ position, index }: Hyp
           typeArguments: payload.typeArguments,
           functionArguments: payload.functionArguments
         },
-        options: { maxGasAmount: 100000 },
+        options: { maxGasAmount: 20000 }, // Network limit is 20000
       });
       toast({ 
         title: "Success", 
@@ -175,7 +175,7 @@ const HyperionPosition = memo(function HyperionPosition({ position, index }: Hyp
           typeArguments: payload.typeArguments,
           functionArguments: payload.functionArguments
         },
-        options: { maxGasAmount: 100000 },
+        options: { maxGasAmount: 20000 }, // Network limit is 20000
       });
       toast({
         title: "Remove Liquidity Success",

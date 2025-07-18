@@ -42,7 +42,7 @@ export function useTransactionSubmitter() {
           functionArguments: request.data.functionArguments
         },
         options: {
-          maxGasAmount: request.options?.maxGasAmount || 100000,
+          maxGasAmount: Math.min(request.options?.maxGasAmount || 20000, 20000), // Network limit is 20000
         },
       });
       

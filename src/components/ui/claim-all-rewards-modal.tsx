@@ -77,7 +77,7 @@ export function ClaimAllRewardsModal({ isOpen, onClose, positions }: ClaimAllRew
             typeArguments: payload.typeArguments,
             functionArguments: payload.functionArguments
           },
-          options: { maxGasAmount: 100000 },
+          options: { maxGasAmount: 20000 }, // Network limit is 20000
         });
 
         setCurrentHash(response.hash);

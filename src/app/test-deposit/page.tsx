@@ -128,7 +128,7 @@ export default function TestDepositPage() {
           functionArguments: [account.address.toString(), 1] // Transfer 1 octa to self
         },
         options: {
-          maxGasAmount: 100000,
+          maxGasAmount: 20000,
         },
       };
 

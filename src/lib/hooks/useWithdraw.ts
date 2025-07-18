@@ -51,7 +51,7 @@ export function useWithdraw() {
           functionArguments: payload.arguments
         },
         options: {
-          maxGasAmount: 100000,
+          maxGasAmount: 20000, // Network limit is 20000
         },
       });
       console.log('Withdraw transaction response:', response);

@@ -26,7 +26,7 @@ export function useClaimRewards() {
             typeArguments: payload.type_arguments,
             functionArguments: payload.arguments
           },
-          options: { maxGasAmount: 100000 },
+          options: { maxGasAmount: 20000 }, // Network limit is 20000
         });
         if (response.hash) {
           const maxAttempts = 10;
