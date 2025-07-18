@@ -51,6 +51,8 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, amount, fromToken, 
   const [depositStatus, setDepositStatus] = useState<'idle' | 'loading' | 'success' | 'error' | null>(null);
   const [depositResult, setDepositResult] = useState<any>(null);
   const [depositError, setDepositError] = useState<string | null>(null);
+  const [isCheckingTransaction, setIsCheckingTransaction] = useState(false);
+  const [hasProcessedTransaction, setHasProcessedTransaction] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
@@ -65,6 +67,8 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, amount, fromToken, 
       setDepositStatus(null);
       setDepositResult(null);
       setDepositError(null);
+      setIsCheckingTransaction(false);
+      setHasProcessedTransaction(false);
       return;
     }
     if (hasRun) return;
@@ -212,70 +216,133 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, amount, fromToken, 
   }, [isOpen]);
 
   useEffect(() => {
-    if (status === 'success' && result?.hash) {
-      fetch(`https://fullnode.mainnet.aptoslabs.com/v1/transactions/by_hash/${result.hash}`)
-        .then(res => res.json())
-        .then(async data => {
-          const events = data.events || [];
-          // 1. Ищем SwapEventV3
-          const swapEvent = events.find((e: any) => e.type && e.type.includes('SwapEventV3'));
-          let amount = null;
-          let tokenAddress: string | null = null;
-          if (swapEvent && swapEvent.data) {
-            amount = swapEvent.data.amount_out;
-            tokenAddress = swapEvent.data.to_token?.inner;
-          }
-          // 2. Если нет SwapEventV3, ищем Deposit с amount > 0
-          if (!amount) {
-            const depositEvent = events.find((e: any) => e.type && e.type.includes('Deposit') && e.data && e.data.amount && Number(e.data.amount) > 0);
-            if (depositEvent) {
-              amount = depositEvent.data.amount;
-              tokenAddress = depositEvent.data.store;
-            }
-          }
-          if (amount && tokenAddress) {
-            // 3. Ищем метаданные токена
-            let symbol = null;
-            let decimals = 8;
-            const tokensArr = Array.isArray((tokenList as any).data?.data) ? (tokenList as any).data.data : (tokenList as any);
-            const tokenMeta = tokensArr.find((t: any) => t.faAddress === tokenAddress || t.address === tokenAddress);
-            if (tokenMeta) {
-              symbol = tokenMeta.symbol;
-              decimals = tokenMeta.decimals;
-            } else {
-              const metaChange = (data.changes || []).find((c: any) => c.address === tokenAddress && c.data && c.data.type && c.data.type.includes('Metadata'));
-              if (metaChange && metaChange.data && metaChange.data.data) {
-                symbol = metaChange.data.data.symbol;
-                decimals = metaChange.data.data.decimals;
+    console.log('Transaction status effect triggered:', { 
+      status, 
+      hasHash: !!result?.hash, 
+      hasProcessedTransaction,
+      hash: result?.hash 
+    });
+    
+    if (status === 'success' && result?.hash && !hasProcessedTransaction) {
+      // Add retry logic for transaction status check
+      const checkTransactionStatus = async () => {
+        const maxAttempts = 10;
+        const delay = 2000;
+        
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          try {
+            console.log(`Checking transaction status attempt ${attempt}/${maxAttempts} for hash: ${result.hash}`);
+            
+            const response = await fetch(`https://fullnode.mainnet.aptoslabs.com/v1/transactions/by_hash/${result.hash}`);
+            
+            if (!response.ok) {
+              if (response.status === 404) {
+                console.log(`Transaction not found yet (attempt ${attempt}), waiting ${delay}ms...`);
+                if (attempt < maxAttempts) {
+                  await new Promise(resolve => setTimeout(resolve, delay));
+                  continue;
+                } else {
+                  throw new Error('Transaction not found after maximum attempts');
+                }
+              } else {
+                throw new Error(`API error: ${response.status} ${response.statusText}`);
               }
             }
-            setReceivedAmount(amount);
-            setReceivedSymbol(symbol);
-            setReceivedDecimals(decimals);
-            const human = (Number(amount) / Math.pow(10, decimals)).toFixed(decimals);
-            setReceivedHuman(human);
+            
+            const data = await response.json();
+            console.log('Transaction data received:', data);
+            
+            // Check if transaction was successful
+            if (data.vm_status && data.vm_status !== "Executed successfully") {
+              throw new Error(`Transaction failed: ${data.vm_status}`);
+            }
+            
+            const events = data.events || [];
+            // 1. Ищем SwapEventV3
+            const swapEvent = events.find((e: any) => e.type && e.type.includes('SwapEventV3'));
+            let amount = null;
+            let tokenAddress: string | null = null;
+            if (swapEvent && swapEvent.data) {
+              amount = swapEvent.data.amount_out;
+              tokenAddress = swapEvent.data.to_token?.inner;
+            }
+            // 2. Если нет SwapEventV3, ищем Deposit с amount > 0
+            if (!amount) {
+              const depositEvent = events.find((e: any) => e.type && e.type.includes('Deposit') && e.data && e.data.amount && Number(e.data.amount) > 0);
+              if (depositEvent) {
+                amount = depositEvent.data.amount;
+                tokenAddress = depositEvent.data.store;
+              }
+            }
+            if (amount && tokenAddress && !hasProcessedTransaction) {
+              console.log('Starting deposit process:', { amount, tokenAddress, protocol: protocol.key });
+              // 3. Ищем метаданные токена
+              let symbol = null;
+              let decimals = 8;
+              const tokensArr = Array.isArray((tokenList as any).data?.data) ? (tokenList as any).data.data : (tokenList as any);
+              const tokenMeta = tokensArr.find((t: any) => t.faAddress === tokenAddress || t.address === tokenAddress);
+              if (tokenMeta) {
+                symbol = tokenMeta.symbol;
+                decimals = tokenMeta.decimals;
+              } else {
+                const metaChange = (data.changes || []).find((c: any) => c.address === tokenAddress && c.data && c.data.type && c.data.type.includes('Metadata'));
+                if (metaChange && metaChange.data && metaChange.data.data) {
+                  symbol = metaChange.data.data.symbol;
+                  decimals = metaChange.data.data.decimals;
+                }
+              }
+              setReceivedAmount(amount);
+              setReceivedSymbol(symbol);
+              setReceivedDecimals(decimals);
+              const human = (Number(amount) / Math.pow(10, decimals)).toFixed(decimals);
+              setReceivedHuman(human);
 
-            // 5. Автоматически запускаем депозит
-            setDepositStatus('loading');
-            setDepositResult(null);
-            setDepositError(null);
-            try {
-              // protocol и token берём из пропсов, amount — из свапа
-              const depositRes = await deposit(
-                protocol.key as ProtocolKey,
-                tokenAddress,
-                BigInt(amount)
-              );
-              setDepositResult(depositRes);
-              setDepositStatus('success');
-            } catch (e: any) {
-              setDepositError(typeof e === 'string' ? e : e.message);
+              // 5. Автоматически запускаем депозит
+              setDepositStatus('loading');
+              setDepositResult(null);
+              setDepositError(null);
+              try {
+                // protocol и token берём из пропсов, amount — из свапа
+                const depositRes = await deposit(
+                  protocol.key as ProtocolKey,
+                  tokenAddress,
+                  BigInt(amount)
+                );
+                setDepositResult(depositRes);
+                setDepositStatus('success');
+                // Mark transaction as processed to prevent re-execution
+                setHasProcessedTransaction(true);
+              } catch (e: any) {
+                setDepositError(typeof e === 'string' ? e : e.message);
+                setDepositStatus('error');
+                // Mark transaction as processed even on error to prevent re-execution
+                setHasProcessedTransaction(true);
+              }
+            }
+            
+            // Success - break out of retry loop
+            break;
+            
+          } catch (error) {
+            console.error(`Attempt ${attempt} failed:`, error);
+            if (attempt === maxAttempts) {
+              console.error('All attempts failed to check transaction status');
+              // Show error to user
+              setDepositError('Failed to verify transaction status. Please check the transaction manually.');
               setDepositStatus('error');
             }
           }
-        });
+        }
+      };
+      
+      // Start checking transaction status
+      setIsCheckingTransaction(true);
+      setHasProcessedTransaction(true); // Mark as processing to prevent re-execution
+      checkTransactionStatus().finally(() => {
+        setIsCheckingTransaction(false);
+      });
     }
-  }, [status, result]);
+  }, [status, result, tokenList, hasProcessedTransaction]);
 
   const handleRetry = () => {
     setRetryCount((c) => c + 1);
@@ -348,6 +415,12 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, amount, fromToken, 
                   <ExternalLink className="inline w-4 h-4 align-text-bottom" />
                 </a>
               </div>
+              {isCheckingTransaction && (
+                <div className="mt-2 text-sm text-blue-600 flex items-center justify-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Verifying transaction...</span>
+                </div>
+              )}
               {receivedAmount && receivedSymbol && receivedHuman && (
                 <div className="mt-2 text-sm text-green-700 flex items-center justify-center gap-2">
                   <Image src={getTokenLogo(toToken.address)} alt={receivedSymbol || ''} width={20} height={20} className="rounded-full bg-white border" />
