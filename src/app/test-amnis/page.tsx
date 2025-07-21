@@ -13,8 +13,10 @@ export default function TestAmnisPage() {
   const [pools, setPools] = useState<any[]>([]);
   const [positions, setPositions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [testAmount, setTestAmount] = useState('100000000'); // 1 APT in octas (8 decimals)
-  const [testToken, setTestToken] = useState('0x1::aptos_coin::AptosCoin');
+  const testAmount = 100000000; // 1 APT in octas
+  const testToken = "0x1::aptos_coin::AptosCoin";
+  const testAmAptAmount = 100482581; // amAPT amount
+  const testAmAptToken = "0x111ae3e5bc816a5e63c2da97d0aa3886519e0cd5e4b046659fa35796bd11542a::amapt_token::AmnisApt";
   const [apiData, setApiData] = useState<any>(null);
 
   const fetchPools = async () => {
@@ -306,6 +308,163 @@ export default function TestAmnisPage() {
     }
   };
 
+  const testAmAptDeposit = async () => {
+    try {
+      console.log('Testing amAPT deposit with correct format...');
+      
+      // Convert Uint8Array address to hex string if needed
+      let walletAddress: string;
+      if (account?.address?.data && Array.isArray(account.address.data)) {
+        walletAddress = '0x' + Array.from(account.address.data)
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join('');
+      } else {
+        walletAddress = account?.address?.toString() || "0x56ff2fc971deecd286314fe99b8ffd6a5e72e62eacdc46ae9b234c5282985f97";
+      }
+      
+      const response = await fetch('/api/protocols/amnis/deposit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          token: testAmAptToken,
+          amount: testAmAptAmount,
+          walletAddress: walletAddress
+        }),
+      });
+      const data = await response.json();
+      console.log('Generated payload:', data);
+      
+      // Show expected format for amAPT
+      if (testAmAptToken === "0x111ae3e5bc816a5e63c2da97d0aa3886519e0cd5e4b046659fa35796bd11542a::amapt_token::AmnisApt") {
+        const expectedPayload = {
+          type: "entry_function_payload",
+          function: "0x111ae3e5bc816a5e63c2da97d0aa3886519e0cd5e4b046659fa35796bd11542a::router::stake_entry",
+          type_arguments: [],
+          arguments: [
+            testAmAptAmount,
+            walletAddress
+          ]
+        };
+        console.log('Expected amAPT payload format:', expectedPayload);
+        console.log('Generated payload format:', data);
+        
+        // Verify the format is correct
+        if (data.arguments && Array.isArray(data.arguments) && data.arguments.length === 2) {
+          console.log('✅ Arguments format is correct:');
+          console.log('  Amount:', data.arguments[0], 'Type:', typeof data.arguments[0]);
+          console.log('  Address:', data.arguments[1], 'Type:', typeof data.arguments[1]);
+          
+          // Check if arguments are strings (not serialized bytes)
+          if (typeof data.arguments[0] === 'string' && typeof data.arguments[1] === 'string') {
+            console.log('✅ Arguments are strings (not serialized bytes)');
+            alert(`✅ amAPT Deposit payload generated successfully!\n\nFunction: ${data.function}\nArguments: [${data.arguments.join(', ')}]\n\nArguments are in correct string format.`);
+          } else {
+            console.log('❌ Arguments are not strings:', data.arguments);
+            alert(`❌ Arguments format issue!\n\nArguments: ${JSON.stringify(data.arguments)}\n\nExpected strings, got: ${typeof data.arguments[0]}, ${typeof data.arguments[1]}`);
+          }
+        } else {
+          console.log('❌ Arguments format is incorrect:', data.arguments);
+          alert(`❌ Arguments format issue!\n\nExpected array with 2 elements, got: ${JSON.stringify(data.arguments)}`);
+        }
+      } else {
+        alert('amAPT Deposit payload generated successfully! Check console for details.');
+      }
+    } catch (error) {
+      console.error('Error generating amAPT deposit payload:', error);
+      alert('Error generating amAPT deposit payload');
+    }
+  };
+
+  const testRealAmAptDeposit = async () => {
+    if (!account?.address) {
+      alert('Please connect your wallet first');
+      return;
+    }
+
+    try {
+      console.log('Testing real amAPT deposit transaction...');
+      console.log('Account address:', account.address);
+      console.log('Test amount:', testAmAptAmount);
+      console.log('Test token:', testAmAptToken);
+      
+      // Convert Uint8Array address to hex string
+      let walletAddress: string;
+      if (account.address.data && Array.isArray(account.address.data)) {
+        // Convert Uint8Array to hex string
+        walletAddress = '0x' + Array.from(account.address.data)
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join('');
+        console.log('Converted wallet address:', walletAddress);
+      } else {
+        walletAddress = account.address.toString();
+        console.log('Using address as string:', walletAddress);
+      }
+      
+      // First, get the payload
+      const response = await fetch('/api/protocols/amnis/deposit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          token: testAmAptToken,
+          amount: testAmAptAmount,
+          walletAddress: walletAddress
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      const payload = await response.json();
+      console.log('Generated payload for real transaction:', payload);
+      console.log('Payload arguments:', payload.arguments);
+      console.log('Payload arguments types:', payload.arguments.map((arg: any) => ({ value: arg, type: typeof arg })));
+      console.log('Payload arguments JSON:', JSON.stringify(payload.arguments));
+      
+      // Verify payload format
+      if (!payload.arguments || !Array.isArray(payload.arguments) || payload.arguments.length !== 2) {
+        throw new Error('Invalid payload format');
+      }
+      
+      if (typeof payload.arguments[0] !== 'string' || typeof payload.arguments[1] !== 'string') {
+        console.error('Arguments are not strings:', {
+          arg0: { value: payload.arguments[0], type: typeof payload.arguments[0] },
+          arg1: { value: payload.arguments[1], type: typeof payload.arguments[1] }
+        });
+        throw new Error('Arguments must be strings');
+      }
+      
+      console.log('✅ Payload format is correct, proceeding with transaction...');
+      
+      // Submit transaction using wallet
+      if (!signAndSubmitTransaction) {
+        throw new Error('Wallet does not support transaction signing');
+      }
+      
+      const txResponse = await signAndSubmitTransaction({
+        data: {
+          function: payload.function as `${string}::${string}::${string}`,
+          typeArguments: payload.type_arguments,
+          functionArguments: payload.arguments
+        },
+        options: {
+          maxGasAmount: 20000,
+        },
+      });
+      
+      console.log('Transaction submitted successfully:', txResponse);
+      alert(`✅ Transaction submitted successfully!\n\nHash: ${txResponse.hash}\n\nCheck your wallet for confirmation.`);
+      
+    } catch (error) {
+      console.error('Real amAPT deposit test failed:', error);
+      alert(`❌ Real amAPT deposit test failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
   useEffect(() => {
     fetchPools();
     if (account?.address) {
@@ -430,41 +589,31 @@ export default function TestAmnisPage() {
               <h3 className="text-lg font-semibold mb-2">Test Configuration</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Amount (octas)</label>
-                  <input
-                    type="text"
-                    value={testAmount}
-                    onChange={(e) => setTestAmount(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    placeholder="100000000"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    {testAmount ? `${Number(testAmount) / 100000000} APT` : 'Enter amount'}
-                  </p>
+                  <label className="block text-sm font-medium mb-1">APT Amount (octas)</label>
+                  <p className="text-sm text-gray-600">{testAmount} ({testAmount / 100000000} APT)</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Token</label>
-                  <select
-                    value={testToken}
-                    onChange={(e) => setTestToken(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  >
-                    <option value="0x1::aptos_coin::AptosCoin">APT</option>
-                    <option value="0x111ae3e5bc816a5e63c2da97d0aa3886519e0cd5e4b046659fa35796bd11542a::amapt_token::AmnisApt">amAPT</option>
-                  </select>
+                  <label className="block text-sm font-medium mb-1">amAPT Amount (octas)</label>
+                  <p className="text-sm text-gray-600">{testAmAptAmount} ({testAmAptAmount / 100000000} amAPT)</p>
                 </div>
               </div>
             </div>
             
             <div className="flex gap-2 flex-wrap">
               <Button onClick={testDeposit} variant="default">
-                Test Deposit
+                Test APT Deposit
+              </Button>
+              <Button onClick={testAmAptDeposit} variant="default">
+                Test amAPT Deposit
               </Button>
               <Button onClick={testArgumentFormat} variant="outline">
                 Test Argument Format
               </Button>
               <Button onClick={testRealDeposit} variant="default">
-                Test Real Deposit
+                Test Real APT Deposit
+              </Button>
+              <Button onClick={testRealAmAptDeposit} variant="default">
+                Test Real amAPT Deposit
               </Button>
               <Button onClick={testWithdraw} variant="outline">
                 Test Withdraw

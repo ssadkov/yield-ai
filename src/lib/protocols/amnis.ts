@@ -35,8 +35,38 @@ export class AmnisProtocol implements BaseProtocol {
       console.log('Arguments JSON:', JSON.stringify(payload.arguments));
       
       return payload;
+    } 
+    // Check if it's amAPT token - use stake_entry function
+    else if (token === "0x111ae3e5bc816a5e63c2da97d0aa3886519e0cd5e4b046659fa35796bd11542a::amapt_token::AmnisApt") {
+      console.log('Building amAPT deposit payload...');
+      
+      const amountString = amountOctas.toString();
+      const finalWalletAddress = walletAddress || "0x56ff2fc971deecd286314fe99b8ffd6a5e72e62eacdc46ae9b234c5282985f97";
+      
+      console.log('Amount conversion:', { 
+        original: amountOctas.toString(), 
+        asString: amountString,
+        bigintValue: amountOctas
+      });
+      console.log('Wallet address:', finalWalletAddress);
+      
+      const payload = {
+        type: "entry_function_payload" as const,
+        function: "0x111ae3e5bc816a5e63c2da97d0aa3886519e0cd5e4b046659fa35796bd11542a::router::stake_entry",
+        type_arguments: [],
+        arguments: [
+          amountString, // Amount as string
+          finalWalletAddress // Wallet address as string
+        ]
+      };
+      
+      console.log('Generated amAPT payload:', payload);
+      console.log('Arguments types:', payload.arguments.map(arg => ({ value: arg, type: typeof arg })));
+      console.log('Arguments JSON:', JSON.stringify(payload.arguments));
+      
+      return payload;
     } else {
-      // For other tokens (like amAPT), use the original stake function
+      // For other tokens, use the original stake function
       return {
         type: "entry_function_payload" as const,
         function: "0x111ae3e5bc816a5e63c2da97d0aa3886519e0cd5e4b046659fa35796bd11542a::stake::stake",

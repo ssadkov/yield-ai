@@ -31,9 +31,11 @@ export async function executeDeposit(
     throw new Error('Protocol does not have buildDeposit method');
   }
 
-  // Special handling for Amnis protocol with APT token
-  if (protocol.name === 'Amnis Finance' && token === '0x1::aptos_coin::AptosCoin') {
-    console.log('Using custom Amnis APT deposit logic');
+  // Special handling for Amnis protocol with APT and amAPT tokens
+  if (protocol.name === 'Amnis Finance' && 
+      (token === '0x1::aptos_coin::AptosCoin' || 
+       token === '0x111ae3e5bc816a5e63c2da97d0aa3886519e0cd5e4b046659fa35796bd11542a::amapt_token::AmnisApt')) {
+    console.log('Using custom Amnis deposit logic for token:', token);
     
     // Convert Uint8Array address to hex string if needed
     let walletAddress: string;
@@ -45,11 +47,16 @@ export async function executeDeposit(
       walletAddress = wallet.account?.address?.toString() || "0x56ff2fc971deecd286314fe99b8ffd6a5e72e62eacdc46ae9b234c5282985f97";
     }
     
-    console.log('Wallet address for Amnis APT:', walletAddress);
+    console.log('Wallet address for Amnis:', walletAddress);
+    
+    // Choose function based on token type
+    const functionName = token === '0x1::aptos_coin::AptosCoin' 
+      ? "0x111ae3e5bc816a5e63c2da97d0aa3886519e0cd5e4b046659fa35796bd11542a::router::deposit_and_stake_entry"
+      : "0x111ae3e5bc816a5e63c2da97d0aa3886519e0cd5e4b046659fa35796bd11542a::router::stake_entry";
     
     const payload = {
       type: "entry_function_payload" as const,
-      function: "0x111ae3e5bc816a5e63c2da97d0aa3886519e0cd5e4b046659fa35796bd11542a::router::deposit_and_stake_entry",
+      function: functionName,
       type_arguments: [],
       arguments: [
         amount.toString(), // Amount as string
@@ -57,7 +64,7 @@ export async function executeDeposit(
       ]
     };
     
-    console.log('Generated Amnis APT payload:', payload);
+    console.log('Generated Amnis payload:', payload);
     console.log('Arguments types:', payload.arguments.map(arg => ({ value: arg, type: typeof arg })));
     return payload;
   }
