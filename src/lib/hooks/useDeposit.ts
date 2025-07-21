@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react';
-import React from 'react';
 import { executeDeposit } from '../transactions/DepositTransaction';
 import { ProtocolKey } from '../transactions/types';
 import { useToast } from '@/components/ui/use-toast';
+import { showTransactionSuccessToast } from '@/components/ui/transaction-toast';
 import { ToastAction } from '@/components/ui/toast';
 import { protocols } from '../protocols/protocolsRegistry';
 import { useTransactionSubmitter } from './useTransactionSubmitter';
@@ -92,10 +92,7 @@ export function useDeposit() {
             
             if (txData.success && txData.vm_status === "Executed successfully") {
               console.log('Transaction confirmed successfully, showing toast...');
-              toast({
-                title: "Deposit successful!",
-                description: `Transaction hash: ${response.hash.slice(0, 6)}...${response.hash.slice(-4)}`,
-              });
+              showTransactionSuccessToast({ hash: response.hash });
               console.log('Toast should be shown now');
               return response;
             } else if (txData.vm_status) {
