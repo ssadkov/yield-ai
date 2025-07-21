@@ -46,7 +46,9 @@ import { AmnisProtocol } from '@/lib/protocols/amnis';
  */
 export async function POST(request: Request) {
   try {
-    const { token, amount } = await request.json();
+    const { token, amount, walletAddress } = await request.json();
+    
+    console.log('API received:', { token, amount, walletAddress });
 
     if (!token || !amount) {
       return NextResponse.json(
@@ -56,8 +58,14 @@ export async function POST(request: Request) {
     }
 
     const protocol = new AmnisProtocol();
-    const payload = await protocol.buildDeposit(BigInt(amount), token);
-
+    
+    // Use the updated protocol method that handles wallet address
+    const payload = await protocol.buildDeposit(BigInt(amount), token, walletAddress);
+    
+    console.log('Generated payload:', payload);
+    console.log('Arguments types:', payload.arguments.map(arg => ({ value: arg, type: typeof arg })));
+    console.log('Arguments JSON:', JSON.stringify(payload.arguments));
+    
     return NextResponse.json(payload);
   } catch (error) {
     console.error("Error generating stake payload:", error);
