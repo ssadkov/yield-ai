@@ -190,13 +190,20 @@ export function DragDropProvider({ children }: { children: ReactNode }) {
       const tokenInfo = getTokenInfo(dropTarget.token);
       
       if (protocol && protocol.depositType === 'native') {
+        // Get real APY for Amnis Finance
+        let apy = dropTarget.totalAPY || 8.4;
+        if (protocol.name === 'Amnis Finance') {
+          // Use the APY from the dropTarget if available, otherwise use default
+          apy = dropTarget.totalAPY || 7.21; // Current Amnis APY from API
+        }
+        
         // Открываем модальное окно депозита
         const modalData = {
           protocol: {
             name: protocol.name,
             logo: protocol.logoUrl,
-            apy: dropTarget.totalAPY || 8.4,
-            key: protocol.name.toLowerCase() as ProtocolKey
+            apy: apy,
+            key: (protocol.name === 'Amnis Finance' ? 'amnis' : protocol.name.toLowerCase()) as ProtocolKey
           },
           tokenIn: {
             symbol: dragData.symbol,
@@ -225,12 +232,19 @@ export function DragDropProvider({ children }: { children: ReactNode }) {
       const tokenInfo = getTokenInfo(dropTarget.token);
       
       if (protocol && protocol.depositType === 'native') {
+        // Get real APY for Amnis Finance
+        let apy = dropTarget.totalAPY || 8.4;
+        if (protocol.name === 'Amnis Finance') {
+          // Use the APY from the dropTarget if available, otherwise use default
+          apy = dropTarget.totalAPY || 7.21; // Current Amnis APY from API
+        }
+        
         const modalData = {
           protocol: {
             name: protocol.name,
             logo: protocol.logoUrl,
-            apy: dropTarget.totalAPY || 8.4,
-            key: protocol.name.toLowerCase() as ProtocolKey
+            apy: apy,
+            key: (protocol.name === 'Amnis Finance' ? 'amnis' : protocol.name.toLowerCase()) as ProtocolKey
           },
           tokenIn: {
             symbol: tokenInfo?.symbol || dropTarget.asset,

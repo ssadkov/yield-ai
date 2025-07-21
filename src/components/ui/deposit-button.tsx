@@ -12,7 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DepositModal } from "./deposit-modal";
 import { useWalletData } from "@/contexts/WalletContext";
 import { cn } from "@/lib/utils";
@@ -48,7 +48,34 @@ export function DepositButton({
   
   const [isExternalDialogOpen, setIsExternalDialogOpen] = useState(false);
   const [isNativeDialogOpen, setIsNativeDialogOpen] = useState(false);
+  const [protocolAPY, setProtocolAPY] = useState<number>(8.4); // Default fallback
   const walletData = useWalletData();
+
+  // Fetch real APY data for Amnis Finance
+  useEffect(() => {
+    if (protocol.name === 'Amnis Finance') {
+      const fetchAmnisAPY = async () => {
+        try {
+          const response = await fetch('/api/protocols/amnis/pools');
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.pools && data.pools.length > 0) {
+              // Use APT staking pool APR
+              const aptPool = data.pools.find((pool: any) => pool.asset === 'APT');
+              if (aptPool && aptPool.apr) {
+                setProtocolAPY(aptPool.apr);
+                console.log('Fetched Amnis APY:', aptPool.apr);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching Amnis APY:', error);
+        }
+      };
+      
+      fetchAmnisAPY();
+    }
+  }, [protocol.name]);
 
   const handleClick = () => {
     console.log('DepositButton clicked:', {
@@ -125,8 +152,8 @@ export function DepositButton({
           protocol={{
             name: protocol.name,
             logo: protocol.logoUrl,
-            apy: 8.4, // TODO: Get from protocol data
-            key: protocol.name.toLowerCase() as ProtocolKey
+            apy: protocolAPY, // Use real APY data
+            key: (protocol.name === 'Amnis Finance' ? 'amnis' : protocol.name.toLowerCase()) as ProtocolKey
           }}
           tokenIn={{
             symbol: tokenIn.symbol,
