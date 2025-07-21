@@ -49,6 +49,10 @@ interface PortfolioResponse {
       info: any;
       positions: any[];
     };
+    amnis: {
+      info: any;
+      positions: any[];
+    };
   };
   totals: {
     walletValue: number;
@@ -351,13 +355,15 @@ export async function GET(request: Request) {
       joule: { info: any; positions: any[] };
       tapp: { info: any; positions: any[] };
       meso: { info: any; positions: any[] };
+      amnis: { info: any; positions: any[] };
     } = {
       hyperion: { info: getProtocolInfo('Hyperion'), positions: [] },
       echelon: { info: getProtocolInfo('Echelon'), positions: [] },
       aries: { info: getProtocolInfo('Aries'), positions: [] },
       joule: { info: getProtocolInfo('Joule'), positions: [] },
       tapp: { info: getProtocolInfo('Tapp Exchange'), positions: [] },
-      meso: { info: getProtocolInfo('Meso Finance'), positions: [] }
+      meso: { info: getProtocolInfo('Meso Finance'), positions: [] },
+      amnis: { info: getProtocolInfo('Amnis Finance'), positions: [] }
     };
 
     let protocolsValue = 0;
@@ -594,6 +600,37 @@ export async function GET(request: Request) {
             };
           });
           protocolsValue += protocols.meso.positions.reduce((sum: number, pos: any) => sum + pos.value, 0);
+        }
+      }
+
+      // Amnis
+      const amnisResponse = await fetch(`${baseUrl}/api/protocols/amnis/userPositions?address=${address}`);
+      if (amnisResponse.ok) {
+        const amnisData = await amnisResponse.json();
+        if (amnisData.success && Array.isArray(amnisData.positions)) {
+          protocols.amnis.positions = amnisData.positions.map((pos: any) => {
+            const tokenInfo = getTokenInfo(pos.token);
+            const stakedAmount = parseFloat(pos.stakedAmount) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
+            const stakingTokenAmount = parseFloat(pos.stakingTokenAmount) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
+            const rewards = parseFloat(pos.rewards) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
+            
+            // Calculate value based on staked amount
+            const value = tokenInfo?.usdPrice ? stakedAmount * parseFloat(tokenInfo.usdPrice) : 0;
+            
+            return {
+              symbol: tokenInfo?.symbol || pos.token.substring(0, 4).toUpperCase(),
+              amount: stakedAmount.toFixed(4),
+              stakingTokenAmount: stakingTokenAmount.toFixed(4),
+              value: value,
+              apy: pos.apy || 0,
+              rewards: rewards,
+              type: 'staking',
+              assetInfo: tokenInfo,
+              poolName: pos.poolName,
+              isActive: pos.isActive
+            };
+          });
+          protocolsValue += protocols.amnis.positions.reduce((sum: number, pos: any) => sum + pos.value + pos.rewards, 0);
         }
       }
     } catch (error) {

@@ -9,6 +9,7 @@ import { HyperionPositions } from "./protocols/HyperionPositions";
 import { TappPositions } from "./protocols/TappPositions";
 import { MesoPositions } from "./protocols/MesoPositions";
 import { AuroPositions } from "./protocols/AuroPositions";
+import { AmnisPositions } from "./protocols/AmnisPositions";
 import { RefreshCw, Info, ExternalLink } from "lucide-react";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useState } from "react";
@@ -38,6 +39,8 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
         apiPath = 'auro';
       } else if (protocol.name.toLowerCase().includes('meso')) {
         apiPath = 'meso';
+      } else if (protocol.name.toLowerCase().includes('amnis')) {
+        apiPath = 'amnis';
       }
       
       const response = await fetch(`/api/protocols/${apiPath}/userPositions?address=${account.address}`);
@@ -91,6 +94,8 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
         return <MesoPositions />;
       case 'auro finance':
         return <AuroPositions />;
+      case 'amnis finance':
+        return <AmnisPositions />;
       default:
         return (
           <div className="text-sm text-muted-foreground">

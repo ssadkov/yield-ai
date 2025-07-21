@@ -73,5 +73,15 @@
     "depositUrl": "https://app.auro.finance?ref=Y7RSIC14LS4F",
     "isDepositEnabled": true,
     "managedType": "native"
+  },
+  {
+    "name": "Amnis Finance",
+    "category": "Staking",
+    "url": "https://stake.amnis.finance/",
+    "logoUrl": "/amnis-logo.png",
+    "description": "Pioneering Liquid Staking protocol on Aptos",
+    "depositType": "native",
+    "isDepositEnabled": true,
+    "managedType": "external"
   }
 ] 

@@ -82,22 +82,22 @@ export const poolSources: PoolSource[] = [
         };
         
         return {
-          asset: `${pool.token_a || 'Unknown'}/${pool.token_b || 'Unknown'}`,
+          asset: `${token1Info.symbol}/${token2Info.symbol}`,
           provider: 'Tapp Exchange',
           totalAPY: totalAPY,
           depositApy: totalAPY, // For DEX pools, deposit APY is the same as total APY
           borrowAPY: 0, // DEX pools don't have borrowing
-          token: pool.pool_id || pool.id,
+          token: pool.pool_id || pool.poolId,
           protocol: 'Tapp Exchange',
-          dailyVolumeUSD: parseFloat(pool.volume_7d || "0") / 7, // Convert 7d volume to daily
+          dailyVolumeUSD: parseFloat(pool.volume_7d || "0") / 7, // Convert 7d to daily
           tvlUSD: parseFloat(pool.tvl || "0"),
-          // Include additional pool information
-          feeTier: parseFloat(pool.fee_tier || "0"),
-          volume7d: parseFloat(pool.volume_7d || "0"),
-          poolType: pool.poolType,
-          // Include token information for DEX display
+          // Include token information for DEX pools
           token1Info: token1Info,
-          token2Info: token2Info
+          token2Info: token2Info,
+          // Additional DEX pool information
+          poolType: 'DEX',
+          feeTier: parseFloat(pool.fee_tier || "0"),
+          volume7d: parseFloat(pool.volume_7d || "0")
         };
       });
     }
@@ -139,6 +139,35 @@ export const poolSources: PoolSource[] = [
           poolType: 'Lending',
           // Store original pool data for reference
           originalPool: pool
+        };
+      });
+    }
+  },
+  // Amnis Finance pools API
+  {
+    name: 'Amnis Finance Pools API',
+    url: '/api/protocols/amnis/pools',
+    enabled: true,
+    transform: (data: any) => {
+      // Transform Amnis pools data to InvestmentData format
+      const pools = data.pools || [];
+      
+      return pools.map((pool: any) => {
+        return {
+          asset: pool.asset || 'Unknown',
+          provider: 'Amnis Finance',
+          totalAPY: pool.apr || 0,
+          depositApy: pool.apr || 0, // Staking APY is the deposit APY
+          borrowAPY: 0, // Staking pools don't have borrowing
+          token: pool.token || '',
+          protocol: 'Amnis Finance',
+          poolType: 'Staking',
+          // Additional Amnis-specific data
+          stakingToken: pool.stakingToken,
+          totalStaked: pool.totalStaked,
+          minStake: pool.minStake,
+          maxStake: pool.maxStake,
+          isActive: pool.isActive
         };
       });
     }
