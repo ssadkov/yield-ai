@@ -169,18 +169,59 @@ export const PositionsList: React.FC<SidebarPositionsListProps> = ({
 }) => {
   const { account } = useWallet();
   const { isExpanded, toggleSection } = useCollapsible();
+  const [positions, setPositions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock data - 7.78 AMI tokens at $0.126 per token
-  const amiAmount = 7.78;
-  const amiPrice = 0.126;
-  const totalValue = amiAmount * amiPrice;
+  // Fetch real data from API
+  const fetchPositions = useCallback(async () => {
+    if (!address) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch(`/api/protocols/amnis/userPositions?address=${address}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch positions: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      if (data.success && data.positions) {
+        setPositions(data.positions);
+      } else {
+        setPositions([]);
+      }
+    } catch (err) {
+      console.error('Error fetching Amnis positions:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch positions');
+      setPositions([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [address]);
+
+  // Fetch data on mount and when address changes
+  useEffect(() => {
+    fetchPositions();
+  }, [fetchPositions]);
+
+  // Calculate total value from positions
+  const totalValue = positions.reduce((sum, position) => {
+    return sum + (position.usdValue || 0);
+  }, 0);
 
   // Notify parent about value change
-  React.useEffect(() => {
+  useEffect(() => {
     if (onPositionsValueChange) {
       onPositionsValueChange(totalValue);
     }
   }, [onPositionsValueChange, totalValue]);
+
+  // Don't render card if no positions and not loading
+  if (!loading && positions.length === 0) {
+    return null;
+  }
 
   return (
     <Card className="w-full">
@@ -210,31 +251,43 @@ export const PositionsList: React.FC<SidebarPositionsListProps> = ({
       </CardHeader>
       {isExpanded('amnis') && (
         <CardContent className="flex-1 overflow-y-auto px-3 pt-0">
-          <div className="space-y-2">
-            <div className="mb-2">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 relative">
-                    <img 
-                      src="/amnis-logo.png" 
-                      alt="AMI"
-                      className="w-6 h-6 object-contain"
-                    />
-                  </div>
-                  <div>
+          {loading ? (
+            <div className="text-center py-4 text-muted-foreground">Loading...</div>
+          ) : error ? (
+            <div className="text-center py-4 text-red-500 text-sm">{error}</div>
+          ) : (
+            <div className="space-y-2">
+              {positions.map((position) => (
+                <div key={position.id} className="mb-2">
+                  <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">AMI</span>
+                      <div className="w-6 h-6 relative">
+                        <img 
+                          src="/amnis-logo.png" 
+                          alt={position.tokenSymbol || "AMI"}
+                          className="w-6 h-6 object-contain"
+                        />
+                      </div>
+                                              <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">{position.tokenSymbol || "AMI"}</span>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            ${(position.usdValue / parseFloat(position.stakedAmount)).toFixed(3)}
+                          </div>
+                        </div>
                     </div>
-                    <div className="text-xs text-muted-foreground">${amiPrice.toFixed(3)}</div>
+                    <div className="text-right">
+                      <div className="text-sm font-medium">${(position.usdValue || 0).toFixed(2)}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {parseFloat(position.stakedAmount).toFixed(2)}
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-sm font-medium">${totalValue.toFixed(2)}</div>
-                  <div className="text-xs text-muted-foreground">{amiAmount.toFixed(2)}</div>
-                </div>
-              </div>
+              ))}
             </div>
-          </div>
+          )}
         </CardContent>
       )}
     </Card>
