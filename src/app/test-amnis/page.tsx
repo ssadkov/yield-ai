@@ -13,6 +13,10 @@ export default function TestAmnisPage() {
   const [pools, setPools] = useState<any[]>([]);
   const [positions, setPositions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [stakingPools, setStakingPools] = useState<any[]>([]);
+  const [stakingPoolsLoading, setStakingPoolsLoading] = useState(false);
+  const [stakedAmounts, setStakedAmounts] = useState<{[key: string]: number}>({});
+  const [stakedAmountsLoading, setStakedAmountsLoading] = useState(false);
   const testAmount = 100000000; // 1 APT in octas
   const testToken = "0x1::aptos_coin::AptosCoin";
   const testAmAptAmount = 100482581; // amAPT amount
@@ -46,6 +50,67 @@ export default function TestAmnisPage() {
       console.error('Error fetching Amnis positions:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchStakingPools = async () => {
+    setStakingPoolsLoading(true);
+    try {
+      const response = await fetch('/api/protocols/amnis/staking-pools');
+      const data = await response.json();
+      console.log('AMI staking pools:', data);
+      if (data.success) {
+        setStakingPools(data.pools || []);
+      } else {
+        console.error('Failed to fetch staking pools:', data.error);
+      }
+    } catch (error) {
+      console.error('Error fetching AMI staking pools:', error);
+    } finally {
+      setStakingPoolsLoading(false);
+    }
+  };
+
+  const fetchStakedAmounts = async () => {
+    if (!account?.address) return;
+    
+    setStakedAmountsLoading(true);
+    try {
+      const amounts: {[key: string]: number} = {};
+      
+      // Get wallet address in correct format
+      let walletAddress: string;
+      if (account.address.data && Array.isArray(account.address.data)) {
+        walletAddress = '0x' + Array.from(account.address.data)
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join('');
+      } else {
+        walletAddress = account.address.toString();
+      }
+
+      // Fetch staked amounts for each pool
+      for (const pool of stakingPools) {
+        try {
+          const response = await fetch(`/api/protocols/amnis/staking-amount?userAddress=${walletAddress}&poolAddress=${pool.address}`);
+          const data = await response.json();
+          
+          if (data.success) {
+            amounts[pool.address] = data.stakedAmount;
+          } else {
+            console.error('Failed to get staked amount for pool:', pool.address, data.error);
+            amounts[pool.address] = 0;
+          }
+        } catch (error) {
+          console.error('Error getting staked amount for pool:', pool.address, error);
+          amounts[pool.address] = 0;
+        }
+      }
+      
+      setStakedAmounts(amounts);
+    } catch (error) {
+      console.error('Error fetching staked amounts:', error);
+    } finally {
+      setStakedAmountsLoading(false);
     }
   };
 
@@ -467,10 +532,17 @@ export default function TestAmnisPage() {
 
   useEffect(() => {
     fetchPools();
+    fetchStakingPools();
     if (account?.address) {
       fetchPositions();
     }
   }, [account?.address]);
+
+  useEffect(() => {
+    if (stakingPools.length > 0 && account?.address) {
+      fetchStakedAmounts();
+    }
+  }, [stakingPools, account?.address]);
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -551,6 +623,84 @@ export default function TestAmnisPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* AMI Staking Pools */}
+      <Card>
+        <CardHeader>
+          <CardTitle>AMI Staking Pools</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2 mb-4">
+            <Button onClick={fetchStakingPools} disabled={stakingPoolsLoading}>
+              {stakingPoolsLoading ? 'Loading...' : 'Refresh AMI Staking Pools'}
+            </Button>
+            {account?.address && (
+              <Button onClick={fetchStakedAmounts} disabled={stakedAmountsLoading} variant="outline">
+                {stakedAmountsLoading ? 'Loading...' : 'Refresh Staked Amounts'}
+              </Button>
+            )}
+          </div>
+          <div className="space-y-3">
+            {stakingPools.map((pool, index) => (
+              <div key={index} className="p-4 border rounded-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-lg">AMI Staking Pool #{index + 1}</h3>
+                  <Badge 
+                    variant={
+                      pool.status === 'Active' ? 'default' : 
+                      pool.status === 'Upcoming' ? 'secondary' : 
+                      pool.status === 'Ended' ? 'destructive' : 'outline'
+                    }
+                  >
+                    {pool.status}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium text-muted-foreground">Rate:</span>
+                    <div className="text-lg font-bold text-green-600">{pool.ratePercentage}%</div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-muted-foreground">Lock Duration:</span>
+                    <div className="font-semibold">
+                      {pool.lockDurationDays > 0 ? `${pool.lockDurationDays} days` : 'No lock'}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-muted-foreground">Start Date:</span>
+                    <div className="font-semibold">{pool.startDate}</div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-muted-foreground">End Date:</span>
+                    <div className="font-semibold">{pool.endDate}</div>
+                  </div>
+                  <div>
+                    <span className="font-medium text-muted-foreground">Your Staked:</span>
+                    <div className="font-semibold text-blue-600">
+                      {stakedAmountsLoading ? (
+                        <span className="text-xs">Loading...</span>
+                      ) : (
+                        `${stakedAmounts[pool.address] || 0} AMI`
+                      )}
+                    </div>
+                  </div>
+                </div>
+                {pool.luckyWheelRate && (
+                  <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                    <span className="font-medium text-yellow-800">Lucky Wheel Rate: {pool.luckyWheelRate}%</span>
+                  </div>
+                )}
+                <div className="mt-3 text-xs text-muted-foreground">
+                  <span className="font-medium">Pool Address:</span> {pool.address}
+                </div>
+              </div>
+            ))}
+            {stakingPools.length === 0 && !stakingPoolsLoading && (
+              <p className="text-muted-foreground text-center py-8">No AMI staking pools found</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Positions */}
       <Card>
