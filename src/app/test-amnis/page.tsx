@@ -17,6 +17,8 @@ export default function TestAmnisPage() {
   const [stakingPoolsLoading, setStakingPoolsLoading] = useState(false);
   const [stakedAmounts, setStakedAmounts] = useState<{[key: string]: number}>({});
   const [stakedAmountsLoading, setStakedAmountsLoading] = useState(false);
+  const [amiPrice, setAmiPrice] = useState<number>(0);
+  const [amiPriceLoading, setAmiPriceLoading] = useState(false);
   const testAmount = 100000000; // 1 APT in octas
   const testToken = "0x1::aptos_coin::AptosCoin";
   const testAmAptAmount = 100482581; // amAPT amount
@@ -111,6 +113,38 @@ export default function TestAmnisPage() {
       console.error('Error fetching staked amounts:', error);
     } finally {
       setStakedAmountsLoading(false);
+    }
+  };
+
+  const fetchAmiPrice = async () => {
+    setAmiPriceLoading(true);
+    try {
+      // AMI token address in Panora
+      const amiTokenAddress = '0xb36527754eb54d7ff55daf13bcb54b42b88ec484bd6f0e3b2e0d1db169de6451';
+      
+      const response = await fetch(`/api/panora/tokenPrices?chainId=1&tokenAddress=${amiTokenAddress}`);
+      const data = await response.json();
+      
+      if (data.data && Array.isArray(data.data) && data.data.length > 0) {
+        const amiToken = data.data.find((token: any) => 
+          token.tokenAddress === amiTokenAddress || token.faAddress === amiTokenAddress
+        );
+        
+        if (amiToken && amiToken.usdPrice) {
+          setAmiPrice(parseFloat(amiToken.usdPrice));
+        } else {
+          console.error('AMI token not found in Panora response');
+          setAmiPrice(0);
+        }
+      } else {
+        console.error('Failed to get AMI price from Panora');
+        setAmiPrice(0);
+      }
+    } catch (error) {
+      console.error('Error fetching AMI price:', error);
+      setAmiPrice(0);
+    } finally {
+      setAmiPriceLoading(false);
     }
   };
 
@@ -544,6 +578,10 @@ export default function TestAmnisPage() {
     }
   }, [stakingPools, account?.address]);
 
+  useEffect(() => {
+    fetchAmiPrice();
+  }, []);
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center gap-4">
@@ -627,7 +665,14 @@ export default function TestAmnisPage() {
       {/* AMI Staking Pools */}
       <Card>
         <CardHeader>
-          <CardTitle>AMI Staking Pools</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>AMI Staking Pools</CardTitle>
+            {amiPrice > 0 && (
+              <div className="text-sm text-muted-foreground">
+                AMI Price: <span className="font-semibold text-green-600">${amiPrice.toFixed(4)}</span>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex gap-2 mb-4">
@@ -639,6 +684,9 @@ export default function TestAmnisPage() {
                 {stakedAmountsLoading ? 'Loading...' : 'Refresh Staked Amounts'}
               </Button>
             )}
+            <Button onClick={fetchAmiPrice} disabled={amiPriceLoading} variant="outline">
+              {amiPriceLoading ? 'Loading...' : 'Refresh AMI Price'}
+            </Button>
           </div>
           <div className="space-y-3">
             {stakingPools.map((pool, index) => (
@@ -680,7 +728,14 @@ export default function TestAmnisPage() {
                       {stakedAmountsLoading ? (
                         <span className="text-xs">Loading...</span>
                       ) : (
-                        `${stakedAmounts[pool.address] || 0} AMI`
+                        <div>
+                          <div>{stakedAmounts[pool.address] || 0} AMI</div>
+                          {amiPrice > 0 && (
+                            <div className="text-xs text-green-600">
+                              ${((stakedAmounts[pool.address] || 0) * amiPrice).toFixed(2)}
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>

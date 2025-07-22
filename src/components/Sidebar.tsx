@@ -15,6 +15,7 @@ import { PositionsList as JoulePositionsList } from "./protocols/joule/Positions
 import { PositionsList as TappPositionsList } from "./protocols/tapp/PositionsList";
 import { PositionsList as MesoPositionsList } from "./protocols/meso/PositionsList";
 import { PositionsList as AuroPositionsList } from "./protocols/auro/PositionsList";
+import { PositionsList as AmnisPositionsList } from "./protocols/amnis/PositionsList";
 
 export default function Sidebar() {
   const { account } = useWallet();
@@ -27,6 +28,7 @@ export default function Sidebar() {
   const [tappValue, setTappValue] = useState(0);
   const [mesoValue, setMesoValue] = useState(0);
   const [auroValue, setAuroValue] = useState(0);
+  const [amnisValue, setAmnisValue] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const loadPortfolio = useCallback(async () => {
@@ -66,6 +68,7 @@ export default function Sidebar() {
     setTappValue(0);
     setMesoValue(0);
     setAuroValue(0);
+    setAmnisValue(0);
   }, [loadPortfolio]);
 
   useEffect(() => {
@@ -100,6 +103,10 @@ export default function Sidebar() {
     setAuroValue(value);
   }, []);
 
+  const handleAmnisValueChange = useCallback((value: number) => {
+    setAmnisValue(value);
+  }, []);
+
   // Считаем сумму по кошельку
   const walletTotal = tokens.reduce((sum, token) => {
     const value = token.value ? parseFloat(token.value) : 0;
@@ -107,7 +114,7 @@ export default function Sidebar() {
   }, 0);
 
   // Считаем сумму по всем протоколам
-  const totalProtocolsValue = hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue;
+  const totalProtocolsValue = hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + amnisValue;
 
   // Итоговая сумма
   const totalAssets = walletTotal + totalProtocolsValue;
@@ -143,7 +150,8 @@ export default function Sidebar() {
                 { component: JoulePositionsList, value: jouleValue, name: 'Joule' },
                 { component: TappPositionsList, value: tappValue, name: 'Tapp Exchange' },
                 { component: MesoPositionsList, value: mesoValue, name: 'Meso Finance' },
-                { component: AuroPositionsList, value: auroValue, name: 'Auro Finance' }
+                { component: AuroPositionsList, value: auroValue, name: 'Auro Finance' },
+                { component: AmnisPositionsList, value: amnisValue, name: 'Amnis Finance' }
               ]
                 .sort((a, b) => b.value - a.value)
                 .map(({ component: Component, name }) => (
@@ -158,6 +166,7 @@ export default function Sidebar() {
                       name === 'Tapp Exchange' ? handleTappValueChange :
                       name === 'Meso Finance' ? handleMesoValueChange :
                       name === 'Auro Finance' ? handleAuroValueChange :
+                      name === 'Amnis Finance' ? handleAmnisValueChange :
                       undefined
                     }
                   />

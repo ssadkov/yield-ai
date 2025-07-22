@@ -5,16 +5,22 @@ import { AmnisPositionsList } from '../../amnis/PositionsList';
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 
 interface AmnisPosition {
-  symbol: string;
-  amount: string;
-  stakingTokenAmount: string;
-  value: number;
-  apy: number;
-  rewards: number;
-  type: string;
-  assetInfo: any;
+  id: string;
+  poolId: string;
   poolName: string;
+  token: string;
+  tokenSymbol?: string;
+  stakedAmount: string;
+  stakingTokenAmount?: string;
+  value?: number;
+  usdValue?: number;
+  apy: number;
+  rewards?: number;
+  type?: string;
+  assetInfo?: any;
   isActive: boolean;
+  lockDuration?: string;
+  pools?: any[];
 }
 
 export const AmnisPositions: React.FC = () => {
@@ -34,9 +40,12 @@ export const AmnisPositions: React.FC = () => {
       
       if (data.success && Array.isArray(data.positions)) {
         setPositions(data.positions);
-        // Calculate total value
-        const total = data.positions.reduce((sum: number, pos: AmnisPosition) => 
-          sum + pos.value + pos.rewards, 0);
+        // Calculate total value using usdValue if available, otherwise fallback to value
+        const total = data.positions.reduce((sum: number, pos: AmnisPosition) => {
+          const positionValue = pos.usdValue || pos.value || 0;
+          const rewardsValue = pos.rewards || 0;
+          return sum + positionValue + rewardsValue;
+        }, 0);
         setTotalValue(total);
       } else {
         setPositions([]);
