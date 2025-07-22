@@ -6,6 +6,7 @@ import { TokenDragData } from "@/types/dragDrop";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface TokenItemProps {
   token: Token;
@@ -97,9 +98,18 @@ export function TokenItem({ token }: TokenItemProps) {
           <div className="flex items-center gap-1">
             <span className="text-sm font-medium truncate">{symbol}</span>
             {isStApt && stAptYield > 0 && (
-              <Badge variant="secondary" className="text-xs px-1 py-0 h-4 text-green-600 bg-green-100 border-green-200">
-                {stAptYield.toFixed(1)}%
-              </Badge>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant="secondary" className="text-xs px-1 py-0 h-4 text-green-600 bg-green-100 border-green-200 cursor-help">
+                      {stAptYield.toFixed(1)}%
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Current APY from Amnis Finance liquid staking</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
           </div>
           <span className="text-xs text-muted-foreground">{formattedPrice}</span>
