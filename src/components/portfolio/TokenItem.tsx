@@ -4,6 +4,8 @@ import { getTokenList } from "@/lib/tokens/getTokenList";
 import { useDragDrop } from "@/contexts/DragDropContext";
 import { TokenDragData } from "@/types/dragDrop";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { useState, useEffect } from "react";
 
 interface TokenItemProps {
   token: Token;
@@ -16,6 +18,35 @@ export function TokenItem({ token }: TokenItemProps) {
   const formattedValue = token.value ? `$${parseFloat(token.value).toFixed(2)}` : 'N/A';
   const formattedPrice = token.price ? `$${parseFloat(token.price).toFixed(2)}` : 'N/A';
   const symbol = token.symbol || token.name || 'Unknown';
+
+  // Check if this is stAPT token and show yield badge
+  const isStApt = token.address === '0x111ae3e5bc816a5e63c2da97d0aa3886519e0cd5e4b046659fa35796bd11542a::stapt_token::StakedApt';
+  const [stAptYield, setStAptYield] = useState<number>(0);
+
+  // Fetch real APY for stAPT from Amnis API
+  useEffect(() => {
+    if (isStApt) {
+      const fetchAmnisAPY = async () => {
+        try {
+          const response = await fetch('/api/protocols/amnis/pools');
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.pools && data.pools.length > 0) {
+              // Use APT staking pool APR
+              const aptPool = data.pools.find((pool: any) => pool.asset === 'APT');
+              if (aptPool && aptPool.apr) {
+                setStAptYield(aptPool.apr);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching Amnis APY:', error);
+        }
+      };
+      
+      fetchAmnisAPY();
+    }
+  }, [isStApt]);
 
   // Находим токен в списке для получения logoUrl
   const tokenList = getTokenList(1); // 1 - это chainId для Aptos
@@ -63,13 +94,22 @@ export function TokenItem({ token }: TokenItemProps) {
           <AvatarFallback>{symbol.slice(0, 2)}</AvatarFallback>
         </Avatar>
         <div className="flex flex-col">
-          <span className="text-sm font-medium truncate">{symbol}</span>
+          <div className="flex items-center gap-1">
+            <span className="text-sm font-medium truncate">{symbol}</span>
+            {isStApt && stAptYield > 0 && (
+              <Badge variant="secondary" className="text-xs px-1 py-0 h-4 text-green-600 bg-green-100 border-green-200">
+                {stAptYield.toFixed(1)}%
+              </Badge>
+            )}
+          </div>
           <span className="text-xs text-muted-foreground">{formattedPrice}</span>
         </div>
       </div>
       <div className="text-sm text-right ml-2">
         <div className="font-medium whitespace-nowrap">{formattedValue}</div>
-        <div className="text-xs text-muted-foreground whitespace-nowrap">{formattedAmount}</div>
+        <div className="text-xs text-muted-foreground whitespace-nowrap">
+          {formattedAmount}
+        </div>
       </div>
     </div>
   );
