@@ -53,6 +53,41 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // Get liability markets data
+    let liabilityMarketsData = null;
+    try {
+      const liabilityMarketsResponse = await fetch(
+        `https://fullnode.mainnet.aptoslabs.com/v1/view`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            function: '0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::account_liability_markets',
+            type_arguments: [],
+            arguments: [address]
+          })
+        }
+      );
+
+      if (liabilityMarketsResponse.ok) {
+        const liabilityResult = await liabilityMarketsResponse.json();
+        liabilityMarketsData = Array.isArray(liabilityResult) ? liabilityResult[0] : liabilityResult;
+      }
+    } catch (error) {
+      console.warn(`Error fetching liability markets data:`, error);
+    }
+
+    // Extract liability market addresses and add them to the set
+    if (liabilityMarketsData && Array.isArray(liabilityMarketsData)) {
+      liabilityMarketsData.forEach((item: any) => {
+        if (item.inner) {
+          marketAddresses.add(item.inner);
+        }
+      });
+    }
+
     // Fetch coin information for each market using the correct algorithm
     const marketCoinData = [];
     for (const marketAddress of marketAddresses) {
@@ -179,13 +214,40 @@ export async function GET(request: NextRequest) {
           accountCoins = Array.isArray(coinsResult) ? coinsResult[0] : coinsResult;
         }
 
+        // Step 7: Get account liability for this market
+        let accountLiability = null;
+        try {
+          const accountLiabilityResponse = await fetch(
+            `https://fullnode.mainnet.aptoslabs.com/v1/view`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                function: '0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::account_liability',
+                type_arguments: [],
+                arguments: [address, marketAddress]
+              })
+            }
+          );
+
+          if (accountLiabilityResponse.ok) {
+            const liabilityResult = await accountLiabilityResponse.json();
+            accountLiability = Array.isArray(liabilityResult) ? liabilityResult[0] : liabilityResult;
+          }
+        } catch (error) {
+          console.warn(`Error fetching liability for market ${marketAddress}:`, error);
+        }
+
         marketCoinData.push({
           marketAddress,
           isFa,
           isCoin,
           coinAddress,
           assetMetadata: isFa ? assetMetadata : null,
-          accountCoins
+          accountCoins,
+          accountLiability
         });
 
       } catch (error) {
@@ -196,7 +258,8 @@ export async function GET(request: NextRequest) {
           isCoin: 'Error',
           coinAddress: 'Error',
           assetMetadata: null,
-          accountCoins: null
+          accountCoins: null,
+          accountLiability: null
         });
       }
     }
@@ -206,18 +269,20 @@ export async function GET(request: NextRequest) {
       .map(item => ({
         market: item.marketAddress,
         coin: item.isFa ? (item.assetMetadata?.inner || item.coinAddress) : item.coinAddress,
-        supply: Number(item.accountCoins) || 0
+        supply: Number(item.accountCoins) || 0,
+        borrow: item.accountLiability ? Number(item.accountLiability.principal) || 0 : 0
       }))
-      .filter(item => item.supply > 0);
+      .filter(item => item.supply > 0 || item.borrow > 0);
 
-    // Return market addresses, coin mapping, and user positions
+    // Return market addresses, coin mapping, user positions, and liability markets
     return NextResponse.json({
       success: true,
       data: {
         hasVault: true,
         marketAddresses: Array.from(marketAddresses),
         marketCoinMapping: marketCoinData,
-        userPositions
+        userPositions,
+        liabilityMarkets: liabilityMarketsData
       }
     });
 
