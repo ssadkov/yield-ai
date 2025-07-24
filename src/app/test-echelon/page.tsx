@@ -14,6 +14,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { WalletConnectButton } from "@/components/WalletConnectButton";
 import tokenList from "@/lib/data/tokenList.json";
 
+
 interface EchelonReward {
   token: string;
   tokenType: string;
@@ -786,12 +787,13 @@ export default function TestEchelonPage() {
                          )}
                        </span>
                      </TableCell>
-                    <TableCell>
-                      <span className="font-mono text-gray-600">
-                        {reward.stakeAmount.toFixed(6)}
-                      </span>
-                    </TableCell>
                                          <TableCell>
+                       <span className="font-mono text-gray-600">
+                         {reward.stakeAmount.toFixed(6)}
+                       </span>
+                     </TableCell>
+
+                     <TableCell>
                        <span className="font-mono text-xs text-gray-500">
                          {formatFarmingId(reward.farmingId)}
                        </span>
@@ -819,10 +821,12 @@ export default function TestEchelonPage() {
           <CardContent className="p-8 text-center">
             <p className="text-muted-foreground">No rewards found for this address</p>
           </CardContent>
-                 </Card>
-       )}
+        </Card>
+      )}
+
+
        
-       <Toaster />
-     </div>
-   );
- } 
+      <Toaster />
+    </div>
+  );
+} 

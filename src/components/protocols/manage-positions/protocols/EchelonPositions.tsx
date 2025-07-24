@@ -18,6 +18,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { PanoraPricesService } from "@/lib/services/panora/prices";
 import { TokenPrice } from "@/lib/types/panora";
 import { useClaimRewards } from "@/lib/hooks/useClaimRewards";
+import { ClaimAllRewardsEchelonModal } from "@/components/ui/claim-all-rewards-echelon-modal";
 
 interface Position {
   coin: string;
@@ -43,6 +44,7 @@ export function EchelonPositions() {
   const [totalValue, setTotalValue] = useState<number>(0);
   const [marketData, setMarketData] = useState<any[]>([]);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [showClaimAllModal, setShowClaimAllModal] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
   const [tokenPrices, setTokenPrices] = useState<Record<string, string>>({});
   const [rewardsData, setRewardsData] = useState<EchelonReward[]>([]);
@@ -524,36 +526,47 @@ export function EchelonPositions() {
         <div className="text-right">
           <span className="text-xl text-primary font-bold">${totalValue.toFixed(2)}</span>
           {calculateRewardsValue() > 0 && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="text-sm text-muted-foreground cursor-help">
-                   💰 including rewards ${calculateRewardsValue().toFixed(2)}
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
-                  <div className="text-xs font-semibold mb-1">Rewards breakdown:</div>
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {rewardsData.map((reward, idx) => {
-                      const tokenInfo = getRewardTokenInfoHelper(reward.token);
-                      if (!tokenInfo) return null;
-                      const price = getTokenPrice(tokenInfo.faAddress || tokenInfo.address || '');
-                      const value = price && price !== '0' ? (reward.amount * parseFloat(price)).toFixed(2) : 'N/A';
-                      return (
-                        <div key={idx} className="flex items-center gap-2">
-                          {tokenInfo.icon_uri && (
-                            <img src={tokenInfo.icon_uri} alt={tokenInfo.symbol} className="w-3 h-3 rounded-full" />
-                          )}
-                          <span>{tokenInfo.symbol}</span>
-                          <span>{reward.amount.toFixed(6)}</span>
-                          <span className="text-gray-300">${value}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <div className="flex flex-col items-end gap-1">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="text-sm text-muted-foreground cursor-help">
+                     💰 including rewards ${calculateRewardsValue().toFixed(2)}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
+                    <div className="text-xs font-semibold mb-1">Rewards breakdown:</div>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {rewardsData.map((reward, idx) => {
+                        const tokenInfo = getRewardTokenInfoHelper(reward.token);
+                        if (!tokenInfo) return null;
+                        const price = getTokenPrice(tokenInfo.faAddress || tokenInfo.address || '');
+                        const value = price && price !== '0' ? (reward.amount * parseFloat(price)).toFixed(2) : 'N/A';
+                        return (
+                          <div key={idx} className="flex items-center gap-2">
+                            {tokenInfo.icon_uri && (
+                              <img src={tokenInfo.icon_uri} alt={tokenInfo.symbol} className="w-3 h-3 rounded-full" />
+                            )}
+                            <span>{tokenInfo.symbol}</span>
+                            <span>{reward.amount.toFixed(6)}</span>
+                            <span className="text-gray-300">${value}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              {rewardsData.length > 0 && (
+                <button
+                  className="px-3 py-1 bg-green-600 text-white rounded text-sm font-semibold disabled:opacity-60 hover:bg-green-700 transition-colors"
+                  onClick={() => setShowClaimAllModal(true)}
+                  disabled={isClaiming}
+                >
+                  {isClaiming ? 'Claiming...' : `Claim All Rewards (${rewardsData.length})`}
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -578,6 +591,13 @@ export function EchelonPositions() {
           userAddress={account?.address?.toString()}
         />
       )}
+
+      {/* Claim All Rewards Modal */}
+      <ClaimAllRewardsEchelonModal
+        isOpen={showClaimAllModal}
+        onClose={() => setShowClaimAllModal(false)}
+        rewards={rewardsData}
+      />
     </div>
   );
 } 

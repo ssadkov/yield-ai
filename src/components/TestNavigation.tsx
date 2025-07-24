@@ -70,6 +70,13 @@ const testPages = [
     color: 'bg-indigo-500'
   },
   {
+    name: 'Test Wallet Store',
+    description: 'Test centralized wallet data management',
+    path: '/test-wallet-store',
+    icon: Wallet,
+    color: 'bg-green-500'
+  },
+  {
     name: 'Test Echelon',
     description: 'Test Echelon protocol integration',
     path: '/test-echelon',

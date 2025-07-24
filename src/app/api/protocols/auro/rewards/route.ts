@@ -36,9 +36,9 @@ export async function POST(request: NextRequest) {
 
     // Формируем пары (позиция, collateral reward pool) и (позиция, borrow reward pool)
     const pairs: Array<{ position: string, pool: string }> = [];
-    console.log('=== Начинаем формирование пар ===');
-    console.log('Количество позиций:', positionsInfo.length);
-    console.log('Количество пулов:', poolsData.length);
+    // console.log('=== Начинаем формирование пар ===');
+    // console.log('Количество позиций:', positionsInfo.length);
+    // console.log('Количество пулов:', poolsData.length);
     
     for (const pos of positionsInfo) {
       console.log('Обрабатываем позицию:', {
