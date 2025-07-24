@@ -266,12 +266,25 @@ export async function GET(request: NextRequest) {
 
     // Transform data to userPositions format
     const userPositions = marketCoinData
-      .map(item => ({
-        market: item.marketAddress,
-        coin: item.isFa ? (item.assetMetadata?.inner || item.coinAddress) : item.coinAddress,
-        supply: Number(item.accountCoins) || 0,
-        borrow: item.accountLiability ? Number(item.accountLiability.principal) || 0 : 0
-      }))
+      .map(item => {
+        const supply = Number(item.accountCoins) || 0;
+        const borrow = item.accountLiability && item.accountLiability !== '0' ? Number(item.accountLiability) || 0 : 0;
+        
+        const position: any = {
+          market: item.marketAddress,
+          coin: item.isFa ? (item.assetMetadata?.inner || item.coinAddress) : item.coinAddress
+        };
+        
+        if (supply > 0) {
+          position.supply = supply;
+        }
+        
+        if (borrow > 0) {
+          position.borrow = borrow;
+        }
+        
+        return position;
+      })
       .filter(item => item.supply > 0 || item.borrow > 0);
 
     // Return market addresses, coin mapping, user positions, and liability markets
