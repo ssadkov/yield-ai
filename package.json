@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "update-tokens": "node scripts/update-token-list.js"
   },
   "dependencies": {
     "@aptos-labs/derived-wallet-ethereum": "^0.3.0",

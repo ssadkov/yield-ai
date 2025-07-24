@@ -90,14 +90,14 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    console.log('=== Итоговые пары ===');
-    console.log('Всего пар:', pairs.length);
-    console.log('Пары:', pairs);
+    // console.log('=== Итоговые пары ===');
+    // console.log('Всего пар:', pairs.length);
+    // console.log('Пары:', pairs);
 
     if (pairs.length === 0) {
       return NextResponse.json({ success: true, data: [], message: 'No valid pairs found' });
     }
-    console.log('Пары для одиночных вызовов:', pairs);
+    // console.log('Пары для одиночных вызовов:', pairs);
 
     // Для каждой пары делаем отдельный вызов claimable_rewards
     const rewardsData: any[] = [];
