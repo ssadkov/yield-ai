@@ -24,6 +24,7 @@ interface Position {
   coin: string;
   supply: number;
   supplyApr: number;
+  borrow?: number;
   amount?: number;
   type?: string; // supply или borrow
 }
@@ -295,11 +296,12 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
   const totalValue = useMemo(() => {
     const positionsValue = positions.reduce((sum, position) => {
       const tokenInfo = getTokenInfo(position.coin);
-      const rawAmount = position.supply ?? position.amount ?? 0;
+      const isBorrow = position.type === 'borrow';
+      const rawAmount = isBorrow ? (position.borrow ?? position.amount ?? 0) : (position.supply ?? position.amount ?? 0);
       const amount = rawAmount / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
       const price = getTokenPrice(position.coin);
       const value = price ? amount * parseFloat(price) : 0;
-      if (position.type === 'borrow') {
+      if (isBorrow) {
         return sum - value;
       }
       return sum + value;
@@ -313,8 +315,10 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
     return [...positions].sort((a, b) => {
       const tokenInfoA = getTokenInfo(a.coin);
       const tokenInfoB = getTokenInfo(b.coin);
-      const rawAmountA = a.supply ?? a.amount ?? 0;
-      const rawAmountB = b.supply ?? b.amount ?? 0;
+      const isBorrowA = a.type === 'borrow';
+      const isBorrowB = b.type === 'borrow';
+      const rawAmountA = isBorrowA ? (a.borrow ?? a.amount ?? 0) : (a.supply ?? a.amount ?? 0);
+      const rawAmountB = isBorrowB ? (b.borrow ?? b.amount ?? 0) : (b.supply ?? b.amount ?? 0);
       const amountA = rawAmountA / (tokenInfoA?.decimals ? 10 ** tokenInfoA.decimals : 1e8);
       const amountB = rawAmountB / (tokenInfoB?.decimals ? 10 ** tokenInfoB.decimals : 1e8);
       const priceA = getTokenPrice(a.coin);
@@ -381,11 +385,11 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
           <ScrollArea className="h-full">
             {sortedPositions.map((position, index) => {
               const tokenInfo = getTokenInfo(position.coin);
-              const rawAmount = position.supply ?? position.amount ?? 0;
+              const isBorrow = position.type === 'borrow';
+              const rawAmount = isBorrow ? (position.borrow ?? position.amount ?? 0) : (position.supply ?? position.amount ?? 0);
               const amount = rawAmount / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
               const price = getTokenPrice(position.coin);
               const value = price ? (amount * parseFloat(price)).toFixed(2) : 'N/A';
-              const isBorrow = position.type === 'borrow';
               return (
                 <div key={`${position.coin}-${index}`} className={cn('mb-2', isBorrow && 'bg-red-50 rounded')}> 
                   <div className="flex justify-between items-center">
