@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 const APTOS_API_KEY = process.env.APTOS_API_KEY;
 
 // Main function that can be called directly
-export async function getAccountCollateralMarkets(address: string) {
+async function getAccountCollateralMarkets(address: string) {
   try {
     if (!address) {
       throw new Error('Address parameter is required');
