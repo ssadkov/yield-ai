@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Import the account-collateral-markets logic directly
+import { getAccountCollateralMarkets } from '../account-collateral-markets/route';
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -12,19 +15,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Use the new account-collateral-markets API
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/protocols/echelon/account-collateral-markets?address=${address}`
-    );
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch account collateral markets: ${response.status}`);
-    }
-
-    const data = await response.json();
+    // Call the account-collateral-markets function directly
+    const data = await getAccountCollateralMarkets(address);
 
     if (!data.success) {
       throw new Error(data.error || 'Failed to fetch user positions');
+    }
+
+    if (!data.data || !data.data.userPositions) {
+      return NextResponse.json({
+        success: true,
+        data: []
+      });
     }
 
     // Transform userPositions to match the expected format

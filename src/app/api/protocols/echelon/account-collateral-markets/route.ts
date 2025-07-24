@@ -2,16 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const APTOS_API_KEY = process.env.APTOS_API_KEY;
 
-export async function GET(request: NextRequest) {
+// Main function that can be called directly
+export async function getAccountCollateralMarkets(address: string) {
   try {
-    const { searchParams } = new URL(request.url);
-    const address = searchParams.get('address');
-
     if (!address) {
-      return NextResponse.json(
-        { error: 'Address parameter is required' },
-        { status: 400 }
-      );
+      throw new Error('Address parameter is required');
     }
 
     console.log('🔑 APTOS_API_KEY exists:', !!APTOS_API_KEY);
@@ -43,13 +38,13 @@ export async function GET(request: NextRequest) {
     );
 
     if (!vaultResource) {
-      return NextResponse.json({
+      return {
         success: true,
         data: {
           hasVault: false,
           message: "No lending vault found for this address"
         }
-      });
+      };
     }
 
     // Extract market addresses from vault data
@@ -288,7 +283,7 @@ export async function GET(request: NextRequest) {
       .filter(item => item.supply > 0 || item.borrow > 0);
 
     // Return market addresses, coin mapping, user positions, and liability markets
-    return NextResponse.json({
+    return {
       success: true,
       data: {
         hasVault: true,
@@ -297,10 +292,40 @@ export async function GET(request: NextRequest) {
         userPositions,
         liabilityMarkets: liabilityMarketsData
       }
-    });
+    };
 
   } catch (error) {
     console.error('Error fetching account collateral markets:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred' 
+    };
+  }
+}
+
+// API route handler
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const address = searchParams.get('address');
+
+    if (!address) {
+      return NextResponse.json(
+        { error: 'Address parameter is required' },
+        { status: 400 }
+      );
+    }
+
+    const result = await getAccountCollateralMarkets(address);
+    
+    if (!result.success) {
+      return NextResponse.json(result, { status: 500 });
+    }
+    
+    return NextResponse.json(result);
+
+  } catch (error) {
+    console.error('Error in GET handler:', error);
     return NextResponse.json(
       { 
         success: false,
