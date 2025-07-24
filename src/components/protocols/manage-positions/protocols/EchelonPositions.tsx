@@ -54,12 +54,32 @@ export function EchelonPositions() {
   const isModalOpenRef = useRef(false);
   const pricesService = PanoraPricesService.getInstance();
 
-  // Получаем все уникальные адреса токенов из позиций
-  const getAllTokenAddresses = () => {
+  // Функция для получения информации о токене наград
+  const getRewardTokenInfoHelper = (tokenName: string) => {
+    const token = (tokenList as any).data.data.find(
+      (t: any) => 
+        t.symbol.toLowerCase() === tokenName.toLowerCase() ||
+        t.name.toLowerCase().includes(tokenName.toLowerCase())
+    );
+    
+    if (!token) return undefined;
+    
+    return {
+      address: token.tokenAddress,
+      faAddress: token.faAddress,
+      symbol: token.symbol,
+      icon_uri: token.logoUrl,
+      decimals: token.decimals,
+      usdPrice: getTokenPrice(token.faAddress || token.tokenAddress || '')
+    };
+  };
+
+  // Получаем все уникальные адреса токенов из позиций и наград
+  const getAllTokenAddresses = useCallback(() => {
     const addresses = new Set<string>();
     
+    // Добавляем адреса токенов позиций
     positions.forEach(position => {
-      // Нормализуем адрес токена
       let cleanAddress = position.coin;
       if (cleanAddress.startsWith('@')) {
         cleanAddress = cleanAddress.slice(1);
@@ -69,9 +89,20 @@ export function EchelonPositions() {
       }
       addresses.add(cleanAddress);
     });
-    
+
+    // Добавляем адреса токенов наград
+    rewardsData.forEach((reward) => {
+      const tokenInfo = getRewardTokenInfoHelper(reward.token);
+      if (tokenInfo?.faAddress) {
+        addresses.add(tokenInfo.faAddress);
+      }
+      if (tokenInfo?.address) {
+        addresses.add(tokenInfo.address);
+      }
+    });
+
     return Array.from(addresses);
-  };
+  }, [positions, rewardsData, getRewardTokenInfoHelper]);
 
   // Получаем цену токена из кэша
   const getTokenPrice = (coinAddress: string): string => {
@@ -85,21 +116,7 @@ export function EchelonPositions() {
     return tokenPrices[cleanAddress] || '0';
   };
 
-  // Получаем информацию о токене награды
-  const getRewardTokenInfoHelper = (tokenName: string) => {
-    const token = (tokenList as any).data.data.find(
-      (t: any) => t.symbol === tokenName || t.name === tokenName
-    );
-    if (!token) return undefined;
-    return {
-      address: token.tokenAddress,
-      faAddress: token.faAddress,
-      symbol: token.symbol,
-      icon_uri: token.logoUrl,
-      decimals: token.decimals,
-      usdPrice: getTokenPrice(token.faAddress || token.tokenAddress || '')
-    };
-  };
+
 
   // Загрузка rewards
   const fetchRewards = useCallback(async () => {
@@ -125,8 +142,10 @@ export function EchelonPositions() {
     return rewardsData.reduce((sum, reward) => {
       const tokenInfo = getRewardTokenInfoHelper(reward.token);
       if (!tokenInfo) return sum;
+      
       const price = getTokenPrice(tokenInfo.faAddress || tokenInfo.address || '');
       const value = price && price !== '0' ? reward.amount * parseFloat(price) : 0;
+      
       return sum + value;
     }, 0);
   }, [rewardsData, tokenPrices]);
@@ -143,20 +162,20 @@ export function EchelonPositions() {
       
       // Обновить данные
       await fetchRewards();
-      await loadPositions();
     } catch (error) {
       console.error('Error claiming rewards:', error);
     }
   };
 
-  // Получаем цены токенов через Panora API
+  // Получаем цены токенов через Panora API с дебаунсингом
   useEffect(() => {
-    const fetchPrices = async () => {
+    const timeoutId = setTimeout(async () => {
       const addresses = getAllTokenAddresses();
-      if (addresses.length === 0) return;
+      if (addresses.length === 0 || !account?.address) return;
 
       try {
         const response = await pricesService.getPrices(1, addresses);
+        
         if (response.data) {
           const prices: Record<string, string> = {};
           response.data.forEach((price: TokenPrice) => {
@@ -172,74 +191,14 @@ export function EchelonPositions() {
       } catch (error) {
         console.error('Error fetching token prices:', error);
       }
-    };
+    }, 1000); // Дебаунсинг 1 секунда
 
-    fetchPrices();
-  }, [positions]);
+    return () => clearTimeout(timeoutId);
+  }, [getAllTokenAddresses, pricesService, account?.address]);
 
-  // Загрузка цен токенов для rewards
-  useEffect(() => {
-    const fetchRewardPrices = async () => {
-      const addresses = rewardsData.map(reward => {
-        const tokenInfo = getRewardTokenInfoHelper(reward.token);
-        return tokenInfo?.faAddress || tokenInfo?.address || '';
-      }).filter(Boolean);
-      
-      if (addresses.length === 0) return;
-      
-      try {
-        const response = await pricesService.getPrices(1, addresses);
-        if (response.data) {
-          const prices: Record<string, string> = {};
-          response.data.forEach((price: TokenPrice) => {
-            if (price.tokenAddress) prices[price.tokenAddress] = price.usdPrice;
-            if (price.faAddress) prices[price.faAddress] = price.usdPrice;
-          });
-          setTokenPrices(prev => ({ ...prev, ...prices }));
-        }
-      } catch (error) {
-        console.error('Error fetching reward token prices:', error);
-      }
-    };
-    
-    fetchRewardPrices();
-  }, [rewardsData]);
 
-  // Загружаем rewards
-  useEffect(() => {
-    fetchRewards();
-  }, [fetchRewards]);
 
-  // Функция для загрузки позиций
-  const loadPositions = useCallback(async () => {
-    if (!account?.address) return;
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/protocols/echelon/userPositions?address=${account.address}`);
-      const data = await response.json();
-      console.log('EchelonPositions - loadPositions raw data:', data);
-      
-      if (data.success && Array.isArray(data.data)) {
-        console.log('EchelonPositions - data.data length:', data.data.length);
-        console.log('EchelonPositions - data.data:', data.data);
-        
-        // Просто устанавливаем позиции без дополнительной обработки
-        console.log('EchelonPositions - setting positions with length:', data.data.length);
-        setPositions(data.data);
-      } else {
-        console.log('EchelonPositions - no valid data, setting empty positions');
-        console.log('EchelonPositions - data.success:', data.success);
-        console.log('EchelonPositions - data.data type:', typeof data.data);
-        console.log('EchelonPositions - data.data:', data.data);
-        setPositions([]);
-      }
-    } catch (error) {
-      console.error('EchelonPositions - loadPositions error:', error);
-      setPositions([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [account?.address]);
+
 
   // Загружаем marketData с APY
   useEffect(() => {
@@ -256,9 +215,48 @@ export function EchelonPositions() {
       });
   }, []);
 
+  // Объединенный useEffect для загрузки позиций и наград с дебаунсингом
   useEffect(() => {
-    loadPositions();
-  }, [loadPositions]);
+    if (!account?.address) {
+      setPositions([]);
+      setRewardsData([]);
+      return;
+    }
+
+    const timeoutId = setTimeout(async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        // Загружаем позиции
+        const positionsResponse = await fetch(`/api/protocols/echelon/userPositions?address=${account.address}`);
+        
+        if (!positionsResponse.ok) {
+          throw new Error(`Positions API returned status ${positionsResponse.status}`);
+        }
+        
+        const positionsData = await positionsResponse.json();
+        
+        if (positionsData.success && Array.isArray(positionsData.data)) {
+          setPositions(positionsData.data);
+        } else {
+          setPositions([]);
+        }
+        
+        // Загружаем награды
+        await fetchRewards();
+      } catch (err) {
+        console.error('[Managing Positions] Error loading data:', err);
+        setError('Failed to load Echelon positions');
+        setPositions([]);
+        setRewardsData([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 500); // Дебаунсинг 500мс
+
+    return () => clearTimeout(timeoutId);
+  }, [account?.address, fetchRewards]);
 
   const getTokenInfo = (coinAddress: string) => {
     const token = (tokenList as any).data.data.find(
@@ -597,6 +595,7 @@ export function EchelonPositions() {
         isOpen={showClaimAllModal}
         onClose={() => setShowClaimAllModal(false)}
         rewards={rewardsData}
+        tokenPrices={tokenPrices}
       />
     </div>
   );
