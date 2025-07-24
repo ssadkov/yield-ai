@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json();
-    console.log('Aptos API response:', data);
+    // console.log('Aptos API response:', data);
 
     if (!data.data?.current_fungible_asset_balances) {
       return NextResponse.json({ aptBalance: 0 });

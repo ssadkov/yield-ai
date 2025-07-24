@@ -286,7 +286,7 @@ export async function GET(request: Request) {
     }
 
     const aptosData = await aptosResponse.json();
-    console.log('Aptos API response:', aptosData);
+    // console.log('Aptos API response:', aptosData);
     
     const balances = aptosData.data?.current_fungible_asset_balances || [];
     console.log('Wallet balances:', balances);

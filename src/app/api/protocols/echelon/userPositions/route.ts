@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAccountCollateralMarkets } from '../account-collateral-markets/route';
+import { getAccountCollateralMarkets } from '@/lib/protocols/echelon/accountCollateralMarkets';
 
 export async function GET(request: NextRequest) {
   try {
