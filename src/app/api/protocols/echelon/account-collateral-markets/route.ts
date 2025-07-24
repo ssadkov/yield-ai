@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+const APTOS_API_KEY = process.env.APTOS_API_KEY;
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -12,9 +14,21 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    console.log('🔑 APTOS_API_KEY exists:', !!APTOS_API_KEY);
+
+    // Prepare headers with API key if available
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (APTOS_API_KEY) {
+      headers['Authorization'] = `Bearer ${APTOS_API_KEY}`;
+    }
+
     // Fetch account collateral markets data from Aptos blockchain
     const response = await fetch(
-      `https://fullnode.mainnet.aptoslabs.com/v1/accounts/${address}/resources`
+      `https://fullnode.mainnet.aptoslabs.com/v1/accounts/${address}/resources`,
+      { headers }
     );
 
     if (!response.ok) {
@@ -60,9 +74,7 @@ export async function GET(request: NextRequest) {
         `https://fullnode.mainnet.aptoslabs.com/v1/view`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers,
           body: JSON.stringify({
             function: '0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::account_liability_markets',
             type_arguments: [],
@@ -97,9 +109,7 @@ export async function GET(request: NextRequest) {
           `https://fullnode.mainnet.aptoslabs.com/v1/view`,
           {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers,
             body: JSON.stringify({
               function: '0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::market_is_fa',
               type_arguments: [],
@@ -124,9 +134,7 @@ export async function GET(request: NextRequest) {
               `https://fullnode.mainnet.aptoslabs.com/v1/view`,
               {
                 method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
+                headers,
                 body: JSON.stringify({
                   function: '0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::market_asset_metadata',
                   type_arguments: [],
@@ -149,9 +157,7 @@ export async function GET(request: NextRequest) {
               `https://fullnode.mainnet.aptoslabs.com/v1/view`,
               {
                 method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
+                headers,
                 body: JSON.stringify({
                   function: '0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::market_is_coin',
                   type_arguments: [],
@@ -170,9 +176,7 @@ export async function GET(request: NextRequest) {
                   `https://fullnode.mainnet.aptoslabs.com/v1/view`,
                   {
                     method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
+                    headers,
                     body: JSON.stringify({
                       function: '0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::market_coin',
                       type_arguments: [],
@@ -198,9 +202,7 @@ export async function GET(request: NextRequest) {
           `https://fullnode.mainnet.aptoslabs.com/v1/view`,
           {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers,
             body: JSON.stringify({
               function: '0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::account_coins',
               type_arguments: [],
@@ -221,9 +223,7 @@ export async function GET(request: NextRequest) {
             `https://fullnode.mainnet.aptoslabs.com/v1/view`,
             {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
+              headers,
               body: JSON.stringify({
                 function: '0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::lending::account_liability',
                 type_arguments: [],

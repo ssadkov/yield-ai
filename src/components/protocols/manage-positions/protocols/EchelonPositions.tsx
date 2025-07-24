@@ -14,15 +14,25 @@ import { WithdrawModal } from "@/components/ui/withdraw-modal";
 import echelonMarkets from "@/lib/data/echelonMarkets.json";
 import { useDragDrop } from "@/contexts/DragDropContext";
 import { PositionDragData } from "@/types/dragDrop";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { PanoraPricesService } from "@/lib/services/panora/prices";
 import { TokenPrice } from "@/lib/types/panora";
+import { useClaimRewards } from "@/lib/hooks/useClaimRewards";
 
 interface Position {
   coin: string;
   amount: number | string;
   market?: string;
   type?: string; // supply или borrow
+}
+
+interface EchelonReward {
+  token: string;
+  tokenType: string;
+  amount: number;
+  rawAmount: string;
+  farmingId: string;
+  stakeAmount: number;
 }
 
 export function EchelonPositions() {
@@ -35,7 +45,9 @@ export function EchelonPositions() {
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
   const [tokenPrices, setTokenPrices] = useState<Record<string, string>>({});
+  const [rewardsData, setRewardsData] = useState<EchelonReward[]>([]);
   const { withdraw, isLoading: isWithdrawing } = useWithdraw();
+  const { claimRewards, isLoading: isClaiming } = useClaimRewards();
   const { startDrag, endDrag, state, closePositionModal, closeAllModals, setPositionConfirmHandler } = useDragDrop();
   const isModalOpenRef = useRef(false);
   const pricesService = PanoraPricesService.getInstance();
@@ -71,6 +83,70 @@ export function EchelonPositions() {
     return tokenPrices[cleanAddress] || '0';
   };
 
+  // Получаем информацию о токене награды
+  const getRewardTokenInfoHelper = (tokenName: string) => {
+    const token = (tokenList as any).data.data.find(
+      (t: any) => t.symbol === tokenName || t.name === tokenName
+    );
+    if (!token) return undefined;
+    return {
+      address: token.tokenAddress,
+      faAddress: token.faAddress,
+      symbol: token.symbol,
+      icon_uri: token.logoUrl,
+      decimals: token.decimals,
+      usdPrice: getTokenPrice(token.faAddress || token.tokenAddress || '')
+    };
+  };
+
+  // Загрузка rewards
+  const fetchRewards = useCallback(async () => {
+    if (!account?.address) return;
+    
+    try {
+      const response = await fetch(`/api/protocols/echelon/rewards?address=${account.address}`);
+      const data = await response.json();
+      
+      if (data.success && Array.isArray(data.data)) {
+        setRewardsData(data.data);
+      } else {
+        setRewardsData([]);
+      }
+    } catch (error) {
+      console.error('Error loading rewards:', error);
+      setRewardsData([]);
+    }
+  }, [account?.address]);
+
+  // Расчет стоимости rewards
+  const calculateRewardsValue = useCallback(() => {
+    return rewardsData.reduce((sum, reward) => {
+      const tokenInfo = getRewardTokenInfoHelper(reward.token);
+      if (!tokenInfo) return sum;
+      const price = getTokenPrice(tokenInfo.faAddress || tokenInfo.address || '');
+      const value = price && price !== '0' ? reward.amount * parseFloat(price) : 0;
+      return sum + value;
+    }, 0);
+  }, [rewardsData, tokenPrices]);
+
+  // Claim rewards
+  const handleClaimRewards = async () => {
+    if (!account?.address || rewardsData.length === 0) return;
+    
+    try {
+      // Для Echelon нужно вызывать claim для каждого reward отдельно
+      for (const reward of rewardsData) {
+        await claimRewards('echelon', [reward.farmingId], [reward.tokenType]);
+      }
+      
+      // Обновить данные
+      await fetchRewards();
+      await loadPositions();
+    } catch (error) {
+      console.error('Error claiming rewards:', error);
+    }
+  };
+
   // Получаем цены токенов через Panora API
   useEffect(() => {
     const fetchPrices = async () => {
@@ -98,6 +174,39 @@ export function EchelonPositions() {
 
     fetchPrices();
   }, [positions]);
+
+  // Загрузка цен токенов для rewards
+  useEffect(() => {
+    const fetchRewardPrices = async () => {
+      const addresses = rewardsData.map(reward => {
+        const tokenInfo = getRewardTokenInfoHelper(reward.token);
+        return tokenInfo?.faAddress || tokenInfo?.address || '';
+      }).filter(Boolean);
+      
+      if (addresses.length === 0) return;
+      
+      try {
+        const response = await pricesService.getPrices(1, addresses);
+        if (response.data) {
+          const prices: Record<string, string> = {};
+          response.data.forEach((price: TokenPrice) => {
+            if (price.tokenAddress) prices[price.tokenAddress] = price.usdPrice;
+            if (price.faAddress) prices[price.faAddress] = price.usdPrice;
+          });
+          setTokenPrices(prev => ({ ...prev, ...prices }));
+        }
+      } catch (error) {
+        console.error('Error fetching reward token prices:', error);
+      }
+    };
+    
+    fetchRewardPrices();
+  }, [rewardsData]);
+
+  // Загружаем rewards
+  useEffect(() => {
+    fetchRewards();
+  }, [fetchRewards]);
 
   // Функция для загрузки позиций
   const loadPositions = useCallback(async () => {
@@ -187,9 +296,9 @@ export function EchelonPositions() {
     return valueB - valueA;
   });
 
-  // Считаем общую сумму: supply плюсуем, borrow вычитаем
+  // Считаем общую сумму: supply плюсуем, borrow вычитаем, rewards плюсуем
   useEffect(() => {
-    const total = sortedPositions.reduce((sum, position) => {
+    const positionsValue = sortedPositions.reduce((sum, position) => {
       const tokenInfo = getTokenInfo(position.coin);
       const amount = parseFloat(String(position.amount)) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
       const price = getTokenPrice(position.coin);
@@ -199,8 +308,10 @@ export function EchelonPositions() {
       }
       return sum + value;
     }, 0);
-    setTotalValue(total);
-  }, [sortedPositions, tokenPrices]);
+    
+    const rewardsValue = calculateRewardsValue();
+    setTotalValue(positionsValue + rewardsValue);
+  }, [sortedPositions, tokenPrices, calculateRewardsValue]);
 
   // Обработчик открытия модального окна withdraw
   const handleWithdrawClick = (position: Position) => {
@@ -410,7 +521,41 @@ export function EchelonPositions() {
       </ScrollArea>
       <div className="flex items-center justify-between pt-6 pb-6">
         <span className="text-xl">Total assets in Echelon:</span>
-        <span className="text-xl text-primary font-bold">${totalValue.toFixed(2)}</span>
+        <div className="text-right">
+          <span className="text-xl text-primary font-bold">${totalValue.toFixed(2)}</span>
+          {calculateRewardsValue() > 0 && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="text-sm text-muted-foreground cursor-help">
+                   💰 including rewards ${calculateRewardsValue().toFixed(2)}
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
+                  <div className="text-xs font-semibold mb-1">Rewards breakdown:</div>
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {rewardsData.map((reward, idx) => {
+                      const tokenInfo = getRewardTokenInfoHelper(reward.token);
+                      if (!tokenInfo) return null;
+                      const price = getTokenPrice(tokenInfo.faAddress || tokenInfo.address || '');
+                      const value = price && price !== '0' ? (reward.amount * parseFloat(price)).toFixed(2) : 'N/A';
+                      return (
+                        <div key={idx} className="flex items-center gap-2">
+                          {tokenInfo.icon_uri && (
+                            <img src={tokenInfo.icon_uri} alt={tokenInfo.symbol} className="w-3 h-3 rounded-full" />
+                          )}
+                          <span>{tokenInfo.symbol}</span>
+                          <span>{reward.amount.toFixed(6)}</span>
+                          <span className="text-gray-300">${value}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
       </div>
 
       {/* Withdraw Modal */}

@@ -4,15 +4,24 @@ import { Aptos, AptosConfig, Network } from '@aptos-labs/ts-sdk';
 // Auro Finance contract address (mainnet)
 const AURO_ADDRESS = "0x50a340a19e6ada1be07192c042786ca6a9651d5c845acc8727e8c6416a56a32c";
 
-// Initialize Aptos client
+const APTOS_API_KEY = process.env.APTOS_API_KEY;
+
+// Initialize Aptos client with API key
 const config = new AptosConfig({
   network: Network.MAINNET,
+  ...(APTOS_API_KEY && {
+    fullnode: `https://fullnode.mainnet.aptoslabs.com/v1`,
+    headers: {
+      'Authorization': `Bearer ${APTOS_API_KEY}`,
+    },
+  }),
 });
 const aptos = new Aptos(config);
 
 export async function POST(request: NextRequest) {
   try {
     console.log('=== Auro Rewards API Route Started ===');
+    console.log('🔑 APTOS_API_KEY exists:', !!APTOS_API_KEY);
     
     // Получаем данные из запроса
     const body = await request.json();
