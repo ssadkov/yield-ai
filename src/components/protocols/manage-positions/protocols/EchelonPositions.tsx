@@ -19,6 +19,8 @@ import { PanoraPricesService } from "@/lib/services/panora/prices";
 import { TokenPrice } from "@/lib/types/panora";
 import { useClaimRewards } from "@/lib/hooks/useClaimRewards";
 import { ClaimAllRewardsEchelonModal } from "@/components/ui/claim-all-rewards-echelon-modal";
+import { DepositModal } from "@/components/ui/deposit-modal";
+import { ProtocolKey } from "@/lib/transactions/types";
 
 interface Position {
   coin: string;
@@ -44,6 +46,7 @@ export function EchelonPositions() {
   const [totalValue, setTotalValue] = useState<number>(0);
   const [marketData, setMarketData] = useState<any[]>([]);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [showDepositModal, setShowDepositModal] = useState(false);
   const [showClaimAllModal, setShowClaimAllModal] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
   const [tokenPrices, setTokenPrices] = useState<Record<string, string>>({});
@@ -319,6 +322,12 @@ export function EchelonPositions() {
     setShowWithdrawModal(true);
   };
 
+  // Обработчик открытия модального окна deposit
+  const handleDepositClick = (position: Position) => {
+    setSelectedPosition(position);
+    setShowDepositModal(true);
+  };
+
   // Drag and drop handlers
   const handleDragStart = (e: React.DragEvent, position: Position) => {
     const tokenInfo = getTokenInfo(position.coin);
@@ -500,17 +509,29 @@ export function EchelonPositions() {
                   <div className="text-base text-muted-foreground font-semibold">{amount.toFixed(4)}</div>
                   <div className="flex flex-col gap-1 mt-2">
                     {!isBorrow && (
-                      <button
-                        className={cn(
-                          'px-3 py-1 rounded text-sm font-semibold disabled:opacity-60 transition-all',
-                          'bg-green-500 text-white hover:bg-green-600',
-                          'shadow-lg'
-                        )}
-                        onClick={() => handleWithdrawClick(position)}
-                        disabled={isWithdrawing}
-                      >
-                        {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          className={cn(
+                            'px-3 py-1 rounded text-sm font-semibold disabled:opacity-60 transition-all',
+                            'bg-blue-500 text-white hover:bg-blue-600',
+                            'shadow-lg flex-1'
+                          )}
+                          onClick={() => handleDepositClick(position)}
+                        >
+                          Deposit
+                        </button>
+                        <button
+                          className={cn(
+                            'px-3 py-1 rounded text-sm font-semibold disabled:opacity-60 transition-all',
+                            'bg-green-500 text-white hover:bg-green-600',
+                            'shadow-lg flex-1'
+                          )}
+                          onClick={() => handleWithdrawClick(position)}
+                          disabled={isWithdrawing}
+                        >
+                          {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -568,6 +589,36 @@ export function EchelonPositions() {
           )}
         </div>
       </div>
+
+      {/* Deposit Modal */}
+      {selectedPosition && (
+        <DepositModal
+          isOpen={showDepositModal}
+          onClose={() => {
+            setShowDepositModal(false);
+            setSelectedPosition(null);
+          }}
+          protocol={{
+            name: "Echelon",
+            logo: "/echelon-favicon.ico",
+            apy: getApyForPosition(selectedPosition) ? getApyForPosition(selectedPosition)! * 100 : 0,
+            key: "echelon" as ProtocolKey
+          }}
+          tokenIn={{
+            symbol: getTokenInfo(selectedPosition.coin)?.symbol || selectedPosition.coin.substring(0, 4).toUpperCase(),
+            logo: getTokenInfo(selectedPosition.coin)?.logoUrl || '/file.svg',
+            decimals: getTokenInfo(selectedPosition.coin)?.decimals || 8,
+            address: selectedPosition.coin
+          }}
+          tokenOut={{
+            symbol: getTokenInfo(selectedPosition.coin)?.symbol || selectedPosition.coin.substring(0, 4).toUpperCase(),
+            logo: getTokenInfo(selectedPosition.coin)?.logoUrl || '/file.svg',
+            decimals: getTokenInfo(selectedPosition.coin)?.decimals || 8,
+            address: selectedPosition.coin
+          }}
+          priceUSD={parseFloat(getTokenPrice(selectedPosition.coin)) || 0}
+        />
+      )}
 
       {/* Withdraw Modal */}
       {selectedPosition && (
