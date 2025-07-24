@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAccountCollateralMarkets } from '../account-collateral-markets/route';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,28 +13,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Use relative URL for server-side API calls
-    const baseUrl = process.env.NODE_ENV === 'production' 
-      ? process.env.VERCEL_URL 
-        ? `https://${process.env.VERCEL_URL}`
-        : process.env.NEXT_PUBLIC_API_BASE_URL
-      : process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
-    
-    const response = await fetch(
-      `${baseUrl}/api/protocols/echelon/account-collateral-markets?address=${address}`
-    );
+    // Call the function directly instead of making an HTTP request
+    const result = await getAccountCollateralMarkets(address);
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch account collateral markets: ${response.status}`);
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to fetch user positions');
     }
 
-    const data = await response.json();
-
-    if (!data.success) {
-      throw new Error(data.error || 'Failed to fetch user positions');
-    }
-
-    if (!data.data || !data.data.userPositions) {
+    if (!result.data || !result.data.userPositions) {
       return NextResponse.json({
         success: true,
         data: []
@@ -41,7 +28,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform userPositions to match the expected format
-    const positions = data.data.userPositions.map((position: any) => {
+    const positions = result.data.userPositions.map((position: any) => {
       const transformedPosition: any = {
         market: position.market,
         coin: position.coin,

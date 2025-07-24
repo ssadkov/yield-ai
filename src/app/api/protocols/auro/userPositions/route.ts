@@ -33,11 +33,16 @@ async function getCollateralToken(poolAddress: string): Promise<string | null> {
 
     console.log('Getting collateral token for pool:', poolAddress);
     
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (process.env.APTOS_API_KEY) {
+      headers['Authorization'] = `Bearer ${process.env.APTOS_API_KEY}`;
+    }
+    
     const response = await fetch('https://fullnode.mainnet.aptoslabs.com/v1/view', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(viewPayload)
     });
 
