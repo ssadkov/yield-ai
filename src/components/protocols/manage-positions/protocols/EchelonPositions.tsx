@@ -32,6 +32,7 @@ interface Position {
 interface EchelonReward {
   token: string;
   tokenType: string;
+  rewardName?: string;
   amount: number;
   rawAmount: string;
   farmingId: string;

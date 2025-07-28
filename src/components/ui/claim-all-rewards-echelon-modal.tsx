@@ -5,12 +5,13 @@ import { Progress } from "@/components/ui/progress";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useToast } from "@/components/ui/use-toast";
 import { ToastAction } from "@/components/ui/toast";
-import { X, CheckCircle, AlertCircle } from "lucide-react";
+import { CheckCircle, AlertCircle } from "lucide-react";
 import tokenList from "@/lib/data/tokenList.json";
 
 interface EchelonReward {
   token: string;
   tokenType: string;
+  rewardName?: string;
   amount: number;
   rawAmount: string;
   farmingId: string;
@@ -119,7 +120,7 @@ export function ClaimAllRewardsEchelonModal({ isOpen, onClose, rewards, tokenPri
           },
           body: JSON.stringify({
             userAddress: account.address.toString(),
-            rewardName: reward.token,
+            rewardName: reward.rewardName || reward.token,
             farmingId: reward.farmingId
           })
         });
@@ -251,18 +252,8 @@ export function ClaimAllRewardsEchelonModal({ isOpen, onClose, rewards, tokenPri
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <span>Claim All Echelon Rewards</span>
-            {!isClaiming && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleClose}
-                className="h-6 w-6 p-0"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
+          <DialogTitle>
+            Claim All Echelon Rewards
           </DialogTitle>
         </DialogHeader>
 

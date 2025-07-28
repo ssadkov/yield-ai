@@ -128,6 +128,7 @@ export async function GET(request: NextRequest) {
             rewards.push({
               token: tokenSymbol, // Используем правильный символ для UI
               tokenType: tokenType || "Unknown",
+              rewardName: rewardName, // Добавляем полное название для совместимости
               amount: formattedAmount,
               rawAmount: claimableAmount,
               farmingId: farmingId,

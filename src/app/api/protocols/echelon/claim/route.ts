@@ -18,6 +18,21 @@ const REWARD_TOKEN_TYPES: { [key: string]: string } = {
   // Add more mappings as needed
 };
 
+// Map token symbols to full reward names (reverse mapping)
+const TOKEN_SYMBOL_TO_REWARD_NAME: { [key: string]: string } = {
+  "APT": "Aptos Coin",
+  "thAPT": "Thala APT",
+  "sthAPT": "StakedThalaAPT",
+  "ECHO": "ECHO",
+  "MKL": "MKL",
+  "AMI": "AMI",
+  "LSD": "LSD",
+  "THL": "THL",
+  "CELL": "CELL",
+  "VIBE": "VIBE",
+  // Add more mappings as needed
+};
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -38,7 +53,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the token type for the reward
-    const tokenType = REWARD_TOKEN_TYPES[rewardName];
+    // First try to find by symbol, then by full name
+    let fullRewardName = rewardName;
+    if (TOKEN_SYMBOL_TO_REWARD_NAME[rewardName]) {
+      fullRewardName = TOKEN_SYMBOL_TO_REWARD_NAME[rewardName];
+    }
+    
+    const tokenType = REWARD_TOKEN_TYPES[fullRewardName];
     if (!tokenType) {
       return NextResponse.json({ 
         success: false, 
