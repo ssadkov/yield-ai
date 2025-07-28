@@ -25,10 +25,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Calling PanoraSwapService.buildSwapTransaction...');
+    console.log('Calling PanoraSwapService.executeSwap...');
     const swapService = PanoraSwapService.getInstance();
-    const response = await swapService.buildSwapTransaction(quoteData, walletAddress);
-    console.log('Build transaction response:', response);
+    const response = await swapService.executeSwap(quoteData, walletAddress);
+    console.log('Execute swap response:', response);
 
     if (!response.success) {
       console.log('Swap failed:', response.error);

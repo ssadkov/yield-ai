@@ -8,6 +8,7 @@ declare global {
   interface Window {
     aptos?: {
       signAndSubmitTransaction: (payload: any) => Promise<{ hash: string }>;
+      account: () => Promise<{ address: string }>;
     };
   }
 }
@@ -51,7 +52,7 @@ export default function TestPanoraPage() {
   const [fromToken, setFromToken] = useState<Token | null>(null);
   const [toToken, setToToken] = useState<Token | null>(null);
   const [amount, setAmount] = useState<string>('');
-  const [slippage, setSlippage] = useState<number>(1.0); // 1%
+  const [slippage, setSlippage] = useState<number>(2.0); // 2% - increased for better success rate
   
   // Available tokens from wallet
   const availableTokens = useMemo(() => {
@@ -184,6 +185,10 @@ export default function TestPanoraPage() {
     }
   };
 
+
+
+
+
   const executeSwap = async () => {
     console.log('executeSwap called');
     console.log('fromToken:', fromToken);
@@ -192,6 +197,27 @@ export default function TestPanoraPage() {
     console.log('swapQuote:', swapQuote);
     console.log('userAddress:', userAddress);
     console.log('quoteDebug:', quoteDebug);
+
+    // Check wallet connection first
+    if (typeof window === 'undefined' || !window.aptos) {
+      setError('Aptos wallet not available. Please install Petra or Martian wallet.');
+      return;
+    }
+
+    try {
+      // Check if wallet is connected
+      const account = await window.aptos.account();
+      console.log('Connected account:', account);
+      
+      if (!account.address) {
+        setError('Wallet not connected. Please connect your wallet first.');
+        return;
+      }
+    } catch (walletError: any) {
+      console.error('Wallet connection error:', walletError);
+      setError('Failed to connect to wallet. Please check your wallet connection.');
+      return;
+    }
 
     if (!fromToken || !toToken || !amount || !swapQuote || !userAddress || !quoteDebug) {
       const missing = [];
@@ -239,29 +265,50 @@ export default function TestPanoraPage() {
       const swapData = await response.json();
       console.log('Swap response:', swapData);
       
+      // Check if the response contains an error
+      if (swapData.error) {
+        throw new Error(swapData.error);
+      }
+      
       // Also log to browser console for debugging
       console.log('=== SWAP EXECUTION DEBUG ===');
       console.log('Request sent to server');
       console.log('Response received:', swapData);
 
       // Sign and submit transaction using Aptos wallet
-      if (swapData.success && swapData.data) {
+      if (swapData && !swapData.error) {
         console.log('Signing transaction with Aptos wallet...');
         
         try {
           // Check if Aptos wallet is available
           if (typeof window !== 'undefined' && window.aptos) {
-            const txPayload = swapData.data;
+            const txPayload = swapData;
             console.log('Transaction payload for signing:', txPayload);
             
+            // Validate transaction payload
+            if (!txPayload.function || !txPayload.type_arguments || !txPayload.arguments) {
+              console.error('Invalid payload structure:', {
+                hasFunction: !!txPayload.function,
+                hasTypeArguments: !!txPayload.type_arguments,
+                hasArguments: !!txPayload.arguments,
+                payload: txPayload
+              });
+              throw new Error('Invalid transaction payload structure');
+            }
+            
+            console.log('Payload validation passed. Function:', txPayload.function);
+            console.log('Type arguments count:', txPayload.type_arguments.length);
+            console.log('Arguments count:', txPayload.arguments.length);
+            
             // Sign and submit transaction
+            console.log('Sending transaction to wallet for signing...');
             const tx = await window.aptos.signAndSubmitTransaction(txPayload);
             console.log('Transaction signed and submitted:', tx);
             
             setSwapResult({
               success: true,
               hash: tx.hash || 'Transaction submitted successfully',
-              receivedAmount: swapQuote.amount,
+              receivedAmount: quoteDebug?.quotes?.[0]?.toTokenAmount || swapQuote.amount,
               receivedSymbol: toToken.symbol,
             });
           } else {
@@ -273,15 +320,35 @@ export default function TestPanoraPage() {
           }
         } catch (walletError: any) {
           console.error('Wallet signing error:', walletError);
+          console.error('Error details:', {
+            name: walletError.name,
+            message: walletError.message,
+            stack: walletError.stack,
+            code: walletError.code
+          });
+          
+          let errorMessage = 'Failed to sign transaction';
+          if (walletError.message) {
+            errorMessage = walletError.message;
+          } else if (walletError.name === 'PetraApiError') {
+            errorMessage = 'Petra wallet error. Please check your wallet connection and try again.';
+          } else if (walletError.code === 'USER_REJECTED') {
+            errorMessage = 'Transaction was rejected by user.';
+          } else if (walletError.code === 'WALLET_NOT_CONNECTED') {
+            errorMessage = 'Wallet not connected. Please connect your wallet first.';
+          } else if (walletError.code === 'WALLET_LOCKED') {
+            errorMessage = 'Wallet is locked. Please unlock your wallet and try again.';
+          }
+          
           setSwapResult({
             success: false,
-            error: walletError.message || 'Failed to sign transaction',
+            error: errorMessage,
           });
         }
       } else {
         setSwapResult({
           success: false,
-          error: 'Failed to build transaction',
+          error: swapData.error || 'Failed to build transaction',
         });
       }
 
@@ -289,10 +356,20 @@ export default function TestPanoraPage() {
       console.error('Execute swap error:', error);
       console.log('=== SWAP ERROR DEBUG ===');
       console.log('Error details:', error);
-      setSwapResult({
-        success: false,
-        error: error.message || error,
-      });
+      
+      // Check if it's a slippage error and suggest increasing it
+      const errorMessage = error.message || error;
+      if (errorMessage.includes('E_OUTPUT_LESS_THAN_MINIMUM') || errorMessage.includes('TRY_INCREASING_SLIPPAGE')) {
+        setSwapResult({
+          success: false,
+          error: `Slippage too low. Try increasing slippage from ${slippage}% to ${Math.min(slippage + 1, 5)}% or higher. Error: ${errorMessage}`,
+        });
+      } else {
+        setSwapResult({
+          success: false,
+          error: errorMessage,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -592,7 +669,7 @@ export default function TestPanoraPage() {
                     Executing...
                   </>
                 ) : (
-                  'Sign & Execute Swap'
+                  'Execute Swap'
                 )}
               </Button>
             </div>
@@ -603,6 +680,8 @@ export default function TestPanoraPage() {
                 <span className="text-red-700 text-sm">{error}</span>
               </div>
             )}
+            
+
           </CardContent>
         </Card>
 
