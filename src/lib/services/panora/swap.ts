@@ -1,4 +1,5 @@
 import Panora from "@panoraexchange/swap-sdk";
+import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 
 export interface PanoraSwapQuoteRequest {
   fromToken: string;
@@ -31,9 +32,19 @@ export class PanoraSwapService {
     return PanoraSwapService.instance;
   }
 
+  private getPanoraConfig() {
+    const panoraProtocol = getProtocolByName("Panora");
+    return panoraProtocol?.panoraConfig;
+  }
+
   public async getSwapQuote(request: PanoraSwapQuoteRequest): Promise<PanoraSwapQuoteResponse> {
     try {
       console.log('Getting quote with params:', request);
+      
+      const panoraConfig = this.getPanoraConfig();
+      
+      // Ensure slippage is reasonable (minimum 0.5%, maximum 10%)
+      const slippage = Math.max(0.5, Math.min(10, request.slippage));
       
       // Convert to the format expected by the old API
       const quoteRequest = {
@@ -42,12 +53,32 @@ export class PanoraSwapService {
         toTokenAddress: request.toToken,
         fromTokenAmount: request.amount,
         toWalletAddress: "0x0000000000000000000000000000000000000000000000000000000000000000", // placeholder
-        slippagePercentage: request.slippage.toString(),
-        getTransactionData: "transactionPayload"
+        slippagePercentage: slippage.toString(),
+        getTransactionData: "transactionPayload",
+        integratorFeeAddress: panoraConfig?.integratorFeeAddress || "0x0000000000000000000000000000000000000000000000000000000000000000",
+        integratorFeePercentage: panoraConfig?.integratorFeePercentage || "0"
       };
+
+      console.log('Quote request:', quoteRequest);
 
       const response = await this.client.SwapQuote(quoteRequest);
       console.log('Quote received:', response);
+
+      // Validate quote response
+      if (!response || !response.quotes || response.quotes.length === 0) {
+        return {
+          success: false,
+          error: 'Invalid quote response from Panora'
+        };
+      }
+
+      const quote = response.quotes[0];
+      console.log('Quote details:', {
+        toTokenAmount: quote.toTokenAmount,
+        minToTokenAmount: quote.minToTokenAmount,
+        slippagePercentage: quote.slippagePercentage,
+        priceImpact: quote.priceImpact
+      });
 
       return {
         success: true,
@@ -68,23 +99,109 @@ export class PanoraSwapService {
       console.log('Quote data:', quoteData);
       console.log('Wallet address:', walletAddress);
 
+      const panoraConfig = this.getPanoraConfig();
+
       // Extract transaction payload directly from quote data
       if (quoteData.quotes && quoteData.quotes[0] && quoteData.quotes[0].transactionPayload) {
         const rawPayload = quoteData.quotes[0].transactionPayload;
         console.log('Raw transaction payload from quote:', rawPayload);
 
-        // For now, use the original payload as is
-        // The issue might be in our BCS conversion
-        console.log('Using original payload without BCS conversion');
+        // Validate payload structure
+        if (!rawPayload.function || !rawPayload.type_arguments || !rawPayload.arguments) {
+          console.error('Invalid payload structure:', rawPayload);
+          return {
+            success: false,
+            error: 'Invalid transaction payload structure'
+          };
+        }
+
+        // Log key payload information for debugging
+        console.log('Payload function:', rawPayload.function);
+        console.log('Payload type_arguments count:', rawPayload.type_arguments.length);
+        console.log('Payload arguments count:', rawPayload.arguments.length);
+        console.log('Min to token amount from quote:', quoteData.quotes[0].minToTokenAmount);
+        console.log('To token amount from quote:', quoteData.quotes[0].toTokenAmount);
+        console.log('Slippage percentage from quote:', quoteData.quotes[0].slippagePercentage);
+        
+        // Validate minToTokenAmount is present and reasonable
+        if (!quoteData.quotes[0].minToTokenAmount || parseFloat(quoteData.quotes[0].minToTokenAmount) <= 0) {
+          console.error('Invalid minToTokenAmount:', quoteData.quotes[0].minToTokenAmount);
+          return {
+            success: false,
+            error: 'Invalid minimum output amount in quote'
+          };
+        }
+
+        // Ensure the payload is properly formatted
+        const validatedPayload = {
+          function: rawPayload.function,
+          type_arguments: Array.isArray(rawPayload.type_arguments) ? rawPayload.type_arguments.filter((arg: any) => arg !== null && arg !== undefined) : [],
+          arguments: Array.isArray(rawPayload.arguments) ? rawPayload.arguments.map((arg: any, index: number) => {
+            // For script calls, first argument (signer) should be null
+            if (index === 0) {
+              return null;
+            }
+            // For second argument (signer_cap), should be zero address
+            if (index === 1) {
+              return "0x0000000000000000000000000000000000000000000000000000000000000000";
+            }
+            
+            // For other arguments, ensure they are proper types
+            if (arg === null || arg === undefined) {
+              return null;
+            }
+            
+            // Keep arrays as arrays (don't convert to JSON strings)
+            if (Array.isArray(arg)) {
+              return arg;
+            }
+            
+            // If argument is an object, convert to string representation
+            if (typeof arg === 'object') {
+              return JSON.stringify(arg);
+            }
+            
+            // For numbers and strings, keep as is
+            if (typeof arg === 'number' || typeof arg === 'string') {
+              return arg;
+            }
+            
+            // For other types, convert to string
+            return String(arg);
+          }) : []
+        };
+
+        console.log('Validated payload:', validatedPayload);
+        console.log('Type arguments array check:', Array.isArray(validatedPayload.type_arguments));
+        console.log('Arguments array check:', Array.isArray(validatedPayload.arguments));
+        console.log('Original arguments:', rawPayload.arguments);
+        console.log('Processed arguments:', validatedPayload.arguments);
+        console.log('Arguments types:', validatedPayload.arguments.map((arg: any, index: number) => ({
+          index,
+          value: arg,
+          type: typeof arg,
+          isNull: arg === null,
+          isArray: Array.isArray(arg),
+          isObject: typeof arg === 'object' && arg !== null
+        })));
+        
+        // Special logging for argument 3
+        if (validatedPayload.arguments.length > 3) {
+          console.log('Argument 3 details:', {
+            original: rawPayload.arguments[3],
+            processed: validatedPayload.arguments[3],
+            type: typeof validatedPayload.arguments[3]
+          });
+        }
 
         return {
           success: true,
-          data: rawPayload
+          data: validatedPayload
         };
       }
 
-      // Try to get transaction payload using Swap method without private key
-      console.log('Trying to get transaction payload using Swap method...');
+      // Fallback: Try to get transaction payload using Swap method
+      console.log('No payload in quote, trying Swap method...');
       
       try {
         const swapRequest = {
@@ -94,8 +211,8 @@ export class PanoraSwapService {
           fromTokenAmount: quoteData.fromTokenAmount,
           toWalletAddress: walletAddress,
           slippagePercentage: quoteData.quotes?.[0]?.slippagePercentage || "2",
-          integratorFeeAddress: "0x0000000000000000000000000000000000000000000000000000000000000000",
-          integratorFeePercentage: "0",
+          integratorFeeAddress: panoraConfig?.integratorFeeAddress || "0x0000000000000000000000000000000000000000000000000000000000000000",
+          integratorFeePercentage: panoraConfig?.integratorFeePercentage || "0",
         };
 
         console.log('Swap request:', swapRequest);
@@ -116,22 +233,16 @@ export class PanoraSwapService {
           }
         }
 
-        // Fallback to buildSwapTransaction
-        console.log('Falling back to buildSwapTransaction...');
-        const txPayload = await this.client.buildSwapTransaction({
-          sender: walletAddress,
-          route: quoteData.route,
-        });
-
-        console.log('Transaction payload from SDK:', txPayload);
-
         return {
-          success: true,
-          data: txPayload
+          success: false,
+          error: 'Failed to generate transaction payload'
         };
       } catch (error: any) {
         console.error('Error getting transaction payload:', error);
-        throw error;
+        return {
+          success: false,
+          error: error.message || 'Failed to execute swap'
+        };
       }
     } catch (error: any) {
       console.error('Panora execute swap error:', error);

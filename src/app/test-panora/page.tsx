@@ -296,13 +296,97 @@ export default function TestPanoraPage() {
               throw new Error('Invalid transaction payload structure');
             }
             
+            // Ensure arrays are properly defined and process arguments
+            const typeArguments = Array.isArray(txPayload.type_arguments) ? txPayload.type_arguments : [];
+            const functionArguments = Array.isArray(txPayload.arguments) ? txPayload.arguments.map((arg: any, index: number) => {
+              // For script calls, first argument (signer) should be null
+              if (index === 0) {
+                return null;
+              }
+              // For second argument (signer_cap), should be zero address
+              if (index === 1) {
+                return "0x0000000000000000000000000000000000000000000000000000000000000000";
+              }
+              
+              // For other arguments, ensure they are proper types
+              if (arg === null || arg === undefined) {
+                return null;
+              }
+              
+              // Keep arrays as arrays (don't convert to JSON strings)
+              if (Array.isArray(arg)) {
+                return arg;
+              }
+              
+              // If argument is an object, convert to string representation
+              if (typeof arg === 'object') {
+                return JSON.stringify(arg);
+              }
+              
+              // For numbers and strings, keep as is
+              if (typeof arg === 'number' || typeof arg === 'string') {
+                return arg;
+              }
+              
+              // For other types, convert to string
+              return String(arg);
+            }) : [];
+            
             console.log('Payload validation passed. Function:', txPayload.function);
-            console.log('Type arguments count:', txPayload.type_arguments.length);
-            console.log('Arguments count:', txPayload.arguments.length);
+            console.log('Type arguments count:', typeArguments.length);
+            console.log('Arguments count:', functionArguments.length);
+            console.log('Type arguments:', typeArguments);
+            console.log('Function arguments:', functionArguments);
+            
+            // Debug payload structure
+            console.log('=== PAYLOAD DEBUG ===');
+            console.log('Original payload:', txPayload);
+            console.log('Function:', txPayload.function);
+            console.log('Type arguments type:', typeof typeArguments);
+            console.log('Type arguments is array:', Array.isArray(typeArguments));
+            console.log('Function arguments type:', typeof functionArguments);
+            console.log('Function arguments is array:', Array.isArray(functionArguments));
+            console.log('Type arguments content:', JSON.stringify(typeArguments));
+            console.log('Function arguments content:', JSON.stringify(functionArguments));
             
             // Sign and submit transaction
             console.log('Sending transaction to wallet for signing...');
-            const tx = await window.aptos.signAndSubmitTransaction(txPayload);
+            
+            // Use the new wallet format as recommended by the warning
+            let tx;
+            try {
+              // New format: { payload }
+              tx = await window.aptos.signAndSubmitTransaction({
+                payload: {
+                  function: txPayload.function,
+                  type_arguments: typeArguments,
+                  arguments: functionArguments
+                }
+              });
+            } catch (newFormatError) {
+              console.log('New format failed, trying legacy format:', newFormatError);
+              try {
+                // Legacy format: direct payload
+                tx = await window.aptos.signAndSubmitTransaction({
+                  function: txPayload.function,
+                  type_arguments: typeArguments,
+                  arguments: functionArguments
+                });
+              } catch (legacyFormatError) {
+                console.log('Legacy format failed, trying data wrapper:', legacyFormatError);
+                // Data wrapper format
+                tx = await window.aptos.signAndSubmitTransaction({
+                  data: {
+                    function: txPayload.function,
+                    typeArguments: typeArguments,
+                    functionArguments: functionArguments
+                  },
+                  options: {
+                    maxGasAmount: 20000,
+                  }
+                });
+              }
+            }
             console.log('Transaction signed and submitted:', tx);
             
             setSwapResult({

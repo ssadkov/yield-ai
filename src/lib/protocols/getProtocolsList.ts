@@ -10,6 +10,12 @@ export interface Protocol {
   depositUrl?: string;
   isDepositEnabled: boolean;
   managedType: 'native' | 'external';
+  panoraConfig?: {
+    integratorFeeAddress: string;
+    integratorFeePercentage: string;
+    apiKey: string;
+    rpcUrl: string;
+  };
 }
 
 export function getProtocolsList(): Protocol[] {

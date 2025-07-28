@@ -38,8 +38,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Swap successful, returning data');
-    return NextResponse.json(response.data);
+    // Validate the returned payload structure
+    const payload = response.data;
+    if (!payload || !payload.function || !Array.isArray(payload.type_arguments) || !Array.isArray(payload.arguments)) {
+      console.error('Invalid payload structure returned:', payload);
+      return NextResponse.json(
+        { error: 'Invalid transaction payload structure' },
+        { status: 400 }
+      );
+    }
+
+    console.log('Swap successful, returning validated data');
+    console.log('Payload structure:', {
+      function: payload.function,
+      typeArgumentsCount: payload.type_arguments.length,
+      argumentsCount: payload.arguments.length
+    });
+    
+    return NextResponse.json(payload);
   } catch (error: any) {
     console.error('Error in execute-swap route:', error);
     return NextResponse.json(
