@@ -1,52 +1,103 @@
-import Panora, { PanoraConfig } from "@panoraexchange/swap-sdk";
+import Panora from "@panoraexchange/swap-sdk";
 
-export interface SwapParams {
-  chainId: string;
-  fromTokenAddress: string;
-  toTokenAddress: string;
-  fromTokenAmount: string;
-  toWalletAddress: string;
-  slippagePercentage?: string;
-  integratorFeeAddress?: string;
-  integratorFeePercentage?: string;
+export interface PanoraSwapQuoteRequest {
+  fromToken: string;
+  toToken: string;
+  amount: string;
+  slippage: number;
+}
+
+export interface PanoraSwapQuoteResponse {
+  success: boolean;
+  data?: any;
+  error?: string;
 }
 
 export class PanoraSwapService {
   private static instance: PanoraSwapService;
-  private client: Panora;
+  private client: any;
 
   private constructor() {
-    const config: PanoraConfig = {
-      apiKey: process.env.PANORA_API_KEY || '',
-      rpcUrl: process.env.PANORA_RPC_URL || '',
-    };
-    this.client = new Panora(config);
+    this.client = new Panora({
+      apiKey: process.env.PANORA_API_KEY || "",
+      rpcUrl: process.env.APTOS_RPC_URL || "https://fullnode.mainnet.aptoslabs.com"
+    });
   }
 
-  static getInstance(): PanoraSwapService {
+  public static getInstance(): PanoraSwapService {
     if (!PanoraSwapService.instance) {
       PanoraSwapService.instance = new PanoraSwapService();
     }
     return PanoraSwapService.instance;
   }
 
-  private safeAddr(addr?: string, label?: string): `0x${string}` {
-    if (addr && addr.startsWith('0x') && addr.length > 2) return addr as `0x${string}`;
-    throw new Error(`Invalid or missing address for ${label || 'field'}`);
+  public async getSwapQuote(request: PanoraSwapQuoteRequest): Promise<PanoraSwapQuoteResponse> {
+    try {
+      console.log('Getting quote with params:', request);
+      
+      // Convert to the format expected by the old API
+      const quoteRequest = {
+        chainId: "1",
+        fromTokenAddress: request.fromToken,
+        toTokenAddress: request.toToken,
+        fromTokenAmount: request.amount,
+        toWalletAddress: "0x0000000000000000000000000000000000000000000000000000000000000000", // placeholder
+        slippagePercentage: request.slippage.toString(),
+        getTransactionData: "transactionPayload"
+      };
+
+      const response = await this.client.SwapQuote(quoteRequest);
+      console.log('Quote received:', response);
+
+      return {
+        success: true,
+        data: response
+      };
+    } catch (error: any) {
+      console.error('Panora quote error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to get quote'
+      };
+    }
   }
 
-  async swap(params: SwapParams) {
-    // Вызов Panora SDK
-    const response = await this.client.Swap({
-      chainId: params.chainId,
-      fromTokenAddress: this.safeAddr(params.fromTokenAddress, 'fromTokenAddress'),
-      toTokenAddress: this.safeAddr(params.toTokenAddress, 'toTokenAddress'),
-      fromTokenAmount: params.fromTokenAmount,
-      toWalletAddress: this.safeAddr(params.toWalletAddress, 'toWalletAddress'),
-      slippagePercentage: params.slippagePercentage || '1',
-      integratorFeeAddress: params.integratorFeeAddress ? this.safeAddr(params.integratorFeeAddress, 'integratorFeeAddress') : undefined,
-      integratorFeePercentage: params.integratorFeePercentage,
-    }, ""); // TODO: provide private key if needed
-    return response;
+  public async buildSwapTransaction(quoteData: any, walletAddress: string): Promise<PanoraSwapQuoteResponse> {
+    try {
+      console.log('Building swap transaction...');
+      console.log('Quote data:', quoteData);
+      console.log('Wallet address:', walletAddress);
+
+      // Extract transaction payload directly from quote data
+      if (quoteData.quotes && quoteData.quotes[0] && quoteData.quotes[0].transactionPayload) {
+        const txPayload = quoteData.quotes[0].transactionPayload;
+        console.log('Using transaction payload from quote:', txPayload);
+
+        return {
+          success: true,
+          data: txPayload
+        };
+      }
+
+      // Fallback to SDK method if no payload in quote
+      console.log('No transaction payload in quote, using SDK...');
+      const txPayload = await this.client.buildSwapTransaction({
+        sender: walletAddress,
+        route: quoteData.route,
+      });
+
+      console.log('Transaction payload from SDK:', txPayload);
+
+      return {
+        success: true,
+        data: txPayload
+      };
+    } catch (error: any) {
+      console.error('Panora build transaction error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to build transaction'
+      };
+    }
   }
 } 

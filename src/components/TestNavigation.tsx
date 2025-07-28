@@ -15,7 +15,8 @@ import {
   ArrowLeftRight,
   Wallet,
   Store,
-  Shield
+  Shield,
+  Globe
 } from 'lucide-react';
 
 const testPages = [
@@ -26,6 +27,14 @@ const testPages = [
     icon: ArrowLeftRight,
     badge: 'New',
     color: 'bg-blue-500'
+  },
+  {
+    name: 'Test Panora',
+    description: 'Test Panora token list and wallet tokens',
+    path: '/test-panora',
+    icon: Globe,
+    badge: 'New',
+    color: 'bg-cyan-500'
   },
   {
     name: 'Test Hyperion',
