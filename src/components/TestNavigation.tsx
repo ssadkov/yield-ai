@@ -21,6 +21,21 @@ import {
 
 const testPages = [
   {
+    name: 'Test Progressive Loading',
+    description: 'Test progressive loading of pools',
+    path: '/test-progressive-loading',
+    icon: Zap,
+    badge: 'New',
+    color: 'bg-emerald-500'
+  },
+  {
+    name: 'Test Debug',
+    description: 'Debug API calls',
+    path: '/test-debug',
+    icon: Settings,
+    color: 'bg-red-500'
+  },
+  {
     name: 'Test Swap',
     description: 'Test Hyperion swap functionality',
     path: '/test-swap',

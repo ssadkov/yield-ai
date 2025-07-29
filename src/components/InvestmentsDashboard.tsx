@@ -66,14 +66,26 @@ interface Token {
 
 export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   const [data, setData] = useState<InvestmentData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showOnlyStablePools, setShowOnlyStablePools] = useState(true);
   const [activeTab, setActiveTab] = useState<"lite" | "pro">("lite");
-  const { selectedProtocol, setSelectedProtocol } = useProtocol();
-  const { state, validateDrop, handleDrop } = useDragDrop();
+  const [selectedProtocol, setSelectedProtocol] = useState<Protocol | null>(null);
+  
+  // New states for progressive loading
+  const [protocolsLoading, setProtocolsLoading] = useState<Record<string, boolean>>({});
+  const [protocolsError, setProtocolsError] = useState<Record<string, string | null>>({});
+  const [protocolsData, setProtocolsData] = useState<Record<string, InvestmentData[]>>({});
+  const [isClient, setIsClient] = useState(false);
+
+  const { state, handleDrop, validateDrop } = useDragDrop();
   const { setActiveTab: setMobileTab } = useMobileManagement();
+
+  // Ensure we're on client side
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const getTokenInfo = (asset: string, tokenAddress?: string): Token | undefined => {
     if (tokenAddress) {
@@ -124,27 +136,255 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     return false;
   };
 
+    // Start loading immediately when component mounts (only on client)
   useEffect(() => {
+    if (!isClient) return;
+    if (typeof window === 'undefined') return; // Extra check for SSR
+    
     const fetchData = async () => {
       try {
+        console.log('Starting progressive loading...');
         setLoading(true);
         setError(null);
-        const response = await fetch('/api/aptos/pools');
-        if (!response.ok) {
-          throw new Error('Failed to fetch data');
-        }
-        const result = await response.json();
-        setData(result.data || []);
+        
+        // Initialize loading states for all protocols
+        const initialLoadingState = {
+          'Primary Yield API': true,
+          'Hyperion': true,
+          'Tapp Exchange': true,
+          'Auro Finance': true,
+          'Amnis Finance': true
+        };
+        setProtocolsLoading(initialLoadingState);
+        setProtocolsError({});
+        setProtocolsData({});
+
+        // Define protocol endpoints
+        const protocolEndpoints = [
+          {
+            name: 'Primary Yield API',
+            url: 'https://yield-a.vercel.app/api/aptos/markets',
+            transform: (data: any) => data.data || []
+          },
+          {
+            name: 'Hyperion',
+            url: '/api/protocols/hyperion/pools',
+            transform: (data: any) => {
+              const filtered = (data.data || [])
+                .filter((pool: any) => {
+                  const dailyVolume = parseFloat(pool.dailyVolumeUSD || "0");
+                  return dailyVolume > 1000;
+                });
+              
+              return filtered.map((pool: any) => {
+                const feeAPR = parseFloat(pool.feeAPR || "0");
+                const farmAPR = parseFloat(pool.farmAPR || "0");
+                const totalAPY = feeAPR + farmAPR;
+                
+                const token1Info = pool.pool?.token1Info || pool.token1Info;
+                const token2Info = pool.pool?.token2Info || pool.token2Info;
+                
+                return {
+                  asset: `${token1Info?.symbol || 'Unknown'}/${token2Info?.symbol || 'Unknown'}`,
+                  provider: 'Hyperion',
+                  totalAPY: totalAPY,
+                  depositApy: totalAPY,
+                  borrowAPY: 0,
+                  token: pool.poolId || pool.id,
+                  protocol: 'Hyperion',
+                  dailyVolumeUSD: parseFloat(pool.dailyVolumeUSD || "0"),
+                  tvlUSD: parseFloat(pool.tvlUSD || "0"),
+                  token1Info: token1Info,
+                  token2Info: token2Info
+                };
+              });
+            }
+          },
+          {
+            name: 'Tapp Exchange',
+            url: '/api/protocols/tapp/pools',
+            transform: (data: any) => {
+              const filtered = (data.data || [])
+                .filter((pool: any) => {
+                  const dailyVolume = parseFloat(pool.volume_7d || "0") / 7;
+                  return dailyVolume > 1000;
+                });
+              
+              return filtered.map((pool: any) => {
+                const totalAPY = parseFloat(pool.apr || "0") * 100;
+                
+                const token1Info = {
+                  symbol: pool.token_a || 'Unknown',
+                  name: pool.token_a || 'Unknown',
+                  logoUrl: pool.tokens?.[0]?.img || undefined,
+                  decimals: 8
+                };
+                
+                const token2Info = {
+                  symbol: pool.token_b || 'Unknown',
+                  name: pool.token_b || 'Unknown',
+                  logoUrl: pool.tokens?.[1]?.img || undefined,
+                  decimals: 8
+                };
+                
+                return {
+                  asset: `${token1Info.symbol}/${token2Info.symbol}`,
+                  provider: 'Tapp Exchange',
+                  totalAPY: totalAPY,
+                  depositApy: totalAPY,
+                  borrowAPY: 0,
+                  token: pool.pool_id || pool.poolId,
+                  protocol: 'Tapp Exchange',
+                  dailyVolumeUSD: parseFloat(pool.volume_7d || "0") / 7,
+                  tvlUSD: parseFloat(pool.tvl || "0"),
+                  token1Info: token1Info,
+                  token2Info: token2Info,
+                  poolType: 'DEX',
+                  feeTier: parseFloat(pool.fee_tier || "0"),
+                  volume7d: parseFloat(pool.volume_7d || "0")
+                };
+              });
+            }
+          },
+          {
+            name: 'Auro Finance',
+            url: '/api/protocols/auro/pools',
+            transform: (data: any) => {
+              const collateralPools = (data.data || [])
+                .filter((pool: any) => pool.type === 'COLLATERAL')
+                .filter((pool: any) => {
+                  const tvl = parseFloat(pool.tvl || "0");
+                  const totalAPY = (pool.totalSupplyApr || 0);
+                  return tvl > 1000 && totalAPY > 0;
+                });
+              
+              return collateralPools.map((pool: any) => {
+                const supplyApr = parseFloat(pool.supplyApr || "0");
+                const supplyIncentiveApr = parseFloat(pool.supplyIncentiveApr || "0");
+                const stakingApr = parseFloat(pool.stakingApr || "0");
+                const totalAPY = supplyApr + supplyIncentiveApr + stakingApr;
+                
+                return {
+                  asset: pool.collateralTokenSymbol || 'Unknown',
+                  provider: 'Auro Finance',
+                  totalAPY: totalAPY,
+                  depositApy: totalAPY,
+                  borrowAPY: 0,
+                  token: pool.collateralTokenAddress || pool.poolAddress,
+                  protocol: 'Auro Finance',
+                  tvlUSD: parseFloat(pool.tvl || "0"),
+                  poolType: 'Lending',
+                  originalPool: pool
+                };
+              });
+            }
+          },
+          {
+            name: 'Amnis Finance',
+            url: '/api/protocols/amnis/pools',
+            transform: (data: any) => {
+              const pools = data.pools || [];
+              
+              return pools.map((pool: any) => {
+                return {
+                  asset: pool.asset || 'Unknown',
+                  provider: 'Amnis Finance',
+                  totalAPY: pool.apr || 0,
+                  depositApy: pool.apr || 0,
+                  borrowAPY: 0,
+                  token: pool.token || '',
+                  protocol: 'Amnis Finance',
+                  poolType: 'Staking',
+                  stakingToken: pool.stakingToken,
+                  totalStaked: pool.totalStaked,
+                  minStake: pool.minStake,
+                  maxStake: pool.maxStake,
+                  isActive: pool.isActive
+                };
+              });
+            }
+          }
+        ];
+
+        // Fetch all protocols in parallel
+        const fetchPromises = protocolEndpoints.map(async (endpoint) => {
+          try {
+            console.log(`Fetching ${endpoint.name} from ${endpoint.url}...`);
+            
+            const response = await fetch(endpoint.url, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'application/json'
+              }
+            });
+
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            const transformedData = endpoint.transform(data);
+            
+            console.log(`${endpoint.name} loaded: ${transformedData.length} pools`);
+            
+            // Update state progressively
+            setProtocolsData(prev => ({
+              ...prev,
+              [endpoint.name]: transformedData
+            }));
+            
+            setProtocolsLoading(prev => ({
+              ...prev,
+              [endpoint.name]: false
+            }));
+            
+            console.log(`${endpoint.name} completed: ${transformedData.length} pools`);
+            return { name: endpoint.name, data: transformedData, success: true };
+          } catch (error) {
+            console.error(`Error fetching ${endpoint.name} from ${endpoint.url}:`, error);
+            
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            console.error(`Error details for ${endpoint.name}:`, errorMessage);
+            
+            setProtocolsError(prev => ({
+              ...prev,
+              [endpoint.name]: errorMessage
+            }));
+            
+            setProtocolsLoading(prev => ({
+              ...prev,
+              [endpoint.name]: false
+            }));
+            
+            return { name: endpoint.name, data: [], success: false, error };
+          }
+        });
+
+        // Wait for all promises to settle
+        const results = await Promise.allSettled(fetchPromises);
+        
+        // Combine all successful results
+        const allPools: InvestmentData[] = [];
+        results.forEach((result) => {
+          if (result.status === 'fulfilled' && result.value.success) {
+            allPools.push(...result.value.data);
+          }
+        });
+        
+        setData(allPools);
+        setLoading(false);
+        
+        console.log(`Total pools loaded: ${allPools.length}`);
+        
       } catch (error) {
         console.error('Error fetching investment data:', error);
         setError('Failed to load investment opportunities');
-      } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, []);
+  }, [isClient]);
 
   const handleDragOver = (e: React.DragEvent, investment: InvestmentData) => {
     e.preventDefault();
@@ -180,11 +420,14 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     }
   };
 
-  const topInvestments = [...data]
+  // Combine all loaded protocol data
+  const allLoadedData = Object.values(protocolsData).flat();
+  
+  const topInvestments = [...allLoadedData]
     .sort((a, b) => b.totalAPY - a.totalAPY)
     .slice(0, 3);
 
-  const filteredData = data.filter(item => {
+  const filteredData = allLoadedData.filter(item => {
     // Фильтруем исключенные токены Echelon
     if (item.protocol === 'Echelon' && EXCLUDED_ECHELON_TOKENS.includes(item.token)) {
       return false;
@@ -202,7 +445,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 
   // Данные для текущей вкладки
   const currentTabData = activeTab === "lite" 
-    ? data.filter(item => {
+    ? allLoadedData.filter(item => {
         // Фильтруем исключенные токены Echelon
         if (item.protocol === 'Echelon' && EXCLUDED_ECHELON_TOKENS.includes(item.token)) {
           return false;
@@ -225,6 +468,30 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     setSelectedProtocol(protocol);
   };
 
+  // Don't render anything until we're on client side
+  if (!isClient) {
+    return (
+      <div className={className}>
+        <div className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map((i) => (
+              <Card key={i}>
+                <CardHeader className="space-y-2">
+                  <Skeleton className="h-4 w-[250px]" />
+                  <Skeleton className="h-4 w-[100px]" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-8 w-[100px] mb-2" />
+                  <Skeleton className="h-10 w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div className="text-center p-4 text-red-500">
@@ -233,23 +500,70 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     );
   }
 
-  if (loading) {
+  // Show loading indicators for protocols that are still loading
+  const showLoadingIndicators = loading && Object.values(protocolsLoading).some(Boolean);
+  
+  if (showLoadingIndicators) {
     return (
-      <div className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <Card key={i}>
-              <CardHeader className="space-y-2">
-                <Skeleton className="h-4 w-[250px]" />
-                <Skeleton className="h-4 w-[100px]" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-8 w-[100px] mb-2" />
-                <Skeleton className="h-10 w-full" />
-              </CardContent>
-            </Card>
-          ))}
+      <div className={className}>
+        <div className="mb-4 pl-4">
+          <h2 className="text-2xl font-bold">Ideas</h2>
         </div>
+        <Tabs defaultValue="lite" className="w-full" onValueChange={(value) => setActiveTab(value as "lite" | "pro")}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="lite">Lite</TabsTrigger>
+            <TabsTrigger value="pro">Pro</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="lite" className="mt-6">
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Stables</h3>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {[1, 2, 3].map((i) => (
+                    <Card key={i}>
+                      <CardHeader className="space-y-2">
+                        <Skeleton className="h-4 w-[250px]" />
+                        <Skeleton className="h-4 w-[100px]" />
+                      </CardHeader>
+                      <CardContent>
+                        <Skeleton className="h-8 w-[100px] mb-2" />
+                        <Skeleton className="h-10 w-full" />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Protocol loading status */}
+              <div className="mt-6">
+                <h4 className="text-sm font-medium mb-3">Loading protocols:</h4>
+                <div className="space-y-2">
+                  {Object.entries(protocolsLoading).map(([protocolName, isLoading]) => (
+                    <div key={protocolName} className="flex items-center gap-2 text-sm">
+                      {isLoading ? (
+                        <>
+                          <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+                          <span>Loading {protocolName}...</span>
+                        </>
+                      ) : protocolsError[protocolName] ? (
+                        <>
+                          <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                          <span className="text-red-500">{protocolName}: {protocolsError[protocolName]}</span>
+                        </>
+                      ) : (
+                        <>
+                          <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                          <span className="text-green-600">{protocolName}: {protocolsData[protocolName]?.length || 0} pools loaded</span>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     );
   }
@@ -271,7 +585,24 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
       )}
 
       <div className="mb-4 pl-4">
-        <h2 className="text-2xl font-bold">Ideas</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold">Ideas</h2>
+          {loading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-1">
+                {Object.values(protocolsLoading).filter(Boolean).length > 0 && (
+                  <>
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                    <span>Loading {Object.values(protocolsLoading).filter(Boolean).length} protocols...</span>
+                  </>
+                )}
+              </div>
+              <span className="text-xs">
+                ({Object.values(protocolsData).flat().length} pools loaded)
+              </span>
+            </div>
+          )}
+        </div>
       </div>
       <Tabs defaultValue="lite" className="w-full" onValueChange={(value) => setActiveTab(value as "lite" | "pro")}>
         <TabsList className="grid w-full grid-cols-2">
@@ -284,7 +615,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
             <div>
               <h3 className="text-lg font-semibold mb-4">Stables</h3>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {data
+                {allLoadedData
                   .filter(item => {
                     // Фильтруем исключенные токены Echelon
                     if (item.protocol === 'Echelon' && EXCLUDED_ECHELON_TOKENS.includes(item.token)) {
