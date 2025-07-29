@@ -1,0 +1,103 @@
+[
+  {
+    "name": "Hyperion",
+    "category": "DEX",
+    "url": "https://hyperion.xyz/drips?inviteCode=O02Eig",
+    "logoUrl": "https://hyperion.xyz/fav-new.svg",
+    "description": "Decentralized exchange on Aptos blockchain",
+    "depositType": "external",
+    "depositUrl": "https://hyperion.xyz/pools?inviteCode=O02Eig",
+    "isDepositEnabled": true,
+    "managedType": "native"
+  },
+  {
+    "name": "Aries",
+    "category": "Lending",
+    "url": "https://app.ariesmarkets.xyz/lending",
+    "logoUrl": "https://ariesmarkets.xyz/favicon-32x32.png",
+    "description": "Lending protocol on Aptos blockchain",
+    "depositType": "external",
+    "depositUrl": "https://app.ariesmarkets.xyz/lending",
+    "isDepositEnabled": true,
+    "managedType": "external"
+  },
+  {
+    "name": "Joule",
+    "category": "Lending",
+    "url": "https://app.joule.finance/rewards?tabId=referral&referralAddress=0x56ff2fc971deecd286314fe99b8ffd6a5e72e62eacdc46ae9b234c5282985f97",
+    "logoUrl": "https://app.joule.finance/favicon.ico",
+    "description": "Lending protocol on Aptos blockchain",
+    "depositType": "native",
+    "isDepositEnabled": true,
+    "managedType": "native"
+  },
+  {
+    "name": "Echelon",
+    "category": "Lending",
+    "url": "https://app.echelon.market/dashboard?network=aptos_mainnet",
+    "logoUrl": "/echelon-favicon.ico",
+    "description": "High-efficiency lending market on Aptos blockchain",
+    "depositType": "native",
+    "isDepositEnabled": true,
+    "managedType": "native"
+  },
+  {
+    "name": "Meso Finance",
+    "category": "Lending",
+    "url": "https://app.meso.finance/points?ref=DTORFK5S9ITD",
+    "logoUrl": "https://app.meso.finance/logo.png",
+    "description": "The capital-efficient Money Market, empowering credit expansion on Aptos",
+    "depositType": "external",
+    "depositUrl": "https://app.meso.finance/points?ref=DTORFK5S9ITD",
+    "isDepositEnabled": true,
+    "managedType": "native"
+  },
+  {
+    "name": "Tapp Exchange",
+    "category": "DEX",
+    "url": "https://tapp.exchange/",
+    "logoUrl": "https://tapp.exchange/favicon.ico",
+    "description": "Tapp Exchange is a next-generation DEX built on Aptos, introducing a modular approach to trading",
+    "depositType": "external",
+    "depositUrl": "https://tapp.exchange/pool",
+    "isDepositEnabled": true,
+    "managedType": "native"
+  },
+  {
+    "name": "Auro Finance",
+    "category": "Lending",
+    "url": "https://app.auro.finance?ref=YieldAI",
+    "logoUrl": "https://app.auro.finance/logo.png",
+    "description": "Auro Finance is an advanced DeFi protocol that enables users to gain rewards and liquidity from their staked APT without any lockups. Through Auro Finance, users can borrow USDA, the platform's native stablecoin, against multiple collateral options, allowing them to utilize their holdings without selling them.",
+    "depositType": "external",
+    "depositUrl": "https://app.auro.finance?ref=YieldAI",
+    "isDepositEnabled": true,
+    "managedType": "native"
+  },
+  {
+    "name": "Amnis Finance",
+    "category": "Staking",
+    "url": "https://stake.amnis.finance/",
+    "logoUrl": "/amnis-logo.png",
+    "description": "Pioneering Liquid Staking protocol on Aptos",
+    "depositType": "native",
+    "isDepositEnabled": true,
+    "managedType": "external"
+  },
+  {
+    "name": "Panora",
+    "category": "Aggregator",
+    "url": "https://panora.exchange",
+    "logoUrl": "https://panora.exchange/assets/favicons/favicon.ico",
+    "description": "An all-in-one trading platform designed to provide users with the best rates and routes for their trades",
+    "depositType": "native",
+    "isDepositEnabled": true,
+    "managedType": "native",
+    "panoraConfig": {
+      "integratorFeeAddress": "0x89e68b91fa64038e98cc1ac0e3e7f6b50d056036980be712dcbe6302cee948cb",
+      "integratorFeePercentage": "0.25",
+      "apiKey": "ENV_PANORA_API_KEY",
+      "rpcUrl": "ENV_APTOS_RPC_URL"
+    }
+  }
+] 

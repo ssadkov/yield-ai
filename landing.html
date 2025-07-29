@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yield AI - DeFi Investment Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .protocol-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .feature-icon {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <div class="flex items-center">
+                            <div class="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
+                                <i data-lucide="trending-up" class="w-5 h-5 text-white"></i>
+                            </div>
+                            <span class="ml-2 text-xl font-bold text-gray-900">Yield AI</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="#features" class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Features</a>
+                        <a href="#protocols" class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Protocols</a>
+                        <a href="#technology" class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Technology</a>
+                        <a href="#getting-started" class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Get Started</a>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="https://github.com/your-repo" class="text-gray-600 hover:text-gray-900">
+                        <i data-lucide="github" class="w-5 h-5"></i>
+                    </a>
+                    <a href="/dashboard" class="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-purple-700 hover:to-blue-700 transition-all duration-200">
+                        Launch App
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="gradient-bg text-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+            <div class="text-center">
+                <h1 class="text-4xl md:text-6xl font-bold mb-6">
+                    DeFi Investment Dashboard
+                </h1>
+                <p class="text-xl md:text-2xl mb-8 text-purple-100 max-w-3xl mx-auto">
+                    Discover, analyze, and manage yield farming opportunities across multiple protocols on the Aptos blockchain
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <a href="/dashboard" class="bg-white text-purple-600 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-gray-100 transition-all duration-200">
+                        Start Investing
+                    </a>
+                    <a href="#features" class="border-2 border-white text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-white hover:text-purple-600 transition-all duration-200">
+                        Learn More
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-24 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                    Powerful Features for DeFi Investors
+                </h2>
+                <p class="text-xl text-gray-600 max-w-3xl mx-auto">
+                    Everything you need to maximize your yield farming returns across multiple protocols
+                </p>
+            </div>
+            
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Multi-Protocol Support -->
+                <div class="card-hover bg-white p-8 rounded-xl shadow-lg border border-gray-200">
+                    <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-6">
+                        <i data-lucide="layers" class="w-6 h-6 feature-icon"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-4">Multi-Protocol Support</h3>
+                    <p class="text-gray-600">Connect and manage positions across 5 major DeFi protocols with unified interface</p>
+                </div>
+
+                <!-- Real-time Portfolio -->
+                <div class="card-hover bg-white p-8 rounded-xl shadow-lg border border-gray-200">
+                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-6">
+                        <i data-lucide="activity" class="w-6 h-6 feature-icon"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-4">Real-time Portfolio Tracking</h3>
+                    <p class="text-gray-600">Monitor your assets and positions in real-time with live APY updates</p>
+                </div>
+
+                <!-- Yield Discovery -->
+                <div class="card-hover bg-white p-8 rounded-xl shadow-lg border border-gray-200">
+                    <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-6">
+                        <i data-lucide="search" class="w-6 h-6 feature-icon"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-4">Yield Discovery</h3>
+                    <p class="text-gray-600">Find the best APY opportunities across different protocols automatically</p>
+                </div>
+
+                <!-- One-Click Deposits -->
+                <div class="card-hover bg-white p-8 rounded-xl shadow-lg border border-gray-200">
+                    <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center mb-6">
+                        <i data-lucide="zap" class="w-6 h-6 feature-icon"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-4">One-Click Deposits</h3>
+                    <p class="text-gray-600">Seamless deposit functionality with native and external protocol integration</p>
+                </div>
+
+                <!-- Swap & Deposit -->
+                <div class="card-hover bg-white p-8 rounded-xl shadow-lg border border-gray-200">
+                    <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mb-6">
+                        <i data-lucide="refresh-cw" class="w-6 h-6 feature-icon"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-4">Swap & Deposit</h3>
+                    <p class="text-gray-600">Automatically swap tokens and deposit to earn yield in a single transaction</p>
+                </div>
+
+                <!-- AI Chat Assistant -->
+                <div class="card-hover bg-white p-8 rounded-xl shadow-lg border border-gray-200">
+                    <div class="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mb-6">
+                        <i data-lucide="message-circle" class="w-6 h-6 feature-icon"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-4">AI Chat Assistant</h3>
+                    <p class="text-gray-600">Get help and execute actions through an AI-powered chat interface</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Protocols Section -->
+    <section id="protocols" class="py-24 bg-gray-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                    Supported Protocols
+                </h2>
+                <p class="text-xl text-gray-600 max-w-3xl mx-auto">
+                    Access the best DeFi protocols on Aptos blockchain
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Echelon -->
+                <div class="protocol-card rounded-xl p-8 text-white">
+                    <div class="flex items-center mb-4">
+                        <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center mr-3">
+                            <i data-lucide="building" class="w-6 h-6 text-purple-600"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold">Echelon</h3>
+                    </div>
+                    <p class="text-purple-100 mb-4">High-efficiency lending market with native deposit integration</p>
+                    <ul class="text-sm text-purple-200 space-y-2">
+                        <li>• Position management</li>
+                        <li>• Real-time APY tracking</li>
+                        <li>• Fungible and NFT support</li>
+                    </ul>
+                </div>
+
+                <!-- Joule -->
+                <div class="protocol-card rounded-xl p-8 text-white">
+                    <div class="flex items-center mb-4">
+                        <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center mr-3">
+                            <i data-lucide="zap" class="w-6 h-6 text-yellow-600"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold">Joule</h3>
+                    </div>
+                    <p class="text-purple-100 mb-4">Lending protocol with referral rewards system</p>
+                    <ul class="text-sm text-purple-200 space-y-2">
+                        <li>• Native deposit integration</li>
+                        <li>• Referral rewards</li>
+                        <li>• Fungible and NFT lending</li>
+                    </ul>
+                </div>
+
+                <!-- Hyperion -->
+                <div class="protocol-card rounded-xl p-8 text-white">
+                    <div class="flex items-center mb-4">
+                        <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center mr-3">
+                            <i data-lucide="globe" class="w-6 h-6 text-blue-600"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold">Hyperion</h3>
+                    </div>
+                    <p class="text-purple-100 mb-4">Decentralized exchange with liquidity pool integration</p>
+                    <ul class="text-sm text-purple-200 space-y-2">
+                        <li>• Native position management</li>
+                        <li>• Swap functionality</li>
+                        <li>• Referral rewards</li>
+                    </ul>
+                </div>
+
+                <!-- Aries -->
+                <div class="protocol-card rounded-xl p-8 text-white">
+                    <div class="flex items-center mb-4">
+                        <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center mr-3">
+                            <i data-lucide="star" class="w-6 h-6 text-orange-600"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold">Aries</h3>
+                    </div>
+                    <p class="text-purple-100 mb-4">Lending protocol with external deposit integration</p>
+                    <ul class="text-sm text-purple-200 space-y-2">
+                        <li>• External deposit integration</li>
+                        <li>• Position tracking</li>
+                        <li>• Market data integration</li>
+                    </ul>
+                </div>
+
+                <!-- Tapp Exchange -->
+                <div class="protocol-card rounded-xl p-8 text-white">
+                    <div class="flex items-center mb-4">
+                        <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center mr-3">
+                            <i data-lucide="smartphone" class="w-6 h-6 text-green-600"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold">Tapp Exchange</h3>
+                    </div>
+                    <p class="text-purple-100 mb-4">Next-generation DEX with modular trading approach</p>
+                    <ul class="text-sm text-purple-200 space-y-2">
+                        <li>• Modular trading approach</li>
+                        <li>• Position management</li>
+                        <li>• External deposit integration</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Technology Stack -->
+    <section id="technology" class="py-24 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                    Built with Modern Technology
+                </h2>
+                <p class="text-xl text-gray-600 max-w-3xl mx-auto">
+                    Leveraging the latest technologies for optimal performance and user experience
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                        <i data-lucide="code" class="w-8 h-8 text-blue-600"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Next.js 15</h3>
+                    <p class="text-gray-600">React framework with App Router</p>
+                </div>
+
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-purple-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                        <i data-lucide="shield" class="w-8 h-8 text-purple-600"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">TypeScript</h3>
+                    <p class="text-gray-600">Type-safe development</p>
+                </div>
+
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                        <i data-lucide="palette" class="w-8 h-8 text-green-600"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Tailwind CSS</h3>
+                    <p class="text-gray-600">Utility-first CSS framework</p>
+                </div>
+
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-orange-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                        <i data-lucide="package" class="w-8 h-8 text-orange-600"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">shadcn/ui</h3>
+                    <p class="text-gray-600">Modern component library</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Getting Started -->
+    <section id="getting-started" class="py-24 bg-gray-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                    Get Started in Minutes
+                </h2>
+                <p class="text-xl text-gray-600 max-w-3xl mx-auto">
+                    Quick setup guide to start earning yield on your crypto assets
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8">
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center mx-auto mb-6 text-white text-2xl font-bold">
+                        1
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-4">Connect Wallet</h3>
+                    <p class="text-gray-600">Connect your Aptos wallet (Petra, Martian, etc.) to view your portfolio</p>
+                </div>
+
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center mx-auto mb-6 text-white text-2xl font-bold">
+                        2
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-4">Discover Opportunities</h3>
+                    <p class="text-gray-600">Browse investment opportunities and compare APY across protocols</p>
+                </div>
+
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center mx-auto mb-6 text-white text-2xl font-bold">
+                        3
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-4">Start Earning</h3>
+                    <p class="text-gray-600">Deposit your assets and start earning yield immediately</p>
+                </div>
+            </div>
+
+            <div class="text-center mt-12">
+                <a href="/dashboard" class="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:from-purple-700 hover:to-blue-700 transition-all duration-200">
+                    Launch Yield AI Dashboard
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-white py-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid md:grid-cols-4 gap-8">
+                <div>
+                    <div class="flex items-center mb-4">
+                        <div class="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
+                            <i data-lucide="trending-up" class="w-5 h-5 text-white"></i>
+                        </div>
+                        <span class="ml-2 text-xl font-bold">Yield AI</span>
+                    </div>
+                    <p class="text-gray-400">DeFi investment dashboard for the Aptos blockchain</p>
+                </div>
+
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">Product</h3>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><a href="#features" class="hover:text-white">Features</a></li>
+                        <li><a href="#protocols" class="hover:text-white">Protocols</a></li>
+                        <li><a href="/dashboard" class="hover:text-white">Dashboard</a></li>
+                        <li><a href="/swagger" class="hover:text-white">API Docs</a></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">Support</h3>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><a href="https://github.com/your-repo/issues" class="hover:text-white">GitHub Issues</a></li>
+                        <li><a href="https://discord.gg/yield-ai" class="hover:text-white">Discord</a></li>
+                        <li><a href="mailto:support@yield-ai.com" class="hover:text-white">Email Support</a></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 class="text-lg font-semibold mb-4">Connect</h3>
+                    <div class="flex space-x-4">
+                        <a href="https://github.com/your-repo" class="text-gray-400 hover:text-white">
+                            <i data-lucide="github" class="w-5 h-5"></i>
+                        </a>
+                        <a href="https://discord.gg/yield-ai" class="text-gray-400 hover:text-white">
+                            <i data-lucide="message-circle" class="w-5 h-5"></i>
+                        </a>
+                        <a href="https://twitter.com/yield-ai" class="text-gray-400 hover:text-white">
+                            <i data-lucide="twitter" class="w-5 h-5"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
+                <p>&copy; 2024 Yield AI. All rights reserved. | <a href="#" class="hover:text-white">Privacy Policy</a> | <a href="#" class="hover:text-white">Terms of Service</a></p>
+                <p class="mt-2 text-sm">Disclaimer: This application is for educational and informational purposes. DeFi investments carry significant risks.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Add scroll effect to navigation
+        window.addEventListener('scroll', function() {
+            const nav = document.querySelector('nav');
+            if (window.scrollY > 100) {
+                nav.classList.add('bg-white/95', 'backdrop-blur-sm');
+            } else {
+                nav.classList.remove('bg-white/95', 'backdrop-blur-sm');
+            }
+        });
+    </script>
+</body>
+</html> 
