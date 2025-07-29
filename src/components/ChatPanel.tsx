@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -12,6 +13,22 @@ export default function ChatPanel() {
       <p className="text-sm text-muted-foreground mt-2">
         Yield AI – All-in-One DeFi Dashboard for Maximizing Yields on Aptos
       </p>
+      <div className="mt-4 flex justify-center">
+        <Link
+          href="https://app.auro.finance?ref=Y7RSIC14LS4F"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <Image
+            src="/YieldAIxAUROFinance.png"
+            alt="Auro Finance Partnership"
+            width={0}
+            height={0}
+            sizes="100vw"
+            className="w-auto h-auto max-w-full rounded-lg hover:opacity-80 transition-opacity scale-75"
+          />
+        </Link>
+      </div>
       <p className="text-sm text-muted-foreground mt-4">
         New AI features will be here soon, and for now, we would be happy to get your{' '}
         <a
