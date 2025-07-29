@@ -10,6 +10,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 interface EchelonReward {
   token: string;
   tokenType: string;
+  rewardName?: string;
   amount: number;
   rawAmount: string;
   farmingId: string;

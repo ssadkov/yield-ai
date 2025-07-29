@@ -15,10 +15,26 @@ import {
   ArrowLeftRight,
   Wallet,
   Store,
-  Shield
+  Shield,
+  Globe
 } from 'lucide-react';
 
 const testPages = [
+  {
+    name: 'Test Progressive Loading',
+    description: 'Test progressive loading of pools',
+    path: '/test-progressive-loading',
+    icon: Zap,
+    badge: 'New',
+    color: 'bg-emerald-500'
+  },
+  {
+    name: 'Test Debug',
+    description: 'Debug API calls',
+    path: '/test-debug',
+    icon: Settings,
+    color: 'bg-red-500'
+  },
   {
     name: 'Test Swap',
     description: 'Test Hyperion swap functionality',
@@ -26,6 +42,14 @@ const testPages = [
     icon: ArrowLeftRight,
     badge: 'New',
     color: 'bg-blue-500'
+  },
+  {
+    name: 'Test Panora',
+    description: 'Test Panora token list and wallet tokens',
+    path: '/test-panora',
+    icon: Globe,
+    badge: 'New',
+    color: 'bg-cyan-500'
   },
   {
     name: 'Test Hyperion',
@@ -68,6 +92,13 @@ const testPages = [
     path: '/test-zustand',
     icon: Store,
     color: 'bg-indigo-500'
+  },
+  {
+    name: 'Test Wallet Store',
+    description: 'Test centralized wallet data management',
+    path: '/test-wallet-store',
+    icon: Wallet,
+    color: 'bg-green-500'
   },
   {
     name: 'Test Echelon',

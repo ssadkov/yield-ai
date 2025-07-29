@@ -108,7 +108,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
         }
         
         const data = await response.json();
-        console.log('Tapp API response:', data);
+        // console.log('Tapp API response:', data);
         
         if (data.success && Array.isArray(data.data)) {
           console.log('Setting positions:', data.data);

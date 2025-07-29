@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json();
-    console.log('Amnis API response:', data);
+    // console.log('Amnis API response:', data);
 
     // Create two pools: APT staking and amAPT
     const pools = [

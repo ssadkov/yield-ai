@@ -5,6 +5,8 @@ import { Aptos, Network, InputViewFunctionData, AptosConfig } from "@aptos-labs/
 const AURO_ADDRESS = "0x50a340a19e6ada1be07192c042786ca6a9651d5c845acc8727e8c6416a56a32c";
 const AURO_ROUTER_ADDRESS = "0xd039ef33e378c10544491855a2ef99cd77bf1a610fd52cc43117cd96e1c73465";
 
+const APTOS_API_KEY = process.env.APTOS_API_KEY;
+
 // Helper function to standardize address format
 function standardizeAddress(address: string): string {
   return address.startsWith("0x") ? address : `0x${address}`;
@@ -12,6 +14,8 @@ function standardizeAddress(address: string): string {
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('🔑 APTOS_API_KEY exists:', !!APTOS_API_KEY);
+    
     const { searchParams } = new URL(request.url);
     const walletAddress = searchParams.get("address");
     if (!walletAddress) {
@@ -20,7 +24,12 @@ export async function GET(request: NextRequest) {
 
     const aptosConfig = new AptosConfig({
       network: Network.MAINNET,
-      fullnode: "https://fullnode.mainnet.aptoslabs.com"
+      fullnode: "https://fullnode.mainnet.aptoslabs.com",
+      ...(APTOS_API_KEY && {
+        headers: {
+          'Authorization': `Bearer ${APTOS_API_KEY}`,
+        },
+      }),
     });
     const aptos = new Aptos(aptosConfig);
 
@@ -74,7 +83,12 @@ async function getPositionInfo(positionsAddress: string[]): Promise<any[]> {
 
     const aptosConfig = new AptosConfig({
       network: Network.MAINNET,
-      fullnode: "https://fullnode.mainnet.aptoslabs.com"
+      fullnode: "https://fullnode.mainnet.aptoslabs.com",
+      ...(APTOS_API_KEY && {
+        headers: {
+          'Authorization': `Bearer ${APTOS_API_KEY}`,
+        },
+      }),
     });
     const aptos = new Aptos(aptosConfig);
 

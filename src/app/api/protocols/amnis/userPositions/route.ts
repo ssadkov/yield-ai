@@ -55,11 +55,16 @@ export async function GET(request: NextRequest) {
           arguments: [address, pool.address]
         };
 
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+        if (process.env.APTOS_API_KEY) {
+          headers['Authorization'] = `Bearer ${process.env.APTOS_API_KEY}`;
+        }
+
         const viewResponse = await fetch('https://fullnode.mainnet.aptoslabs.com/v1/view', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers,
           body: JSON.stringify(viewPayload),
         });
 

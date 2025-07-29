@@ -14,15 +14,29 @@ import { WithdrawModal } from "@/components/ui/withdraw-modal";
 import echelonMarkets from "@/lib/data/echelonMarkets.json";
 import { useDragDrop } from "@/contexts/DragDropContext";
 import { PositionDragData } from "@/types/dragDrop";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { PanoraPricesService } from "@/lib/services/panora/prices";
 import { TokenPrice } from "@/lib/types/panora";
+import { useClaimRewards } from "@/lib/hooks/useClaimRewards";
+import { ClaimAllRewardsEchelonModal } from "@/components/ui/claim-all-rewards-echelon-modal";
+import { DepositModal } from "@/components/ui/deposit-modal";
+import { ProtocolKey } from "@/lib/transactions/types";
 
 interface Position {
   coin: string;
   amount: number | string;
   market?: string;
   type?: string; // supply или borrow
+}
+
+interface EchelonReward {
+  token: string;
+  tokenType: string;
+  rewardName?: string;
+  amount: number;
+  rawAmount: string;
+  farmingId: string;
+  stakeAmount: number;
 }
 
 export function EchelonPositions() {
@@ -33,19 +47,43 @@ export function EchelonPositions() {
   const [totalValue, setTotalValue] = useState<number>(0);
   const [marketData, setMarketData] = useState<any[]>([]);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [showClaimAllModal, setShowClaimAllModal] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
   const [tokenPrices, setTokenPrices] = useState<Record<string, string>>({});
+  const [rewardsData, setRewardsData] = useState<EchelonReward[]>([]);
   const { withdraw, isLoading: isWithdrawing } = useWithdraw();
+  const { claimRewards, isLoading: isClaiming } = useClaimRewards();
   const { startDrag, endDrag, state, closePositionModal, closeAllModals, setPositionConfirmHandler } = useDragDrop();
   const isModalOpenRef = useRef(false);
   const pricesService = PanoraPricesService.getInstance();
 
-  // Получаем все уникальные адреса токенов из позиций
-  const getAllTokenAddresses = () => {
+  // Функция для получения информации о токене наград
+  const getRewardTokenInfoHelper = (tokenName: string) => {
+    const token = (tokenList as any).data.data.find(
+      (t: any) => 
+        t.symbol.toLowerCase() === tokenName.toLowerCase() ||
+        t.name.toLowerCase().includes(tokenName.toLowerCase())
+    );
+    
+    if (!token) return undefined;
+    
+    return {
+      address: token.tokenAddress,
+      faAddress: token.faAddress,
+      symbol: token.symbol,
+      icon_uri: token.logoUrl,
+      decimals: token.decimals,
+      usdPrice: getTokenPrice(token.faAddress || token.tokenAddress || '')
+    };
+  };
+
+  // Получаем все уникальные адреса токенов из позиций и наград
+  const getAllTokenAddresses = useCallback(() => {
     const addresses = new Set<string>();
     
+    // Добавляем адреса токенов позиций
     positions.forEach(position => {
-      // Нормализуем адрес токена
       let cleanAddress = position.coin;
       if (cleanAddress.startsWith('@')) {
         cleanAddress = cleanAddress.slice(1);
@@ -55,9 +93,20 @@ export function EchelonPositions() {
       }
       addresses.add(cleanAddress);
     });
-    
+
+    // Добавляем адреса токенов наград
+    rewardsData.forEach((reward) => {
+      const tokenInfo = getRewardTokenInfoHelper(reward.token);
+      if (tokenInfo?.faAddress) {
+        addresses.add(tokenInfo.faAddress);
+      }
+      if (tokenInfo?.address) {
+        addresses.add(tokenInfo.address);
+      }
+    });
+
     return Array.from(addresses);
-  };
+  }, [positions, rewardsData, getRewardTokenInfoHelper]);
 
   // Получаем цену токена из кэша
   const getTokenPrice = (coinAddress: string): string => {
@@ -71,14 +120,66 @@ export function EchelonPositions() {
     return tokenPrices[cleanAddress] || '0';
   };
 
-  // Получаем цены токенов через Panora API
+
+
+  // Загрузка rewards
+  const fetchRewards = useCallback(async () => {
+    if (!account?.address) return;
+    
+    try {
+      const response = await fetch(`/api/protocols/echelon/rewards?address=${account.address}`);
+      const data = await response.json();
+      
+      if (data.success && Array.isArray(data.data)) {
+        setRewardsData(data.data);
+      } else {
+        setRewardsData([]);
+      }
+    } catch (error) {
+      console.error('Error loading rewards:', error);
+      setRewardsData([]);
+    }
+  }, [account?.address]);
+
+  // Расчет стоимости rewards
+  const calculateRewardsValue = useCallback(() => {
+    return rewardsData.reduce((sum, reward) => {
+      const tokenInfo = getRewardTokenInfoHelper(reward.token);
+      if (!tokenInfo) return sum;
+      
+      const price = getTokenPrice(tokenInfo.faAddress || tokenInfo.address || '');
+      const value = price && price !== '0' ? reward.amount * parseFloat(price) : 0;
+      
+      return sum + value;
+    }, 0);
+  }, [rewardsData, tokenPrices]);
+
+  // Claim rewards
+  const handleClaimRewards = async () => {
+    if (!account?.address || rewardsData.length === 0) return;
+    
+    try {
+      // Для Echelon нужно вызывать claim для каждого reward отдельно
+      for (const reward of rewardsData) {
+        await claimRewards('echelon', [reward.farmingId], [reward.tokenType]);
+      }
+      
+      // Обновить данные
+      await fetchRewards();
+    } catch (error) {
+      console.error('Error claiming rewards:', error);
+    }
+  };
+
+  // Получаем цены токенов через Panora API с дебаунсингом
   useEffect(() => {
-    const fetchPrices = async () => {
+    const timeoutId = setTimeout(async () => {
       const addresses = getAllTokenAddresses();
-      if (addresses.length === 0) return;
+      if (addresses.length === 0 || !account?.address) return;
 
       try {
         const response = await pricesService.getPrices(1, addresses);
+        
         if (response.data) {
           const prices: Record<string, string> = {};
           response.data.forEach((price: TokenPrice) => {
@@ -94,41 +195,14 @@ export function EchelonPositions() {
       } catch (error) {
         console.error('Error fetching token prices:', error);
       }
-    };
+    }, 1000); // Дебаунсинг 1 секунда
 
-    fetchPrices();
-  }, [positions]);
+    return () => clearTimeout(timeoutId);
+  }, [getAllTokenAddresses, pricesService, account?.address]);
 
-  // Функция для загрузки позиций
-  const loadPositions = useCallback(async () => {
-    if (!account?.address) return;
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/protocols/echelon/userPositions?address=${account.address}`);
-      const data = await response.json();
-      console.log('EchelonPositions - loadPositions raw data:', data);
-      
-      if (data.success && Array.isArray(data.data)) {
-        console.log('EchelonPositions - data.data length:', data.data.length);
-        console.log('EchelonPositions - data.data:', data.data);
-        
-        // Просто устанавливаем позиции без дополнительной обработки
-        console.log('EchelonPositions - setting positions with length:', data.data.length);
-        setPositions(data.data);
-      } else {
-        console.log('EchelonPositions - no valid data, setting empty positions');
-        console.log('EchelonPositions - data.success:', data.success);
-        console.log('EchelonPositions - data.data type:', typeof data.data);
-        console.log('EchelonPositions - data.data:', data.data);
-        setPositions([]);
-      }
-    } catch (error) {
-      console.error('EchelonPositions - loadPositions error:', error);
-      setPositions([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [account?.address]);
+
+
+
 
   // Загружаем marketData с APY
   useEffect(() => {
@@ -145,9 +219,48 @@ export function EchelonPositions() {
       });
   }, []);
 
+  // Объединенный useEffect для загрузки позиций и наград с дебаунсингом
   useEffect(() => {
-    loadPositions();
-  }, [loadPositions]);
+    if (!account?.address) {
+      setPositions([]);
+      setRewardsData([]);
+      return;
+    }
+
+    const timeoutId = setTimeout(async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        // Загружаем позиции
+        const positionsResponse = await fetch(`/api/protocols/echelon/userPositions?address=${account.address}`);
+        
+        if (!positionsResponse.ok) {
+          throw new Error(`Positions API returned status ${positionsResponse.status}`);
+        }
+        
+        const positionsData = await positionsResponse.json();
+        
+        if (positionsData.success && Array.isArray(positionsData.data)) {
+          setPositions(positionsData.data);
+        } else {
+          setPositions([]);
+        }
+        
+        // Загружаем награды
+        await fetchRewards();
+      } catch (err) {
+        console.error('[Managing Positions] Error loading data:', err);
+        setError('Failed to load Echelon positions');
+        setPositions([]);
+        setRewardsData([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 500); // Дебаунсинг 500мс
+
+    return () => clearTimeout(timeoutId);
+  }, [account?.address, fetchRewards]);
 
   const getTokenInfo = (coinAddress: string) => {
     const token = (tokenList as any).data.data.find(
@@ -187,9 +300,9 @@ export function EchelonPositions() {
     return valueB - valueA;
   });
 
-  // Считаем общую сумму: supply плюсуем, borrow вычитаем
+  // Считаем общую сумму: supply плюсуем, borrow вычитаем, rewards плюсуем
   useEffect(() => {
-    const total = sortedPositions.reduce((sum, position) => {
+    const positionsValue = sortedPositions.reduce((sum, position) => {
       const tokenInfo = getTokenInfo(position.coin);
       const amount = parseFloat(String(position.amount)) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
       const price = getTokenPrice(position.coin);
@@ -199,13 +312,21 @@ export function EchelonPositions() {
       }
       return sum + value;
     }, 0);
-    setTotalValue(total);
-  }, [sortedPositions, tokenPrices]);
+    
+    const rewardsValue = calculateRewardsValue();
+    setTotalValue(positionsValue + rewardsValue);
+  }, [sortedPositions, tokenPrices, calculateRewardsValue]);
 
   // Обработчик открытия модального окна withdraw
   const handleWithdrawClick = (position: Position) => {
     setSelectedPosition(position);
     setShowWithdrawModal(true);
+  };
+
+  // Обработчик открытия модального окна deposit
+  const handleDepositClick = (position: Position) => {
+    setSelectedPosition(position);
+    setShowDepositModal(true);
   };
 
   // Drag and drop handlers
@@ -389,17 +510,29 @@ export function EchelonPositions() {
                   <div className="text-base text-muted-foreground font-semibold">{amount.toFixed(4)}</div>
                   <div className="flex flex-col gap-1 mt-2">
                     {!isBorrow && (
-                      <button
-                        className={cn(
-                          'px-3 py-1 rounded text-sm font-semibold disabled:opacity-60 transition-all',
-                          'bg-green-500 text-white hover:bg-green-600',
-                          'shadow-lg'
-                        )}
-                        onClick={() => handleWithdrawClick(position)}
-                        disabled={isWithdrawing}
-                      >
-                        {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          className={cn(
+                            'px-3 py-1 rounded text-sm font-semibold disabled:opacity-60 transition-all',
+                            'bg-blue-500 text-white hover:bg-blue-600',
+                            'shadow-lg flex-1'
+                          )}
+                          onClick={() => handleDepositClick(position)}
+                        >
+                          Deposit
+                        </button>
+                        <button
+                          className={cn(
+                            'px-3 py-1 rounded text-sm font-semibold disabled:opacity-60 transition-all',
+                            'bg-green-500 text-white hover:bg-green-600',
+                            'shadow-lg flex-1'
+                          )}
+                          onClick={() => handleWithdrawClick(position)}
+                          disabled={isWithdrawing}
+                        >
+                          {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -410,8 +543,83 @@ export function EchelonPositions() {
       </ScrollArea>
       <div className="flex items-center justify-between pt-6 pb-6">
         <span className="text-xl">Total assets in Echelon:</span>
-        <span className="text-xl text-primary font-bold">${totalValue.toFixed(2)}</span>
+        <div className="text-right">
+          <span className="text-xl text-primary font-bold">${totalValue.toFixed(2)}</span>
+          {calculateRewardsValue() > 0 && (
+            <div className="flex flex-col items-end gap-1">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="text-sm text-muted-foreground cursor-help">
+                     💰 including rewards ${calculateRewardsValue().toFixed(2)}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
+                    <div className="text-xs font-semibold mb-1">Rewards breakdown:</div>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {rewardsData.map((reward, idx) => {
+                        const tokenInfo = getRewardTokenInfoHelper(reward.token);
+                        if (!tokenInfo) return null;
+                        const price = getTokenPrice(tokenInfo.faAddress || tokenInfo.address || '');
+                        const value = price && price !== '0' ? (reward.amount * parseFloat(price)).toFixed(2) : 'N/A';
+                        return (
+                          <div key={idx} className="flex items-center gap-2">
+                            {tokenInfo.icon_uri && (
+                              <img src={tokenInfo.icon_uri} alt={tokenInfo.symbol} className="w-3 h-3 rounded-full" />
+                            )}
+                            <span>{tokenInfo.symbol}</span>
+                            <span>{reward.amount.toFixed(6)}</span>
+                            <span className="text-gray-300">${value}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              {rewardsData.length > 0 && (
+                <button
+                  className="px-3 py-1 bg-green-600 text-white rounded text-sm font-semibold disabled:opacity-60 hover:bg-green-700 transition-colors"
+                  onClick={() => setShowClaimAllModal(true)}
+                  disabled={isClaiming}
+                >
+                  {isClaiming ? 'Claiming...' : `Claim All Rewards (${rewardsData.length})`}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Deposit Modal */}
+      {selectedPosition && (
+        <DepositModal
+          isOpen={showDepositModal}
+          onClose={() => {
+            setShowDepositModal(false);
+            setSelectedPosition(null);
+          }}
+          protocol={{
+            name: "Echelon",
+            logo: "/echelon-favicon.ico",
+            apy: getApyForPosition(selectedPosition) ? getApyForPosition(selectedPosition)! * 100 : 0,
+            key: "echelon" as ProtocolKey
+          }}
+          tokenIn={{
+            symbol: getTokenInfo(selectedPosition.coin)?.symbol || selectedPosition.coin.substring(0, 4).toUpperCase(),
+            logo: getTokenInfo(selectedPosition.coin)?.logoUrl || '/file.svg',
+            decimals: getTokenInfo(selectedPosition.coin)?.decimals || 8,
+            address: selectedPosition.coin
+          }}
+          tokenOut={{
+            symbol: getTokenInfo(selectedPosition.coin)?.symbol || selectedPosition.coin.substring(0, 4).toUpperCase(),
+            logo: getTokenInfo(selectedPosition.coin)?.logoUrl || '/file.svg',
+            decimals: getTokenInfo(selectedPosition.coin)?.decimals || 8,
+            address: selectedPosition.coin
+          }}
+          priceUSD={parseFloat(getTokenPrice(selectedPosition.coin)) || 0}
+        />
+      )}
 
       {/* Withdraw Modal */}
       {selectedPosition && (
@@ -433,6 +641,14 @@ export function EchelonPositions() {
           userAddress={account?.address?.toString()}
         />
       )}
+
+      {/* Claim All Rewards Modal */}
+      <ClaimAllRewardsEchelonModal
+        isOpen={showClaimAllModal}
+        onClose={() => setShowClaimAllModal(false)}
+        rewards={rewardsData}
+        tokenPrices={tokenPrices}
+      />
     </div>
   );
 } 

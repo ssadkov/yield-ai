@@ -66,11 +66,11 @@
   {
     "name": "Auro Finance",
     "category": "Lending",
-    "url": "https://app.auro.finance?ref=Y7RSIC14LS4F",
+    "url": "https://app.auro.finance?ref=YieldAI",
     "logoUrl": "https://app.auro.finance/logo.png",
     "description": "Auro Finance is an advanced DeFi protocol that enables users to gain rewards and liquidity from their staked APT without any lockups. Through Auro Finance, users can borrow USDA, the platform's native stablecoin, against multiple collateral options, allowing them to utilize their holdings without selling them.",
     "depositType": "external",
-    "depositUrl": "https://app.auro.finance?ref=Y7RSIC14LS4F",
+    "depositUrl": "https://app.auro.finance?ref=YieldAI",
     "isDepositEnabled": true,
     "managedType": "native"
   },
@@ -83,5 +83,21 @@
     "depositType": "native",
     "isDepositEnabled": true,
     "managedType": "external"
+  },
+  {
+    "name": "Panora",
+    "category": "Aggregator",
+    "url": "https://panora.exchange",
+    "logoUrl": "https://panora.exchange/assets/favicons/favicon.ico",
+    "description": "An all-in-one trading platform designed to provide users with the best rates and routes for their trades",
+    "depositType": "native",
+    "isDepositEnabled": true,
+    "managedType": "native",
+    "panoraConfig": {
+      "integratorFeeAddress": "0x89e68b91fa64038e98cc1ac0e3e7f6b50d056036980be712dcbe6302cee948cb",
+      "integratorFeePercentage": "0.25",
+      "apiKey": "ENV_PANORA_API_KEY",
+      "rpcUrl": "ENV_APTOS_RPC_URL"
+    }
   }
 ] 

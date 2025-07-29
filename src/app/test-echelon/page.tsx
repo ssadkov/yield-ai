@@ -14,6 +14,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { WalletConnectButton } from "@/components/WalletConnectButton";
 import tokenList from "@/lib/data/tokenList.json";
 
+
 interface EchelonReward {
   token: string;
   tokenType: string;
@@ -43,6 +44,8 @@ export default function TestEchelonPage() {
   const [parsedVaultData, setParsedVaultData] = useState<string>("");
   const [tokenPrices, setTokenPrices] = useState<Map<string, TokenPrice>>(new Map());
   const [pricesLoading, setPricesLoading] = useState(false);
+  const [collateralMarketsData, setCollateralMarketsData] = useState<string>("");
+  const [collateralMarketsLoading, setCollateralMarketsLoading] = useState(false);
 
   // Function to get token address by symbol
   const getTokenAddressBySymbol = (symbol: string): string | null => {
@@ -191,6 +194,45 @@ export default function TestEchelonPage() {
       setDebugInfo(prev => prev + `\nError: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setVaultLoading(false);
+    }
+  };
+
+  const handleFetchCollateralMarkets = async () => {
+    if (!walletAddress) {
+      setError("Please enter a wallet address");
+      return;
+    }
+
+    setCollateralMarketsLoading(true);
+    setError(null);
+    setCollateralMarketsData("");
+
+    try {
+      const apiUrl = `/api/protocols/echelon/account-collateral-markets?address=${encodeURIComponent(walletAddress)}`;
+      setDebugInfo(`Fetching collateral markets data from: ${apiUrl}`);
+      
+      const response = await fetch(apiUrl);
+      setDebugInfo(prev => prev + `\nResponse status: ${response.status}`);
+      
+      const data = await response.json();
+      setDebugInfo(prev => prev + `\nResponse data: ${JSON.stringify(data, null, 2)}`);
+      
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to fetch collateral markets data");
+      }
+      
+      if (data.success) {
+        setCollateralMarketsData(JSON.stringify(data.data, null, 2));
+        setDebugInfo(prev => prev + `\nCollateral markets data fetched successfully`);
+      } else {
+        throw new Error(data.error || "Failed to fetch collateral markets data");
+      }
+    } catch (err) {
+      console.error("Error fetching collateral markets data:", err);
+      setError(err instanceof Error ? err.message : "Unknown error");
+      setDebugInfo(prev => prev + `\nError: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setCollateralMarketsLoading(false);
     }
   };
 
@@ -560,6 +602,14 @@ export default function TestEchelonPage() {
                 {vaultLoading ? "Loading..." : "Fetch Vault Data"}
               </Button>
               
+              <Button 
+                onClick={handleFetchCollateralMarkets} 
+                disabled={collateralMarketsLoading || !walletAddress}
+                variant="outline"
+              >
+                {collateralMarketsLoading ? "Loading..." : "Fetch Collateral Markets"}
+              </Button>
+              
               {account?.address ? (
                 <Button 
                   variant="outline"
@@ -641,6 +691,29 @@ export default function TestEchelonPage() {
         </Card>
       )}
 
+      {/* Collateral Markets Data Display */}
+      {collateralMarketsData && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Account Collateral Markets Data</CardTitle>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setCollateralMarketsData("")}
+              >
+                Clear
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="p-4 border rounded-lg bg-purple-50 border-purple-200">
+              <p className="text-sm font-mono text-purple-700 whitespace-pre-wrap">{collateralMarketsData}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {rewards.length > 0 && (
         <Card>
           <CardHeader>
@@ -714,12 +787,13 @@ export default function TestEchelonPage() {
                          )}
                        </span>
                      </TableCell>
-                    <TableCell>
-                      <span className="font-mono text-gray-600">
-                        {reward.stakeAmount.toFixed(6)}
-                      </span>
-                    </TableCell>
                                          <TableCell>
+                       <span className="font-mono text-gray-600">
+                         {reward.stakeAmount.toFixed(6)}
+                       </span>
+                     </TableCell>
+
+                     <TableCell>
                        <span className="font-mono text-xs text-gray-500">
                          {formatFarmingId(reward.farmingId)}
                        </span>
@@ -747,10 +821,12 @@ export default function TestEchelonPage() {
           <CardContent className="p-8 text-center">
             <p className="text-muted-foreground">No rewards found for this address</p>
           </CardContent>
-                 </Card>
-       )}
+        </Card>
+      )}
+
+
        
-       <Toaster />
-     </div>
-   );
- } 
+      <Toaster />
+    </div>
+  );
+} 

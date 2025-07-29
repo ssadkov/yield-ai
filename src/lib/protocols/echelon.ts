@@ -59,4 +59,24 @@ export class EchelonProtocol implements BaseProtocol {
       arguments: [marketAddress, amountOctas.toString()]
     };
   }
+
+  async buildClaimRewards(positionIds: string[], tokenTypes: string[]) {
+    console.log('Building claim rewards for:', { positionIds, tokenTypes });
+
+    // Для Echelon нужно создать отдельную транзакцию для каждого reward
+    // Пока возвращаем первую позицию и первый токен как пример
+    if (positionIds.length === 0 || tokenTypes.length === 0) {
+      throw new Error('No position IDs or token types provided');
+    }
+
+    const farmingId = positionIds[0];
+    const tokenType = tokenTypes[0];
+
+    return {
+      type: "entry_function_payload" as const,
+      function: "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::claim_reward",
+      type_arguments: [tokenType],
+      arguments: [[farmingId], []] as [string[], any[]]
+    };
+  }
 } 

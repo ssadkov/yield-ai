@@ -85,7 +85,7 @@ export async function GET(request: Request) {
       }
     };
 
-    console.log('Fetching Tapp pools from:', tappApiUrl);
+    // console.log('Fetching Tapp pools from:', tappApiUrl);
     console.log('Request body:', JSON.stringify(requestBody, null, 2));
 
     const response = await fetch(tappApiUrl, {
@@ -107,7 +107,7 @@ export async function GET(request: Request) {
     }
 
     const data = await response.json();
-    console.log('Tapp API response:', data);
+    // console.log('Tapp API response:', data);
 
     // Check if we have valid data (JSON-RPC format)
     if (!data.result || !data.result.data) {

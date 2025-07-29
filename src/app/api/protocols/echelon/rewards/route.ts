@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
     const userPools = stakerResource.data.user_pools.data;
     const rewards = [];
 
-    // Map reward names to token types
+    // Map reward names to token types and symbols
     const REWARD_TOKEN_TYPES: { [key: string]: string } = {
       "Aptos Coin": "0x1::aptos_coin::AptosCoin",
       "Thala APT": "0xfaf4e633ae9eb31366c9ca24214231760926576c7b625313b3688b5e900731f6::staking::ThalaAPT",
@@ -67,6 +67,21 @@ export async function GET(request: NextRequest) {
       "THL": "0x7fd500c11216f0fe3095d0c4b8aa4d64a4e2e04f83758462f2b127255643615::thl_coin::THL",
       "CELL": "0x2ebb2ccac5e027a87fa0e2e5f656a3a4238d6a48d93ec9b610d570fc0aa0df12",
       "VIBE": "0xeedba439a4ab8987a995cf5cfefebd713000b3365718a29dfbc36bc214445fb8",
+      // Add more mappings as needed
+    };
+
+    // Map reward names to token symbols for UI display
+    const REWARD_TOKEN_SYMBOLS: { [key: string]: string } = {
+      "Aptos Coin": "APT",
+      "Thala APT": "thAPT",
+      "StakedThalaAPT": "sthAPT",
+      "ECHO": "ECHO",
+      "MKL": "MKL",
+      "AMI": "AMI",
+      "LSD": "LSD",
+      "THL": "THL",
+      "CELL": "CELL",
+      "VIBE": "VIBE",
       // Add more mappings as needed
     };
 
@@ -109,9 +124,11 @@ export async function GET(request: NextRequest) {
 
           if (formattedAmount > 0) {
             const tokenType = REWARD_TOKEN_TYPES[rewardName];
+            const tokenSymbol = REWARD_TOKEN_SYMBOLS[rewardName] || rewardName;
             rewards.push({
-              token: rewardName,
+              token: tokenSymbol, // Используем правильный символ для UI
               tokenType: tokenType || "Unknown",
+              rewardName: rewardName, // Добавляем полное название для совместимости
               amount: formattedAmount,
               rawAmount: claimableAmount,
               farmingId: farmingId,

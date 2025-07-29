@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { PositionCard } from "./PositionCard";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -24,6 +24,7 @@ interface Position {
   coin: string;
   supply: number;
   supplyApr: number;
+  borrow?: number;
   amount?: number;
   type?: string; // supply или borrow
 }
@@ -39,6 +40,7 @@ interface TokenInfo {
 interface EchelonReward {
   token: string;
   tokenType: string;
+  rewardName?: string;
   amount: number;
   rawAmount: string;
   farmingId: string;
@@ -52,7 +54,6 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
   const [error, setError] = useState<string | null>(null);
   const [tokenPrices, setTokenPrices] = useState<Record<string, string>>({});
   const [rewardsData, setRewardsData] = useState<EchelonReward[]>([]);
-  const [totalRewardsValue, setTotalRewardsValue] = useState<number>(0);
   const { isExpanded, toggleSection } = useCollapsible();
   const pricesService = PanoraPricesService.getInstance();
 
@@ -158,11 +159,11 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
       console.log('[Echelon] Total rewards value:', totalValue, rewardsData);
     }
     return totalValue;
-  }, [rewardsData, getRewardTokenInfoHelper, getTokenPrice]);
+  }, [rewardsData, getRewardTokenInfoHelper, tokenPrices]);
 
   // Функция для загрузки наград
   const fetchRewards = useCallback(async () => {
-    if (!walletAddress) return;
+    if (!walletAddress || walletAddress.length < 10) return;
     
     try {
       const response = await fetch(`/api/protocols/echelon/rewards?address=${walletAddress}`);
@@ -187,7 +188,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
   }, [walletAddress]);
 
   // Получаем все уникальные адреса токенов из позиций
-  const getAllTokenAddresses = () => {
+  const getAllTokenAddresses = useCallback(() => {
     const addresses = new Set<string>();
     
     positions.forEach(position => {
@@ -215,13 +216,13 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
     const arr = Array.from(addresses);
     console.log('[Echelon] Token addresses for Panora:', arr);
     return arr;
-  };
+  }, [positions, rewardsData, getRewardTokenInfoHelper]);
 
-  // Получаем цены токенов через Panora API
+  // Получаем цены токенов через Panora API с дебаунсингом
   useEffect(() => {
-    const fetchPrices = async () => {
+    const timeoutId = setTimeout(async () => {
       const addresses = getAllTokenAddresses();
-      if (addresses.length === 0) return;
+      if (addresses.length === 0 || !walletAddress || walletAddress.length < 10) return;
 
       try {
         const response = await pricesService.getPrices(1, addresses);
@@ -241,21 +242,20 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
       } catch (error) {
         console.error('Error fetching token prices:', error);
       }
-    };
+    }, 1000); // Дебаунсинг 1 секунда
 
-    fetchPrices();
-  }, [positions, rewardsData]);
+    return () => clearTimeout(timeoutId);
+  }, [getAllTokenAddresses, pricesService]);
 
-  // Объединенный useEffect для загрузки позиций и наград
+  // Объединенный useEffect для загрузки позиций и наград с дебаунсингом
   useEffect(() => {
-    if (!walletAddress) {
+    if (!walletAddress || walletAddress.length < 10) {
       setPositions([]);
       setRewardsData([]);
-      setTotalRewardsValue(0);
       return;
     }
 
-    const loadData = async () => {
+    const timeoutId = setTimeout(async () => {
       setLoading(true);
       setError(null);
       
@@ -285,53 +285,65 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
         setError('Failed to load Echelon positions');
         setPositions([]);
         setRewardsData([]);
-        setTotalRewardsValue(0);
       } finally {
         setLoading(false);
       }
-    };
+    }, 500); // Дебаунсинг 500мс
 
-    loadData();
+    return () => clearTimeout(timeoutId);
   }, [walletAddress, fetchRewards]);
 
-  // Обновляем totalRewardsValue когда меняются цены или данные наград
-  useEffect(() => {
-    const newTotalRewardsValue = calculateRewardsValue();
-    setTotalRewardsValue(newTotalRewardsValue);
-  }, [calculateRewardsValue]);
+  // Мемоизируем расчет общей суммы
+  const totalValue = useMemo(() => {
+    const positionsValue = positions.reduce((sum, position) => {
+      const tokenInfo = getTokenInfo(position.coin);
+      const isBorrow = position.type === 'borrow';
+      const rawAmount = isBorrow ? (position.borrow ?? position.amount ?? 0) : (position.supply ?? position.amount ?? 0);
+      const amount = rawAmount / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
+      const price = getTokenPrice(position.coin);
+      const value = price ? amount * parseFloat(price) : 0;
+      if (isBorrow) {
+        return sum - value;
+      }
+      return sum + value;
+    }, 0);
+    
+    return positionsValue + calculateRewardsValue();
+  }, [positions, tokenPrices, calculateRewardsValue]);
 
-  // Считаем общую сумму в долларах: supply плюсуем, borrow вычитаем, награды плюсуем
-  const totalValue = positions.reduce((sum, position) => {
-    const tokenInfo = getTokenInfo(position.coin);
-    const rawAmount = position.supply ?? position.amount ?? 0;
-    const amount = rawAmount / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
-    const price = getTokenPrice(position.coin);
-    const value = price ? amount * parseFloat(price) : 0;
-    if (position.type === 'borrow') {
-      return sum - value;
-    }
-    return sum + value;
-  }, 0) + totalRewardsValue; // Добавляем награды к общей сумме
-
-  // Сортируем позиции по значению от большего к меньшему
-  const sortedPositions = [...positions].sort((a, b) => {
-    const tokenInfoA = getTokenInfo(a.coin);
-    const tokenInfoB = getTokenInfo(b.coin);
-    const rawAmountA = a.supply ?? a.amount ?? 0;
-    const rawAmountB = b.supply ?? b.amount ?? 0;
-    const amountA = rawAmountA / (tokenInfoA?.decimals ? 10 ** tokenInfoA.decimals : 1e8);
-    const amountB = rawAmountB / (tokenInfoB?.decimals ? 10 ** tokenInfoB.decimals : 1e8);
-    const priceA = getTokenPrice(a.coin);
-    const priceB = getTokenPrice(b.coin);
-    const valueA = priceA ? amountA * parseFloat(priceA) : 0;
-    const valueB = priceB ? amountB * parseFloat(priceB) : 0;
-    return valueB - valueA;
-  });
+  // Мемоизируем сортировку позиций
+  const sortedPositions = useMemo(() => {
+    return [...positions].sort((a, b) => {
+      const tokenInfoA = getTokenInfo(a.coin);
+      const tokenInfoB = getTokenInfo(b.coin);
+      const isBorrowA = a.type === 'borrow';
+      const isBorrowB = b.type === 'borrow';
+      const rawAmountA = isBorrowA ? (a.borrow ?? a.amount ?? 0) : (a.supply ?? a.amount ?? 0);
+      const rawAmountB = isBorrowB ? (b.borrow ?? b.amount ?? 0) : (b.supply ?? b.amount ?? 0);
+      const amountA = rawAmountA / (tokenInfoA?.decimals ? 10 ** tokenInfoA.decimals : 1e8);
+      const amountB = rawAmountB / (tokenInfoB?.decimals ? 10 ** tokenInfoB.decimals : 1e8);
+      const priceA = getTokenPrice(a.coin);
+      const priceB = getTokenPrice(b.coin);
+      const valueA = priceA ? amountA * parseFloat(priceA) : 0;
+      const valueB = priceB ? amountB * parseFloat(priceB) : 0;
+      return valueB - valueA;
+    });
+  }, [positions, tokenPrices]);
 
   // Вызываем колбэк при изменении общей суммы позиций
   useEffect(() => {
     onPositionsValueChange?.(totalValue);
   }, [totalValue, onPositionsValueChange]);
+
+  // Если идет загрузка, не отображаем блок
+  if (loading) {
+    return null;
+  }
+
+  // Если есть ошибка, не отображаем блок
+  if (error) {
+    return null;
+  }
 
   // Если нет позиций, не отображаем блок
   if (positions.length === 0) {
@@ -374,11 +386,11 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
           <ScrollArea className="h-full">
             {sortedPositions.map((position, index) => {
               const tokenInfo = getTokenInfo(position.coin);
-              const rawAmount = position.supply ?? position.amount ?? 0;
+              const isBorrow = position.type === 'borrow';
+              const rawAmount = isBorrow ? (position.borrow ?? position.amount ?? 0) : (position.supply ?? position.amount ?? 0);
               const amount = rawAmount / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
               const price = getTokenPrice(position.coin);
               const value = price ? (amount * parseFloat(price)).toFixed(2) : 'N/A';
-              const isBorrow = position.type === 'borrow';
               return (
                 <div key={`${position.coin}-${index}`} className={cn('mb-2', isBorrow && 'bg-red-50 rounded')}> 
                   <div className="flex justify-between items-center">
@@ -419,13 +431,13 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
             })}
             
             {/* Total Rewards */}
-            {totalRewardsValue > 0 && (
+            {calculateRewardsValue() > 0 && (
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div className="flex items-center justify-between pt-2 border-t border-gray-200 cursor-help">
                       <span className="text-sm text-muted-foreground">💰 Total rewards:</span>
-                      <span className="text-sm font-medium">${totalRewardsValue.toFixed(2)}</span>
+                      <span className="text-sm font-medium">${calculateRewardsValue().toFixed(2)}</span>
                     </div>
                   </TooltipTrigger>
                   <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">

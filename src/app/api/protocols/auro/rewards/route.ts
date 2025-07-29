@@ -4,15 +4,24 @@ import { Aptos, AptosConfig, Network } from '@aptos-labs/ts-sdk';
 // Auro Finance contract address (mainnet)
 const AURO_ADDRESS = "0x50a340a19e6ada1be07192c042786ca6a9651d5c845acc8727e8c6416a56a32c";
 
-// Initialize Aptos client
+const APTOS_API_KEY = process.env.APTOS_API_KEY;
+
+// Initialize Aptos client with API key
 const config = new AptosConfig({
   network: Network.MAINNET,
+  ...(APTOS_API_KEY && {
+    fullnode: `https://fullnode.mainnet.aptoslabs.com/v1`,
+    headers: {
+      'Authorization': `Bearer ${APTOS_API_KEY}`,
+    },
+  }),
 });
 const aptos = new Aptos(config);
 
 export async function POST(request: NextRequest) {
   try {
     console.log('=== Auro Rewards API Route Started ===');
+    console.log('🔑 APTOS_API_KEY exists:', !!APTOS_API_KEY);
     
     // Получаем данные из запроса
     const body = await request.json();
@@ -27,9 +36,9 @@ export async function POST(request: NextRequest) {
 
     // Формируем пары (позиция, collateral reward pool) и (позиция, borrow reward pool)
     const pairs: Array<{ position: string, pool: string }> = [];
-    console.log('=== Начинаем формирование пар ===');
-    console.log('Количество позиций:', positionsInfo.length);
-    console.log('Количество пулов:', poolsData.length);
+    // console.log('=== Начинаем формирование пар ===');
+    // console.log('Количество позиций:', positionsInfo.length);
+    // console.log('Количество пулов:', poolsData.length);
     
     for (const pos of positionsInfo) {
       console.log('Обрабатываем позицию:', {
@@ -81,14 +90,14 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    console.log('=== Итоговые пары ===');
-    console.log('Всего пар:', pairs.length);
-    console.log('Пары:', pairs);
+    // console.log('=== Итоговые пары ===');
+    // console.log('Всего пар:', pairs.length);
+    // console.log('Пары:', pairs);
 
     if (pairs.length === 0) {
       return NextResponse.json({ success: true, data: [], message: 'No valid pairs found' });
     }
-    console.log('Пары для одиночных вызовов:', pairs);
+    // console.log('Пары для одиночных вызовов:', pairs);
 
     // Для каждой пары делаем отдельный вызов claimable_rewards
     const rewardsData: any[] = [];

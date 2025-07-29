@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await response.json();
-    console.log('Aptos API response:', data);
+    // console.log('Aptos API response:', data);
 
     const balances = data.data?.current_fungible_asset_balances || [];
     const result = { balances };
