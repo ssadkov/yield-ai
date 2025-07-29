@@ -173,7 +173,7 @@ export function TappPositions() {
   useEffect(() => {
     loadPositions();
 
-    const handleRefresh = (event: CustomEvent) => {
+    const handleRefresh = async (event: CustomEvent) => {
       if (event.detail.protocol === 'tapp') {
         if (event.detail.data && Array.isArray(event.detail.data)) {
           const sortedPositions = [...event.detail.data].sort((a, b) => {
@@ -184,14 +184,14 @@ export function TappPositions() {
           setPositions(sortedPositions);
         } else {
           // Если данных нет, загружаем позиции заново
-          loadPositions();
+          await loadPositions();
         }
       }
     };
 
-    window.addEventListener('refreshPositions', handleRefresh as EventListener);
+    window.addEventListener('refreshPositions', handleRefresh as unknown as EventListener);
     return () => {
-      window.removeEventListener('refreshPositions', handleRefresh as EventListener);
+      window.removeEventListener('refreshPositions', handleRefresh as unknown as EventListener);
     };
   }, [account?.address]);
 
