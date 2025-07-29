@@ -22,7 +22,7 @@ export default function ChatPanel() {
           <img 
             src="/YieldAIxAUROFinance.png" 
             alt="Yield AI x Auro Finance Partnership" 
-            className="h-90 w-auto object-contain"
+            className="h-60 md:h-90 w-auto object-contain max-w-full"
           />
         </a>
       </div>
