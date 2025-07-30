@@ -149,7 +149,7 @@ export function PositionCard({ position, isManageView = false }: PositionProps) 
         <div className="flex flex-col items-end gap-2">
           <div className="text-base font-medium">${parseFloat(position.value).toFixed(2)}</div>
         </div>
-      </CardHeader>
+      </CardHeader>    
     </Card>
   );
 } 
