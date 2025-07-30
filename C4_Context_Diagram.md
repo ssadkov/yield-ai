@@ -2,91 +2,48 @@
 
 ## System Context
 
-This diagram shows how the YieldAI system fits into the larger environment, including users, external systems, and blockchain components.
+This diagram shows how the YieldAI system fits into the larger environment, including users and external systems.
 
 ```mermaid
 C4Context
-    title System Context diagram for YieldAI
+    title Level 1: System Context Diagram
 
-    Person(user, "DeFi User", "A user who wants to manage their DeFi investments across multiple protocols on Aptos blockchain")
+    Person(defiUser, "DeFi User", "Manages investments across multiple DeFi protocols")
     
-    System(yieldAI, "YieldAI System", "Allows users to view, manage, and optimize their DeFi positions across multiple protocols on Aptos")
+    System(yieldAI, "YieldAI System", "DeFi investment dashboard for portfolio management and yield optimization")
     
-    System_Ext(aptosBlockchain, "Aptos Blockchain", "Layer 1 blockchain providing the foundation for all DeFi protocols")
+    System_Ext(walletProviders, "Wallet Providers", "Petra, Martian, Pontem wallets")
     
-    System_Ext(panoraAPI, "Panora API", "Provides token prices, market data, and swap functionality")
+    System_Ext(aptosBlockchain, "Aptos Blockchain", "Layer 1 blockchain for DeFi protocols")
     
-    System_Ext(aptosAPI, "Aptos API", "Provides blockchain data, wallet information, and transaction capabilities")
+    System_Ext(panoraAPI, "Panora API", "Token prices and swap functionality")
     
-    System_Ext(hyperionAPI, "Hyperion API", "DEX protocol API for liquidity pools and trading data")
-    
-    System_Ext(echelonAPI, "Echelon API", "Lending protocol API for market data and user positions")
-    
-    System_Ext(jouleAPI, "Joule API", "Lending protocol API for user positions and rewards")
-    
-    System_Ext(ariesAPI, "Aries API", "Lending protocol API for market data")
-    
-    System_Ext(auroAPI, "Auro API", "Lending protocol API for pools and user positions")
-    
-    System_Ext(amnisAPI, "Amnis API", "Staking protocol API for staking pools and rewards")
-    
-    System_Ext(tappAPI, "Tapp API", "DEX protocol API for trading data")
-    
-    System_Ext(mesoAPI, "Meso API", "Lending protocol API for market data")
-    
-    System_Ext(walletProviders, "Wallet Providers", "Petra, Martian, Pontem, and other Aptos wallet providers")
-    
-    System_Ext(gasStation, "Gas Station", "Provides gasless transaction capabilities")
+    System_Ext(defiProtocols, "DeFi Protocols", "Echelon, Hyperion, Joule, Aries, Auro, Amnis, Tapp, Meso")
 
-    Rel(user, yieldAI, "Uses", "Web browser")
+    Rel(defiUser, yieldAI, "Uses", "Web browser")
     Rel(yieldAI, aptosBlockchain, "Reads from and writes to", "Aptos SDK")
     Rel(yieldAI, panoraAPI, "Fetches token prices and executes swaps", "HTTP/REST")
-    Rel(yieldAI, aptosAPI, "Gets blockchain data and wallet info", "HTTP/REST")
-    Rel(yieldAI, hyperionAPI, "Fetches pool data and user positions", "HTTP/REST")
-    Rel(yieldAI, echelonAPI, "Fetches market data and user positions", "HTTP/REST")
-    Rel(yieldAI, jouleAPI, "Fetches user positions and rewards", "HTTP/REST")
-    Rel(yieldAI, ariesAPI, "Fetches market data", "HTTP/REST")
-    Rel(yieldAI, auroAPI, "Fetches pools and user positions", "HTTP/REST")
-    Rel(yieldAI, amnisAPI, "Fetches staking pools and rewards", "HTTP/REST")
-    Rel(yieldAI, tappAPI, "Fetches trading data", "HTTP/REST")
-    Rel(yieldAI, mesoAPI, "Fetches market data", "HTTP/REST")
-    Rel(user, walletProviders, "Connects via", "Wallet adapter")
+    Rel(yieldAI, defiProtocols, "Fetches pool data and user positions", "HTTP/REST")
+    Rel(defiUser, walletProviders, "Connects via", "Wallet adapter")
     Rel(yieldAI, walletProviders, "Interacts with", "Wallet adapter")
-    Rel(yieldAI, gasStation, "Uses for gasless transactions", "HTTP/REST")
 ```
 
 ## Key External Systems
 
-### Blockchain Infrastructure
-- **Aptos Blockchain**: The foundation layer providing transaction processing and smart contract execution
-- **Wallet Providers**: Various Aptos wallet implementations (Petra, Martian, Pontem, etc.)
-- **Gas Station**: Service for gasless transaction capabilities
+### Users
+- **DeFi User**: Manages investments across multiple DeFi protocols
 
-### DeFi Protocols
-- **Lending Protocols**: Echelon, Joule, Aries, Auro, Meso
-- **DEX Protocols**: Hyperion, Tapp Exchange
-- **Staking Protocols**: Amnis Finance
-
-### Data & Trading Services
+### External Systems
+- **Aptos Blockchain**: Layer 1 blockchain providing the foundation for all DeFi protocols
 - **Panora API**: Token prices, market data, and swap functionality
-- **Aptos API**: Blockchain data and wallet information
-
-## User Interactions
-
-The DeFi user interacts with the YieldAI system to:
-1. Connect their wallet
-2. View portfolio across multiple protocols
-3. Discover investment opportunities
-4. Execute deposits, withdrawals, and swaps
-5. Manage positions and claim rewards
-6. Monitor APY and performance metrics
+- **DeFi Protocols**: Multiple DeFi protocols (Echelon, Hyperion, Joule, Aries, Auro, Amnis, Tapp, Meso)
+- **Wallet Providers**: Various Aptos wallet implementations (Petra, Martian, Pontem, etc.)
 
 ## System Responsibilities
 
-The YieldAI system acts as a unified interface that:
-- Aggregates data from multiple DeFi protocols
-- Provides a consistent user experience across different protocols
-- Enables cross-protocol portfolio management
-- Offers investment discovery and comparison tools
-- Handles wallet connections and transaction signing
-- Provides real-time market data and APY calculations 
+The YieldAI system allows users to:
+- View and manage portfolio across multiple DeFi protocols
+- Discover investment opportunities with highest APY
+- Execute deposits, withdrawals, and swaps
+- Monitor positions and claim rewards
+- Get AI-powered assistance for DeFi operations 
