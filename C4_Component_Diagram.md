@@ -47,7 +47,7 @@ graph TD
     AMP[🔵 Amnis Protocol<br/>TypeScript]
     ARP[🦁 Aries Protocol<br/>TypeScript]
     TP[🔘 Tapp Protocol<br/>TypeScript]
-    MP[🟣 Meso Protocol<br/>TypeScript]
+    MPROT[🟣 Meso Protocol<br/>TypeScript]
   end
 
   subgraph Wallet Service
@@ -107,24 +107,23 @@ graph TD
   PRC -->|Uses| SM
 
   %% Web App to API Gateway
-  Web Application -->|Makes API calls to| API Gateway
+  ID -->|Makes API calls to| AR
+  ID -->|Makes API calls to| PR
+  ID -->|Makes API calls to| PROTR
 
   %% API Gateway to Services
-  API Gateway -->|Routes to| Protocol Service
-  API Gateway -->|Routes to| Wallet Service
-  API Gateway -->|Routes to| Portfolio Service
-  API Gateway -->|Routes to| Swap Service
-  API Gateway -->|Routes to| Transaction Service
-  API Gateway -->|Routes to| AI Chat Service
+  AR -->|Routes to| APF
+  PR -->|Routes to| PS
+  PROTR -->|Routes to| PRG
 
   %% Service relationships
-  Protocol Service -->|Uses for transactions| Wallet Service
-  Swap Service -->|Uses for swap execution| Transaction Service
-  Portfolio Service -->|Uses for data| Protocol Service
+  PRG -->|Uses for transactions| AW
+  PS -->|Uses for swap execution| TB
+  APF -->|Uses for data| PRG
 
   %% Web App to Contexts and UI
-  Web Application -->|Uses| React Contexts
-  Web Application -->|Uses| UIC
+  ID -->|Uses| WCX
+  ID -->|Uses| UIC
 
   classDef webApp fill:#1168BD,stroke:#0E5DAD,stroke-width:2px,color:#fff
   classDef apiGateway fill:#438DD5,stroke:#3B7BC0,stroke-width:2px,color:#fff
@@ -133,7 +132,7 @@ graph TD
 
   class MP,DP,SB,MT,ID,CP,WC,WS,PC,TL,TI,PRC,MPOS,DM,WM,SM,UIC webApp
   class AR,PR,PROTR,SR apiGateway
-  class PRG,BP,EP,HP,JP,AP,AMP,ARP,TP,MP,AW,WA,GS,APF,AAP,BS,PS,PP,PT,TB,TS,DH,WH,CH,CI,AIP,AE service
+  class PRG,BP,EP,HP,JP,AP,AMP,ARP,TP,MPROT,AW,WA,GS,APF,AAP,BS,PS,PP,PT,TB,TS,DH,WH,CH,CI,AIP,AE service
   class WCX,PCX,DDC,CC context
 ```
 
