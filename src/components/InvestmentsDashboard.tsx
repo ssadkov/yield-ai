@@ -71,7 +71,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showOnlyStablePools, setShowOnlyStablePools] = useState(true);
   const [activeTab, setActiveTab] = useState<"lite" | "pro">("lite");
-  const [selectedProtocol, setSelectedProtocol] = useState<Protocol | null>(null);
+  const { selectedProtocol, setSelectedProtocol } = useProtocol();
   
   // New states for progressive loading
   const [protocolsLoading, setProtocolsLoading] = useState<Record<string, boolean>>({});

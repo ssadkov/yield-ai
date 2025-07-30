@@ -13,21 +13,19 @@ export default function ChatPanel() {
       <p className="text-sm text-muted-foreground mt-2">
         Yield AI – All-in-One DeFi Dashboard for Maximizing Yields on Aptos
       </p>
-      <div className="mt-4 flex justify-center">
-        <Link
-          href="https://app.auro.finance?ref=Y7RSIC14LS4F"
-          target="_blank"
+      <div className="mt-3 mb-4 flex justify-center">
+        <a 
+          href="https://app.auro.finance?ref=YieldAI" 
+          target="_blank" 
           rel="noopener noreferrer"
+          className="block hover:opacity-80 transition-opacity"
         >
-          <Image
-            src="/YieldAIxAUROFinance.png"
-            alt="Auro Finance Partnership"
-            width={0}
-            height={0}
-            sizes="100vw"
-            className="w-auto h-auto max-w-full rounded-lg hover:opacity-80 transition-opacity scale-75"
+          <img 
+            src="/YieldAIxAUROFinance.png" 
+            alt="Yield AI x Auro Finance Partnership" 
+            className="h-60 md:h-90 w-auto object-contain max-w-full"
           />
-        </Link>
+        </a>
       </div>
       <p className="text-sm text-muted-foreground mt-4">
         New AI features will be here soon, and for now, we would be happy to get your{' '}
