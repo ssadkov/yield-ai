@@ -33,6 +33,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+.local*
 
 # vercel
 .vercel
@@ -43,3 +44,5 @@ next-env.d.ts
 
 # npm configuration with tokens
 .npmrc
+npm
+env.local
