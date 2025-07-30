@@ -133,6 +133,11 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
       return true;
     }
     
+    // Echelon пулы считаем стабильными (они все лендинговые)
+    if (item.protocol === 'Echelon') {
+      return true;
+    }
+    
     return false;
   };
 
@@ -153,7 +158,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
           'Hyperion': true,
           'Tapp Exchange': true,
           'Auro Finance': true,
-          'Amnis Finance': true
+          'Amnis Finance': true,
+          'Echelon': true
         };
         setProtocolsLoading(initialLoadingState);
         setProtocolsError({});
@@ -300,6 +306,36 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   minStake: pool.minStake,
                   maxStake: pool.maxStake,
                   isActive: pool.isActive
+                };
+              });
+            }
+          },
+          {
+            name: 'Echelon',
+            url: '/api/protocols/echelon/v2/pools',
+            transform: (data: any) => {
+              const pools = data.data || [];
+              
+              return pools.map((pool: any) => {
+                return {
+                  asset: pool.asset || 'Unknown',
+                  provider: pool.provider || 'Echelon',
+                  totalAPY: pool.totalAPY || 0,
+                  depositApy: pool.depositApy || 0,
+                  borrowAPY: pool.borrowAPY || 0,
+                  token: pool.token || '',
+                  protocol: 'Echelon',
+                  poolType: pool.poolType || 'Lending',
+                  tvlUSD: pool.tvlUSD || 0,
+                  dailyVolumeUSD: pool.dailyVolumeUSD || 0,
+                  // Echelon-specific fields
+                  supplyCap: pool.supplyCap,
+                  borrowCap: pool.borrowCap,
+                  supplyRewardsApr: pool.supplyRewardsApr,
+                  borrowRewardsApr: pool.borrowRewardsApr,
+                  marketAddress: pool.marketAddress,
+                  totalSupply: pool.totalSupply,
+                  totalBorrow: pool.totalBorrow
                 };
               });
             }
@@ -978,8 +1014,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                     const hasAssetColon = item.asset.includes('::');
                     const hasDexTokens = !!(item.token1Info && item.token2Info);
                     
-                    // Включаем все пулы: с tokenInfo, с :: в asset, или DEX-пулы с token1Info/token2Info
-                    return hasAssetColon || hasTokenInfo || hasDexTokens;
+                    // Включаем все пулы: с tokenInfo, с :: в asset, DEX-пулы с token1Info/token2Info, или Echelon пулы
+                    return hasAssetColon || hasTokenInfo || hasDexTokens || item.protocol === 'Echelon';
                   })
                   .sort((a, b) => b.totalAPY - a.totalAPY)
                   .map((item, index) => {

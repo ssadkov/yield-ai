@@ -171,6 +171,40 @@ export const poolSources: PoolSource[] = [
         };
       });
     }
+  },
+  // Echelon Markets API v2
+  {
+    name: 'Echelon Markets API v2',
+    url: '/api/protocols/echelon/v2/pools',
+    enabled: true,
+    transform: (data: any) => {
+      // Transform Echelon pools data to InvestmentData format
+      // Data is already in InvestmentData format from the API
+      const pools = data.data || [];
+      
+      return pools.map((pool: any) => {
+        return {
+          asset: pool.asset,
+          provider: pool.provider,
+          totalAPY: pool.totalAPY,
+          depositApy: pool.depositApy,
+          borrowAPY: pool.borrowAPY,
+          token: pool.token,
+          protocol: pool.protocol,
+          poolType: pool.poolType,
+          tvlUSD: pool.tvlUSD,
+          dailyVolumeUSD: pool.dailyVolumeUSD,
+          // Additional Echelon-specific data
+          supplyCap: pool.supplyCap,
+          borrowCap: pool.borrowCap,
+          supplyRewardsApr: pool.supplyRewardsApr,
+          borrowRewardsApr: pool.borrowRewardsApr,
+          marketAddress: pool.marketAddress,
+          totalSupply: pool.totalSupply,
+          totalBorrow: pool.totalBorrow
+        };
+      });
+    }
   }
 ];
 

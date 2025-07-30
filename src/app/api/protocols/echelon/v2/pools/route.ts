@@ -189,7 +189,7 @@ export async function GET() {
             totalAPY: totalSupplyApr,
             depositApy: totalSupplyApr,
             borrowAPY: 0,
-            token: asset.address,
+            token: asset.faAddress || asset.address, // Use faAddress if available, otherwise address
             protocol: 'Echelon',
             poolType: 'Lending',
             tvlUSD: marketStat.totalShares * (asset.price || 0),
@@ -213,7 +213,7 @@ export async function GET() {
             totalAPY: -totalBorrowApr, // Negative for borrowing
             depositApy: 0,
             borrowAPY: totalBorrowApr,
-            token: asset.address,
+            token: asset.faAddress || asset.address, // Use faAddress if available, otherwise address
             protocol: 'Echelon',
             poolType: 'Lending',
             tvlUSD: marketStat.totalLiability * (asset.price || 0),
