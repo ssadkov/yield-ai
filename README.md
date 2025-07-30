@@ -5,7 +5,7 @@ A comprehensive DeFi investment dashboard built on the Aptos blockchain that all
 ## 🚀 Features
 
 ### Core Functionality
-- **Multi-Protocol Support**: Connect and manage positions across 5 major DeFi protocols
+- **Multi-Protocol Support**: Connect and manage positions across 6 major DeFi protocols (including Echelon)
 - **Real-time Portfolio Tracking**: Monitor your assets and positions in real-time
 - **Yield Discovery**: Find the best APY opportunities across different protocols
 - **One-Click Deposits**: Seamless deposit functionality with native and external protocol integration
@@ -36,8 +36,10 @@ A comprehensive DeFi investment dashboard built on the Aptos blockchain that all
 - **Features**: 
   - Native deposit integration
   - Position management
-  - Real-time APY tracking
+  - Real-time APY tracking with rewards
+  - Supply and borrow pools
   - Fungible and non-fungible token support
+  - **NEW**: Full integration with Ideas dashboard
 - **URL**: [app.echelon.market](https://app.echelon.market/dashboard?network=aptos_mainnet)
 
 #### **Joule**
