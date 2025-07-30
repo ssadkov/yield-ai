@@ -23,6 +23,14 @@ export interface InvestmentData {
   poolType?: string;
   feeTier?: number;
   volume7d?: number;
+  // Additional Echelon-specific data
+  supplyCap?: number;
+  borrowCap?: number;
+  supplyRewardsApr?: number;
+  borrowRewardsApr?: number;
+  marketAddress?: string;
+  totalSupply?: number;
+  totalBorrow?: number;
 }
 
 export interface InvestmentsResponse {
