@@ -27,6 +27,8 @@ graph TD
     TS[🔨 Transaction Service<br/>TypeScript<br/>Manages transaction building and submission]
     
     CS[🤖 AI Chat Service<br/>TypeScript<br/>Provides AI-powered assistance and transaction execution]
+    
+    STS[📊 Strategy Service<br/>TypeScript<br/>Manages user strategy smart contracts and execution]
   end
 
   subgraph External Systems
@@ -49,6 +51,7 @@ graph TD
   AG -->|Routes swap requests to| SS
   AG -->|Routes transaction requests to| TS
   AG -->|Routes chat requests to| CS
+  AG -->|Routes strategy requests to| STS
 
   %% Service to External Systems
   PS -->|Fetches pool data and user positions| DP
@@ -56,18 +59,21 @@ graph TD
   WS -->|Interacts with| WP
   SS -->|Fetches token prices and executes swaps| PA
   PFS -->|Gets portfolio data from| PS
+  STS -->|Deploys and interacts with smart contracts| AB
 
   %% Service relationships
   PS -->|Uses for transactions| WS
   SS -->|Uses for swap execution| TS
   TS -->|Uses for transaction signing| WS
+  STS -->|Uses for strategy execution| PS
+  STS -->|Uses for transaction building| TS
 
   classDef person fill:#08427B,stroke:#073B6F,stroke-width:2px,color:#fff
   classDef container fill:#1168BD,stroke:#0E5DAD,stroke-width:2px,color:#fff
   classDef external fill:#999999,stroke:#8A8A8A,stroke-width:2px,color:#fff
 
   class U person
-  class WA,AG,PS,WS,PFS,SS,TS,CS container
+  class WA,AG,PS,WS,PFS,SS,TS,CS,STS container
   class AB,PA,DP,WP external
 ```
 
@@ -145,11 +151,20 @@ graph TD
   - Context-aware responses
   - Integration with other services
 
+### Strategy Service
+- **Technology**: TypeScript
+- **Responsibilities**:
+  - User strategy management and storage
+  - Smart contract deployment and interaction
+  - Strategy validation and execution
+  - Automated yield optimization
+  - Strategy performance tracking
+
 ## External Systems
 
 ### Aptos Blockchain
-- **Purpose**: Layer 1 blockchain providing the foundation for all DeFi protocols
-- **Interaction**: Read/write operations for transactions and data
+- **Purpose**: Layer 1 blockchain providing the foundation for all DeFi protocols and smart contract deployment
+- **Interaction**: Read/write operations for transactions, data, and smart contract interactions
 
 ### Panora API
 - **Purpose**: Token prices, market data, and swap functionality
@@ -171,12 +186,14 @@ graph TD
 4. **Transaction Execution**: Web App → API Gateway → Transaction Service → Wallet Service
 5. **Swap Operations**: Web App → API Gateway → Swap Service → Transaction Service
 6. **AI Assistance**: Web App → API Gateway → Chat Service → Other Services
+7. **Strategy Management**: Web App → API Gateway → Strategy Service → Protocol Service
+8. **Smart Contract Deployment**: Strategy Service → Aptos Blockchain
 
 ## Technology Stack Summary
 
 - **Frontend**: Next.js 15, TypeScript, Tailwind CSS, shadcn/ui
 - **Backend**: Next.js API Routes, TypeScript
-- **Blockchain**: Aptos SDK, Wallet Adapter
+- **Blockchain**: Aptos SDK, Wallet Adapter, Smart Contracts
 - **External APIs**: Panora, DeFi protocols, Aptos API
 - **State Management**: React Context, Zustand
 - **Development**: ESLint, Turbopack, pnpm 
