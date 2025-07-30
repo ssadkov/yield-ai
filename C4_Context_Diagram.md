@@ -19,7 +19,7 @@ graph TD
     A[🔗 Aptos Blockchain<br/>Layer 1 blockchain for DeFi protocols]
     P[💱 Panora API<br/>Token prices and swap functionality]
     D[🏛️ DeFi Protocols<br/>Echelon, Hyperion, Joule,<br/>Aries, Auro, Amnis, Tapp, Meso]
-    W[👛 Wallet Providers<br/>Petra, Martian, Pontem wallets]
+    W[👛 Wallet Provider<br/>Petra, Aptos Connect and other wallets]
   end
 
   U -->|Uses| Y
