@@ -143,6 +143,17 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
     
     return sum + positionValue + incentivesValue;
   }, 0);
+  
+  // Считаем общую сумму в долларах (позиции + награды)
+  const totalRewardsValue = positions.reduce((sum, position) => {
+
+    // Награды (стимулы)
+    const incentivesValue = position.estimatedIncentives.reduce((incentiveSum, incentive) => {
+      return incentiveSum + parseFloat(incentive.usd || "0");
+    }, 0);
+    
+    return sum + incentivesValue;
+  }, 0);
 
   // Сортируем позиции по значению от большего к меньшему
   const sortedPositions = [...positions].sort((a, b) => {
@@ -200,6 +211,18 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
             {sortedPositions.map((position, index) => (
               <PositionCard key={`${position.positionAddr}-${index}`} position={position} />
             ))}
+			<div className="flex">
+             <div className="flex items-left">
+			   <div className="text-sm text-muted-foreground text-right pl-3">
+                 {"💰 Total rewards:"}
+               </div>
+			 </div>
+             <div className="flex-2 items-right">
+               <div className="text-sm font-medium text-right">
+                 ${totalRewardsValue.toFixed(2)}
+               </div>
+			 </div>
+            </div>
             {protocol && <ManagePositionsButton protocol={protocol} />}
           </ScrollArea>
         </CardContent>

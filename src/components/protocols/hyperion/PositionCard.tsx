@@ -148,25 +148,6 @@ export function PositionCard({ position, isManageView = false }: PositionProps) 
         </div>
         <div className="flex flex-col items-end gap-2">
           <div className="text-base font-medium">${parseFloat(position.value).toFixed(2)}</div>
-          <div className="flex items-center gap-2">
-            <div className="text-xs text-muted-foreground text-right">
-              💰 Rewards and fees: ${totalRewards.toFixed(2)}
-            </div>
-            {isManageView && totalRewards > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleClaimRewards}
-                disabled={isClaiming}
-              >
-                {isClaiming ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  "Claim"
-                )}
-              </Button>
-            )}
-          </div>
         </div>
       </CardHeader>
     </Card>

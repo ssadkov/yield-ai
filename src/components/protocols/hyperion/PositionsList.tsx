@@ -76,6 +76,22 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
     
     return sum + positionValue + farmRewards + feeRewards;
   }, 0);
+  
+  // Считаем общую стоимость всех позиций и наград
+  const totalRewardsValue = positions.reduce((sum, position) => {
+  
+    // Считаем награды из фарма
+    const farmRewards = position.farm?.unclaimed?.reduce((rewardSum: number, reward: { amountUSD: string }) => {
+      return rewardSum + parseFloat(reward.amountUSD || "0");
+    }, 0) || 0;
+    
+    // Считаем награды из комиссий
+    const feeRewards = position.fees?.unclaimed?.reduce((feeSum: number, fee: { amountUSD: string }) => {
+      return feeSum + parseFloat(fee.amountUSD || "0");
+    }, 0) || 0;
+    
+    return sum + farmRewards + feeRewards;
+  }, 0);
 
   // Вызываем колбэк при изменении общей суммы позиций
   useEffect(() => {
@@ -142,6 +158,18 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
             {sortedPositions.map((position, index) => (
               <PositionCard key={`${position.assetName}-${index}`} position={position} />
             ))}
+			<div className="flex">
+             <div className="flex items-left">
+			   <div className="text-sm text-muted-foreground text-right pl-3">
+                 {"💰 Total rewards:"}
+               </div>
+			 </div>
+             <div className="flex-2 items-right">
+               <div className="text-sm font-medium text-right">
+                 ${totalRewardsValue.toFixed(2)}
+               </div>
+			 </div>
+            </div>
             {protocol && <ManagePositionsButton protocol={protocol} />}
           </ScrollArea>
         </CardContent>

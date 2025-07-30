@@ -110,11 +110,6 @@ export function PositionCard({ position }: PositionProps) {
         </div>
         <div className="flex flex-col items-end gap-2">
           <div className="text-base font-medium">${totalValue.toFixed(2)}</div>
-          <div className="flex items-center gap-2">
-            <div className="text-xs text-muted-foreground text-right">
-              💰 Rewards: ${totalIncentives.toFixed(2)}
-            </div>
-          </div>
         </div>
       </CardHeader>
     </Card>
