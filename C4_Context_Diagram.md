@@ -5,27 +5,37 @@
 This diagram shows how the YieldAI system fits into the larger environment, including users and external systems.
 
 ```mermaid
-C4Context
-    title Level 1: System Context Diagram
+graph TD
 
-    Person(defiUser, "DeFi User", "Manages investments across multiple DeFi protocols")
-    
-    System(yieldAI, "YieldAI System", "DeFi investment dashboard for portfolio management and yield optimization")
-    
-    System_Ext(walletProviders, "Wallet Providers", "Petra, Martian, Pontem wallets")
-    
-    System_Ext(aptosBlockchain, "Aptos Blockchain", "Layer 1 blockchain for DeFi protocols")
-    
-    System_Ext(panoraAPI, "Panora API", "Token prices and swap functionality")
-    
-    System_Ext(defiProtocols, "DeFi Protocols", "Echelon, Hyperion, Joule, Aries, Auro, Amnis, Tapp, Meso")
+  subgraph User
+    U[👤 DeFi User<br/>Manages investments across<br/>multiple DeFi protocols]
+  end
 
-    Rel(defiUser, yieldAI, "Uses", "Web browser")
-    Rel(yieldAI, aptosBlockchain, "Reads from and writes to", "Aptos SDK")
-    Rel(yieldAI, panoraAPI, "Fetches token prices and executes swaps", "HTTP/REST")
-    Rel(yieldAI, defiProtocols, "Fetches pool data and user positions", "HTTP/REST")
-    Rel(defiUser, walletProviders, "Connects via", "Wallet adapter")
-    Rel(yieldAI, walletProviders, "Interacts with", "Wallet adapter")
+  subgraph YieldAI
+    Y[🏦 YieldAI System<br/>DeFi investment dashboard for<br/>portfolio management and yield optimization]
+  end
+
+  subgraph External Systems
+    A[🔗 Aptos Blockchain<br/>Layer 1 blockchain for DeFi protocols]
+    P[💱 Panora API<br/>Token prices and swap functionality]
+    D[🏛️ DeFi Protocols<br/>Echelon, Hyperion, Joule,<br/>Aries, Auro, Amnis, Tapp, Meso]
+    W[👛 Wallet Providers<br/>Petra, Martian, Pontem wallets]
+  end
+
+  U -->|Uses| Y
+  Y -->|Reads from and writes to| A
+  Y -->|Fetches token prices and executes swaps| P
+  Y -->|Fetches pool data and user positions| D
+  U -->|Connects via| W
+  Y -->|Interacts with| W
+
+  classDef person fill:#08427B,stroke:#073B6F,stroke-width:2px,color:#fff
+  classDef system fill:#1168BD,stroke:#0E5DAD,stroke-width:2px,color:#fff
+  classDef external fill:#999999,stroke:#8A8A8A,stroke-width:2px,color:#fff
+
+  class U person
+  class Y system
+  class A,P,D,W external
 ```
 
 ## Key External Systems
