@@ -5,121 +5,136 @@
 This diagram shows the internal structure of the main containers in the YieldAI system.
 
 ```mermaid
-C4Component
-    title Component diagram for YieldAI
+graph TD
 
-    Container_Boundary(webApp, "Web Application") {
-        Component(mainPage, "Main Page", "Next.js Page", "Main application entry point")
-        Component(dashboardPage, "Dashboard Page", "Next.js Page", "Investment dashboard interface")
-        Component(sidebar, "Sidebar", "React Component", "Navigation and protocol selection")
-        Component(mobileTabs, "Mobile Tabs", "React Component", "Mobile navigation interface")
-        Component(investmentsDashboard, "Investments Dashboard", "React Component", "Main investment interface with drag & drop")
-        Component(chatPanel, "Chat Panel", "React Component", "AI assistant interface")
-        Component(walletConnect, "Wallet Connect", "React Component", "Wallet connection interface")
-        Component(walletSelector, "Wallet Selector", "React Component", "Multi-wallet selection")
-        
-        Component(portfolioCard, "Portfolio Card", "React Component", "Portfolio overview display")
-        Component(tokenList, "Token List", "React Component", "Token balance display")
-        Component(tokenItem, "Token Item", "React Component", "Individual token display")
-        
-        Component(protocolComponents, "Protocol Components", "React Components", "Protocol-specific UI components")
-        Component(managePositions, "Manage Positions", "React Component", "Position management interface")
-        Component(depositModal, "Deposit Modal", "React Component", "Deposit transaction interface")
-        Component(withdrawModal, "Withdraw Modal", "React Component", "Withdrawal transaction interface")
-        Component(swapModal, "Swap Modal", "React Component", "Token swap interface")
-        
-        Component(uiComponents, "UI Components", "shadcn/ui", "Reusable UI components library")
-    }
-
-    Container_Boundary(apiGateway, "API Gateway") {
-        Component(aptosRoutes, "Aptos Routes", "Next.js API Routes", "Aptos blockchain data endpoints")
-        Component(panoraRoutes, "Panora Routes", "Next.js API Routes", "Panora API integration endpoints")
-        Component(protocolRoutes, "Protocol Routes", "Next.js API Routes", "DeFi protocol integration endpoints")
-        Component(swaggerRoutes, "Swagger Routes", "Next.js API Routes", "API documentation endpoints")
-    }
-
-    Container_Boundary(protocolService, "Protocol Service") {
-        Component(protocolRegistry, "Protocol Registry", "TypeScript", "Protocol registration and management")
-        Component(baseProtocol, "Base Protocol", "TypeScript", "Base protocol interface")
-        Component(echelonProtocol, "Echelon Protocol", "TypeScript", "Echelon protocol integration")
-        Component(hyperionProtocol, "Hyperion Protocol", "TypeScript", "Hyperion protocol integration")
-        Component(jouleProtocol, "Joule Protocol", "TypeScript", "Joule protocol integration")
-        Component(auroProtocol, "Auro Protocol", "TypeScript", "Auro protocol integration")
-        Component(amnisProtocol, "Amnis Protocol", "TypeScript", "Amnis protocol integration")
-        Component(ariesProtocol, "Aries Protocol", "TypeScript", "Aries protocol integration")
-        Component(tappProtocol, "Tapp Protocol", "TypeScript", "Tapp protocol integration")
-        Component(mesoProtocol, "Meso Protocol", "TypeScript", "Meso protocol integration")
-    }
-
-    Container_Boundary(walletService, "Wallet Service") {
-        Component(aptosWallet, "Aptos Wallet", "TypeScript", "Aptos wallet integration")
-        Component(walletAdapter, "Wallet Adapter", "TypeScript", "Multi-wallet adapter")
-        Component(gasStation, "Gas Station", "TypeScript", "Gasless transaction service")
-    }
-
-    Container_Boundary(portfolioService, "Portfolio Service") {
-        Component(aptosPortfolio, "Aptos Portfolio", "TypeScript", "Portfolio data management")
-        Component(aptosAPI, "Aptos API", "TypeScript", "Aptos blockchain API client")
-        Component(balanceService, "Balance Service", "TypeScript", "Token balance calculations")
-    }
-
-    Container_Boundary(swapService, "Swap Service") {
-        Component(panoraSwap, "Panora Swap", "TypeScript", "Panora swap integration")
-        Component(panoraPrices, "Panora Prices", "TypeScript", "Token price service")
-        Component(panoraTokens, "Panora Tokens", "TypeScript", "Token list service")
-    }
-
-    Container_Boundary(transactionService, "Transaction Service") {
-        Component(transactionBuilder, "Transaction Builder", "TypeScript", "Transaction payload creation")
-        Component(transactionSubmitter, "Transaction Submitter", "TypeScript", "Transaction submission")
-        Component(depositHook, "Deposit Hook", "React Hook", "Deposit transaction management")
-        Component(withdrawHook, "Withdraw Hook", "React Hook", "Withdrawal transaction management")
-        Component(claimHook, "Claim Hook", "React Hook", "Reward claiming management")
-    }
-
-    Container_Boundary(chatService, "AI Chat Service") {
-        Component(chatInterface, "Chat Interface", "TypeScript", "Chat interaction handling")
-        Component(aiProcessor, "AI Processor", "TypeScript", "Natural language processing")
-        Component(actionExecutor, "Action Executor", "TypeScript", "Transaction execution through chat")
-    }
-
-    Container_Boundary(contexts, "React Contexts") {
-        Component(walletContext, "Wallet Context", "React Context", "Wallet state management")
-        Component(protocolContext, "Protocol Context", "React Context", "Protocol state management")
-        Component(dragDropContext, "Drag Drop Context", "React Context", "Drag & drop state management")
-        Component(collapsibleContext, "Collapsible Context", "React Context", "UI collapse state management")
-    }
-
-    Rel(mainPage, dashboardPage, "Navigates to", "Next.js routing")
-    Rel(mainPage, sidebar, "Renders", "React props")
-    Rel(mainPage, mobileTabs, "Renders", "React props")
-    Rel(dashboardPage, investmentsDashboard, "Renders", "React props")
-    Rel(dashboardPage, chatPanel, "Renders", "React props")
+  subgraph Web Application
+    MP[📄 Main Page<br/>Next.js Page]
+    DP[📊 Dashboard Page<br/>Next.js Page]
+    SB[🧭 Sidebar<br/>React Component]
+    MT[📱 Mobile Tabs<br/>React Component]
+    ID[💼 Investments Dashboard<br/>React Component]
+    CP[💬 Chat Panel<br/>React Component]
+    WC[🔗 Wallet Connect<br/>React Component]
+    WS[👛 Wallet Selector<br/>React Component]
     
-    Rel(investmentsDashboard, portfolioCard, "Uses", "React composition")
-    Rel(portfolioCard, tokenList, "Uses", "React composition")
-    Rel(tokenList, tokenItem, "Uses", "React composition")
+    PC[💳 Portfolio Card<br/>React Component]
+    TL[📋 Token List<br/>React Component]
+    TI[🪙 Token Item<br/>React Component]
     
-    Rel(investmentsDashboard, protocolComponents, "Uses", "React composition")
-    Rel(protocolComponents, managePositions, "Uses", "React composition")
-    Rel(protocolComponents, depositModal, "Uses", "React composition")
-    Rel(protocolComponents, withdrawModal, "Uses", "React composition")
-    Rel(protocolComponents, swapModal, "Uses", "React composition")
+    PRC[🏛️ Protocol Components<br/>React Components]
+    MPOS[📈 Manage Positions<br/>React Component]
+    DM[💰 Deposit Modal<br/>React Component]
+    WM[💸 Withdraw Modal<br/>React Component]
+    SM[🔄 Swap Modal<br/>React Component]
     
-    Rel(webApp, apiGateway, "Makes API calls to", "HTTP/REST")
-    Rel(apiGateway, protocolService, "Routes to", "Internal calls")
-    Rel(apiGateway, walletService, "Routes to", "Internal calls")
-    Rel(apiGateway, portfolioService, "Routes to", "Internal calls")
-    Rel(apiGateway, swapService, "Routes to", "Internal calls")
-    Rel(apiGateway, transactionService, "Routes to", "Internal calls")
-    Rel(apiGateway, chatService, "Routes to", "Internal calls")
-    
-    Rel(protocolService, walletService, "Uses for transactions", "Internal calls")
-    Rel(swapService, transactionService, "Uses for swap execution", "Internal calls")
-    Rel(portfolioService, protocolService, "Uses for data", "Internal calls")
-    
-    Rel(webApp, contexts, "Uses", "React hooks")
-    Rel(webApp, uiComponents, "Uses", "React composition")
+    UIC[🎨 UI Components<br/>shadcn/ui]
+  end
+
+  subgraph API Gateway
+    AR[🔗 Aptos Routes<br/>Next.js API Routes]
+    PR[💱 Panora Routes<br/>Next.js API Routes]
+    PROTR[🏛️ Protocol Routes<br/>Next.js API Routes]
+    SR[📚 Swagger Routes<br/>Next.js API Routes]
+  end
+
+  subgraph Protocol Service
+    PRG[📋 Protocol Registry<br/>TypeScript]
+    BP[🔧 Base Protocol<br/>TypeScript]
+    EP[⚡ Echelon Protocol<br/>TypeScript]
+    HP[🌊 Hyperion Protocol<br/>TypeScript]
+    JP[⚡ Joule Protocol<br/>TypeScript]
+    AP[🟡 Auro Protocol<br/>TypeScript]
+    AMP[🔵 Amnis Protocol<br/>TypeScript]
+    ARP[🦁 Aries Protocol<br/>TypeScript]
+    TP[🔘 Tapp Protocol<br/>TypeScript]
+    MP[🟣 Meso Protocol<br/>TypeScript]
+  end
+
+  subgraph Wallet Service
+    AW[👛 Aptos Wallet<br/>TypeScript]
+    WA[🔌 Wallet Adapter<br/>TypeScript]
+    GS[⛽ Gas Station<br/>TypeScript]
+  end
+
+  subgraph Portfolio Service
+    APF[💼 Aptos Portfolio<br/>TypeScript]
+    AAP[🔗 Aptos API<br/>TypeScript]
+    BS[⚖️ Balance Service<br/>TypeScript]
+  end
+
+  subgraph Swap Service
+    PS[💱 Panora Swap<br/>TypeScript]
+    PP[💰 Panora Prices<br/>TypeScript]
+    PT[🪙 Panora Tokens<br/>TypeScript]
+  end
+
+  subgraph Transaction Service
+    TB[🔨 Transaction Builder<br/>TypeScript]
+    TS[📤 Transaction Submitter<br/>TypeScript]
+    DH[💰 Deposit Hook<br/>React Hook]
+    WH[💸 Withdraw Hook<br/>React Hook]
+    CH[🏆 Claim Hook<br/>React Hook]
+  end
+
+  subgraph AI Chat Service
+    CI[💬 Chat Interface<br/>TypeScript]
+    AIP[🤖 AI Processor<br/>TypeScript]
+    AE[⚡ Action Executor<br/>TypeScript]
+  end
+
+  subgraph React Contexts
+    WCX[👛 Wallet Context<br/>React Context]
+    PCX[🏛️ Protocol Context<br/>React Context]
+    DDC[🖱️ Drag Drop Context<br/>React Context]
+    CC[📁 Collapsible Context<br/>React Context]
+  end
+
+  %% Web App internal relationships
+  MP -->|Navigates to| DP
+  MP -->|Renders| SB
+  MP -->|Renders| MT
+  DP -->|Renders| ID
+  DP -->|Renders| CP
+  
+  ID -->|Uses| PC
+  PC -->|Uses| TL
+  TL -->|Uses| TI
+  
+  ID -->|Uses| PRC
+  PRC -->|Uses| MPOS
+  PRC -->|Uses| DM
+  PRC -->|Uses| WM
+  PRC -->|Uses| SM
+
+  %% Web App to API Gateway
+  Web Application -->|Makes API calls to| API Gateway
+
+  %% API Gateway to Services
+  API Gateway -->|Routes to| Protocol Service
+  API Gateway -->|Routes to| Wallet Service
+  API Gateway -->|Routes to| Portfolio Service
+  API Gateway -->|Routes to| Swap Service
+  API Gateway -->|Routes to| Transaction Service
+  API Gateway -->|Routes to| AI Chat Service
+
+  %% Service relationships
+  Protocol Service -->|Uses for transactions| Wallet Service
+  Swap Service -->|Uses for swap execution| Transaction Service
+  Portfolio Service -->|Uses for data| Protocol Service
+
+  %% Web App to Contexts and UI
+  Web Application -->|Uses| React Contexts
+  Web Application -->|Uses| UIC
+
+  classDef webApp fill:#1168BD,stroke:#0E5DAD,stroke-width:2px,color:#fff
+  classDef apiGateway fill:#438DD5,stroke:#3B7BC0,stroke-width:2px,color:#fff
+  classDef service fill:#85BBF0,stroke:#6BA5E7,stroke-width:2px,color:#fff
+  classDef context fill:#B8D4F0,stroke:#A5C7E8,stroke-width:2px,color:#000
+
+  class MP,DP,SB,MT,ID,CP,WC,WS,PC,TL,TI,PRC,MPOS,DM,WM,SM,UIC webApp
+  class AR,PR,PROTR,SR apiGateway
+  class PRG,BP,EP,HP,JP,AP,AMP,ARP,TP,MP,AW,WA,GS,APF,AAP,BS,PS,PP,PT,TB,TS,DH,WH,CH,CI,AIP,AE service
+  class WCX,PCX,DDC,CC context
 ```
 
 ## Component Details
