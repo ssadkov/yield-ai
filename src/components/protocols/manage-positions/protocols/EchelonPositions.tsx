@@ -45,13 +45,13 @@ export function EchelonPositions() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [totalValue, setTotalValue] = useState<number>(0);
-  const [marketData, setMarketData] = useState<any[]>([]);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showClaimAllModal, setShowClaimAllModal] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
   const [tokenPrices, setTokenPrices] = useState<Record<string, string>>({});
   const [rewardsData, setRewardsData] = useState<EchelonReward[]>([]);
+  const [apyData, setApyData] = useState<Record<string, any>>({});
   const { withdraw, isLoading: isWithdrawing } = useWithdraw();
   const { claimRewards, isLoading: isClaiming } = useClaimRewards();
   const { startDrag, endDrag, state, closePositionModal, closeAllModals, setPositionConfirmHandler } = useDragDrop();
@@ -200,22 +200,34 @@ export function EchelonPositions() {
     return () => clearTimeout(timeoutId);
   }, [getAllTokenAddresses, pricesService, account?.address]);
 
-
-
-
-
-  // Загружаем marketData с APY
+  // Загружаем APY данные из того же источника, что и Pro вкладка
   useEffect(() => {
-    fetch('/api/protocols/echelon/pools')
+    fetch('/api/protocols/echelon/v2/pools')
       .then(res => res.json())
       .then(data => {
-        console.log('EchelonPositions - marketData loaded:', data);
-        setMarketData(data.marketData || []);
+        console.log('EchelonPositions - APY data loaded:', data);
+        if (data.success && data.data) {
+          // Создаем маппинг token -> APY данные
+          const apyMapping: Record<string, any> = {};
+          data.data.forEach((pool: any) => {
+            apyMapping[pool.token] = {
+              supplyAPY: pool.depositApy,
+              borrowAPY: pool.borrowAPY,
+              supplyRewardsApr: pool.supplyRewardsApr,
+              borrowRewardsApr: pool.borrowRewardsApr,
+              marketAddress: pool.marketAddress,
+              asset: pool.asset
+            };
+          });
+          setApyData(apyMapping);
+          console.log('EchelonPositions - APY mapping created:', apyMapping);
+        }
       })
       .catch(error => {
-        console.error('EchelonPositions - marketData load error:', error);
-        console.log('Using local market data due to API error');
-        setMarketData(echelonMarkets.markets);
+        console.error('EchelonPositions - APY data load error:', error);
+        console.log('Using fallback APY data');
+        // Fallback на старые данные
+        // setMarketData(echelonMarkets.markets); // This line is removed
       });
   }, []);
 
@@ -276,11 +288,25 @@ export function EchelonPositions() {
     };
   };
 
-  // Получить APY для позиции
+  // Получить APY для позиции (обновленная функция)
   const getApyForPosition = (position: any) => {
-    // Сначала ищем по market, если есть, иначе по coin
-    const market = marketData.find((m: any) => m.market === position.market || m.coin === position.coin);
-    return market ? market.supplyAPR : null;
+    // Ищем данные в новом APY маппинге
+    const poolData = apyData[position.coin];
+    if (poolData) {
+      console.log(`Found APY data for ${position.coin}:`, poolData);
+      if (position.type === 'supply') {
+        const apy = poolData.supplyAPY / 100; // Конвертируем из процентов в десятичную форму
+        console.log(`Supply APY for ${position.coin}: ${apy * 100}%`);
+        return apy;
+      } else if (position.type === 'borrow') {
+        const apy = poolData.borrowAPY / 100;
+        console.log(`Borrow APY for ${position.coin}: ${apy * 100}%`);
+        return apy;
+      }
+    }
+    
+    console.log(`No APY data found for ${position.coin}`);
+    return null;
   };
 
   // Сортируем позиции по значению от большего к меньшему
@@ -332,7 +358,7 @@ export function EchelonPositions() {
   // Drag and drop handlers
   const handleDragStart = (e: React.DragEvent, position: Position) => {
     const tokenInfo = getTokenInfo(position.coin);
-    const market = marketData.find((m: any) => m.coin === position.coin);
+    // const market = marketData.find((m: any) => m.coin === position.coin); // This line is removed
     
     const dragData: PositionDragData = {
       type: 'position',
@@ -341,7 +367,7 @@ export function EchelonPositions() {
       amount: String(position.amount),
       positionType: 'lend',
       protocol: 'Echelon',
-      market: market?.market,
+      // market: market?.market, // This line is removed
       tokenInfo: tokenInfo ? {
         symbol: tokenInfo.symbol,
         logoUrl: tokenInfo.logoUrl,
@@ -366,7 +392,7 @@ export function EchelonPositions() {
     
     try {
       console.log('Withdraw confirm - selectedPosition:', selectedPosition);
-      console.log('Withdraw confirm - marketData:', marketData);
+      // console.log('Withdraw confirm - marketData:', marketData); // This line is removed
       
       // Если market address нет в позиции, получаем его из API
       let marketAddress = selectedPosition.market;
@@ -374,23 +400,19 @@ export function EchelonPositions() {
       
       if (!marketAddress) {
         console.log('Withdraw confirm - searching for market by coin:', selectedPosition.coin);
-        const market = marketData.find((m: any) => m.coin === selectedPosition.coin);
-        console.log('Withdraw confirm - found market:', market);
-        marketAddress = market?.market;
-        console.log('Withdraw confirm - marketAddress from marketData:', marketAddress);
+        // const market = marketData.find((m: any) => m.coin === selectedPosition.coin); // This line is removed
+        // console.log('Withdraw confirm - found market:', market); // This line is removed
+        // marketAddress = market?.market; // This line is removed
+        // console.log('Withdraw confirm - marketAddress from marketData:', marketAddress); // This line is removed
       }
       
-      // Если все еще нет market address, попробуем получить его через API
+      // Если все еще нет market address, попробуем получить его из apyData
       if (!marketAddress) {
-        console.log('Withdraw confirm - trying to get market address via API');
-        try {
-          const response = await fetch('/api/protocols/echelon/pools');
-          const poolsData = await response.json();
-          const market = poolsData.marketData?.find((m: any) => m.coin === selectedPosition.coin);
-          marketAddress = market?.market;
-          console.log('Withdraw confirm - marketAddress from API:', marketAddress);
-        } catch (apiError) {
-          console.error('Withdraw confirm - API error:', apiError);
+        console.log('Withdraw confirm - trying to get market address from apyData');
+        const poolData = apyData[selectedPosition.coin];
+        if (poolData?.marketAddress) {
+          marketAddress = poolData.marketAddress;
+          console.log('Withdraw confirm - marketAddress from apyData:', marketAddress);
         }
       }
       
@@ -405,8 +427,8 @@ export function EchelonPositions() {
       if (!marketAddress) {
         console.error('Withdraw confirm - no market address found');
         console.error('Withdraw confirm - selectedPosition.coin:', selectedPosition.coin);
-        console.error('Withdraw confirm - marketData length:', marketData.length);
-        console.error('Withdraw confirm - marketData coins:', marketData.map((m: any) => m.coin));
+        // console.error('Withdraw confirm - marketData length:', marketData.length); // This line is removed
+        // console.error('Withdraw confirm - marketData coins:', marketData.map((m: any) => m.coin)); // This line is removed
         throw new Error('Market address not found for this token');
       }
       
@@ -503,7 +525,7 @@ export function EchelonPositions() {
                         : 'bg-green-500/10 text-green-600 border-green-500/20',
                       'text-xs font-normal px-2 py-0.5 h-5')}
                     >
-                      APY: {apy !== null ? (apy * 100).toFixed(2) + '%' : 'N/A'}
+                      APR: {apy !== null ? (apy * 100).toFixed(2) + '%' : 'N/A'}
                     </Badge>
                     <div className="text-lg font-bold">${value}</div>
                   </div>

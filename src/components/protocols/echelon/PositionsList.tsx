@@ -54,6 +54,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
   const [error, setError] = useState<string | null>(null);
   const [tokenPrices, setTokenPrices] = useState<Record<string, string>>({});
   const [rewardsData, setRewardsData] = useState<EchelonReward[]>([]);
+  const [apyData, setApyData] = useState<Record<string, any>>({});
   const { isExpanded, toggleSection } = useCollapsible();
   const pricesService = PanoraPricesService.getInstance();
 
@@ -247,6 +248,34 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
     return () => clearTimeout(timeoutId);
   }, [getAllTokenAddresses, pricesService]);
 
+  // Загружаем APY данные из того же источника, что и Pro вкладка
+  useEffect(() => {
+    fetch('/api/protocols/echelon/v2/pools')
+      .then(res => res.json())
+      .then(data => {
+        console.log('PositionsList - APY data loaded:', data);
+        if (data.success && data.data) {
+          // Создаем маппинг token -> APY данные
+          const apyMapping: Record<string, any> = {};
+          data.data.forEach((pool: any) => {
+            apyMapping[pool.token] = {
+              supplyAPY: pool.depositApy,
+              borrowAPY: pool.borrowAPY,
+              supplyRewardsApr: pool.supplyRewardsApr,
+              borrowRewardsApr: pool.borrowRewardsApr,
+              marketAddress: pool.marketAddress,
+              asset: pool.asset
+            };
+          });
+          setApyData(apyMapping);
+          console.log('PositionsList - APY mapping created:', apyMapping);
+        }
+      })
+      .catch(error => {
+        console.error('PositionsList - APY data load error:', error);
+      });
+  }, []);
+
   // Объединенный useEffect для загрузки позиций и наград с дебаунсингом
   useEffect(() => {
     if (!walletAddress || walletAddress.length < 10) {
@@ -292,6 +321,28 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
 
     return () => clearTimeout(timeoutId);
   }, [walletAddress, fetchRewards]);
+
+  // Получить APY для позиции
+  const getApyForPosition = (position: Position) => {
+    // Сначала пытаемся найти данные в новом APY маппинге
+    const poolData = apyData[position.coin];
+    if (poolData) {
+      console.log(`Found APY data for ${position.coin}:`, poolData);
+      if (position.type === 'supply') {
+        const apy = poolData.supplyAPY / 100; // Конвертируем из процентов в десятичную форму
+        console.log(`Supply APY for ${position.coin}: ${apy * 100}%`);
+        return apy * 100; // Возвращаем в процентах для отображения
+      } else if (position.type === 'borrow') {
+        const apy = poolData.borrowAPY / 100;
+        console.log(`Borrow APY for ${position.coin}: ${apy * 100}%`);
+        return apy * 100;
+      }
+    }
+    
+    console.log(`No APY data found for ${position.coin}, using fallback`);
+    // Fallback на старые данные
+    return position.supplyApr || 0;
+  };
 
   // Мемоизируем расчет общей суммы
   const totalValue = useMemo(() => {
@@ -391,6 +442,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
               const amount = rawAmount / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
               const price = getTokenPrice(position.coin);
               const value = price ? (amount * parseFloat(price)).toFixed(2) : 'N/A';
+              const apy = getApyForPosition(position);
               return (
                 <div key={`${position.coin}-${index}`} className={cn('mb-2', isBorrow && 'bg-red-50 rounded')}> 
                   <div className="flex justify-between items-center">
@@ -424,6 +476,9 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
                     <div className="text-right">
                       <div className="text-sm font-medium">${value}</div>
                       <div className="text-xs text-muted-foreground">{amount.toFixed(4)}</div>
+                      <div className="text-xs text-muted-foreground">
+                        APY: {apy !== null ? apy.toFixed(2) + '%' : 'N/A'}
+                      </div>
                     </div>
                   </div>
                 </div>

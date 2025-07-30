@@ -229,7 +229,7 @@ export function JoulePositions() {
                         <div className="flex flex-col items-end gap-0.5">
                           <div className="flex items-center gap-2 mb-1">
                             <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs font-normal px-2 py-0.5 h-5">
-                              APY: {apy !== null ? (apy).toFixed(2) + '%' : 'N/A'}
+                              APR: {apy !== null ? (apy).toFixed(2) + '%' : 'N/A'}
                             </Badge>
                             <span className="text-lg font-bold">${value.toFixed(2)}</span>
                           </div>
