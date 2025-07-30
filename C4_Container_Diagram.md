@@ -5,48 +5,70 @@
 This diagram shows the high-level technical building blocks that make up the YieldAI system.
 
 ```mermaid
-C4Container
-    title Container diagram for YieldAI
+graph TD
 
-    Person(user, "DeFi User", "A user who wants to manage their DeFi investments")
+  subgraph Persons
+    U[👤 DeFi User<br/>Manages investments across<br/>multiple DeFi protocols]
+  end
 
-    Container_Boundary(c1, "YieldAI System") {
-        Container(webApp, "Web Application", "Next.js 15, TypeScript, Tailwind CSS", "Provides all functionality to users via web interface")
-        
-        Container(apiGateway, "API Gateway", "Next.js API Routes", "Handles all API requests and routes them to appropriate services")
-        
-        Container(protocolService, "Protocol Service", "TypeScript", "Manages integrations with DeFi protocols and data aggregation")
-        
-        Container(walletService, "Wallet Service", "TypeScript, Aptos SDK", "Handles wallet connections and blockchain interactions")
-        
-        Container(portfolioService, "Portfolio Service", "TypeScript", "Manages user portfolio data and calculations")
-        
-        Container(swapService, "Swap Service", "TypeScript", "Handles token swaps and Panora integration")
-        
-        Container(transactionService, "Transaction Service", "TypeScript", "Manages transaction building and submission")
-        
-        Container(chatService, "AI Chat Service", "TypeScript", "Provides AI-powered assistance and transaction execution")
-    }
-
-    ContainerDb_Ext(protocolData, "Protocol Data", "JSON files", "Static configuration and protocol metadata")
+  subgraph YieldAI System
+    WA[🌐 Web Application<br/>Next.js 15, TypeScript, Tailwind CSS<br/>Provides all functionality to users via web interface]
     
-    ContainerDb_Ext(userSessions, "User Sessions", "Browser Storage", "User preferences and session data")
+    AG[🚪 API Gateway<br/>Next.js API Routes<br/>Handles all API requests and routes to services]
+    
+    PS[🏛️ Protocol Service<br/>TypeScript<br/>Manages integrations with DeFi protocols and data aggregation]
+    
+    WS[👛 Wallet Service<br/>TypeScript, Aptos SDK<br/>Handles wallet connections and blockchain interactions]
+    
+    PFS[💼 Portfolio Service<br/>TypeScript<br/>Manages user portfolio data and calculations]
+    
+    SS[💱 Swap Service<br/>TypeScript<br/>Handles token swaps and Panora integration]
+    
+    TS[🔨 Transaction Service<br/>TypeScript<br/>Manages transaction building and submission]
+    
+    CS[🤖 AI Chat Service<br/>TypeScript<br/>Provides AI-powered assistance and transaction execution]
+  end
 
-    Rel(user, webApp, "Uses", "HTTPS")
-    Rel(webApp, apiGateway, "Makes API calls to", "HTTP/REST")
-    Rel(apiGateway, protocolService, "Routes protocol requests to", "Internal")
-    Rel(apiGateway, walletService, "Routes wallet requests to", "Internal")
-    Rel(apiGateway, portfolioService, "Routes portfolio requests to", "Internal")
-    Rel(apiGateway, swapService, "Routes swap requests to", "Internal")
-    Rel(apiGateway, transactionService, "Routes transaction requests to", "Internal")
-    Rel(apiGateway, chatService, "Routes chat requests to", "Internal")
-    
-    Rel(protocolService, protocolData, "Reads from", "File system")
-    Rel(webApp, userSessions, "Stores user data in", "Local storage")
-    
-    Rel(walletService, transactionService, "Uses for transaction signing", "Internal")
-    Rel(swapService, transactionService, "Uses for swap execution", "Internal")
-    Rel(protocolService, transactionService, "Uses for protocol interactions", "Internal")
+  subgraph External Systems
+    AB[🔗 Aptos Blockchain<br/>Layer 1 blockchain for DeFi protocols]
+    PA[💱 Panora API<br/>Token prices and swap functionality]
+    DP[🏛️ DeFi Protocols<br/>Echelon, Hyperion, Joule, Aries, Auro, Amnis, Tapp, Meso]
+    WP[👛 Wallet Providers<br/>Petra, Martian, Pontem wallets]
+  end
+
+  %% User interactions
+  U -->|Uses| WA
+
+  %% Web App to API Gateway
+  WA -->|Makes API calls to| AG
+
+  %% API Gateway to Services
+  AG -->|Routes protocol requests to| PS
+  AG -->|Routes wallet requests to| WS
+  AG -->|Routes portfolio requests to| PFS
+  AG -->|Routes swap requests to| SS
+  AG -->|Routes transaction requests to| TS
+  AG -->|Routes chat requests to| CS
+
+  %% Service to External Systems
+  PS -->|Fetches pool data and user positions| DP
+  WS -->|Reads from and writes to| AB
+  WS -->|Interacts with| WP
+  SS -->|Fetches token prices and executes swaps| PA
+  PFS -->|Gets portfolio data from| PS
+
+  %% Service relationships
+  PS -->|Uses for transactions| WS
+  SS -->|Uses for swap execution| TS
+  TS -->|Uses for transaction signing| WS
+
+  classDef person fill:#08427B,stroke:#073B6F,stroke-width:2px,color:#fff
+  classDef container fill:#1168BD,stroke:#0E5DAD,stroke-width:2px,color:#fff
+  classDef external fill:#999999,stroke:#8A8A8A,stroke-width:2px,color:#fff
+
+  class U person
+  class WA,AG,PS,WS,PFS,SS,TS,CS container
+  class AB,PA,DP,WP external
 ```
 
 ## Container Details
@@ -123,17 +145,23 @@ C4Container
   - Context-aware responses
   - Integration with other services
 
-## Data Stores
+## External Systems
 
-### Protocol Data
-- **Type**: Static JSON files
-- **Content**: Protocol configurations, metadata, and static data
-- **Location**: File system within the application
+### Aptos Blockchain
+- **Purpose**: Layer 1 blockchain providing the foundation for all DeFi protocols
+- **Interaction**: Read/write operations for transactions and data
 
-### User Sessions
-- **Type**: Browser storage
-- **Content**: User preferences, session state, and temporary data
-- **Location**: Client-side storage
+### Panora API
+- **Purpose**: Token prices, market data, and swap functionality
+- **Interaction**: Price feeds and swap execution
+
+### DeFi Protocols
+- **Purpose**: Multiple DeFi protocols (Echelon, Hyperion, Joule, Aries, Auro, Amnis, Tapp, Meso)
+- **Interaction**: Pool data and user positions
+
+### Wallet Providers
+- **Purpose**: Various Aptos wallet implementations (Petra, Martian, Pontem, etc.)
+- **Interaction**: Wallet connections and transaction signing
 
 ## Key Interactions
 
