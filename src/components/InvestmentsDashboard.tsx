@@ -774,7 +774,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                         </CardHeader>
                         <CardContent>
                           <div className="text-2xl font-bold">{item.totalAPY?.toFixed(2) || "0.00"}%</div>
-                          <p className="text-xs text-muted-foreground">Total APY</p>
+                          <p className="text-xs text-muted-foreground">Total APR</p>
                           <DepositButton 
                             protocol={protocol!} 
                             className="mt-4 w-full"
@@ -923,7 +923,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                       </CardHeader>
                       <CardContent>
                         <div className="text-2xl font-bold">{bestPool.totalAPY?.toFixed(2) || "0.00"}%</div>
-                        <p className="text-xs text-muted-foreground">Total APY</p>
+                        <p className="text-xs text-muted-foreground">Total APR</p>
                         <DepositButton 
                           protocol={protocol!} 
                           className="mt-4 w-full"

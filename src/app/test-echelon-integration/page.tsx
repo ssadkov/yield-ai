@@ -126,13 +126,13 @@ export default function TestEchelonIntegrationPage() {
                        <strong>Asset:</strong> {pool.asset || 'N/A'}
                      </div>
                      <div>
-                       <strong>Total APY:</strong> {pool.totalAPY ? pool.totalAPY.toFixed(2) : '0'}%
+                       <strong>Total APR:</strong> {pool.totalAPY ? pool.totalAPY.toFixed(2) : '0'}%
                      </div>
                      <div>
-                       <strong>Deposit APY:</strong> {pool.depositApy ? pool.depositApy.toFixed(2) : '0'}%
+                       <strong>Deposit APR:</strong> {pool.depositApy ? pool.depositApy.toFixed(2) : '0'}%
                      </div>
                      <div>
-                       <strong>Borrow APY:</strong> {pool.borrowAPY ? pool.borrowAPY.toFixed(2) : '0'}%
+                       <strong>Borrow APR:</strong> {pool.borrowAPY ? pool.borrowAPY.toFixed(2) : '0'}%
                      </div>
                      <div>
                        <strong>TVL:</strong> ${pool.tvlUSD ? pool.tvlUSD.toLocaleString() : 'N/A'}
