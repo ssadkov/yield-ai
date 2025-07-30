@@ -11,7 +11,7 @@ graph TD
     U[👤 DeFi User<br/>Manages investments across<br/>multiple DeFi protocols]
   end
 
-  subgraph YieldAI
+  subgraph YieldAI System
     Y[🏦 YieldAI System<br/>DeFi investment dashboard for<br/>portfolio management and yield optimization]
   end
 
@@ -22,8 +22,11 @@ graph TD
     W[👛 Wallet Provider<br/>Petra, Aptos Connect and other wallets]
   end
 
+  %% User interactions
   U -->|Uses| Y
-  Y -->|Reads from and writes to| A
+
+  %% Web App to API Gateway
+  Y -->|Reads from, writes to, and deploys smart contracts| A
   Y -->|Fetches token prices and executes swaps| P
   Y -->|Fetches pool data and user positions| D
   U -->|Connects via| W
@@ -44,7 +47,7 @@ graph TD
 - **DeFi User**: Manages investments across multiple DeFi protocols
 
 ### External Systems
-- **Aptos Blockchain**: Layer 1 blockchain providing the foundation for all DeFi protocols
+- **Aptos Blockchain**: Layer 1 blockchain providing the foundation for all DeFi protocols and smart contract deployment
 - **Panora API**: Token prices, market data, and swap functionality
 - **DeFi Protocols**: Multiple DeFi protocols (Echelon, Hyperion, Joule, Aries, Auro, Amnis, Tapp, Meso)
 - **Wallet Providers**: Various Aptos wallet implementations (Petra, Martian, Pontem, etc.)
@@ -56,4 +59,5 @@ The YieldAI system allows users to:
 - Discover investment opportunities with highest APY
 - Execute deposits, withdrawals, and swaps
 - Monitor positions and claim rewards
-- Get AI-powered assistance for DeFi operations 
+- Get AI-powered assistance for DeFi operations
+- Deploy and interact with strategy smart contracts on Aptos blockchain 
