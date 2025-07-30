@@ -5,54 +5,51 @@
 This diagram shows the internal structure of the Protocol Service container, detailing how it manages integrations with multiple DeFi protocols.
 
 ```mermaid
-graph TD
+graph LR
 
   subgraph Protocol Service
-    PR[📋 Protocol Registry<br/>TypeScript Class<br/>Central protocol registration and management]
-    
-    BP[🔧 Base Protocol<br/>TypeScript Interface<br/>Common protocol interface and base implementation]
-    
-    EP[⚡ Echelon Protocol<br/>TypeScript Class<br/>Echelon lending protocol integration]
-    
-    HP[🌊 Hyperion Protocol<br/>TypeScript Class<br/>Hyperion DEX protocol integration]
-    
-    JP[⚡ Joule Protocol<br/>TypeScript Class<br/>Joule lending protocol integration]
-    
-    AP[🟡 Auro Protocol<br/>TypeScript Class<br/>Auro lending protocol integration]
-    
-    AMP[🔵 Amnis Protocol<br/>TypeScript Class<br/>Amnis staking protocol integration]
-    
-    ARP[🦁 Aries Protocol<br/>TypeScript Class<br/>Aries lending protocol integration]
-    
-    TP[🔘 Tapp Protocol<br/>TypeScript Class<br/>Tapp DEX protocol integration]
-    
-    MP[🟣 Meso Protocol<br/>TypeScript Class<br/>Meso lending protocol integration]
-    
-    DP[📊 Data Processor<br/>TypeScript Class<br/>Transforms protocol data to standardized format]
-    
-    AP[📈 APY Calculator<br/>TypeScript Class<br/>Calculates and compares APY across protocols]
+    subgraph Core Management
+      PR[📋 Protocol Registry<br/>TypeScript Class]
+      BP[🔧 Base Protocol<br/>TypeScript Interface]
+    end
+
+    subgraph Protocol Implementations
+      EP[⚡ Echelon<br/>TypeScript Class]
+      HP[🌊 Hyperion<br/>TypeScript Class]
+      JP[⚡ Joule<br/>TypeScript Class]
+      AP[🟡 Auro<br/>TypeScript Class]
+      AMP[🔵 Amnis<br/>TypeScript Class]
+      ARP[🦁 Aries<br/>TypeScript Class]
+      TP[🔘 Tapp<br/>TypeScript Class]
+      MP[🟣 Meso<br/>TypeScript Class]
+    end
+
+    subgraph Data Processing
+      DP[📊 Data Processor<br/>TypeScript Class]
+      AC[📈 APY Calculator<br/>TypeScript Class]
+    end
+
+    subgraph External Integration
+      TS[🔨 Transaction Submitter<br/>TypeScript Class]
+    end
   end
 
   subgraph External Systems
-    EAPI[🏛️ Echelon API<br/>External API<br/>Lending market data and user positions]
-    
-    HAPI[🌊 Hyperion API<br/>External API<br/>DEX pool data and trading information]
-    
-    JAPI[⚡ Joule API<br/>External API<br/>Lending pools and user positions]
-    
-    AAPI[🟡 Auro API<br/>External API<br/>Lending markets and collateral data]
-    
-    AMAPI[🔵 Amnis API<br/>External API<br/>Staking pools and rewards data]
-    
-    ARAPI[🦁 Aries API<br/>External API<br/>Lending market information]
-    
-    TAPI[🔘 Tapp API<br/>External API<br/>DEX trading data and pools]
-    
-    MAPI[🟣 Meso API<br/>External API<br/>Lending market data]
-    
-    PS[💼 Portfolio Service<br/>Internal Service<br/>Portfolio data aggregation]
-    
-    TS[🔨 Transaction Service<br/>Internal Service<br/>Transaction building and submission]
+    subgraph DeFi APIs
+      EAPI[🏛️ Echelon API]
+      HAPI[🌊 Hyperion API]
+      JAPI[⚡ Joule API]
+      AAPI[🟡 Auro API]
+      AMAPI[🔵 Amnis API]
+      ARAPI[🦁 Aries API]
+      TAPI[🔘 Tapp API]
+      MAPI[🟣 Meso API]
+    end
+
+    subgraph Services
+      PSVC[💼 Portfolio Service]
+      TSVC[🔨 Transaction Service]
+    end
   end
 
   %% Protocol Registry relationships
@@ -96,8 +93,8 @@ graph TD
   MP -->|Sends raw data| DP
 
   %% Data processing and calculations
-  DP -->|Sends standardized data| AP
-  AP -->|Provides APY data| PS
+  DP -->|Sends standardized data| AC
+  AC -->|Provides APY data| PSVC
 
   %% Transaction integration
   EP -->|Requests transaction building| TS
@@ -109,12 +106,15 @@ graph TD
   TP -->|Requests transaction building| TS
   MP -->|Requests transaction building| TS
 
+  %% Service relationships
+  TS -->|Uses for transactions| TSVC
+
   classDef component fill:#1168BD,stroke:#0E5DAD,stroke-width:2px,color:#fff
   classDef external fill:#999999,stroke:#8A8A8A,stroke-width:2px,color:#fff
   classDef interface fill:#85BBF0,stroke:#6BA5E7,stroke-width:2px,color:#000
 
-  class PR,EP,HP,JP,AP,AMP,ARP,TP,MP,DP,AP component
-  class EAPI,HAPI,JAPI,AAPI,AMAPI,ARAPI,TAPI,MAPI,PS,TS external
+  class PR,EP,HP,JP,AP,AMP,ARP,TP,MP,DP,AC,TS component
+  class EAPI,HAPI,JAPI,AAPI,AMAPI,ARAPI,TAPI,MAPI,PSVC,TSVC external
   class BP interface
 ```
 
@@ -221,6 +221,16 @@ graph TD
   - Yield comparison algorithms
   - Real-time rate updates
   - Performance metrics calculation
+
+### External Integration
+
+#### Transaction Submitter
+- **Technology**: TypeScript Class
+- **Responsibilities**:
+  - Transaction payload creation
+  - Gas estimation and optimization
+  - Transaction submission and monitoring
+  - Error handling and retry logic
 
 ## External Integrations
 
