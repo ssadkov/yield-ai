@@ -76,7 +76,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
     
     return sum + positionValue + farmRewards + feeRewards;
   }, 0);
-  
+
   // Считаем общую стоимость всех позиций и наград
   const totalRewardsValue = positions.reduce((sum, position) => {
   

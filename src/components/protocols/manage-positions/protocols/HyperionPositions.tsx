@@ -675,7 +675,7 @@ export function HyperionPositions() {
   }
 
   return (
-    <div className="w-full mb-6 py-2 px-6">
+    <div className="w-full mb-6 py-2">
       <div className="space-y-4 text-base">
         {positions.map((position, index) => (
           <HyperionPosition 

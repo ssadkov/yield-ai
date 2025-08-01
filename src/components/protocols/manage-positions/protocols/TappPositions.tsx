@@ -54,9 +54,9 @@ function TappPosition({ position, index }: TappPositionProps) {
   const boostedApr = parseFloat(position.apr?.boostedAprPercentage || '0');
 
   return (
-    <div key={`${position.positionAddr}-${index}`} className="p-4 border-b last:border-b-0">
-      <div className="flex justify-between items-center mb-3">
-        <div className="flex items-center gap-2">
+    <div key={`${position.positionAddr}-${index}`} className="mt-2 pb-2 border-b last:border-b-0">
+	 <div className="flex flex-wrap justify-between items-center mb-2">
+		<div className="flex items-center gap-2">
           {token0.img && token1.img && (
             <div className="flex -space-x-2 mr-2">
               <img src={token0.img} alt={token0.symbol} className="w-8 h-8 rounded-full border-2 border-white object-contain" />
@@ -66,11 +66,11 @@ function TappPosition({ position, index }: TappPositionProps) {
           <span className="text-lg font-semibold">{token0.symbol} / {token1.symbol}</span>
           <span className="px-2 py-1 rounded bg-green-500/10 text-green-600 text-xs font-semibold ml-2">Active</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-centern gap-2">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs font-normal px-2 py-0.5 h-5 cursor-help">
+                <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs font-normal px-2 py-0.5 h-5 cursor-help mt-1">
                   APR: {totalApr.toFixed(2)}%
                 </Badge>
               </TooltipTrigger>
@@ -87,9 +87,8 @@ function TappPosition({ position, index }: TappPositionProps) {
           <span className="text-lg font-bold">{formatCurrency(totalValue)}</span>
         </div>
       </div>
-      
-      <div className="flex justify-between items-start">
-        <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+      <div className="flex flex-wrap justify-between items-start">
+		<div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
           <div>
             <div className="text-gray-500">{token0.symbol} Amount</div>
             <div className="font-medium">{token0Amount.toFixed(6)}</div>
@@ -107,7 +106,6 @@ function TappPosition({ position, index }: TappPositionProps) {
             <div className="font-medium">{formatCurrency(token1Value)}</div>
           </div>
         </div>
-
         <div className="flex flex-col items-end gap-2 text-sm">
           {rewards.length > 0 && (
             <div className="mt-2 text-right">
@@ -204,9 +202,16 @@ export function TappPositions() {
     }, 0);
     return sum + positionValue + incentivesValue;
   }, 0);
+  
+  const totalRewards = positions.reduce((sum, position) => {
+    const incentivesValue = (position.estimatedIncentives || []).reduce((incentiveSum: number, incentive: any) => {
+      return incentiveSum + parseFloat(incentive.usd || "0");
+    }, 0);
+    return sum + incentivesValue;
+  }, 0);
 
   if (loading) {
-    return <div className="p-4 text-center">Loading Tapp positions...</div>;
+    return <div className="p-4 text-left">Loading positions...</div>;
   }
 
   if (error) {
@@ -218,14 +223,45 @@ export function TappPositions() {
   }
 
   return (
-    <div className="w-full mb-6 py-2 px-6">
+    <div className="w-full mb-6 py-2">
       <div className="space-y-4 text-base">
         {positions.map((position, index) => (
           <TappPosition key={`${position.positionAddr}-${index}`} position={position} index={index} />
         ))}
-        <div className="flex items-center justify-between pt-6 pb-6">
-          <span className="text-xl">Total assets in Tapp Exchange:</span>
-          <span className="text-xl text-primary font-bold">{formatCurrency(totalValue)}</span>
+        <div className="pt-6 pb-6">
+         
+		 {/* Desktop layout */}
+          <div className="hidden md:block">
+            <div className="flex items-center justify-between">
+              <span className="text-xl">Total assets in Tapp Exchange:</span>
+              <span className="text-xl text-primary font-bold">${totalValue.toFixed(2)}</span>
+            </div>
+            {totalRewards > 0 && (
+              <div className="flex justify-end mt-2">
+                <div className="text-right">
+                  <div className="text-sm text-muted-foreground flex items-center gap-1 justify-end">
+                    <span>💰</span>
+                    <span>including rewards ${totalRewards.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          {/* Mobile layout */}
+          <div className="md:hidden space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-lg">Total assets in Tapp Exchange:</span>
+              <span className="text-lg text-primary font-bold">${totalValue.toFixed(2)}</span>
+            </div>
+            {totalRewards > 0 && (
+               <div className="space-y-2">
+                <div className="text-sm text-muted-foreground flex items-center gap-1">
+                  <span>💰</span>
+                  <span>including rewards ${totalRewards.toFixed(2)}</span>
+                </div>
+              </div>
+            )}
+   		  </div>
         </div>
       </div>
     </div>
