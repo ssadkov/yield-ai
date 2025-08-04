@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
       ? `https://yield-a.vercel.app/api/aptos/markets?protocol=${protocol}`
       : 'https://yield-a.vercel.app/api/aptos/markets';
     
-    console.log(`Proxying request to: ${url}`);
+               console.log(`Proxying Joule request to: ${url}`);
     
     const response = await fetch(url, {
       headers: {
@@ -29,11 +29,11 @@ export async function GET(request: NextRequest) {
         'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30',
       }
     });
-  } catch (error) {
-    console.error('Error proxying Primary Yield API request:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch data from Primary Yield API' },
-      { status: 500 }
-    );
-  }
+           } catch (error) {
+           console.error('Error proxying Joule API request:', error);
+           return NextResponse.json(
+             { error: 'Failed to fetch data from Joule API' },
+             { status: 500 }
+           );
+         }
 } 

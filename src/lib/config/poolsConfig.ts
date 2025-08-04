@@ -3,7 +3,7 @@ import { PoolSource } from '@/lib/services/pools/poolsService';
 // Configuration for pool data sources
 export const poolSources: PoolSource[] = [
   {
-    name: 'Primary Yield API',
+    name: 'Joule',
     url: '/api/protocols/primary-yield?protocol=Joule',
     enabled: true
   },

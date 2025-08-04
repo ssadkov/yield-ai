@@ -154,7 +154,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
         
         // Initialize loading states for all protocols
         const initialLoadingState = {
-          'Primary Yield API': true,
+          'Joule': true,
           'Hyperion': true,
           'Tapp Exchange': true,
           'Auro Finance': true,
@@ -168,7 +168,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
         // Define protocol endpoints
         const protocolEndpoints = [
           {
-            name: 'Primary Yield API',
+            name: 'Joule',
             url: '/api/protocols/primary-yield?protocol=Joule',
             transform: (data: any) => data.data || []
           },
