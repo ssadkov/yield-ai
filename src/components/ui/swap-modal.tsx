@@ -472,9 +472,9 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
 
         <div className="space-y-3">
           {/* From Token and Amount - Horizontal Layout */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {/* From Token */}
-            <div className="col-span-2 space-y-1">
+            <div className="col-span-1 space-y-1">
               <Label className="text-xs">From Token</Label>
               <Select
                 value={fromToken?.faAddress || fromToken?.tokenAddress || ''}
@@ -555,7 +555,7 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                   className="h-9 text-sm"
                 />
                 {fromToken && amount && (
-                  <div className="text-xs text-muted-foreground text-right">
+                  <div className="text-xs text-muted-foreground text-left">
                     {formatUSD(parseFloat(amount) * getTokenPrice(fromToken))}
                   </div>
                 )}
@@ -599,8 +599,8 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
           {/* To Token - Full Width with Receive Amount */}
           <div className="space-y-1">
             <Label className="text-xs">To Token</Label>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="col-span-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-1">
                 <Select
                   value={toToken?.faAddress || toToken?.tokenAddress || ''}
                   onValueChange={(value) => {
