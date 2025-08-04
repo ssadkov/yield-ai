@@ -29,7 +29,7 @@ export function AuroPositionCard({ position }: AuroPositionCardProps) {
           <div className="flex items-center gap-1 text-green-600">
             <TrendingUp className="h-4 w-4" />
             <span className="text-sm font-medium">
-              {position.apy.toFixed(2)}% APY
+              {position.apy.toFixed(2)}% APR
             </span>
           </div>
         </CardTitle>

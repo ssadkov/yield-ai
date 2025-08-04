@@ -24,10 +24,10 @@ export function TokenItem({ token }: TokenItemProps) {
   const isStApt = token.address === '0x111ae3e5bc816a5e63c2da97d0aa3886519e0cd5e4b046659fa35796bd11542a::stapt_token::StakedApt';
   const [stAptYield, setStAptYield] = useState<number>(0);
 
-  // Fetch real APY for stAPT from Amnis API
+  // Fetch real APR for stAPT from Amnis API
   useEffect(() => {
     if (isStApt) {
-      const fetchAmnisAPY = async () => {
+      const fetchAmnisAPR = async () => {
         try {
           const response = await fetch('/api/protocols/amnis/pools');
           if (response.ok) {
@@ -41,11 +41,11 @@ export function TokenItem({ token }: TokenItemProps) {
             }
           }
         } catch (error) {
-          console.error('Error fetching Amnis APY:', error);
+          console.error('Error fetching Amnis APR:', error);
         }
       };
       
-      fetchAmnisAPY();
+      fetchAmnisAPR();
     }
   }, [isStApt]);
 
@@ -102,11 +102,11 @@ export function TokenItem({ token }: TokenItemProps) {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Badge variant="secondary" className="text-xs px-1 py-0 h-4 text-green-600 bg-green-100 border-green-200 cursor-help">
-                      {stAptYield.toFixed(1)}%
+                      {stAptYield.toFixed(2)}%
                     </Badge>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Current APY from Amnis Finance liquid staking</p>
+                    <p>Current APR from Amnis Finance liquid staking</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>

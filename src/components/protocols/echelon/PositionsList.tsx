@@ -248,14 +248,14 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
     return () => clearTimeout(timeoutId);
   }, [getAllTokenAddresses, pricesService]);
 
-  // Загружаем APY данные из того же источника, что и Pro вкладка
+      // Загружаем APR данные из того же источника, что и Pro вкладка
   useEffect(() => {
     fetch('/api/protocols/echelon/v2/pools')
       .then(res => res.json())
       .then(data => {
-        console.log('PositionsList - APY data loaded:', data);
+        console.log('PositionsList - APR data loaded:', data);
         if (data.success && data.data) {
-          // Создаем маппинг token -> APY данные
+          // Создаем маппинг token -> APR данные
           const apyMapping: Record<string, any> = {};
           data.data.forEach((pool: any) => {
             apyMapping[pool.token] = {
@@ -268,11 +268,11 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
             };
           });
           setApyData(apyMapping);
-          console.log('PositionsList - APY mapping created:', apyMapping);
+          console.log('PositionsList - APR mapping created:', apyMapping);
         }
       })
-      .catch(error => {
-        console.error('PositionsList - APY data load error:', error);
+              .catch(error => {
+          console.error('PositionsList - APR data load error:', error);
       });
   }, []);
 
@@ -322,24 +322,24 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
     return () => clearTimeout(timeoutId);
   }, [walletAddress, fetchRewards]);
 
-  // Получить APY для позиции
+      // Получить APR для позиции
   const getApyForPosition = (position: Position) => {
-    // Сначала пытаемся найти данные в новом APY маппинге
+          // Сначала пытаемся найти данные в новом APR маппинге
     const poolData = apyData[position.coin];
     if (poolData) {
-      console.log(`Found APY data for ${position.coin}:`, poolData);
+              console.log(`Found APR data for ${position.coin}:`, poolData);
       if (position.type === 'supply') {
         const apy = poolData.supplyAPY / 100; // Конвертируем из процентов в десятичную форму
-        console.log(`Supply APY for ${position.coin}: ${apy * 100}%`);
+        console.log(`Supply APR for ${position.coin}: ${apy * 100}%`);
         return apy * 100; // Возвращаем в процентах для отображения
       } else if (position.type === 'borrow') {
         const apy = poolData.borrowAPY / 100;
-        console.log(`Borrow APY for ${position.coin}: ${apy * 100}%`);
+        console.log(`Borrow APR for ${position.coin}: ${apy * 100}%`);
         return apy * 100;
       }
     }
     
-    console.log(`No APY data found for ${position.coin}, using fallback`);
+            console.log(`No APR data found for ${position.coin}, using fallback`);
     // Fallback на старые данные
     return position.supplyApr || 0;
   };
@@ -477,7 +477,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
                       <div className="text-sm font-medium">${value}</div>
                       <div className="text-xs text-muted-foreground">{amount.toFixed(4)}</div>
                       <div className="text-xs text-muted-foreground">
-                        APY: {apy !== null ? apy.toFixed(2) + '%' : 'N/A'}
+                        APR: {apy !== null ? apy.toFixed(2) + '%' : 'N/A'}
                       </div>
                     </div>
                   </div>

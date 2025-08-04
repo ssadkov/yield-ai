@@ -775,7 +775,7 @@ export default function TestAmnisPage() {
                 <h3 className="font-semibold">{position.poolName}</h3>
                 <p className="text-sm">Staked: {position.stakedAmount}</p>
                 <p className="text-sm">Value: ${position.value}</p>
-                <p className="text-sm">APY: {position.apy}%</p>
+                <p className="text-sm">APR: {position.apy}%</p>
                 <p className="text-sm">Rewards: {position.rewards}</p>
               </div>
             ))}

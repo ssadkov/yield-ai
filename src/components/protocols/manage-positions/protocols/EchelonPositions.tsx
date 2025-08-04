@@ -200,14 +200,14 @@ export function EchelonPositions() {
     return () => clearTimeout(timeoutId);
   }, [getAllTokenAddresses, pricesService, account?.address]);
 
-  // Загружаем APY данные из того же источника, что и Pro вкладка
+      // Загружаем APR данные из того же источника, что и Pro вкладка
   useEffect(() => {
     fetch('/api/protocols/echelon/v2/pools')
       .then(res => res.json())
       .then(data => {
-        console.log('EchelonPositions - APY data loaded:', data);
+        console.log('EchelonPositions - APR data loaded:', data);
         if (data.success && data.data) {
-          // Создаем маппинг token -> APY данные
+                      // Создаем маппинг token -> APR данные
           const apyMapping: Record<string, any> = {};
           data.data.forEach((pool: any) => {
             apyMapping[pool.token] = {
@@ -220,12 +220,12 @@ export function EchelonPositions() {
             };
           });
           setApyData(apyMapping);
-          console.log('EchelonPositions - APY mapping created:', apyMapping);
+          console.log('EchelonPositions - APR mapping created:', apyMapping);
         }
       })
-      .catch(error => {
-        console.error('EchelonPositions - APY data load error:', error);
-        console.log('Using fallback APY data');
+              .catch(error => {
+          console.error('EchelonPositions - APR data load error:', error);
+        console.log('Using fallback APR data');
         // Fallback на старые данные
         // setMarketData(echelonMarkets.markets); // This line is removed
       });
@@ -288,24 +288,24 @@ export function EchelonPositions() {
     };
   };
 
-  // Получить APY для позиции (обновленная функция)
+      // Получить APR для позиции (обновленная функция)
   const getApyForPosition = (position: any) => {
-    // Ищем данные в новом APY маппинге
+          // Ищем данные в новом APR маппинге
     const poolData = apyData[position.coin];
     if (poolData) {
-      console.log(`Found APY data for ${position.coin}:`, poolData);
+              console.log(`Found APR data for ${position.coin}:`, poolData);
       if (position.type === 'supply') {
         const apy = poolData.supplyAPY / 100; // Конвертируем из процентов в десятичную форму
-        console.log(`Supply APY for ${position.coin}: ${apy * 100}%`);
+        console.log(`Supply APR for ${position.coin}: ${apy * 100}%`);
         return apy;
       } else if (position.type === 'borrow') {
         const apy = poolData.borrowAPY / 100;
-        console.log(`Borrow APY for ${position.coin}: ${apy * 100}%`);
+        console.log(`Borrow APR for ${position.coin}: ${apy * 100}%`);
         return apy;
       }
     }
     
-    console.log(`No APY data found for ${position.coin}`);
+            console.log(`No APR data found for ${position.coin}`);
     return null;
   };
 

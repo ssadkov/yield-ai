@@ -245,7 +245,7 @@ export default function TestHyperionPage() {
 
                   <div className="text-xs space-y-1">
                     <div>
-                      Total APY: <span className="text-green-600 font-semibold">{pool.totalAPY.toFixed(2)}%</span>
+                      Total APR: <span className="text-green-600 font-semibold">{pool.totalAPY.toFixed(2)}%</span>
                     </div>
                     <div className="font-semibold text-blue-600">
                       Volume: ${pool.dailyVolumeUSD.toLocaleString()}

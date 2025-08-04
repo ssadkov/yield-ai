@@ -79,7 +79,7 @@ export const AmnisPositionCard: React.FC<AmnisPositionCardProps> = ({
             <p className="text-lg font-semibold">${displayValue.toFixed(2)}</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">APY</p>
+            <p className="text-sm text-muted-foreground">APR</p>
             <p className="text-lg font-semibold text-green-600">{position.apy.toFixed(2)}%</p>
           </div>
         </div>

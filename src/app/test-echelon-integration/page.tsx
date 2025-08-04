@@ -193,7 +193,7 @@ export default function TestEchelonIntegrationPage() {
                      .slice(0, 5)
                      .map((pool, index) => (
                        <div key={index} className="border p-2 rounded mt-2">
-                         {pool.asset || 'N/A'} - {pool.totalAPY ? pool.totalAPY.toFixed(2) : '0'}% APY
+                         {pool.asset || 'N/A'} - {pool.totalAPY ? pool.totalAPY.toFixed(2) : '0'}% APR
                        </div>
                      ))}
               </div>

@@ -462,10 +462,10 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, amount, fromToken, 
                   <ExternalLink className="inline w-4 h-4 align-text-bottom" />
                 </a>
               </div>
-              {/* APY и финальный месседж */}
+              {/* APR и финальный месседж */}
               {protocol.apy !== undefined && protocol.apy !== null && (
                 <div className="mt-1 text-base text-green-700 font-medium">
-                  Now you are earning {protocol.apy.toFixed(2)}% APY!
+                  Now you are earning {protocol.apy.toFixed(2)}% APR!
                 </div>
               )}
             </div>

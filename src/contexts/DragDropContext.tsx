@@ -190,11 +190,11 @@ export function DragDropProvider({ children }: { children: ReactNode }) {
       const tokenInfo = getTokenInfo(dropTarget.token);
       
       if (protocol && protocol.depositType === 'native') {
-        // Get real APY for Amnis Finance
+        // Get real APR for Amnis Finance
         let apy = dropTarget.totalAPY || 8.4;
         if (protocol.name === 'Amnis Finance') {
-          // Use the APY from the dropTarget if available, otherwise use default
-          apy = dropTarget.totalAPY || 7.21; // Current Amnis APY from API
+          // Use the APR from the dropTarget if available, otherwise use default
+          apy = dropTarget.totalAPY || 7.21; // Current Amnis APR from API
         }
         
         // Открываем модальное окно депозита
@@ -232,11 +232,11 @@ export function DragDropProvider({ children }: { children: ReactNode }) {
       const tokenInfo = getTokenInfo(dropTarget.token);
       
       if (protocol && protocol.depositType === 'native') {
-        // Get real APY for Amnis Finance
+        // Get real APR for Amnis Finance
         let apy = dropTarget.totalAPY || 8.4;
         if (protocol.name === 'Amnis Finance') {
-          // Use the APY from the dropTarget if available, otherwise use default
-          apy = dropTarget.totalAPY || 7.21; // Current Amnis APY from API
+          // Use the APR from the dropTarget if available, otherwise use default
+          apy = dropTarget.totalAPY || 7.21; // Current Amnis APR from API
         }
         
         const modalData = {

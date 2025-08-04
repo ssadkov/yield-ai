@@ -59,7 +59,7 @@ export function PositionCard({ position }: PositionProps) {
         <div className="text-right flex flex-col">
           <div className="text-base font-medium">${value.toFixed(2)}</div>
           <div className="text-xs text-muted-foreground">
-            {isSupply ? '📈' : '📉'} APY: {formattedApy}%
+            {isSupply ? '📈' : '📉'} APR: {formattedApy}%
           </div>
         </div>
       </CardHeader>
