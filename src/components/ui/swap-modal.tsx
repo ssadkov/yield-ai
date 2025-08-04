@@ -472,9 +472,9 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
 
         <div className="space-y-3">
           {/* From Token and Amount - Horizontal Layout */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             {/* From Token */}
-            <div className="space-y-1">
+            <div className="col-span-2 space-y-1">
               <Label className="text-xs">From Token</Label>
               <Select
                 value={fromToken?.faAddress || fromToken?.tokenAddress || ''}
@@ -546,13 +546,20 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
             {/* Amount Input */}
             <div className="space-y-1">
               <Label className="text-xs">Amount</Label>
-              <Input
-                type="number"
-                placeholder="0.0"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="h-9 text-sm"
-              />
+              <div className="space-y-1">
+                <Input
+                  type="number"
+                  placeholder="0.0"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  className="h-9 text-sm"
+                />
+                {fromToken && amount && (
+                  <div className="text-xs text-muted-foreground text-right">
+                    {formatUSD(parseFloat(amount) * getTokenPrice(fromToken))}
+                  </div>
+                )}
+              </div>
               {fromToken && (
                 <div className="flex gap-1">
                   <Button 
@@ -589,100 +596,119 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
             </div>
           </div>
 
-          {/* To Token - Full Width */}
+          {/* To Token - Full Width with Receive Amount */}
           <div className="space-y-1">
             <Label className="text-xs">To Token</Label>
-            <Select
-              value={toToken?.faAddress || toToken?.tokenAddress || ''}
-              onValueChange={(value) => {
-                const token = getTokenInfo(value);
-                if (token) setToToken(token);
-              }}
-            >
-              <SelectTrigger className="h-9">
-                <SelectValue>
-                  {toToken ? (
-                    <div className="flex items-center gap-2">
-                      <Image
-                        src={toToken.logoUrl || '/file.svg'}
-                        alt={toToken.symbol}
-                        width={16}
-                        height={16}
-                        className="rounded-full"
-                      />
-                      <span className="text-sm">{toToken.symbol}</span>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-2">
+                <Select
+                  value={toToken?.faAddress || toToken?.tokenAddress || ''}
+                  onValueChange={(value) => {
+                    const token = getTokenInfo(value);
+                    if (token) setToToken(token);
+                  }}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue>
+                      {toToken ? (
+                        <div className="flex items-center gap-2">
+                          <Image
+                            src={toToken.logoUrl || '/file.svg'}
+                            alt={toToken.symbol}
+                            width={16}
+                            height={16}
+                            className="rounded-full"
+                          />
+                          <span className="text-sm">{toToken.symbol}</span>
+                        </div>
+                      ) : (
+                        <span className="text-sm">Select token</span>
+                      )}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <div className="p-2">
+                      {availableToTokens.length > 0 && hasTokenInfo(availableToTokens[0]) ? (
+                        <>
+                          <div className="text-sm font-medium mb-2">Your Tokens</div>
+                          {availableToTokens.map((token) => {
+                            if (!hasTokenInfo(token)) return null;
+                            const tokenInfo = token.tokenInfo;
+                            const balance = getTokenBalance(tokenInfo);
+                            return (
+                              <SelectItem
+                                key={tokenInfo.faAddress || tokenInfo.tokenAddress || ''}
+                                value={tokenInfo.faAddress || tokenInfo.tokenAddress || ''}
+                              >
+                                <div className="flex items-center justify-between w-full">
+                                  <div className="flex items-center gap-2">
+                                    <Image
+                                      src={tokenInfo.logoUrl || '/file.svg'}
+                                      alt={tokenInfo.symbol}
+                                      width={16}
+                                      height={16}
+                                      className="rounded-full"
+                                    />
+                                    <span className="text-sm">{tokenInfo.symbol}</span>
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {formatNumber(balance.balance)} (${formatNumber(balance.usdValue)})
+                                  </div>
+                                </div>
+                              </SelectItem>
+                            );
+                          })}
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-sm font-medium mb-2">Popular Tokens</div>
+                          {availableToTokens.map((token) => {
+                            const tokenData = token as Token;
+                            return (
+                              <SelectItem
+                                key={tokenData.faAddress || tokenData.tokenAddress || ''}
+                                value={tokenData.faAddress || tokenData.tokenAddress || ''}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <Image
+                                    src={tokenData.logoUrl || '/file.svg'}
+                                    alt={tokenData.symbol}
+                                    width={16}
+                                    height={16}
+                                    className="rounded-full"
+                                  />
+                                  <span className="text-sm">{tokenData.symbol}</span>
+                                  {tokenData.usdPrice && (
+                                    <span className="text-xs text-muted-foreground">
+                                      {formatUSD(tokenData.usdPrice)}
+                                    </span>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            );
+                          })}
+                        </>
+                      )}
                     </div>
-                  ) : (
-                    <span className="text-sm">Select token</span>
-                  )}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <div className="p-2">
-                  {availableToTokens.length > 0 && hasTokenInfo(availableToTokens[0]) ? (
-                    <>
-                      <div className="text-sm font-medium mb-2">Your Tokens</div>
-                      {availableToTokens.map((token) => {
-                        if (!hasTokenInfo(token)) return null;
-                        const tokenInfo = token.tokenInfo;
-                        const balance = getTokenBalance(tokenInfo);
-                        return (
-                          <SelectItem
-                            key={tokenInfo.faAddress || tokenInfo.tokenAddress || ''}
-                            value={tokenInfo.faAddress || tokenInfo.tokenAddress || ''}
-                          >
-                            <div className="flex items-center justify-between w-full">
-                              <div className="flex items-center gap-2">
-                                <Image
-                                  src={tokenInfo.logoUrl || '/file.svg'}
-                                  alt={tokenInfo.symbol}
-                                  width={16}
-                                  height={16}
-                                  className="rounded-full"
-                                />
-                                <span className="text-sm">{tokenInfo.symbol}</span>
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                {formatNumber(balance.balance)} (${formatNumber(balance.usdValue)})
-                              </div>
-                            </div>
-                          </SelectItem>
-                        );
-                      })}
-                    </>
-                  ) : (
-                    <>
-                      <div className="text-sm font-medium mb-2">Popular Tokens</div>
-                      {availableToTokens.map((token) => {
-                        const tokenData = token as Token;
-                        return (
-                          <SelectItem
-                            key={tokenData.faAddress || tokenData.tokenAddress || ''}
-                            value={tokenData.faAddress || tokenData.tokenAddress || ''}
-                          >
-                            <div className="flex items-center gap-2">
-                              <Image
-                                src={tokenData.logoUrl || '/file.svg'}
-                                alt={tokenData.symbol}
-                                width={16}
-                                height={16}
-                                className="rounded-full"
-                              />
-                              <span className="text-sm">{tokenData.symbol}</span>
-                              {tokenData.usdPrice && (
-                                <span className="text-xs text-muted-foreground">
-                                  {formatUSD(tokenData.usdPrice)}
-                                </span>
-                              )}
-                            </div>
-                          </SelectItem>
-                        );
-                      })}
-                    </>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* You Receive Amount */}
+              {swapQuote && toToken && (
+                <div className="flex flex-col justify-center">
+                  <div className="text-xs text-muted-foreground">You Receive:</div>
+                  <div className="text-sm font-medium">
+                    {quoteDebug?.quotes?.[0]?.toTokenAmount || swapQuote.estimatedToAmount || swapQuote.amount} {toToken.symbol}
+                  </div>
+                  {quoteDebug?.quotes?.[0]?.toTokenAmountUSD && parseFloat(quoteDebug.quotes[0].toTokenAmountUSD) > 0 && (
+                    <div className="text-xs text-muted-foreground">
+                      {formatUSD(parseFloat(quoteDebug.quotes[0].toTokenAmountUSD))}
+                    </div>
                   )}
                 </div>
-              </SelectContent>
-            </Select>
+              )}
+            </div>
           </div>
 
           {/* Slippage Settings - Only shown when settings are opened */}
@@ -703,39 +729,13 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
             </div>
           )}
 
-          {/* Quote Results */}
+          {/* Quote Results - Simplified */}
           {swapQuote && (
             <div className="p-3 bg-muted rounded-lg space-y-2">
               <div className="flex items-center gap-2">
                 <Info className="h-3 w-3" />
-                <span className="font-medium text-sm">Swap Quote</span>
+                <span className="font-medium text-sm">Swap Details</span>
               </div>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <span className="text-muted-foreground">You Pay:</span>
-                  <div className="font-medium">{amount} {fromToken?.symbol}</div>
-                  {quoteDebug?.fromTokenAmountUSD && (
-                    <div className="text-xs text-muted-foreground">
-                      {formatUSD(parseFloat(quoteDebug.fromTokenAmountUSD))}
-                    </div>
-                  )}
-                </div>
-                
-                <div>
-                  <span className="text-muted-foreground">You Receive:</span>
-                  <div className="font-medium">
-                    {quoteDebug?.quotes?.[0]?.toTokenAmount || swapQuote.estimatedToAmount || swapQuote.amount} {toToken?.symbol}
-                  </div>
-                  {quoteDebug?.quotes?.[0]?.toTokenAmountUSD && parseFloat(quoteDebug.quotes[0].toTokenAmountUSD) > 0 && (
-                    <div className="text-xs text-muted-foreground">
-                      {formatUSD(parseFloat(quoteDebug.quotes[0].toTokenAmountUSD))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <Separator />
-
               <div className="text-xs text-muted-foreground grid grid-cols-2 gap-2">
                 <div>Slippage: {slippage}%</div>
                 <div>Fee: 0.25%</div>
