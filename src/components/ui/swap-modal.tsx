@@ -614,13 +614,13 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
           </div>
 
           {/* Swap Direction */}
-          <div className="flex justify-center">
+          <div className="flex justify-center items-center py-2">
             <button
               onClick={swapTokens}
-              className="p-1 bg-muted rounded-full hover:bg-muted/80 transition-colors cursor-pointer"
+              className="p-2 bg-muted rounded-full hover:bg-muted/80 transition-colors cursor-pointer border border-border flex items-center justify-center"
               disabled={!fromToken || !toToken}
             >
-              <ArrowLeftRight className="h-3 w-3" />
+              <ArrowLeftRight className="h-4 w-4" />
             </button>
           </div>
 
