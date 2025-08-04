@@ -351,6 +351,10 @@ export function EchelonPositions() {
 
   // Обработчик открытия модального окна deposit
   const handleDepositClick = (position: Position) => {
+    console.log('Deposit click - position:', position);
+    console.log('Deposit click - apyData keys:', Object.keys(apyData));
+    console.log('Deposit click - apyData for this coin:', apyData[position.coin]);
+    console.log('Deposit click - getApyForPosition result:', getApyForPosition(position));
     setSelectedPosition(position);
     setShowDepositModal(true);
   };
@@ -624,7 +628,11 @@ export function EchelonPositions() {
           protocol={{
             name: "Echelon",
             logo: "/echelon-favicon.ico",
-            apy: getApyForPosition(selectedPosition) ? getApyForPosition(selectedPosition)! * 100 : 0,
+            apy: (() => {
+              const apyValue = getApyForPosition(selectedPosition) ? getApyForPosition(selectedPosition)! * 100 : 0;
+              console.log('DepositModal - APY value being passed:', apyValue);
+              return apyValue;
+            })(),
             key: "echelon" as ProtocolKey
           }}
           tokenIn={{

@@ -51,7 +51,7 @@ export function DepositButton({
   const [protocolAPY, setProtocolAPY] = useState<number>(8.4); // Default fallback
   const walletData = useWalletData();
 
-  // Fetch real APY data for Amnis Finance
+  // Fetch real APY data for Amnis Finance and Echelon
   useEffect(() => {
     if (protocol.name === 'Amnis Finance') {
       const fetchAmnisAPY = async () => {
@@ -74,17 +74,45 @@ export function DepositButton({
       };
       
       fetchAmnisAPY();
+    } else if (protocol.name === 'Echelon') {
+      const fetchEchelonAPY = async () => {
+        try {
+          console.log('Fetching Echelon APY for token:', tokenIn?.address);
+          const response = await fetch('/api/protocols/echelon/v2/pools');
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data && data.data.length > 0) {
+              // Find the pool for this specific token
+              const pool = data.data.find((pool: any) => 
+                pool.token === tokenIn?.address && pool.asset && !pool.asset.includes('(Borrow)')
+              );
+              if (pool && pool.depositApy) {
+                setProtocolAPY(pool.depositApy);
+                console.log('Fetched Echelon APY:', pool.depositApy, 'for token:', tokenIn?.address);
+              } else {
+                console.log('No matching Echelon pool found for token:', tokenIn?.address);
+                console.log('Available pools:', data.data.map((p: any) => ({ token: p.token, asset: p.asset, apy: p.depositApy })));
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching Echelon APY:', error);
+        }
+      };
+      
+      fetchEchelonAPY();
     }
-  }, [protocol.name]);
+  }, [protocol.name, tokenIn?.address]);
 
   const handleClick = () => {
     console.log('DepositButton clicked:', {
-      protocol,
+      protocol: protocol.name,
       depositType: protocol.depositType,
       tokenIn,
       tokenInAddress: tokenIn?.address,
       balance,
       priceUSD,
+      protocolAPY, // Add this to see the current APY value
       condition: protocol.depositType === 'native' && tokenIn && balance,
       tokenInExists: !!tokenIn,
       balanceExists: !!balance,
@@ -151,17 +179,25 @@ export function DepositButton({
           onClose={() => setIsNativeDialogOpen(false)}
           protocol={{
             name: protocol.name,
-            logo: protocol.logoUrl,
-            apy: protocolAPY, // Use real APY data
+            logo: protocol.logoUrl || '/file.svg', // Add fallback
+            apy: (() => {
+              console.log(`DepositModal - APY for ${protocol.name}:`, protocolAPY);
+              return protocolAPY;
+            })(),
             key: (protocol.name === 'Amnis Finance' ? 'amnis' : protocol.name.toLowerCase()) as ProtocolKey
           }}
           tokenIn={{
             symbol: tokenIn.symbol,
-            logo: tokenIn.logo,
+            logo: tokenIn.logo || '/file.svg', // Add fallback
             decimals: tokenIn.decimals,
             address: tokenIn.address
           }}
-          tokenOut={tokenIn}
+          tokenOut={{
+            symbol: tokenIn.symbol,
+            logo: tokenIn.logo || '/file.svg', // Add fallback
+            decimals: tokenIn.decimals,
+            address: tokenIn.address
+          }}
           priceUSD={priceUSD || 0}
         />
       )}

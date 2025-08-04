@@ -780,7 +780,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                             className="mt-4 w-full"
                             tokenIn={{
                               symbol: isDex ? (item.token1Info?.symbol || 'Unknown') : displaySymbol,
-                              logo: isDex ? (item.token1Info?.logoUrl || '') : (tokenInfo?.logoUrl || ''),
+                              logo: isDex ? (item.token1Info?.logoUrl || '/file.svg') : (tokenInfo?.logoUrl || '/file.svg'),
                               decimals: isDex ? (item.token1Info?.decimals || 8) : (tokenInfo?.decimals || 8),
                               address: item.token
                             }}
@@ -929,7 +929,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                           className="mt-4 w-full"
                           tokenIn={{
                             symbol: isDex ? (bestPool.token1Info?.symbol || 'Unknown') : displaySymbol,
-                            logo: isDex ? (bestPool.token1Info?.logoUrl || '') : (tokenInfo?.logoUrl || ''),
+                            logo: isDex ? (bestPool.token1Info?.logoUrl || '/file.svg') : (tokenInfo?.logoUrl || '/file.svg'),
                             decimals: isDex ? (bestPool.token1Info?.decimals || 8) : (tokenInfo?.decimals || 8),
                             address: bestPool.token
                           }}
@@ -1164,7 +1164,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                   className="w-full"
                                   tokenIn={{
                                     symbol: displaySymbol,
-                                    logo: tokenInfo?.logoUrl || '',
+                                    logo: tokenInfo?.logoUrl || '/file.svg',
                                     decimals: tokenInfo?.decimals || 8,
                                     address: item.token
                                   }}
