@@ -23,18 +23,9 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useWalletData } from '@/contexts/WalletContext';
+import { useTransactionSubmitter } from '@/lib/hooks/useTransactionSubmitter';
 import { Token } from '@/lib/types/panora';
 import tokenList from '@/lib/data/tokenList.json';
-
-// Add Aptos wallet types
-declare global {
-  interface Window {
-    aptos?: {
-      signAndSubmitTransaction: (payload: any) => Promise<{ hash: string }>;
-      account: () => Promise<{ address: string }>;
-    };
-  }
-}
 
 interface SwapQuote {
   amount: string;
@@ -58,6 +49,7 @@ interface SwapModalProps {
 
 export function SwapModal({ isOpen, onClose }: SwapModalProps) {
   const { tokens, address: userAddress } = useWalletData();
+  const { submitTransaction, isConnected } = useTransactionSubmitter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [swapQuote, setSwapQuote] = useState<SwapQuote | null>(null);
@@ -181,6 +173,7 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
     setError(null);
     setSwapQuote(null);
     setQuoteDebug(null);
+    setSwapResult(null); // Clear previous swap result
 
     try {
       const humanReadableAmount = amount;
@@ -228,20 +221,8 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
   };
 
   const executeSwap = async () => {
-    if (typeof window === 'undefined' || !window.aptos) {
-      setError('Aptos wallet not available. Please install Petra or Martian wallet.');
-      return;
-    }
-
-    try {
-      const account = await window.aptos.account();
-      if (!account.address) {
-        setError('Wallet not connected. Please connect your wallet first.');
-        return;
-      }
-    } catch (walletError: any) {
-      console.error('Wallet connection error:', walletError);
-      setError('Failed to connect to wallet. Please check your wallet connection.');
+    if (!isConnected) {
+      setError('Wallet not connected. Please connect your wallet first.');
       return;
     }
 
@@ -289,66 +270,54 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
 
       if (swapData && !swapData.error) {
         try {
-          if (typeof window !== 'undefined' && window.aptos) {
-            const txPayload = swapData;
-            
-            if (!txPayload.function || !txPayload.type_arguments || !txPayload.arguments) {
-              throw new Error('Invalid transaction payload structure');
-            }
-            
-            const typeArguments = Array.isArray(txPayload.type_arguments) ? txPayload.type_arguments : [];
-            const functionArguments = Array.isArray(txPayload.arguments) ? txPayload.arguments.map((arg: any, index: number) => {
-              if (index === 0) return null;
-              if (index === 1) return "0x0000000000000000000000000000000000000000000000000000000000000000";
-              if (arg === null || arg === undefined) return null;
-              if (Array.isArray(arg)) return arg;
-              if (typeof arg === 'object') return JSON.stringify(arg);
-              if (typeof arg === 'number' || typeof arg === 'string') return arg;
-              return String(arg);
-            }) : [];
-            
-            let tx;
-            try {
-              tx = await window.aptos.signAndSubmitTransaction({
-                payload: {
-                  function: txPayload.function,
-                  type_arguments: typeArguments,
-                  arguments: functionArguments
-                }
-              });
-            } catch (newFormatError) {
-              try {
-                tx = await window.aptos.signAndSubmitTransaction({
-                  function: txPayload.function,
-                  type_arguments: typeArguments,
-                  arguments: functionArguments
-                });
-              } catch (legacyFormatError) {
-                tx = await window.aptos.signAndSubmitTransaction({
-                  data: {
-                    function: txPayload.function,
-                    typeArguments: typeArguments,
-                    functionArguments: functionArguments
-                  },
-                  options: {
-                    maxGasAmount: 20000,
-                  }
-                });
-              }
-            }
-            
-            setSwapResult({
-              success: true,
-              hash: tx.hash || 'Transaction submitted successfully',
-              receivedAmount: quoteDebug?.quotes?.[0]?.toTokenAmount || swapQuote.amount,
-              receivedSymbol: toToken.symbol,
+          const txPayload = swapData;
+          
+          console.log('Transaction payload received:', txPayload);
+          console.log('Function:', txPayload.function);
+          console.log('Type arguments:', txPayload.type_arguments);
+          console.log('Arguments:', txPayload.arguments);
+          
+          if (!txPayload.function || !txPayload.type_arguments || !txPayload.arguments) {
+            console.error('Missing required fields in payload:', {
+              function: !!txPayload.function,
+              type_arguments: !!txPayload.type_arguments,
+              arguments: !!txPayload.arguments
             });
-          } else {
-            setSwapResult({
-              success: false,
-              error: 'Aptos wallet not available. Please install Petra or Martian wallet.',
-            });
+            throw new Error('Invalid transaction payload structure');
           }
+          
+          // Ensure arguments is an array
+          if (!Array.isArray(txPayload.arguments)) {
+            console.error('Arguments is not an array:', txPayload.arguments);
+            throw new Error('Transaction payload arguments must be an array');
+          }
+          
+          const typeArguments = Array.isArray(txPayload.type_arguments) ? txPayload.type_arguments : [];
+          const functionArguments = txPayload.arguments;
+          
+          console.log('Processed type arguments:', typeArguments);
+          console.log('Function arguments (as is):', functionArguments);
+          
+          console.log('Executing swap via unified transaction submitter...');
+          
+          // Use the unified transaction submitter which handles gasless transactions automatically
+          const tx = await submitTransaction({
+            data: {
+              function: txPayload.function,
+              typeArguments: typeArguments,
+              functionArguments: functionArguments
+            },
+            options: {
+              maxGasAmount: 20000,
+            }
+          });
+          
+          setSwapResult({
+            success: true,
+            hash: tx.hash || 'Transaction submitted successfully',
+            receivedAmount: quoteDebug?.quotes?.[0]?.toTokenAmount || swapQuote.amount,
+            receivedSymbol: toToken.symbol,
+          });
         } catch (walletError: any) {
           let errorMessage = 'Failed to sign transaction';
           if (walletError.message) {
@@ -456,6 +425,7 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
       setSwapQuote(null);
       setQuoteDebug(null);
       setError(null);
+      setSwapResult(null); // Clear swap result when swapping tokens
     }
   };
 
@@ -471,11 +441,11 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
               height={24} 
               className="rounded-full"
             />
-            <DialogTitle>Swap Tokens</DialogTitle>
+            <DialogTitle>Gasless Swap Tokens</DialogTitle>
           </div>
           <div className="flex items-center justify-between">
             <DialogDescription>
-              Swap tokens using Panora DEX aggregator
+              Swap tokens using Panora DEX aggregator with gasless transactions
             </DialogDescription>
             <Button
               variant="ghost"
@@ -504,6 +474,7 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                     setSwapQuote(null);
                     setQuoteDebug(null);
                     setError(null);
+                    setSwapResult(null); // Clear swap result when changing token
                   }
                 }}
               >
@@ -575,7 +546,10 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                   type="number"
                   placeholder="0.0"
                   value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                  onChange={(e) => {
+                    setAmount(e.target.value);
+                    setSwapResult(null); // Clear swap result when changing amount
+                  }}
                   className="h-9 text-sm"
                 />
                 {fromToken && amount && (
@@ -639,6 +613,7 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                       setSwapQuote(null);
                       setQuoteDebug(null);
                       setError(null);
+                      setSwapResult(null); // Clear swap result when changing token
                     }
                   }}
                 >
@@ -749,7 +724,10 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
           {showSlippage && (
             <div className="space-y-1">
               <Label className="text-xs">Slippage</Label>
-              <Select value={slippage.toString()} onValueChange={(value) => setSlippage(Number(value))}>
+              <Select value={slippage.toString()} onValueChange={(value) => {
+                setSlippage(Number(value));
+                setSwapResult(null); // Clear swap result when changing slippage
+              }}>
                 <SelectTrigger className="h-9">
                   <SelectValue className="text-sm">{slippage}%</SelectValue>
                 </SelectTrigger>
@@ -790,7 +768,7 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                 <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                   <div className="flex items-center gap-2 text-green-600">
                     <CheckCircle className="h-4 w-4" />
-                    <span className="font-medium text-sm">Swap executed successfully!</span>
+                    <span className="font-medium text-sm">Gasless swap executed successfully!</span>
                   </div>
                   
                   <div className="space-y-2 text-sm mt-2">
@@ -815,6 +793,11 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                           <ExternalLink className="h-3 w-3" />
                         </Button>
                       </div>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Gas Fee:</span>
+                      <span className="font-medium text-green-600">Paid by Gas Station</span>
                     </div>
                     
                     {swapResult.receivedAmount && (
@@ -885,7 +868,7 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
 
           {/* Fee Information */}
           <div className="text-xs text-muted-foreground text-center">
-            We charge a 0.25% fee on all swaps
+            Gasless transaction - no APT required for gas fees. 0.25% swap fee applies.
           </div>
         </div>
       </DialogContent>
