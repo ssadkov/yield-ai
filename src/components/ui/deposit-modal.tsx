@@ -275,7 +275,7 @@ export function DepositModal({
             >
               <div className="flex items-center gap-4">
                 <div className="text-sm text-muted-foreground">
-                  APY {protocol.apy.toFixed(2)}%
+                  APR {protocol.apy.toFixed(2)}%
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xl font-bold">

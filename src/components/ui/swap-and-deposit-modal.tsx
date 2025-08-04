@@ -184,7 +184,7 @@ export function SwapAndDepositModal({
               <DialogTitle>Swap and Deposit to {protocol.name}</DialogTitle>
             </div>
             <DialogDescription>
-              Swap tokens and deposit to earn {protocol.apy.toFixed(2)}% APY on {tokenIn.symbol}
+              Swap tokens and deposit to earn {protocol.apy.toFixed(2)}% APR on {tokenIn.symbol}
             </DialogDescription>
           </DialogHeader>
 
@@ -279,7 +279,7 @@ export function SwapAndDepositModal({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="text-sm text-muted-foreground">
-                  APY {protocol.apy.toFixed(2)}%
+                  APR {protocol.apy.toFixed(2)}%
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xl font-bold">
