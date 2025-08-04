@@ -441,6 +441,24 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
     window.open(explorerUrl, '_blank');
   };
 
+  const swapTokens = () => {
+    if (fromToken && toToken) {
+      setFromToken(toToken);
+      setToToken(fromToken);
+      
+      // Если есть quote, используем количество получаемых токенов как новое количество
+      if (swapQuote && quoteDebug?.quotes?.[0]?.toTokenAmount) {
+        setAmount(quoteDebug.quotes[0].toTokenAmount);
+      } else {
+        setAmount('');
+      }
+      
+      setSwapQuote(null);
+      setQuoteDebug(null);
+      setError(null);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px] p-6 rounded-2xl">
@@ -480,7 +498,13 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                 value={fromToken?.faAddress || fromToken?.tokenAddress || ''}
                 onValueChange={(value) => {
                   const token = getTokenInfo(value);
-                  if (token) setFromToken(token);
+                  if (token) {
+                    setFromToken(token);
+                    // Сбрасываем quote при смене токена
+                    setSwapQuote(null);
+                    setQuoteDebug(null);
+                    setError(null);
+                  }
                 }}
               >
                 <SelectTrigger className="h-9">
@@ -591,9 +615,13 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
 
           {/* Swap Direction */}
           <div className="flex justify-center">
-            <div className="p-1 bg-muted rounded-full">
+            <button
+              onClick={swapTokens}
+              className="p-1 bg-muted rounded-full hover:bg-muted/80 transition-colors cursor-pointer"
+              disabled={!fromToken || !toToken}
+            >
               <ArrowLeftRight className="h-3 w-3" />
-            </div>
+            </button>
           </div>
 
           {/* To Token - Full Width with Receive Amount */}
@@ -605,7 +633,13 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                   value={toToken?.faAddress || toToken?.tokenAddress || ''}
                   onValueChange={(value) => {
                     const token = getTokenInfo(value);
-                    if (token) setToToken(token);
+                    if (token) {
+                      setToToken(token);
+                      // Сбрасываем quote при смене токена
+                      setSwapQuote(null);
+                      setQuoteDebug(null);
+                      setError(null);
+                    }
                   }}
                 >
                   <SelectTrigger className="h-9">
