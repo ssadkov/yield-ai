@@ -4,7 +4,7 @@ import { PoolSource } from '@/lib/services/pools/poolsService';
 export const poolSources: PoolSource[] = [
   {
     name: 'Primary Yield API',
-    url: 'https://yield-a.vercel.app/api/aptos/markets',
+    url: '/api/protocols/primary-yield?protocol=Joule',
     enabled: true
   },
   // Hyperion pools API

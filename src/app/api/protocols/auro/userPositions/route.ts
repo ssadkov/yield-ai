@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
       body: JSON.stringify(viewPayload)
     });
 
-    console.log('View function response status:', response.status);
+    // console.log('View function response status:', response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -109,14 +109,14 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json();
-    console.log('View function response data:', data);
+    // console.log('View function response data:', data);
 
     const collectionAddress = data[0];
-    console.log('Collection address:', collectionAddress);
+    //console.log('Collection address:', collectionAddress);
     
     // Стандартизируем адрес коллекции
     const standardizedAddress = normalizeCollectionId(collectionAddress);
-    console.log('Standardized address:', standardizedAddress);
+    // console.log('Standardized address:', standardizedAddress);
 
     // Новый GraphQL-запрос для поиска позиций по collection_id
     const query = `
@@ -209,7 +209,7 @@ export async function GET(request: NextRequest) {
         
         if (viewResponse.ok) {
           const positionInfoResult = await viewResponse.json();
-          console.log("View function response:", positionInfoResult);
+          // console.log("View function response:", positionInfoResult);
           
           if (positionInfoResult && Array.isArray(positionInfoResult) && positionInfoResult.length > 0) {
             const positionsData = positionInfoResult[0] as PositionInfo[];

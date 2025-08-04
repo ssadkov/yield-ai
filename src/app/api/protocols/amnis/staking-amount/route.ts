@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json();
-    console.log('View function response:', data);
+    // console.log('View function response:', data);
 
     // The response should be an array with the staked amount as the first element
     const stakedAmount = data[0] || 0;

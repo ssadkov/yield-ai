@@ -169,7 +169,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
         const protocolEndpoints = [
           {
             name: 'Primary Yield API',
-            url: 'https://yield-a.vercel.app/api/aptos/markets',
+            url: '/api/protocols/primary-yield?protocol=Joule',
             transform: (data: any) => data.data || []
           },
           {
