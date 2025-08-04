@@ -1,12 +1,15 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SwapModal } from '@/components/ui/swap-modal';
 
 export default function ChatPanel() {
+  const [isSwapModalOpen, setIsSwapModalOpen] = useState(false);
+
   return (
     <div className="p-4">
       <h1 className="text-xl font-bold">Feedback</h1>
@@ -39,9 +42,17 @@ export default function ChatPanel() {
         </a>
       </p>
       <div className="mt-4 flex flex-col items-center gap-4">
-        <Link href="https://forms.gle/NEpu5DjsmhVUprA5A" passHref target="_blank" rel="noopener noreferrer">
-          <Button>Share Feedback</Button>
-        </Link>
+        <div className="flex gap-2">
+          <Link href="https://forms.gle/NEpu5DjsmhVUprA5A" passHref target="_blank" rel="noopener noreferrer">
+            <Button>Share Feedback</Button>
+          </Link>
+          <Button 
+            variant="outline" 
+            onClick={() => setIsSwapModalOpen(true)}
+          >
+            Swap
+          </Button>
+        </div>
         
         <div className="grid grid-cols-2 gap-4 w-full max-w-md">
           <Card className="hover:shadow-md transition-shadow cursor-pointer">
@@ -85,6 +96,11 @@ export default function ChatPanel() {
           </Card>
         </div>
       </div>
+
+      <SwapModal 
+        isOpen={isSwapModalOpen} 
+        onClose={() => setIsSwapModalOpen(false)} 
+      />
     </div>
   );
 } 
