@@ -276,7 +276,10 @@ export function SwapAndDepositModal({
               </Button>
             </div>
 
-            <div className="flex items-center justify-between">
+            <div
+              className="flex items-center justify-between cursor-pointer"
+              onClick={() => setIsYieldExpanded(!isYieldExpanded)}
+            >
               <div className="flex items-center gap-4">
                 <div className="text-sm text-muted-foreground">
                   APR {protocol.apy.toFixed(2)}%
@@ -286,9 +289,17 @@ export function SwapAndDepositModal({
                     ≈ ${yieldResult.daily.toFixed(2)}
                   </span>
                   <span className="text-sm text-muted-foreground">/day</span>
+                  <ChevronDown className="h-3 w-3 text-muted-foreground ml-1" />
                 </div>
               </div>
             </div>
+            {isYieldExpanded && (
+              <div className="space-y-1 text-sm text-muted-foreground">
+                <div>≈ ${yieldResult.weekly.toFixed(2)} /week</div>
+                <div>≈ ${yieldResult.monthly.toFixed(2)} /month</div>
+                <div>≈ ${yieldResult.yearly.toFixed(2)} /year</div>
+              </div>
+            )}
           </div>
 
           <Separator />

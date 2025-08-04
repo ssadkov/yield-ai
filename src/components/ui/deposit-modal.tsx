@@ -282,6 +282,7 @@ export function DepositModal({
                     ≈ ${yieldResult.daily.toFixed(2)}
                   </span>
                   <span className="text-sm text-muted-foreground">/day</span>
+                  <ChevronDown className="h-3 w-3 text-muted-foreground ml-1" />
                 </div>
               </div>
             </div>
