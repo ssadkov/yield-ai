@@ -476,9 +476,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
                     <div className="text-right">
                       <div className="text-sm font-medium">${value}</div>
                       <div className="text-xs text-muted-foreground">{amount.toFixed(4)}</div>
-                      <div className="text-xs text-muted-foreground">
-                        APR: {apy !== null ? apy.toFixed(2) + '%' : 'N/A'}
-                      </div>
+                      
                     </div>
                   </div>
                 </div>

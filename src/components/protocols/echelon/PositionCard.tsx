@@ -24,7 +24,6 @@ export function PositionCard({ position }: PositionProps) {
   const isSupply = position.assetType === 'supply';
   const value = parseFloat(position.value);
   const formattedBalance = parseFloat(position.balance).toFixed(4);
-  const formattedApy = parseFloat(position.apy).toFixed(2);
   
   return (
     <Card className="w-full mb-3">
@@ -58,9 +57,6 @@ export function PositionCard({ position }: PositionProps) {
         </div>
         <div className="text-right flex flex-col">
           <div className="text-base font-medium">${value.toFixed(2)}</div>
-          <div className="text-xs text-muted-foreground">
-            {isSupply ? '📈' : '📉'} APR: {formattedApy}%
-          </div>
         </div>
       </CardHeader>
     </Card>
