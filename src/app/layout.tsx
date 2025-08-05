@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import Link from "next/link";
 import { WalletProvider } from "@/lib/WalletProvider";
 import { WalletDataProvider } from "@/contexts/WalletContext";
 import { ProtocolProvider } from "@/lib/contexts/ProtocolContext";
@@ -57,6 +58,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <DragDropProvider>
                 <AlphaBanner />
                 {children}
+                
+                {/* Fixed home icon in bottom right corner - desktop only */}
+                <Link 
+                  href="https://home.yieldai.app/" 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="fixed bottom-4 right-4 z-50 p-1 text-gray-400 hover:text-gray-600 transition-colors hidden md:block"
+                  title="Yield AI Home"
+                >
+                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                  </svg>
+                </Link>
               </DragDropProvider>
             </ProtocolProvider>
           </WalletDataProvider>

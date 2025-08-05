@@ -83,6 +83,21 @@ export default function ChatPanel() {
         </div>
       </div>
 
+      {/* Mobile home icon - bottom of feedback block */}
+      <div className="mt-6 flex justify-center md:hidden">
+        <Link 
+          href="https://home.yieldai.app/" 
+          target="_blank"
+          rel="noopener noreferrer"
+          className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+          title="Yield AI Home"
+        >
+          <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+          </svg>
+        </Link>
+      </div>
+
       <SwapModal 
         isOpen={isSwapModalOpen} 
         onClose={() => setIsSwapModalOpen(false)} 
