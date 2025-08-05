@@ -13,7 +13,7 @@ export interface ProtocolPositions {
 }
 
 export interface ProtocolRewards {
-  [protocol: string]: any[];
+  [protocol: string]: any[] | Record<string, any>;
 }
 
 export interface TokenPrices {
@@ -278,11 +278,18 @@ export const useWalletStore = create<WalletState>()(
                   
                   if (response.ok) {
                     const data = await response.json();
-                    newRewards[protocol] = data.data || [];
-                    console.log(`[WalletStore] ${protocol} rewards fetched:`, newRewards[protocol].length);
+                                         // For Auro, data.data is an object with position addresses as keys
+                     // For Echelon, data.data is an array
+                     if (protocol === 'auro') {
+                       newRewards[protocol] = data.data || {};
+                       
+                     } else {
+                      newRewards[protocol] = data.data || [];
+                      console.log(`[WalletStore] ${protocol} rewards fetched:`, newRewards[protocol].length);
+                    }
                   } else {
                     console.warn(`[WalletStore] Failed to fetch ${protocol} rewards:`, response.status);
-                    newRewards[protocol] = [];
+                    newRewards[protocol] = protocol === 'auro' ? {} : [];
                   }
                 }
               } catch (error) {
@@ -297,36 +304,108 @@ export const useWalletStore = create<WalletState>()(
             const tokenAddresses: string[] = [];
             
             // Extract token addresses from rewards for price calculation
-            Object.values(newRewards).forEach(rewards => {
-              rewards.forEach((reward: any) => {
-                if (reward.tokenType) {
-                  tokenAddresses.push(reward.tokenType);
-                }
-                if (reward.token) {
-                  // For Echelon rewards, token might be a symbol, we'll handle this in getClaimableRewardsSummary
-                  // But we can still try to get the token address for price fetching
-                  try {
-                    const tokenList = require('@/lib/data/tokenList.json');
-                    const tokenInfo = tokenList.data.data.find((token: any) => 
-                      token.symbol.toLowerCase() === reward.token.toLowerCase()
-                    );
-                    if (tokenInfo) {
-                      const tokenAddress = tokenInfo.faAddress || tokenInfo.tokenAddress;
-                      if (tokenAddress) {
-                        tokenAddresses.push(tokenAddress);
-                      }
+            Object.values(newRewards).forEach((rewards, protocolIndex) => {
+              const protocol = Object.keys(newRewards)[protocolIndex];
+              
+              if (protocol === 'auro') {
+                // Auro rewards have special structure: { positionAddress: { collateral: [], borrow: [] } }
+                Object.values(rewards).forEach((positionRewards: any) => {
+                  if (positionRewards && typeof positionRewards === 'object') {
+                    // Process collateral rewards
+                    if (positionRewards.collateral && Array.isArray(positionRewards.collateral)) {
+                      positionRewards.collateral.forEach((reward: any) => {
+                        if (reward && reward.key) {
+                          // Auro rewards have 'key' field with token address
+                          try {
+                            // Clean the address from reward.key (it's a token address, not symbol)
+                            let cleanAddress = reward.key;
+                            if (cleanAddress.startsWith('@')) {
+                              cleanAddress = cleanAddress.slice(1);
+                            }
+                            if (!cleanAddress.startsWith('0x')) {
+                              cleanAddress = `0x${cleanAddress}`;
+                            }
+                            tokenAddresses.push(cleanAddress);
+                          } catch (error) {
+                            console.warn('Failed to get token address for Auro collateral reward:', reward.key);
+                          }
+                        }
+                      });
                     }
-                  } catch (error) {
-                    console.warn('Failed to get token address for symbol:', reward.token);
+                    
+                    // Process borrow rewards
+                    if (positionRewards.borrow && Array.isArray(positionRewards.borrow)) {
+                      positionRewards.borrow.forEach((reward: any) => {
+                        if (reward && reward.key) {
+                          // Auro rewards have 'key' field with token address
+                          try {
+                            // Clean the address from reward.key (it's a token address, not symbol)
+                            let cleanAddress = reward.key;
+                            if (cleanAddress.startsWith('@')) {
+                              cleanAddress = cleanAddress.slice(1);
+                            }
+                            if (!cleanAddress.startsWith('0x')) {
+                              cleanAddress = `0x${cleanAddress}`;
+                            }
+                            tokenAddresses.push(cleanAddress);
+                          } catch (error) {
+                            console.warn('Failed to get token address for Auro borrow reward:', reward.key);
+                          }
+                        }
+                      });
+                    }
                   }
-                }
-              });
+                });
+              } else {
+                // Standard processing for other protocols (echelon, hyperion)
+                rewards.forEach((reward: any) => {
+                  if (reward.tokenType && reward.tokenType !== 'Unknown') {
+                    // Clean the address
+                    let cleanAddress = reward.tokenType;
+                    if (cleanAddress.startsWith('@')) {
+                      cleanAddress = cleanAddress.slice(1);
+                    }
+                    if (!cleanAddress.startsWith('0x')) {
+                      cleanAddress = `0x${cleanAddress}`;
+                    }
+                                       tokenAddresses.push(cleanAddress);
+                  }
+                  
+                  // Also try to get address by symbol as fallback
+                  if (reward.token) {
+                    try {
+                      const tokenList = require('@/lib/data/tokenList.json');
+                      const tokenInfo = tokenList.data.data.find((token: any) => 
+                        token.symbol.toLowerCase() === reward.token.toLowerCase()
+                      );
+                      if (tokenInfo) {
+                        const tokenAddress = tokenInfo.faAddress || tokenInfo.tokenAddress;
+                        if (tokenAddress) {
+                          // Clean the address
+                          let cleanAddress = tokenAddress;
+                          if (cleanAddress.startsWith('@')) {
+                            cleanAddress = cleanAddress.slice(1);
+                          }
+                          if (!cleanAddress.startsWith('0x')) {
+                            cleanAddress = `0x${cleanAddress}`;
+                          }
+                                                   tokenAddresses.push(cleanAddress);
+                        }
+                      }
+                    } catch (error) {
+                      console.warn('Failed to get token address for symbol:', reward.token);
+                    }
+                  }
+                });
+              }
             });
             
-            // Fetch prices if we have token addresses
-            if (tokenAddresses.length > 0) {
-              get().fetchPrices(tokenAddresses);
-            }
+                         // Fetch prices if we have token addresses
+             if (tokenAddresses.length > 0) {
+               // Remove duplicates
+               const uniqueTokenAddresses = [...new Set(tokenAddresses)];
+               await get().fetchPrices(uniqueTokenAddresses);
+             }
             
             set({
               rewards: newRewards,
@@ -358,7 +437,7 @@ export const useWalletStore = create<WalletState>()(
           set({ pricesLoading: true, pricesError: null });
           
           try {
-            console.log('[WalletStore] Fetching prices for tokens:', tokenAddresses.length);
+                         // Fetch prices for tokens
             
             // Clean addresses
             const cleanAddresses = tokenAddresses.map(address => {
@@ -369,7 +448,7 @@ export const useWalletStore = create<WalletState>()(
               if (!cleanAddress.startsWith('0x')) {
                 cleanAddress = `0x${cleanAddress}`;
               }
-              return cleanAddress;
+                             return cleanAddress;
             });
             
             // Use Panora API to fetch prices
@@ -397,7 +476,7 @@ export const useWalletStore = create<WalletState>()(
                 const price = token.usdPrice;
                 
                 if (address && price) {
-                  newPrices[address] = price;
+                                     newPrices[address] = price;
                 }
               });
             }
@@ -435,9 +514,23 @@ export const useWalletStore = create<WalletState>()(
         getRewards: (protocol?: string) => {
           const state = get();
           if (protocol) {
-            return state.rewards[protocol] || [];
+            const rewards = state.rewards[protocol];
+            if (Array.isArray(rewards)) {
+              return rewards;
+            } else if (typeof rewards === 'object' && rewards !== null) {
+              // For Auro rewards, flatten the object structure
+              return Object.values(rewards).flat();
+            }
+            return [];
           }
-          return Object.values(state.rewards).flat();
+          return Object.values(state.rewards).flatMap(rewards => {
+            if (Array.isArray(rewards)) {
+              return rewards;
+            } else if (typeof rewards === 'object' && rewards !== null) {
+              return Object.values(rewards).flat();
+            }
+            return [];
+          });
         },
         
         getTokenPrice: (tokenAddress: string) => {
@@ -467,34 +560,146 @@ export const useWalletStore = create<WalletState>()(
           const echelonRewards = state.rewards.echelon || [];
           echelonRewards.forEach((reward: any) => {
             if (reward.amount && reward.amount > 0) {
-              // For Echelon, we need to get token price and calculate value
-              // Echelon rewards have token symbol, we need to find the token address first
-              const tokenSymbol = reward.token; // Echelon rewards have token symbol
               
-              // Try to find token by symbol in token list
-              const tokenList = require('@/lib/data/tokenList.json');
-              const tokenInfo = tokenList.data.data.find((token: any) => 
-                token.symbol.toLowerCase() === tokenSymbol.toLowerCase()
-              );
+              let tokenAddress = null;
+              let price = '0';
               
-              if (tokenInfo) {
-                const tokenAddress = tokenInfo.faAddress || tokenInfo.tokenAddress;
-                const price = state.prices[tokenAddress] || '0';
-                const value = reward.amount * parseFloat(price);
-                summary.protocols.echelon.value += value;
-                summary.protocols.echelon.count++;
+              // First, try to use tokenType directly if it's a valid address
+              if (reward.tokenType && reward.tokenType !== 'Unknown') {
+                // Clean the address
+                let cleanAddress = reward.tokenType;
+                if (cleanAddress.startsWith('@')) {
+                  cleanAddress = cleanAddress.slice(1);
+                }
+                if (!cleanAddress.startsWith('0x')) {
+                  cleanAddress = `0x${cleanAddress}`;
+                }
+                
+                                 // Check if we have a price for this address
+                 if (state.prices[cleanAddress]) {
+                   tokenAddress = cleanAddress;
+                   price = state.prices[cleanAddress];
+                 }
               }
+              
+              // If no price found by tokenType, try to find by symbol in token list
+              if (!tokenAddress) {
+                const tokenSymbol = reward.token;
+                const tokenList = require('@/lib/data/tokenList.json');
+                const tokenInfo = tokenList.data.data.find((token: any) => 
+                  token.symbol.toLowerCase() === tokenSymbol.toLowerCase()
+                );
+                
+                if (tokenInfo) {
+                  tokenAddress = tokenInfo.faAddress || tokenInfo.tokenAddress;
+                  if (tokenAddress) {
+                    // Clean the address
+                    if (tokenAddress.startsWith('@')) {
+                      tokenAddress = tokenAddress.slice(1);
+                    }
+                    if (!tokenAddress.startsWith('0x')) {
+                      tokenAddress = `0x${tokenAddress}`;
+                    }
+                                         price = state.prices[tokenAddress] || '0';
+                  }
+                }
+              }
+              
+                             if (tokenAddress && parseFloat(price) > 0) {
+                 const value = reward.amount * parseFloat(price);
+                 summary.protocols.echelon.value += value;
+                 summary.protocols.echelon.count++;
+               }
             }
           });
           
           // Process Auro rewards
-          const auroRewards = state.rewards.auro || [];
-          auroRewards.forEach((reward: any) => {
-            if (reward.value && parseFloat(reward.value) > 0) {
-              // Auro rewards already have USD values
-              const value = parseFloat(reward.value);
-              summary.protocols.auro.value += value;
-              summary.protocols.auro.count++;
+          const auroRewards = state.rewards.auro || {};
+          
+          // Auro rewards are structured as { positionAddress: { collateral: [], borrow: [] } }
+          Object.values(auroRewards).forEach((positionRewards: any) => {
+            if (positionRewards && typeof positionRewards === 'object') {
+              // Process collateral rewards
+              if (positionRewards.collateral && Array.isArray(positionRewards.collateral)) {
+                                 positionRewards.collateral.forEach((reward: any) => {
+
+                                     if (reward && reward.key && reward.value && parseFloat(reward.value) > 0) {
+                    // Get token info to calculate proper amount
+                    try {
+                     const tokenList = require('@/lib/data/tokenList.json');
+                     
+                     // Clean the address from reward.key (it's a token address, not symbol)
+                     let cleanAddress = reward.key;
+                     if (cleanAddress.startsWith('@')) {
+                       cleanAddress = cleanAddress.slice(1);
+                     }
+                     if (!cleanAddress.startsWith('0x')) {
+                       cleanAddress = `0x${cleanAddress}`;
+                     }
+                     
+                     // Find token by address
+                     const tokenInfo = tokenList.data.data.find((token: any) => 
+                       (token.tokenAddress === cleanAddress || token.faAddress === cleanAddress)
+                     );
+                     
+                     if (tokenInfo) {
+                       const decimals = tokenInfo.decimals || 8;
+                       const amount = parseFloat(reward.value) / Math.pow(10, decimals);
+                       
+                       const price = state.prices[cleanAddress] || '0';
+                       if (parseFloat(price) > 0) {
+                         const value = amount * parseFloat(price);
+                         summary.protocols.auro.value += value;
+                         summary.protocols.auro.count++;
+                       }
+                     }
+                   } catch (error) {
+                     console.warn('Failed to process Auro collateral reward:', reward.key);
+                   }
+                 }
+                });
+              }
+              
+              // Process borrow rewards
+              if (positionRewards.borrow && Array.isArray(positionRewards.borrow)) {
+                                 positionRewards.borrow.forEach((reward: any) => {
+
+                                     if (reward && reward.key && reward.value && parseFloat(reward.value) > 0) {
+                    // Get token info to calculate proper amount
+                    try {
+                     const tokenList = require('@/lib/data/tokenList.json');
+                     
+                     // Clean the address from reward.key (it's a token address, not symbol)
+                     let cleanAddress = reward.key;
+                     if (cleanAddress.startsWith('@')) {
+                       cleanAddress = cleanAddress.slice(1);
+                     }
+                     if (!cleanAddress.startsWith('0x')) {
+                       cleanAddress = `0x${cleanAddress}`;
+                     }
+                     
+                     // Find token by address
+                     const tokenInfo = tokenList.data.data.find((token: any) => 
+                       (token.tokenAddress === cleanAddress || token.faAddress === cleanAddress)
+                     );
+                     
+                     if (tokenInfo) {
+                       const decimals = tokenInfo.decimals || 8;
+                       const amount = parseFloat(reward.value) / Math.pow(10, decimals);
+                       
+                       const price = state.prices[cleanAddress] || '0';
+                       if (parseFloat(price) > 0) {
+                         const value = amount * parseFloat(price);
+                         summary.protocols.auro.value += value;
+                         summary.protocols.auro.count++;
+                       }
+                     }
+                   } catch (error) {
+                     console.warn('Failed to process Auro borrow reward:', reward.key);
+                   }
+                 }
+                });
+              }
             }
           });
           
@@ -509,10 +714,12 @@ export const useWalletStore = create<WalletState>()(
             }
           });
           
-          // Calculate total value
-          summary.totalValue = Object.values(summary.protocols).reduce((sum, protocol) => sum + protocol.value, 0);
-          
-          return summary;
+                     // Calculate total value
+           summary.totalValue = Object.values(summary.protocols).reduce((sum, protocol) => sum + protocol.value, 0);
+           
+
+           
+           return summary;
         },
         
         getTotalValue: () => {

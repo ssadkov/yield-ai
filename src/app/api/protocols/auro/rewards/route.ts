@@ -18,6 +18,103 @@ const config = new AptosConfig({
 });
 const aptos = new Aptos(config);
 
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const address = searchParams.get('address');
+
+  if (!address) {
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Address parameter is required' 
+    }, { status: 400 });
+  }
+
+  if (!APTOS_API_KEY) {
+    return NextResponse.json({ 
+      success: false, 
+      error: 'APTOS_API_KEY is not configured' 
+    }, { status: 500 });
+  }
+
+  try {
+    console.log('=== Auro Rewards GET API Route Started ===');
+    console.log('Address:', address);
+
+    // Fetch positions for the address
+    const positionsResponse = await fetch(`${request.nextUrl.origin}/api/protocols/auro/userPositions?address=${encodeURIComponent(address)}`);
+    const positionsData = await positionsResponse.json();
+    
+    if (!positionsResponse.ok || !positionsData.success) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Failed to fetch positions' 
+      }, { status: 500 });
+    }
+
+    // Fetch pools data
+    const poolsResponse = await fetch(`${request.nextUrl.origin}/api/protocols/auro/pools`);
+    const poolsData = await poolsResponse.json();
+    
+    if (!poolsResponse.ok || !poolsData.success) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Failed to fetch pools' 
+      }, { status: 500 });
+    }
+
+    const positionsInfo = positionsData.positionInfo || [];
+    const pools = poolsData.data || [];
+
+    if (positionsInfo.length === 0) {
+      return NextResponse.json({
+        success: true,
+        data: {},
+        message: 'No positions found for this address'
+      });
+    }
+
+    // Format positions info
+    const formattedPositionsInfo = positionsInfo.map((pos: any) => ({
+      address: pos.address,
+      poolAddress: pos.poolAddress,
+      debtAmount: pos.debtAmount
+    }));
+
+    // Format pools data
+    const formattedPoolsData = pools.map((pool: any) => ({
+      type: pool.type,
+      poolAddress: pool.poolAddress,
+      rewardPoolAddress: pool.rewardPoolAddress,
+      borrowRewardsPoolAddress: pool.borrowRewardsPoolAddress
+    }));
+
+    // Now call the same logic as POST
+    const body = {
+      positionsInfo: formattedPositionsInfo,
+      poolsData: formattedPoolsData
+    };
+
+    // Call the POST logic
+    return await POST(new Request(request.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }));
+
+  } catch (error) {
+    console.error('=== Auro Rewards GET API Route Error ===');
+    console.error('Error:', error);
+    return NextResponse.json(
+      { 
+        success: false,
+        error: 'Failed to fetch rewards data', 
+        details: error instanceof Error ? error.message : 'Unknown error' 
+      },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     console.log('=== Auro Rewards API Route Started ===');

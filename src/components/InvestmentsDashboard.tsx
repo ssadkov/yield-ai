@@ -635,11 +635,16 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
       )}
 
       {/* Claim Rewards Block */}
-      <ClaimRewardsBlock 
-        summary={getClaimableRewardsSummary()}
-        onClaim={() => setClaimModalOpen(true)}
-        loading={rewardsLoading}
-      />
+              {(() => {
+          const summary = getClaimableRewardsSummary();
+          return (
+            <ClaimRewardsBlock 
+              summary={summary}
+              onClaim={() => setClaimModalOpen(true)}
+              loading={rewardsLoading}
+            />
+          );
+        })()}
 
       <div className="mb-4 pl-4">
         <div className="flex items-center justify-between">

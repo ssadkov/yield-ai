@@ -95,7 +95,7 @@
     "managedType": "native",
     "panoraConfig": {
       "integratorFeeAddress": "0x89e68b91fa64038e98cc1ac0e3e7f6b50d056036980be712dcbe6302cee948cb",
-      "integratorFeePercentage": "0.25",
+      "integratorFeePercentage": "0.01",
       "apiKey": "ENV_PANORA_API_KEY",
       "rpcUrl": "ENV_APTOS_RPC_URL"
     }
