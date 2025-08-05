@@ -35,6 +35,10 @@ import { DragData } from "@/types/dragDrop";
 import { cn } from "@/lib/utils";
 import { CollapsibleProvider } from "@/contexts/CollapsibleContext";
 import { useMobileManagement } from "@/contexts/MobileManagementContext";
+import { useWalletStore } from "@/lib/stores/walletStore";
+import { useWallet } from "@aptos-labs/wallet-adapter-react";
+import { ClaimRewardsBlock } from "@/components/ui/claim-rewards-block";
+import { ClaimAllRewardsModal } from "@/components/ui/claim-all-rewards-modal";
 
 // Список адресов токенов Echelon, которые нужно исключить из отображения
 const EXCLUDED_ECHELON_TOKENS = [
@@ -78,14 +82,24 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   const [protocolsError, setProtocolsError] = useState<Record<string, string | null>>({});
   const [protocolsData, setProtocolsData] = useState<Record<string, InvestmentData[]>>({});
   const [isClient, setIsClient] = useState(false);
+  const [claimModalOpen, setClaimModalOpen] = useState(false);
 
   const { state, handleDrop, validateDrop } = useDragDrop();
+  const { getClaimableRewardsSummary, fetchRewards, rewardsLoading } = useWalletStore();
+  const { account } = useWallet();
   const { setActiveTab: setMobileTab } = useMobileManagement();
 
   // Ensure we're on client side
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // Load rewards data when wallet is connected
+  useEffect(() => {
+    if (account?.address) {
+      fetchRewards(account.address);
+    }
+  }, [account?.address, fetchRewards]);
 
   const getTokenInfo = (asset: string, tokenAddress?: string): Token | undefined => {
     if (tokenAddress) {
@@ -619,6 +633,13 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
           />
         </CollapsibleProvider>
       )}
+
+      {/* Claim Rewards Block */}
+      <ClaimRewardsBlock 
+        summary={getClaimableRewardsSummary()}
+        onClaim={() => setClaimModalOpen(true)}
+        loading={rewardsLoading}
+      />
 
       <div className="mb-4 pl-4">
         <div className="flex items-center justify-between">
@@ -1187,6 +1208,13 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
           </TooltipProvider>
         </TabsContent>
       </Tabs>
+
+      {/* Claim All Rewards Modal */}
+      <ClaimAllRewardsModal
+        isOpen={claimModalOpen}
+        onClose={() => setClaimModalOpen(false)}
+        summary={getClaimableRewardsSummary()}
+      />
     </div>
   );
 } 

@@ -20,6 +20,15 @@ export interface TokenPrices {
   [tokenAddress: string]: string;
 }
 
+export interface ClaimableRewardsSummary {
+  totalValue: number;
+  protocols: {
+    echelon: { value: number; count: number };
+    auro: { value: number; count: number };
+    hyperion: { value: number; count: number };
+  };
+}
+
 // Cache TTL constants
 const CACHE_TTL = {
   BALANCE: 30 * 1000,      // 30 seconds
@@ -69,6 +78,7 @@ interface WalletState {
   getPositions: (protocol?: string) => any[];
   getRewards: (protocol?: string) => any[];
   getTokenPrice: (tokenAddress: string) => string;
+  getClaimableRewardsSummary: () => ClaimableRewardsSummary;
   
   // Utilities
   clearData: () => void;
@@ -235,21 +245,45 @@ export const useWalletStore = create<WalletState>()(
             console.log('[WalletStore] Fetching rewards for address:', address);
             
             // Define protocols to fetch if not specified
-            const protocolsToFetch = protocols || ['echelon', 'auro'];
+            const protocolsToFetch = protocols || ['echelon', 'auro', 'hyperion'];
             const newRewards: ProtocolRewards = { ...state.rewards };
             
             // Fetch rewards for each protocol
             const promises = protocolsToFetch.map(async (protocol) => {
               try {
-                const response = await fetch(`/api/protocols/${protocol}/rewards?address=${encodeURIComponent(address)}`);
-                
-                if (response.ok) {
-                  const data = await response.json();
-                  newRewards[protocol] = data.data || [];
-                  console.log(`[WalletStore] ${protocol} rewards fetched:`, newRewards[protocol].length);
+                if (protocol === 'hyperion') {
+                  // Hyperion rewards are embedded in positions data
+                  const response = await fetch(`/api/protocols/${protocol}/userPositions?address=${encodeURIComponent(address)}`);
+                  
+                  if (response.ok) {
+                    const data = await response.json();
+                    const positions = data.data || [];
+                    
+                    // Extract rewards from positions
+                    const rewards = positions.flatMap((position: any) => {
+                      const farmRewards = position.farm?.unclaimed || [];
+                      const feeRewards = position.fees?.unclaimed || [];
+                      return [...farmRewards, ...feeRewards];
+                    });
+                    
+                    newRewards[protocol] = rewards;
+                    console.log(`[WalletStore] ${protocol} rewards extracted from positions:`, rewards.length);
+                  } else {
+                    console.warn(`[WalletStore] Failed to fetch ${protocol} positions:`, response.status);
+                    newRewards[protocol] = [];
+                  }
                 } else {
-                  console.warn(`[WalletStore] Failed to fetch ${protocol} rewards:`, response.status);
-                  newRewards[protocol] = [];
+                  // Standard rewards API for echelon and auro
+                  const response = await fetch(`/api/protocols/${protocol}/rewards?address=${encodeURIComponent(address)}`);
+                  
+                  if (response.ok) {
+                    const data = await response.json();
+                    newRewards[protocol] = data.data || [];
+                    console.log(`[WalletStore] ${protocol} rewards fetched:`, newRewards[protocol].length);
+                  } else {
+                    console.warn(`[WalletStore] Failed to fetch ${protocol} rewards:`, response.status);
+                    newRewards[protocol] = [];
+                  }
                 }
               } catch (error) {
                 console.error(`[WalletStore] Error fetching ${protocol} rewards:`, error);
@@ -258,6 +292,41 @@ export const useWalletStore = create<WalletState>()(
             });
             
             await Promise.all(promises);
+            
+            // Collect token addresses for price fetching
+            const tokenAddresses: string[] = [];
+            
+            // Extract token addresses from rewards for price calculation
+            Object.values(newRewards).forEach(rewards => {
+              rewards.forEach((reward: any) => {
+                if (reward.tokenType) {
+                  tokenAddresses.push(reward.tokenType);
+                }
+                if (reward.token) {
+                  // For Echelon rewards, token might be a symbol, we'll handle this in getClaimableRewardsSummary
+                  // But we can still try to get the token address for price fetching
+                  try {
+                    const tokenList = require('@/lib/data/tokenList.json');
+                    const tokenInfo = tokenList.data.data.find((token: any) => 
+                      token.symbol.toLowerCase() === reward.token.toLowerCase()
+                    );
+                    if (tokenInfo) {
+                      const tokenAddress = tokenInfo.faAddress || tokenInfo.tokenAddress;
+                      if (tokenAddress) {
+                        tokenAddresses.push(tokenAddress);
+                      }
+                    }
+                  } catch (error) {
+                    console.warn('Failed to get token address for symbol:', reward.token);
+                  }
+                }
+              });
+            });
+            
+            // Fetch prices if we have token addresses
+            if (tokenAddresses.length > 0) {
+              get().fetchPrices(tokenAddresses);
+            }
             
             set({
               rewards: newRewards,
@@ -381,6 +450,69 @@ export const useWalletStore = create<WalletState>()(
             cleanAddress = `0x${cleanAddress}`;
           }
           return state.prices[cleanAddress] || '0';
+        },
+        
+        getClaimableRewardsSummary: () => {
+          const state = get();
+          const summary: ClaimableRewardsSummary = {
+            totalValue: 0,
+            protocols: {
+              echelon: { value: 0, count: 0 },
+              auro: { value: 0, count: 0 },
+              hyperion: { value: 0, count: 0 }
+            }
+          };
+          
+          // Process Echelon rewards
+          const echelonRewards = state.rewards.echelon || [];
+          echelonRewards.forEach((reward: any) => {
+            if (reward.amount && reward.amount > 0) {
+              // For Echelon, we need to get token price and calculate value
+              // Echelon rewards have token symbol, we need to find the token address first
+              const tokenSymbol = reward.token; // Echelon rewards have token symbol
+              
+              // Try to find token by symbol in token list
+              const tokenList = require('@/lib/data/tokenList.json');
+              const tokenInfo = tokenList.data.data.find((token: any) => 
+                token.symbol.toLowerCase() === tokenSymbol.toLowerCase()
+              );
+              
+              if (tokenInfo) {
+                const tokenAddress = tokenInfo.faAddress || tokenInfo.tokenAddress;
+                const price = state.prices[tokenAddress] || '0';
+                const value = reward.amount * parseFloat(price);
+                summary.protocols.echelon.value += value;
+                summary.protocols.echelon.count++;
+              }
+            }
+          });
+          
+          // Process Auro rewards
+          const auroRewards = state.rewards.auro || [];
+          auroRewards.forEach((reward: any) => {
+            if (reward.value && parseFloat(reward.value) > 0) {
+              // Auro rewards already have USD values
+              const value = parseFloat(reward.value);
+              summary.protocols.auro.value += value;
+              summary.protocols.auro.count++;
+            }
+          });
+          
+          // Process Hyperion rewards
+          const hyperionRewards = state.rewards.hyperion || [];
+          hyperionRewards.forEach((reward: any) => {
+            if (reward.amountUSD && parseFloat(reward.amountUSD) > 0) {
+              // Hyperion rewards have amountUSD field
+              const value = parseFloat(reward.amountUSD);
+              summary.protocols.hyperion.value += value;
+              summary.protocols.hyperion.count++;
+            }
+          });
+          
+          // Calculate total value
+          summary.totalValue = Object.values(summary.protocols).reduce((sum, protocol) => sum + protocol.value, 0);
+          
+          return summary;
         },
         
         getTotalValue: () => {
