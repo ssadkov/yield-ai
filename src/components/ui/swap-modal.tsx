@@ -26,6 +26,7 @@ import { useWalletData } from '@/contexts/WalletContext';
 import { useTransactionSubmitter } from '@/lib/hooks/useTransactionSubmitter';
 import { Token } from '@/lib/types/panora';
 import tokenList from '@/lib/data/tokenList.json';
+import { getProtocolsList } from '@/lib/protocols/getProtocolsList';
 
 interface SwapQuote {
   amount: string;
@@ -62,6 +63,14 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
   const [toToken, setToToken] = useState<Token | null>(null);
   const [amount, setAmount] = useState<string>('');
   const [slippage, setSlippage] = useState<number>(0.5);
+
+  // Get Panora fee from configuration
+  const panoraFee = useMemo(() => {
+    const protocols = getProtocolsList();
+    const panoraProtocol = protocols.find(p => p.name === 'Panora');
+    const feePercentage = panoraProtocol?.panoraConfig?.integratorFeePercentage;
+    return feePercentage || '0.25';
+  }, []);
 
   // Available tokens from wallet
   const availableTokens = useMemo(() => {
@@ -750,7 +759,7 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
               </div>
               <div className="text-xs text-muted-foreground grid grid-cols-2 gap-2">
                 <div>Slippage: {slippage}%</div>
-                <div>Fee: 0.25%</div>
+                <div>Fee: {panoraFee}%</div>
                 {quoteDebug?.quotes?.[0]?.minToTokenAmount && (
                   <div>Min Received: {quoteDebug.quotes[0].minToTokenAmount} {toToken?.symbol}</div>
                 )}
@@ -868,7 +877,7 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
 
           {/* Fee Information */}
           <div className="text-xs text-muted-foreground text-center">
-            Gasless transaction - no APT required for gas fees. 0.25% swap fee applies.
+            Gasless transaction - no APT required for gas fees. {panoraFee}% swap fee applies.
           </div>
         </div>
       </DialogContent>
