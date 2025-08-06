@@ -14,8 +14,16 @@ export class AptosWalletService {
   private baseUrl: string;
 
   private constructor() {
+    const APTOS_API_KEY = process.env.APTOS_API_KEY;
     const config = new AptosConfig({
       network: (process.env.APTOS_NETWORK as Network) || Network.MAINNET,
+      ...(APTOS_API_KEY && {
+        clientConfig: {
+          HEADERS: {
+            'Authorization': `Bearer ${APTOS_API_KEY}`,
+          },
+        },
+      }),
     });
     this.aptos = new Aptos(config);
     this.baseUrl = 'https://indexer.mainnet.aptoslabs.com/v1/graphql';

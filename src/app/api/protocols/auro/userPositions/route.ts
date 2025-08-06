@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from 'next/server';
 const AURO_ADDRESS = "0x50a340a19e6ada1be07192c042786ca6a9651d5c845acc8727e8c6416a56a32c";
 const AURO_ROUTER_ADDRESS = '0xd039ef33e378c10544491855a2ef99cd77bf1a610fd52cc43117cd96e1c73465';
 
+const APTOS_API_KEY = process.env.APTOS_API_KEY;
+
 // Helper function to normalize collection id
 function normalizeCollectionId(id: string): string {
   if (id.startsWith("0x") && id.length === 66) return id;

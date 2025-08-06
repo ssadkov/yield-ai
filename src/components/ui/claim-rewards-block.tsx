@@ -13,8 +13,8 @@ interface ClaimRewardsBlockProps {
 }
 
 export function ClaimRewardsBlock({ summary, onClaim, loading = false }: ClaimRewardsBlockProps) {
-  // Don't render if no rewards
-  if (summary.totalValue <= 0) {
+  // Don't render if invalid summary or no rewards
+  if (!summary || !summary.protocols || summary.totalValue <= 0) {
     return null;
   }
 

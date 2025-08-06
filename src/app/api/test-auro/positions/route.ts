@@ -26,8 +26,10 @@ export async function GET(request: NextRequest) {
       network: Network.MAINNET,
       fullnode: "https://fullnode.mainnet.aptoslabs.com",
       ...(APTOS_API_KEY && {
-        headers: {
-          'Authorization': `Bearer ${APTOS_API_KEY}`,
+        clientConfig: {
+          HEADERS: {
+            'Authorization': `Bearer ${APTOS_API_KEY}`,
+          },
         },
       }),
     });
@@ -85,8 +87,10 @@ async function getPositionInfo(positionsAddress: string[]): Promise<any[]> {
       network: Network.MAINNET,
       fullnode: "https://fullnode.mainnet.aptoslabs.com",
       ...(APTOS_API_KEY && {
-        headers: {
-          'Authorization': `Bearer ${APTOS_API_KEY}`,
+        clientConfig: {
+          HEADERS: {
+            'Authorization': `Bearer ${APTOS_API_KEY}`,
+          },
         },
       }),
     });
@@ -206,6 +210,7 @@ async function getPositionRewards(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(APTOS_API_KEY && { 'Authorization': `Bearer ${APTOS_API_KEY}` }),
       },
       body: JSON.stringify(viewPayload)
     });

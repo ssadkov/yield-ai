@@ -28,6 +28,12 @@ interface ClaimResult {
 export function ClaimAllRewardsModal({ isOpen, onClose, summary }: ClaimAllRewardsModalProps) {
   const { account, signAndSubmitTransaction } = useWallet();
   const { toast } = useToast();
+
+  // Early return if summary is invalid
+  if (!summary || !summary.protocols) {
+    console.warn('ClaimAllRewardsModal: Invalid summary provided', summary);
+    return null;
+  }
   const { claimRewards, isLoading: isClaiming } = useClaimRewards();
   const { rewards } = useWalletStore();
   
@@ -37,9 +43,11 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary }: ClaimAllRewar
   const [currentStep, setCurrentStep] = useState<string>('');
 
   // Get protocols with rewards
-  const protocolsWithRewards = Object.entries(summary.protocols)
-    .filter(([_, data]) => data.count > 0)
-    .map(([protocol, data]) => ({ protocol, ...data }));
+  const protocolsWithRewards = summary?.protocols ? 
+    Object.entries(summary.protocols)
+      .filter(([_, data]) => data.count > 0)
+      .map(([protocol, data]) => ({ protocol, ...data })) :
+    [];
 
   const totalProtocols = protocolsWithRewards.length;
   const progress = totalProtocols > 0 ? ((results.length + 1) / totalProtocols) * 100 : 0;
@@ -373,7 +381,7 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary }: ClaimAllRewar
   };
 
   const getCurrentProtocolInfo = () => {
-    if (!currentProtocol) return null;
+    if (!currentProtocol || !summary?.protocols) return null;
     const protocolData = summary.protocols[currentProtocol as keyof typeof summary.protocols];
     return {
       name: currentProtocol,

@@ -10,9 +10,10 @@ const APTOS_API_KEY = process.env.APTOS_API_KEY;
 const config = new AptosConfig({
   network: Network.MAINNET,
   ...(APTOS_API_KEY && {
-    fullnode: `https://fullnode.mainnet.aptoslabs.com/v1`,
-    headers: {
-      'Authorization': `Bearer ${APTOS_API_KEY}`,
+    clientConfig: {
+      HEADERS: {
+        'Authorization': `Bearer ${APTOS_API_KEY}`,
+      },
     },
   }),
 });
