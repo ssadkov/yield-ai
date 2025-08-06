@@ -60,11 +60,14 @@ export class EchelonProtocol implements BaseProtocol {
     };
   }
 
-  async buildClaimRewards(positionIds: string[], tokenTypes: string[]) {
-    console.log('Building claim rewards for:', { positionIds, tokenTypes });
+  async buildClaimRewards(positionIds: string[], tokenTypes: string[], userAddress?: string) {
+    console.log('Building claim rewards for:', { positionIds, tokenTypes, userAddress });
 
-    // Для Echelon нужно создать отдельную транзакцию для каждого reward
-    // Пока возвращаем первую позицию и первый токен как пример
+    // Для Echelon используем API endpoint напрямую, как в рабочем компоненте
+    if (!userAddress) {
+      throw new Error('User address is required for Echelon claims');
+    }
+
     if (positionIds.length === 0 || tokenTypes.length === 0) {
       throw new Error('No position IDs or token types provided');
     }
@@ -72,11 +75,44 @@ export class EchelonProtocol implements BaseProtocol {
     const farmingId = positionIds[0];
     const tokenType = tokenTypes[0];
 
-    return {
-      type: "entry_function_payload" as const,
-      function: "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::claim_reward",
-      type_arguments: [tokenType],
-      arguments: [[farmingId], []] as [string[], any[]]
+    // Map token types back to reward names
+    const TOKEN_TYPE_TO_REWARD_NAME: { [key: string]: string } = {
+      "0x1::aptos_coin::AptosCoin": "Aptos Coin",
+      "0xfaf4e633ae9eb31366c9ca24214231760926576c7b625313b3688b5e900731f6::staking::ThalaAPT": "Thala APT",
+      "0xfaf4e633ae9eb31366c9ca24214231760926576c7b625313b3688b5e900731f6::staking::StakedThalaAPT": "StakedThalaAPT",
+      "0xb2c7780f0a255a6137e5b39733f5a4c85fe093c549de5c359c1232deef57d1b7": "ECHO",
+      "0x5ae6789dd2fec1a9ec9cccfb3acaf12e93d432f0a3a42c92fe1a9d490b7bbc06::mkl_token::MKL": "MKL",
+      "0xb36527754eb54d7ff55daf13bcb54b42b88ec484bd6f0e3b2e0d1db169de6451": "AMI",
+      "0x53a30a6e5936c0a4c5140daed34de39d17ca7fcae08f947c02e979cef98a3719::coin::LSD": "LSD",
+      "0x7fd500c11216f0fe3095d0c4b8aa4d64a4e2e04f83758462f2b127255643615::thl_coin::THL": "THL",
+      "0x2ebb2ccac5e027a87fa0e2e5f656a3a4238d6a48d93ec9b610d570fc0aa0df12": "CELL",
+      "0xeedba439a4ab8987a995cf5cfefebd713000b3365718a29dfbc36bc214445fb8": "VIBE",
     };
+
+    const rewardName = TOKEN_TYPE_TO_REWARD_NAME[tokenType];
+    if (!rewardName) {
+      throw new Error(`Unknown token type for Echelon: ${tokenType}`);
+    }
+
+    // Используем API endpoint для получения правильного payload
+    const response = await fetch('/api/protocols/echelon/claim', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userAddress: userAddress,
+        rewardName: rewardName,
+        farmingId: farmingId
+      })
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || 'Failed to create claim payload');
+    }
+
+    return data.data.transactionPayload;
   }
 } 

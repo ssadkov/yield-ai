@@ -14,10 +14,10 @@ export interface BaseProtocol {
     type_arguments: string[];
     arguments: string[];
   }>;
-  buildClaimRewards?(positionIds: string[], tokenTypes: string[]): Promise<{
+  buildClaimRewards?(positionIds: string[], tokenTypes: string[], userAddress?: string): Promise<{
     type: 'entry_function_payload';
     function: string;
     type_arguments: string[];
-    arguments: [string[], any[]];
+    arguments: any;
   }>;
 } 

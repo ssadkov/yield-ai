@@ -87,7 +87,8 @@ export async function GET(request: NextRequest) {
 
     // Process each user pool
     for (const pool of userPools) {
-      const farmingId = pool.key;
+      // Extract the actual string value from pool.key (it might be an object)
+      const farmingId = typeof pool.key === 'string' ? pool.key : pool.key.inner || JSON.stringify(pool.key);
       const poolData = pool.value;
       const poolRewards = poolData.rewards.data;
 

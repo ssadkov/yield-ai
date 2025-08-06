@@ -8,6 +8,9 @@ import { useWallet } from '@aptos-labs/wallet-adapter-react';
 import { useToast } from '@/components/ui/use-toast';
 import { CheckCircle, AlertCircle, Loader2, Gift } from 'lucide-react';
 import { ClaimableRewardsSummary } from '@/lib/stores/walletStore';
+import { useClaimRewards } from '@/lib/hooks/useClaimRewards';
+import { useWalletStore } from '@/lib/stores/walletStore';
+import { ToastAction } from '@/components/ui/toast';
 
 interface ClaimAllRewardsModalProps {
   isOpen: boolean;
@@ -23,12 +26,15 @@ interface ClaimResult {
 }
 
 export function ClaimAllRewardsModal({ isOpen, onClose, summary }: ClaimAllRewardsModalProps) {
-  const { signAndSubmitTransaction, account } = useWallet();
+  const { account, signAndSubmitTransaction } = useWallet();
   const { toast } = useToast();
-  const [isClaiming, setIsClaiming] = useState(false);
+  const { claimRewards, isLoading: isClaiming } = useClaimRewards();
+  const { rewards } = useWalletStore();
+  
+  const [isProcessing, setIsProcessing] = useState(false);
   const [currentProtocol, setCurrentProtocol] = useState<string>('');
   const [results, setResults] = useState<ClaimResult[]>([]);
-  const [currentHash, setCurrentHash] = useState<string>('');
+  const [currentStep, setCurrentStep] = useState<string>('');
 
   // Get protocols with rewards
   const protocolsWithRewards = Object.entries(summary.protocols)
@@ -41,7 +47,7 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary }: ClaimAllRewar
   const handleClaimAll = async () => {
     if (!account?.address || totalProtocols === 0) return;
 
-    setIsClaiming(true);
+    setIsProcessing(true);
     setResults([]);
     setCurrentProtocol('');
 
@@ -50,32 +56,40 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary }: ClaimAllRewar
         setCurrentProtocol(protocol);
         
         try {
-          // Create claim transaction for each protocol
-          const response = await fetch(`/api/protocols/${protocol}/claim`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              userAddress: account.address,
-              // Add protocol-specific parameters as needed
-            }),
-          });
-
-          if (!response.ok) {
-            throw new Error(`Failed to create claim transaction for ${protocol}`);
-          }
-
-          const data = await response.json();
+          setCurrentStep(`Preparing ${protocol} claim...`);
           
-          if (data.success && data.data?.transactionPayload) {
-            // Sign and submit transaction
-            const result = await signAndSubmitTransaction(data.data.transactionPayload);
+          console.log('[ClaimAll] Processing protocol:', protocol);
+          
+          if (protocol === 'hyperion') {
+            // Special handling for Hyperion using SDK
+            console.log('[ClaimAll] Using Hyperion special handling');
+            await handleHyperionClaim();
+          } else if (protocol === 'echelon') {
+            // Special handling for Echelon - claim each reward separately
+            console.log('[ClaimAll] Using Echelon special handling');
+            await handleEchelonClaim();
+            console.log('[ClaimAll] Echelon handling completed');
+          } else {
+            // Standard claim for other protocols
+            console.log('[ClaimAll] Using standard claim for:', protocol);
+            const { positionIds, tokenTypes } = getProtocolClaimData(protocol);
             
-            setCurrentHash(result.hash);
+            console.log('[ClaimAll] Protocol data:', { positionIds, tokenTypes });
             
-            // Wait for transaction to be confirmed
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            if (positionIds.length === 0 || tokenTypes.length === 0) {
+              console.log('[ClaimAll] No claimable data found for:', protocol);
+              setResults(prev => [...prev, {
+                protocol,
+                success: false,
+                error: 'No claimable rewards found'
+              }]);
+              continue;
+            }
+
+            setCurrentStep(`Claiming ${protocol} rewards...`);
+            
+            // Use the existing claimRewards hook
+            const result = await claimRewards(protocol as any, positionIds, tokenTypes);
             
             setResults(prev => [...prev, {
               protocol,
@@ -87,9 +101,8 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary }: ClaimAllRewar
               title: `${protocol} rewards claimed!`,
               description: `Transaction: ${result.hash.slice(0, 8)}...${result.hash.slice(-8)}`,
             });
-          } else {
-            throw new Error(data.error || 'Unknown error');
           }
+          
         } catch (error) {
           console.error(`Error claiming ${protocol} rewards:`, error);
           
@@ -114,14 +127,246 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary }: ClaimAllRewar
         variant: 'destructive',
       });
     } finally {
-      setIsClaiming(false);
+      setIsProcessing(false);
       setCurrentProtocol('');
-      setCurrentHash('');
+      setCurrentStep('');
+    }
+  };
+
+  // Special handling for Hyperion using SDK
+  const handleHyperionClaim = async () => {
+    if (!signAndSubmitTransaction || !account?.address) {
+      throw new Error('Wallet not connected');
+    }
+
+    const hyperionRewards = rewards.hyperion;
+    const hyperionPositions = Array.isArray(hyperionRewards) ? hyperionRewards : [];
+    let totalClaimed = 0;
+
+    for (const position of hyperionPositions) {
+      if (position.position?.objectId) {
+        // Check if position has unclaimed rewards
+        const farmRewards = position.farm?.unclaimed?.reduce((sum: number, r: any) => sum + parseFloat(r.amountUSD || "0"), 0) || 0;
+        const feeRewards = position.fees?.unclaimed?.reduce((sum: number, r: any) => sum + parseFloat(r.amountUSD || "0"), 0) || 0;
+        const totalRewards = farmRewards + feeRewards;
+        
+        if (totalRewards > 0) {
+          setCurrentStep(`Claiming Hyperion position ${position.position.objectId.slice(0, 8)}...`);
+          
+          try {
+            // Import SDK dynamically to avoid SSR issues
+            const { sdk } = await import('@/lib/hyperion');
+            
+            const payload = await sdk.Position.claimAllRewardsTransactionPayload({
+              positionId: position.position.objectId,
+              recipient: account.address.toString()
+            });
+
+            const response = await signAndSubmitTransaction({
+              data: {
+                function: payload.function as `${string}::${string}::${string}`,
+                typeArguments: payload.typeArguments,
+                functionArguments: payload.functionArguments
+              },
+              options: {
+                maxGasAmount: 20000,
+              },
+            });
+
+            totalClaimed++;
+            
+            toast({
+              title: "Hyperion position claimed!",
+              description: `Transaction: ${response.hash.slice(0, 8)}...${response.hash.slice(-8)}`,
+              action: (
+                <ToastAction altText="View in Explorer" onClick={() => window.open(`https://explorer.aptoslabs.com/txn/${response.hash}?network=mainnet`, '_blank')}>
+                  View in Explorer
+                </ToastAction>
+              ),
+            });
+            
+            // Wait a bit between transactions
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+          } catch (error) {
+            console.error('Error claiming Hyperion position:', error);
+            throw error;
+          }
+        }
+      }
+    }
+
+    if (totalClaimed > 0) {
+      setResults(prev => [...prev, {
+        protocol: 'hyperion',
+        success: true,
+        hash: `Claimed ${totalClaimed} positions`
+      }]);
+    } else {
+      setResults(prev => [...prev, {
+        protocol: 'hyperion',
+        success: false,
+        error: 'No claimable positions found'
+      }]);
+    }
+  };
+
+  // Get protocol-specific claim data
+  const getProtocolClaimData = (protocol: string) => {
+    const protocolRewards = rewards[protocol];
+    
+    switch (protocol) {
+      case 'echelon':
+        // For Echelon, we need to handle each reward separately
+        // Return empty arrays as we'll handle Echelon specially in the main loop
+        return { positionIds: [], tokenTypes: [] };
+        
+      case 'auro':
+        // For Auro, we need positionIds and tokenTypes from rewards structure
+        const auroRewards = protocolRewards && typeof protocolRewards === 'object' && !Array.isArray(protocolRewards) 
+          ? protocolRewards as Record<string, any> 
+          : {};
+        const auroPositionIds: string[] = [];
+        const auroTokenTypes: string[] = [];
+        
+        Object.entries(auroRewards).forEach(([positionId, positionRewards]: [string, any]) => {
+          // Check if there are actual claimable rewards (same logic as in AuroPositions)
+          const hasRewards =
+            (positionRewards.collateral && positionRewards.collateral.length > 0) ||
+            (positionRewards.borrow && positionRewards.borrow.length > 0);
+          
+          if (hasRewards) {
+            auroPositionIds.push(positionId);
+            
+            // Add token types from both collateral and borrow rewards
+            [...(positionRewards.collateral || []), ...(positionRewards.borrow || [])].forEach((reward: any) => {
+              if (reward && reward.key && !auroTokenTypes.includes(reward.key)) {
+                auroTokenTypes.push(reward.key);
+              }
+            });
+          }
+        });
+        
+        return { positionIds: auroPositionIds, tokenTypes: auroTokenTypes };
+        
+      default:
+        return { positionIds: [], tokenTypes: [] };
+    }
+  };
+
+  // Special handling for Echelon - claim each reward separately
+  const handleEchelonClaim = async () => {
+    if (!account?.address) {
+      throw new Error('Wallet not connected');
+    }
+
+    console.log('[ClaimAll] Starting Echelon claim for address:', account.address);
+
+    // Load Echelon rewards directly from API (same as in working EchelonPositions)
+    let echelonRewards: any[] = [];
+    try {
+      const response = await fetch(`/api/protocols/echelon/rewards?address=${account.address}`);
+      const data = await response.json();
+      
+      console.log('[ClaimAll] Echelon rewards API response:', data);
+      
+      if (data.success && Array.isArray(data.data)) {
+        echelonRewards = data.data;
+        console.log('[ClaimAll] Found Echelon rewards:', echelonRewards);
+      } else {
+        echelonRewards = [];
+        console.log('[ClaimAll] No Echelon rewards found or invalid response');
+      }
+    } catch (error) {
+      console.error('Error loading Echelon rewards:', error);
+      echelonRewards = [];
+    }
+
+    let totalClaimed = 0;
+
+    console.log('[ClaimAll] Processing', echelonRewards.length, 'Echelon rewards');
+
+    for (const reward of echelonRewards) {
+      console.log('[ClaimAll] Processing reward:', reward);
+      
+      // Check if reward has valid data and positive amount (same as in EchelonPositions)
+      if (reward.farmingId && reward.tokenType && reward.amount && reward.amount > 0) {
+        console.log('[ClaimAll] Valid reward found:', { farmingId: reward.farmingId, tokenType: reward.tokenType, amount: reward.amount });
+        
+        setCurrentStep(`Claiming Echelon reward ${reward.token}...`);
+        
+        try {
+          console.log('[ClaimAll] Calling claimRewards for:', { farmingId: reward.farmingId, tokenType: reward.tokenType });
+          
+          // Use the same logic as in EchelonPositions - call claimRewards for each reward separately
+          const result = await claimRewards('echelon', [reward.farmingId], [reward.tokenType]);
+          
+          console.log('[ClaimAll] Claim successful:', result);
+          
+          totalClaimed++;
+          
+          // Add individual result for each reward
+          setResults(prev => [...prev, {
+            protocol: 'echelon',
+            success: true,
+            hash: result.hash
+          }]);
+          
+          toast({
+            title: "Echelon reward claimed!",
+            description: `${reward.token}: ${result.hash.slice(0, 8)}...${result.hash.slice(-8)}`,
+          });
+          
+          // Wait a bit between transactions (same as in original)
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+        } catch (error) {
+          console.error('Error claiming Echelon reward:', error);
+          
+          // Add individual error result
+          setResults(prev => [...prev, {
+            protocol: 'echelon',
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          }]);
+          
+          // Don't throw error, continue with next reward (same as in original)
+          continue;
+        }
+      } else {
+        console.log('[ClaimAll] Invalid reward, skipping:', { 
+          hasFarmingId: !!reward.farmingId, 
+          hasTokenType: !!reward.tokenType, 
+          amount: reward.amount 
+        });
+      }
+    }
+
+    console.log('[ClaimAll] Echelon claim completed. Total claimed:', totalClaimed);
+
+    // Update data after claiming (same as in original EchelonPositions)
+    if (totalClaimed > 0 && account?.address) {
+      try {
+        // Refresh rewards data
+        await useWalletStore.getState().fetchRewards(account.address.toString(), ['echelon'], true);
+      } catch (error) {
+        console.error('Error refreshing rewards after claim:', error);
+      }
+    }
+
+    // Don't add a general result since we're adding individual results above
+    if (totalClaimed === 0) {
+      console.log('[ClaimAll] No rewards claimed, adding error result');
+      setResults(prev => [...prev, {
+        protocol: 'echelon',
+        success: false,
+        error: 'No claimable rewards found'
+      }]);
     }
   };
 
   const handleClose = () => {
-    if (!isClaiming) {
+    if (!isProcessing) {
       onClose();
       setResults([]);
     }
@@ -171,7 +416,7 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary }: ClaimAllRewar
           </div>
 
           {/* Progress */}
-          {isClaiming && (
+          {isProcessing && (
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
                 <span>Claiming rewards...</span>
@@ -183,13 +428,8 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary }: ClaimAllRewar
                 <div className="text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Claiming {currentProtocol} rewards...
+                    {currentStep}
                   </div>
-                  {currentHash && (
-                    <div className="text-xs mt-1">
-                      Hash: {currentHash.slice(0, 8)}...{currentHash.slice(-8)}
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -199,7 +439,7 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary }: ClaimAllRewar
           {results.length > 0 && (
             <div className="space-y-2">
               <h4 className="font-medium">Results</h4>
-              <div className="space-y-1">
+              <div className="space-y-1 max-h-32 overflow-y-auto">
                 {results.map((result, index) => (
                   <div key={index} className="flex items-center gap-2 text-sm">
                     {result.success ? (
@@ -213,11 +453,16 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary }: ClaimAllRewar
                     ) : (
                       <span className="text-red-600">{result.error}</span>
                     )}
+                    {result.hash && result.hash.length > 20 && (
+                      <span className="text-xs text-muted-foreground">
+                        {result.hash.slice(0, 8)}...{result.hash.slice(-8)}
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
               
-              {!isClaiming && (
+              {!isProcessing && (
                 <div className="text-sm text-muted-foreground">
                   {successfulClaims} successful, {failedClaims} failed
                 </div>
@@ -227,16 +472,24 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary }: ClaimAllRewar
 
           {/* Actions */}
           <div className="flex gap-2 pt-4">
-            {!isClaiming && results.length === 0 && (
+            {!isProcessing && results.length === 0 && (
               <Button 
                 onClick={handleClaimAll}
+                disabled={isClaiming}
                 className="flex-1 bg-green-600 hover:bg-green-700"
               >
-                Claim All Rewards
+                {isClaiming ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Claiming...
+                  </>
+                ) : (
+                  'Claim All Rewards'
+                )}
               </Button>
             )}
             
-            {!isClaiming && (
+            {!isProcessing && (
               <Button 
                 onClick={handleClose}
                 variant="outline"

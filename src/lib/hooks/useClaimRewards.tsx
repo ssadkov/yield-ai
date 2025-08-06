@@ -17,7 +17,10 @@ export function useClaimRewards() {
         const protocolInstance = protocols[protocolKey];
         if (!protocolInstance) throw new Error(`Protocol ${protocolKey} not found`);
         if (typeof protocolInstance.buildClaimRewards !== 'function') throw new Error(`Protocol ${protocolKey} does not have buildClaimRewards method`);
-        const payload = await protocolInstance.buildClaimRewards(positionIds, tokenTypes);
+        
+        // For Echelon, pass user address
+        const userAddress = protocolKey === 'echelon' && wallet.account?.address ? wallet.account.address.toString() : undefined;
+        const payload = await protocolInstance.buildClaimRewards(positionIds, tokenTypes, userAddress);
         if (!payload || typeof payload !== 'object') throw new Error('Invalid payload generated');
         if (!wallet.connected || !wallet.signAndSubmitTransaction) throw new Error('Wallet not connected');
         const response = await wallet.signAndSubmitTransaction({
