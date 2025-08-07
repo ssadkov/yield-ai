@@ -4,7 +4,9 @@ export class AptosApiService {
   async getBalances(address: string) {
     try {
       // Use our server API endpoint instead of direct Aptos API call
-      const response = await fetch(`/api/aptos/walletBalance?address=${address}`);
+      // На сервере используем полный URL
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${baseUrl}/api/aptos/walletBalance?address=${address}`);
       
       if (!response.ok) {
         console.error('Failed to fetch balances from server API:', response.status);
