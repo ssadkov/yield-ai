@@ -85,7 +85,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   const [claimModalOpen, setClaimModalOpen] = useState(false);
 
   const { state, handleDrop, validateDrop } = useDragDrop();
-  const { getClaimableRewardsSummary, fetchRewards, rewardsLoading } = useWalletStore();
+  const { getClaimableRewardsSummary, fetchRewards, fetchPositions, rewardsLoading } = useWalletStore();
   const { account } = useWallet();
   const { setActiveTab: setMobileTab } = useMobileManagement();
 
@@ -94,12 +94,13 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     setIsClient(true);
   }, []);
 
-  // Load rewards data when wallet is connected
+  // Load rewards and positions data when wallet is connected
   useEffect(() => {
     if (account?.address) {
       fetchRewards(account.address);
+      fetchPositions(account.address, ['hyperion']); // Load Hyperion positions for claim all
     }
-  }, [account?.address, fetchRewards]);
+  }, [account?.address, fetchRewards, fetchPositions]);
 
   const getTokenInfo = (asset: string, tokenAddress?: string): Token | undefined => {
     if (tokenAddress) {
@@ -1219,6 +1220,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
         isOpen={claimModalOpen}
         onClose={() => setClaimModalOpen(false)}
         summary={getClaimableRewardsSummary()}
+        positions={useWalletStore.getState().positions.hyperion}
       />
     </div>
   );

@@ -16,6 +16,7 @@ interface ClaimAllRewardsModalProps {
   isOpen: boolean;
   onClose: () => void;
   summary: ClaimableRewardsSummary;
+  positions?: any[]; // Optional positions for Hyperion (from managing positions)
 }
 
 interface ClaimResult {
@@ -25,7 +26,7 @@ interface ClaimResult {
   error?: string;
 }
 
-export function ClaimAllRewardsModal({ isOpen, onClose, summary }: ClaimAllRewardsModalProps) {
+export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: ClaimAllRewardsModalProps) {
   const { account, signAndSubmitTransaction } = useWallet();
   const { toast } = useToast();
 
@@ -147,11 +148,21 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary }: ClaimAllRewar
       throw new Error('Wallet not connected');
     }
 
-    const hyperionRewards = rewards.hyperion;
-    const hyperionPositions = Array.isArray(hyperionRewards) ? hyperionRewards : [];
+    // Use positions prop if available (from managing positions), otherwise fallback to store
+    const hyperionPositions = positions || useWalletStore.getState().positions.hyperion || [];
     let totalClaimed = 0;
 
-    for (const position of hyperionPositions) {
+    // Filter positions with rewards (same logic as in managing positions)
+    const positionsWithRewards = hyperionPositions.filter((position: any) => {
+      const farmRewards = position.farm?.unclaimed?.reduce((sum: number, r: any) => sum + parseFloat(r.amountUSD || "0"), 0) || 0;
+      const feeRewards = position.fees?.unclaimed?.reduce((sum: number, r: any) => sum + parseFloat(r.amountUSD || "0"), 0) || 0;
+      return (farmRewards + feeRewards) > 0;
+    });
+
+    console.log('[ClaimAll] Hyperion positions with rewards:', positionsWithRewards.length);
+    console.log('[ClaimAll] Using positions from:', positions ? 'props' : 'store');
+
+    for (const position of positionsWithRewards) {
       if (position.position?.objectId) {
         // Check if position has unclaimed rewards
         const farmRewards = position.farm?.unclaimed?.reduce((sum: number, r: any) => sum + parseFloat(r.amountUSD || "0"), 0) || 0;
@@ -198,7 +209,8 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary }: ClaimAllRewar
             
           } catch (error) {
             console.error('Error claiming Hyperion position:', error);
-            throw error;
+            // Don't throw error, continue with next position
+            continue;
           }
         }
       }
@@ -210,6 +222,13 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary }: ClaimAllRewar
         success: true,
         hash: `Claimed ${totalClaimed} positions`
       }]);
+      
+      // Refresh positions data after successful claim
+      try {
+        await useWalletStore.getState().fetchPositions(account.address.toString(), ['hyperion'], true);
+      } catch (error) {
+        console.error('Error refreshing positions after claim:', error);
+      }
     } else {
       setResults(prev => [...prev, {
         protocol: 'hyperion',
