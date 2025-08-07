@@ -703,16 +703,40 @@ export const useWalletStore = create<WalletState>()(
             }
           });
           
-          // Process Hyperion rewards
-          const hyperionRewards = state.rewards.hyperion || [];
-          hyperionRewards.forEach((reward: any) => {
-            if (reward.amountUSD && parseFloat(reward.amountUSD) > 0) {
-              // Hyperion rewards have amountUSD field
-              const value = parseFloat(reward.amountUSD);
-              summary.protocols.hyperion.value += value;
+                  // Process Hyperion rewards (calculate by positions, not individual rewards)
+        const hyperionPositions = state.positions.hyperion || [];
+        
+        if (hyperionPositions.length > 0) {
+          // Use positions data if available
+          hyperionPositions.forEach((position: any) => {
+            const farmRewards = position.farm?.unclaimed?.reduce((sum: number, r: any) => sum + parseFloat(r.amountUSD || "0"), 0) || 0;
+            const feeRewards = position.fees?.unclaimed?.reduce((sum: number, r: any) => sum + parseFloat(r.amountUSD || "0"), 0) || 0;
+            const totalRewards = farmRewards + feeRewards;
+            
+            if (totalRewards > 0) {
+              summary.protocols.hyperion.value += totalRewards;
               summary.protocols.hyperion.count++;
             }
           });
+        } else {
+          // Fallback to rewards data if positions not available
+          const hyperionRewards = state.rewards.hyperion || [];
+          if (hyperionRewards.length > 0) {
+            // For fallback, we estimate 1 position per reward group
+            // This is not perfect but better than showing 0
+            let totalValue = 0;
+            hyperionRewards.forEach((reward: any) => {
+              if (reward.amountUSD && parseFloat(reward.amountUSD) > 0) {
+                totalValue += parseFloat(reward.amountUSD);
+              }
+            });
+            
+            if (totalValue > 0) {
+              summary.protocols.hyperion.value = totalValue;
+              summary.protocols.hyperion.count = 1; // Conservative estimate
+            }
+          }
+        }
           
                      // Calculate total value
            summary.totalValue = Object.values(summary.protocols).reduce((sum, protocol) => sum + protocol.value, 0);
