@@ -24,6 +24,8 @@ interface ClaimResult {
   success: boolean;
   hash?: string;
   error?: string;
+  positionId?: string; // For Hyperion positions
+  value?: number; // Value of claimed rewards
 }
 
 export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: ClaimAllRewardsModalProps) {
@@ -42,6 +44,7 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
   const [currentProtocol, setCurrentProtocol] = useState<string>('');
   const [results, setResults] = useState<ClaimResult[]>([]);
   const [currentStep, setCurrentStep] = useState<string>('');
+  const [claimedValue, setClaimedValue] = useState(0);
 
   // Get protocols with rewards
   const protocolsWithRewards = summary?.protocols ? 
@@ -50,15 +53,37 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
       .map(([protocol, data]) => ({ protocol, ...data })) :
     [];
 
-  const totalProtocols = protocolsWithRewards.length;
-  const progress = totalProtocols > 0 ? ((results.length + 1) / totalProtocols) * 100 : 0;
+  // Calculate total positions/rewards for progress (not protocols)
+  const getTotalPositions = () => {
+    let total = 0;
+    protocolsWithRewards.forEach(({ protocol, count }) => {
+      if (protocol === 'hyperion') {
+        // For Hyperion, use actual positions count
+        const hyperionPositions = positions || useWalletStore.getState().positions.hyperion || [];
+        const positionsWithRewards = hyperionPositions.filter((position: any) => {
+          const farmRewards = position.farm?.unclaimed?.reduce((sum: number, r: any) => sum + parseFloat(r.amountUSD || "0"), 0) || 0;
+          const feeRewards = position.fees?.unclaimed?.reduce((sum: number, r: any) => sum + parseFloat(r.amountUSD || "0"), 0) || 0;
+          return (farmRewards + feeRewards) > 0;
+        });
+        total += positionsWithRewards.length;
+      } else {
+        // For other protocols, use count from summary
+        total += count;
+      }
+    });
+    return total;
+  };
+
+  const totalPositions = getTotalPositions();
+  const progress = totalPositions > 0 ? ((results.length + 1) / totalPositions) * 100 : 0;
 
   const handleClaimAll = async () => {
-    if (!account?.address || totalProtocols === 0) return;
+    if (!account?.address || totalPositions === 0) return;
 
     setIsProcessing(true);
     setResults([]);
     setCurrentProtocol('');
+    setClaimedValue(0);
 
     try {
       for (const { protocol } of protocolsWithRewards) {
@@ -105,6 +130,12 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
               success: true,
               hash: result.hash
             }]);
+            
+            // Update claimed value (estimate based on protocol value)
+            const protocolData = summary.protocols[protocol as keyof typeof summary.protocols];
+            if (protocolData) {
+              setClaimedValue(prev => prev + protocolData.value);
+            }
             
             toast({
               title: `${protocol} rewards claimed!`,
@@ -162,6 +193,15 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
     console.log('[ClaimAll] Hyperion positions with rewards:', positionsWithRewards.length);
     console.log('[ClaimAll] Using positions from:', positions ? 'props' : 'store');
 
+    if (positionsWithRewards.length === 0) {
+      setResults(prev => [...prev, {
+        protocol: 'hyperion',
+        success: false,
+        error: 'No claimable positions found'
+      }]);
+      return;
+    }
+
     for (const position of positionsWithRewards) {
       if (position.position?.objectId) {
         // Check if position has unclaimed rewards
@@ -194,6 +234,18 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
 
             totalClaimed++;
             
+            // Add individual result for this position
+            setResults(prev => [...prev, {
+              protocol: 'hyperion',
+              success: true,
+              hash: response.hash,
+              positionId: position.position.objectId.slice(0, 8),
+              value: totalRewards
+            }]);
+            
+            // Update claimed value
+            setClaimedValue(prev => prev + totalRewards);
+            
             toast({
               title: "Hyperion position claimed!",
               description: `Transaction: ${response.hash.slice(0, 8)}...${response.hash.slice(-8)}`,
@@ -209,6 +261,16 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
             
           } catch (error) {
             console.error('Error claiming Hyperion position:', error);
+            
+            // Add individual error result for this position
+            setResults(prev => [...prev, {
+              protocol: 'hyperion',
+              success: false,
+              error: error instanceof Error ? error.message : 'Unknown error',
+              positionId: position.position.objectId.slice(0, 8),
+              value: totalRewards
+            }]);
+            
             // Don't throw error, continue with next position
             continue;
           }
@@ -216,25 +278,14 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
       }
     }
 
+    // Note: Individual results are already added in the loop above
+    // Just refresh positions data after successful claim
     if (totalClaimed > 0) {
-      setResults(prev => [...prev, {
-        protocol: 'hyperion',
-        success: true,
-        hash: `Claimed ${totalClaimed} positions`
-      }]);
-      
-      // Refresh positions data after successful claim
       try {
         await useWalletStore.getState().fetchPositions(account.address.toString(), ['hyperion'], true);
       } catch (error) {
         console.error('Error refreshing positions after claim:', error);
       }
-    } else {
-      setResults(prev => [...prev, {
-        protocol: 'hyperion',
-        success: false,
-        error: 'No claimable positions found'
-      }]);
     }
   };
 
@@ -338,6 +389,10 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
             success: true,
             hash: result.hash
           }]);
+          
+          // Update claimed value (estimate based on reward amount)
+          const rewardValue = reward.amountUSD ? parseFloat(reward.amountUSD) : 0;
+          setClaimedValue(prev => prev + rewardValue);
           
           toast({
             title: "Echelon reward claimed!",
@@ -447,9 +502,15 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
                 <span>Claiming rewards...</span>
-                <span>{results.length + 1}/{totalProtocols}</span>
+                <span>{results.length + 1}/{totalPositions}</span>
               </div>
               <Progress value={progress} className="w-full" />
+              
+              {claimedValue > 0 && (
+                <div className="text-sm text-green-600 font-medium">
+                  Claimed so far: ${claimedValue.toFixed(2)}
+                </div>
+              )}
               
               {currentProtocol && (
                 <div className="text-sm text-muted-foreground">
@@ -475,15 +536,23 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
                       <AlertCircle className="h-4 w-4 text-red-600" />
                     )}
                     <span className="capitalize">{result.protocol}</span>
+                    {result.positionId && (
+                      <span className="text-muted-foreground">({result.positionId}...)</span>
+                    )}
                     {result.success ? (
-                      <span className="text-green-600">Success</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-green-600">Success</span>
+                        {result.value && (
+                          <span className="text-green-600">(${result.value.toFixed(2)})</span>
+                        )}
+                        {result.hash && result.hash.length > 20 && (
+                          <span className="text-xs text-muted-foreground font-mono">
+                            {result.hash.slice(0, 8)}...{result.hash.slice(-8)}
+                          </span>
+                        )}
+                      </div>
                     ) : (
                       <span className="text-red-600">{result.error}</span>
-                    )}
-                    {result.hash && result.hash.length > 20 && (
-                      <span className="text-xs text-muted-foreground">
-                        {result.hash.slice(0, 8)}...{result.hash.slice(-8)}
-                      </span>
                     )}
                   </div>
                 ))}
