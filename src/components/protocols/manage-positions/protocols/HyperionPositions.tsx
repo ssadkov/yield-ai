@@ -741,6 +741,17 @@ export function HyperionPositions() {
       <ClaimAllRewardsModal
         isOpen={showClaimAllModal}
         onClose={() => setShowClaimAllModal(false)}
+        summary={{
+          totalValue: totalRewards,
+          protocols: {
+            echelon: { value: 0, count: 0 },
+            auro: { value: 0, count: 0 },
+            hyperion: {
+              count: positionsWithRewards.length,
+              value: totalRewards
+            }
+          }
+        }}
         positions={positions}
       />
     </div>

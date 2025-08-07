@@ -95,12 +95,13 @@ export async function GET(request: NextRequest) {
       poolsData: formattedPoolsData
     };
 
-    // Call the POST logic
-    return await POST(new Request(request.url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    }));
+    // Call the POST logic directly with the body data
+    // Create a mock NextRequest-like object for the POST function
+    const mockRequest = {
+      json: async () => body
+    } as NextRequest;
+    
+    return await POST(mockRequest);
 
   } catch (error) {
     console.error('=== Auro Rewards GET API Route Error ===');

@@ -97,8 +97,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   // Load rewards and positions data when wallet is connected
   useEffect(() => {
     if (account?.address) {
-      fetchRewards(account.address);
-      fetchPositions(account.address, ['hyperion']); // Load Hyperion positions for claim all
+      fetchRewards(account.address.toString());
+      fetchPositions(account.address.toString(), ['hyperion']); // Load Hyperion positions for claim all
     }
   }, [account?.address, fetchRewards, fetchPositions]);
 

@@ -14,7 +14,7 @@ export default function TestClaimRewards() {
 
   useEffect(() => {
     if (account?.address) {
-      fetchRewards(account.address);
+      fetchRewards(account.address.toString());
     }
   }, [account?.address, fetchRewards]);
 
@@ -28,7 +28,7 @@ export default function TestClaimRewards() {
         {/* Wallet Status */}
         <div className="bg-gray-50 p-4 rounded-lg">
           <h2 className="text-lg font-semibold mb-2">Wallet Status</h2>
-          <p>Address: {account?.address || 'Not connected'}</p>
+          <p>Address: {account?.address?.toString() || 'Not connected'}</p>
           <p>Loading: {rewardsLoading ? 'Yes' : 'No'}</p>
         </div>
 
@@ -62,7 +62,7 @@ export default function TestClaimRewards() {
         <div className="bg-gray-50 p-4 rounded-lg">
           <h2 className="text-lg font-semibold mb-2">Manual Actions</h2>
           <button 
-            onClick={() => account?.address && fetchRewards(account.address, undefined, true)}
+            onClick={() => account?.address && fetchRewards(account.address.toString(), undefined, true)}
             className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
           >
             Refresh Rewards
