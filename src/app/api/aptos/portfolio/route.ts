@@ -586,16 +586,17 @@ export async function GET(request: Request) {
         const mesoData = await mesoResponse.json();
         if (mesoData.success && Array.isArray(mesoData.data)) {
           protocols.meso.positions = mesoData.data.map((pos: any) => {
-            const tokenInfo = getTokenInfo(pos.assetName);
-            const amount = parseFloat(pos.balance) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
-            const value = tokenInfo?.usdPrice ? amount * parseFloat(tokenInfo.usdPrice) : 0;
-            
+            // pos.amount already normalized by token decimals, pos.usdValue normalized by 1e16
+            const symbol = pos.assetInfo?.symbol || (pos.assetName?.split('::').pop()?.toUpperCase() || 'ASSET');
+            const value = typeof pos.usdValue === 'number' ? pos.usdValue : 0;
+            const amount = typeof pos.amount === 'number' ? pos.amount : 0;
+
             return {
-              symbol: tokenInfo?.symbol || pos.assetName.substring(0, 4).toUpperCase(),
+              symbol,
               amount: amount.toFixed(4),
               value: value,
               type: pos.type || 'deposit',
-              assetInfo: tokenInfo,
+              assetInfo: pos.assetInfo || null,
               assetName: pos.assetName
             };
           });
