@@ -42,8 +42,11 @@ export class PanoraPricesService {
         queryParams.append('tokenAddress', addresses.join(','));
       }
 
-      // На сервере используем полный URL
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+      if (!baseUrl) {
+        throw new Error('NEXT_PUBLIC_API_URL is not set');
+      }
+
       const response = await fetch(`${baseUrl}/api/panora/tokenPrices?${queryParams.toString()}`);
       
       if (!response.ok) {
@@ -52,7 +55,7 @@ export class PanoraPricesService {
 
       const data = await response.json();
       
-      // Кэшируем результат
+      // Cache result
       this.cache.set(cacheKey, {
         data,
         timestamp: Date.now()

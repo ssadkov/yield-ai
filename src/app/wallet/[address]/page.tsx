@@ -10,8 +10,9 @@ import { ArrowLeft, Wallet, DollarSign, RefreshCw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 interface TokenBalance {
-  symbol: string;
-  name: string;
+  address?: string;
+  symbol: string | null;
+  name: string | null;
   balance: string;
   decimals: number;
   priceUSD: number;
@@ -48,8 +49,22 @@ export default function WalletViewPage() {
       if (!response.ok) {
         throw new Error('Failed to fetch wallet data');
       }
-      const data = await response.json();
-      setWalletData(data);
+      const data: WalletData = await response.json();
+
+      // Client-side sort and total calculation (authoritative on UI)
+      const sortedTokens = (data?.tokens || []).slice().sort(
+        (a, b) => (b.valueUSD || 0) - (a.valueUSD || 0)
+      );
+      const computedTotal = sortedTokens.reduce(
+        (sum, t) => sum + (typeof t.valueUSD === 'number' ? t.valueUSD : 0),
+        0
+      );
+
+      setWalletData({
+        ...data,
+        tokens: sortedTokens,
+        totalValueUSD: computedTotal,
+      });
       setError('');
     } catch (err) {
       setError('Failed to load wallet data. Please check the address and try again.');
@@ -78,7 +93,7 @@ export default function WalletViewPage() {
   };
 
   const formatUSD = (value: number | null) => {
-    if (value === null || value === undefined) return '$0.00';
+    if (value === null || value === undefined || Number.isNaN(value)) return '$0.00';
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
@@ -170,7 +185,7 @@ export default function WalletViewPage() {
                   <div>
                     <p className="text-sm text-green-600 dark:text-green-400">Total Value</p>
                     <p className="text-2xl font-bold text-green-700 dark:text-green-300">
-                      {walletData ? formatUSD(walletData.totalValueUSD) : '$0.00'}
+                      {formatUSD(walletData?.totalValueUSD ?? 0)}
                     </p>
                   </div>
                 </div>
@@ -198,6 +213,7 @@ export default function WalletViewPage() {
                   {walletData.tokens.map((token, index) => (
                     <div
                       key={index}
+                      title={token.address || ''}
                       className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                     >
                       <div className="flex items-center space-x-3">

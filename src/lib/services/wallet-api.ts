@@ -2,8 +2,9 @@ import { AptosWalletService } from './aptos/wallet';
 import { PanoraPricesService } from './panora/prices';
 
 interface TokenBalance {
-  symbol: string;
-  name: string;
+  address: string;
+  symbol: string | null;
+  name: string | null;
   balance: string;
   decimals: number;
   priceUSD: number;
@@ -96,8 +97,8 @@ export async function getWalletBalance(address: string): Promise<WalletData> {
     console.log('🔄 Processing', balanceData.balances?.length || 0, 'balances...');
     
     for (const balance of balanceData.balances || []) {
-      const assetType = balance.asset_type;
-      const amount = balance.amount;
+      const assetType: string = balance.asset_type;
+      const amount: string = balance.amount;
       
       console.log('🔍 Processing token:', assetType, 'amount:', amount);
       
@@ -118,6 +119,7 @@ export async function getWalletBalance(address: string): Promise<WalletData> {
         console.log('💱 Calculated:', balanceNumber, 'tokens, $', priceUSD, 'price, $', valueUSD, 'total');
         
         tokens.push({
+          address: assetType,
           symbol: priceData.symbol,
           name: priceData.name,
           balance: balanceNumber.toString(),
@@ -136,7 +138,8 @@ export async function getWalletBalance(address: string): Promise<WalletData> {
           : assetType;
         
         tokens.push({
-          symbol: symbol,
+          address: assetType,
+          symbol,
           name: symbol,
           balance: amount, // Оставляем как есть, без конвертации
           decimals: 8, // дефолтное значение
@@ -149,11 +152,13 @@ export async function getWalletBalance(address: string): Promise<WalletData> {
     // Sort tokens by value (highest first)
     tokens.sort((a, b) => b.valueUSD - a.valueUSD);
     
+    // Ensure number (avoid -0)
+    totalValueUSD = Number(totalValueUSD) || 0;
+
     console.log('✅ Final result:', {
       address,
       totalValueUSD,
       tokenCount: tokens.length,
-      tokens: tokens.map(t => ({ symbol: t.symbol, balance: t.balance, valueUSD: t.valueUSD }))
     });
     
     return {
