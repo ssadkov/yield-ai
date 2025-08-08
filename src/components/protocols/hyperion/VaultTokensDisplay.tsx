@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Token } from '@/lib/types/token';
-import { getVaultTokenSymbol } from '@/lib/services/hyperion/vaultTokens';
+import { getVaultTokenSymbol, getVaultTokenMapping } from '@/lib/services/hyperion/vaultTokens';
 import { VaultCalculator, VaultData } from '@/lib/services/hyperion/vaultCalculator';
+import { Avatar } from '@/components/ui/avatar';
 
 interface VaultTokensDisplayProps {
   vaultTokens: Token[];
@@ -58,16 +59,34 @@ export function VaultTokensDisplay({ vaultTokens, walletAddress, onVaultDataChan
   if (loading) {
     return (
       <div className="space-y-2">
-        {vaultTokens.map((token, index) => (
-          <div key={`${token.address}-${index}`} className="flex items-center justify-between py-1">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">{getVaultTokenSymbol(token.address)}</span>
+        {vaultTokens.map((token, index) => {
+          const vaultMapping = getVaultTokenMapping(token.address);
+          const token1 = vaultMapping?.tokens[0];
+          const token2 = vaultMapping?.tokens[1];
+          
+          return (
+            <div key={`${token.address}-${index}`} className="flex items-center justify-between py-1">
+              <div className="flex items-center gap-2">
+                {token1 && token2 && (
+                  <div className="flex">
+                    <Avatar className="w-6 h-6">
+                      <img src={token1.logoUrl} alt={token1.symbol} />
+                    </Avatar>
+                    <Avatar className="w-6 h-6 -ml-2">
+                      <img src={token2.logoUrl} alt={token2.symbol} />
+                    </Avatar>
+                  </div>
+                )}
+                <div className="text-sm text-muted-foreground">
+                  {token1?.symbol}/{token2?.symbol}
+                </div>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Loading...
+              </div>
             </div>
-            <div className="text-sm text-muted-foreground">
-              Loading...
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   }
@@ -75,16 +94,34 @@ export function VaultTokensDisplay({ vaultTokens, walletAddress, onVaultDataChan
   if (error) {
     return (
       <div className="space-y-2">
-        {vaultTokens.map((token, index) => (
-          <div key={`${token.address}-${index}`} className="flex items-center justify-between py-1">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">{getVaultTokenSymbol(token.address)}</span>
+        {vaultTokens.map((token, index) => {
+          const vaultMapping = getVaultTokenMapping(token.address);
+          const token1 = vaultMapping?.tokens[0];
+          const token2 = vaultMapping?.tokens[1];
+          
+          return (
+            <div key={`${token.address}-${index}`} className="flex items-center justify-between py-1">
+              <div className="flex items-center gap-2">
+                {token1 && token2 && (
+                  <div className="flex">
+                    <Avatar className="w-6 h-6">
+                      <img src={token1.logoUrl} alt={token1.symbol} />
+                    </Avatar>
+                    <Avatar className="w-6 h-6 -ml-2">
+                      <img src={token2.logoUrl} alt={token2.symbol} />
+                    </Avatar>
+                  </div>
+                )}
+                <div className="text-sm text-muted-foreground">
+                  {token1?.symbol}/{token2?.symbol}
+                </div>
+              </div>
+              <div className="text-sm text-red-500">
+                Error
+              </div>
             </div>
-            <div className="text-sm text-red-500">
-              Error
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   }
@@ -92,7 +129,9 @@ export function VaultTokensDisplay({ vaultTokens, walletAddress, onVaultDataChan
   return (
     <div className="space-y-2">
       {vaultTokens.map((token, index) => {
-        const vaultSymbol = getVaultTokenSymbol(token.address);
+        const vaultMapping = getVaultTokenMapping(token.address);
+        const token1 = vaultMapping?.tokens[0];
+        const token2 = vaultMapping?.tokens[1];
         
         // Ищем данные для этого Vault токена
         const vaultInfo = vaultData.find(data => data.vaultTokenAddress === token.address);
@@ -101,7 +140,19 @@ export function VaultTokensDisplay({ vaultTokens, walletAddress, onVaultDataChan
         return (
           <div key={`${token.address}-${index}`} className="flex items-center justify-between py-1">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">{vaultSymbol}</span>
+              {token1 && token2 && (
+                <div className="flex">
+                  <Avatar className="w-6 h-6">
+                    <img src={token1.logoUrl} alt={token1.symbol} />
+                  </Avatar>
+                  <Avatar className="w-6 h-6 -ml-2">
+                    <img src={token2.logoUrl} alt={token2.symbol} />
+                  </Avatar>
+                </div>
+              )}
+              <div className="text-sm text-muted-foreground">
+                {token1?.symbol}/{token2?.symbol}
+              </div>
             </div>
             <div className="text-sm font-medium">
               ${value.toFixed(2)}

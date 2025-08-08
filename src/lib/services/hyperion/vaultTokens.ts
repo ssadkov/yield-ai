@@ -14,27 +14,28 @@ const VAULT_TOKEN_MAPPING: Record<string, {
     address: string;
     symbol: string;
     decimals: number;
+    logoUrl: string;
   }>;
 }> = {
   '0x7a6ef286a6d3f482dcb56d683678dadc7a18be133bf5f01626d5164a52e68eeb': {
     symbol: 'Vault-APT-USDt',
     tokens: [
-      { address: '0x1::aptos_coin::AptosCoin', symbol: 'APT', decimals: 8 },
-      { address: '0x357b0b74bc833e95a115ad22604854d6b0fca151cecd94111770e5d6ffc9dc2b', symbol: 'USDT', decimals: 6 }
+      { address: '0x1::aptos_coin::AptosCoin', symbol: 'APT', decimals: 8, logoUrl: 'https://assets.panora.exchange/tokens/aptos/APT.svg' },
+      { address: '0x357b0b74bc833e95a115ad22604854d6b0fca151cecd94111770e5d6ffc9dc2b', symbol: 'USDT', decimals: 6, logoUrl: 'https://assets.panora.exchange/tokens/aptos/USDT.svg' }
     ]
   },
   '0xab8fdae5dd99a4379362c01218cd7aef40758cd8111d11853ce6efd2f82b7cad': {
     symbol: 'Vault-USDt-USDC',
     tokens: [
-      { address: '0x357b0b74bc833e95a115ad22604854d6b0fca151cecd94111770e5d6ffc9dc2b', symbol: 'USDT', decimals: 6 },
-      { address: '0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b', symbol: 'USDC', decimals: 6 }
+      { address: '0x357b0b74bc833e95a115ad22604854d6b0fca151cecd94111770e5d6ffc9dc2b', symbol: 'USDT', decimals: 6, logoUrl: 'https://assets.panora.exchange/tokens/aptos/USDT.svg' },
+      { address: '0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b', symbol: 'USDC', decimals: 6, logoUrl: 'https://assets.panora.exchange/tokens/aptos/USDC.svg' }
     ]
   },
   '0x77d56ce63cf4d8c36a60a8a8f29e11ebbf7a1c0e22d6cd069d7f2e950d2fd0bd': {
     symbol: 'Vault-APT-USDC',
     tokens: [
-      { address: '0x1::aptos_coin::AptosCoin', symbol: 'APT', decimals: 8 },
-      { address: '0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b', symbol: 'USDC', decimals: 6 }
+      { address: '0x1::aptos_coin::AptosCoin', symbol: 'APT', decimals: 8, logoUrl: 'https://assets.panora.exchange/tokens/aptos/APT.svg' },
+      { address: '0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b', symbol: 'USDC', decimals: 6, logoUrl: 'https://assets.panora.exchange/tokens/aptos/USDC.svg' }
     ]
   }
 };

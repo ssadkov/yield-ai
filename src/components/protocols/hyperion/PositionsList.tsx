@@ -186,8 +186,8 @@ export function PositionsList({ address, onPositionsValueChange, walletTokens }:
             
             {/* Vault токены как подраздел */}
             {vaultTokens.length > 0 && (
-              <div className="mt-4 border-t pt-4">
-                <h4 className="text-sm font-medium mb-2 text-muted-foreground">Vault positions:</h4>
+              <div className="mt-4 pt-4">
+                <h4 className="text-sm font-medium mb-2 text-muted-foreground">Vault Positions</h4>
                 <VaultTokensDisplay 
                   vaultTokens={vaultTokens} 
                   walletAddress={walletAddress}
