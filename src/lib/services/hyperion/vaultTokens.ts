@@ -47,10 +47,12 @@ export function isHyperionVaultToken(tokenAddress: string): boolean {
 }
 
 /**
- * Получает символ Vault токена по адресу
+ * Получает символ Vault токена по адресу (без префикса "Vault-")
  */
 export function getVaultTokenSymbol(tokenAddress: string): string {
-  return HYPERION_VAULT_TOKENS[tokenAddress.toLowerCase()] || tokenAddress;
+  const fullSymbol = HYPERION_VAULT_TOKENS[tokenAddress.toLowerCase()] || tokenAddress;
+  // Убираем префикс "Vault-" из символа
+  return fullSymbol.replace(/^Vault-/, '');
 }
 
 /**

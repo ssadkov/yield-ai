@@ -59,9 +59,9 @@ export function VaultTokensDisplay({ vaultTokens, walletAddress, onVaultDataChan
     return (
       <div className="space-y-2">
         {vaultTokens.map((token, index) => (
-          <div key={`${token.address}-${index}`} className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
+          <div key={`${token.address}-${index}`} className="flex items-center justify-between py-1">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">{getVaultTokenSymbol(token.address)}</span>
+              <span className="text-sm text-muted-foreground">{getVaultTokenSymbol(token.address)}</span>
             </div>
             <div className="text-sm text-muted-foreground">
               Loading...
@@ -76,9 +76,9 @@ export function VaultTokensDisplay({ vaultTokens, walletAddress, onVaultDataChan
     return (
       <div className="space-y-2">
         {vaultTokens.map((token, index) => (
-          <div key={`${token.address}-${index}`} className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
+          <div key={`${token.address}-${index}`} className="flex items-center justify-between py-1">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">{getVaultTokenSymbol(token.address)}</span>
+              <span className="text-sm text-muted-foreground">{getVaultTokenSymbol(token.address)}</span>
             </div>
             <div className="text-sm text-red-500">
               Error
@@ -99,11 +99,11 @@ export function VaultTokensDisplay({ vaultTokens, walletAddress, onVaultDataChan
         const value = vaultInfo ? vaultInfo.totalValueUSD : 0;
         
         return (
-          <div key={`${token.address}-${index}`} className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
+          <div key={`${token.address}-${index}`} className="flex items-center justify-between py-1">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">{vaultSymbol}</span>
+              <span className="text-sm text-muted-foreground">{vaultSymbol}</span>
             </div>
-            <div className="text-sm font-bold">
+            <div className="text-sm font-medium">
               ${value.toFixed(2)}
             </div>
           </div>
