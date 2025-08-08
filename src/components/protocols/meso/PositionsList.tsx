@@ -21,7 +21,7 @@ interface Position {
   balance: string; // raw base units from asset_amounts
   amount: number;  // normalized by token decimals
   usdValue: number; // normalized by 1e16 from asset_values
-  type: 'deposit';
+  type: 'deposit' | 'debt';
   assetInfo: {
     name: string;
     symbol: string;
@@ -117,7 +117,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
     loadPositions();
   }, [walletAddress]);
 
-  // Пересчитываем общую стоимость при изменении позиций
+  // Пересчитываем общую стоимость при изменении позиций (вычитаем borrow)
   useEffect(() => {
     const sum = positions.reduce((acc, p) => acc + (p.type === 'deposit' ? p.usdValue : -p.usdValue), 0);
     setTotalValue(Math.max(0, sum));
@@ -133,8 +133,9 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
     return null;
   }
 
-  // Сортировка по USD-стоимости
+  // Сортировка: сначала депозиты, потом займы по убыванию USD
   const sortedPositions = [...positions].sort((a, b) => {
+    if (a.type !== b.type) return a.type === 'deposit' ? -1 : 1;
     return b.usdValue - a.usdValue;
   });
 
@@ -196,18 +197,26 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
                       <div className="flex flex-col">
                         <div className="flex items-center gap-2">
                           <div className={cn(
-                            "text-sm font-medium"
+                            "text-sm font-medium",
+                            position.type === 'debt' && "text-red-500"
                           )}>{symbol}</div>
+                          {position.type === 'debt' && (
+                            <div className="text-xs px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 border border-red-500/20">
+                              Borrow
+                            </div>
+                          )}
                         </div>
                        <div className="text-xs text-muted-foreground">${amount > 0 ? (value / amount).toFixed(2) : '0.00'}</div>
                       </div>
                     </div>
                     <div className="text-right">
                       <div className={cn(
-                        "text-sm font-medium"
+                        "text-sm font-medium",
+                        position.type === 'debt' && "text-red-500"
                       )}>${value.toFixed(2)}</div>
                       <div className={cn(
-                        "text-xs text-muted-foreground"
+                        "text-xs",
+                        position.type === 'debt' ? "text-red-400" : "text-muted-foreground"
                       )}>{amount.toFixed(4)}</div>
                     </div>
                   </div>

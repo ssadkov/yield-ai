@@ -586,7 +586,6 @@ export async function GET(request: Request) {
         const mesoData = await mesoResponse.json();
         if (mesoData.success && Array.isArray(mesoData.data)) {
           protocols.meso.positions = mesoData.data.map((pos: any) => {
-            // pos.amount already normalized by token decimals, pos.usdValue normalized by 1e16
             const symbol = pos.assetInfo?.symbol || (pos.assetName?.split('::').pop()?.toUpperCase() || 'ASSET');
             const value = typeof pos.usdValue === 'number' ? pos.usdValue : 0;
             const amount = typeof pos.amount === 'number' ? pos.amount : 0;
@@ -600,7 +599,8 @@ export async function GET(request: Request) {
               assetName: pos.assetName
             };
           });
-          protocolsValue += protocols.meso.positions.reduce((sum: number, pos: any) => sum + pos.value, 0);
+          // Subtract debts from total
+          protocolsValue += protocols.meso.positions.reduce((sum: number, pos: any) => sum + (pos.type === 'debt' ? -pos.value : pos.value), 0);
         }
       }
 
