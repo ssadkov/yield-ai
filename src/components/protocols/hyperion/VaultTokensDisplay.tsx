@@ -77,7 +77,7 @@ export function VaultTokensDisplay({ vaultTokens, walletAddress, onVaultDataChan
                     </Avatar>
                   </div>
                 )}
-                <div className="text-sm text-muted-foreground">
+                <div className="text-sm font-medium">
                   {token1?.symbol}/{token2?.symbol}
                 </div>
               </div>
@@ -112,7 +112,7 @@ export function VaultTokensDisplay({ vaultTokens, walletAddress, onVaultDataChan
                     </Avatar>
                   </div>
                 )}
-                <div className="text-sm text-muted-foreground">
+                <div className="text-sm font-medium">
                   {token1?.symbol}/{token2?.symbol}
                 </div>
               </div>
@@ -128,16 +128,26 @@ export function VaultTokensDisplay({ vaultTokens, walletAddress, onVaultDataChan
 
   return (
     <div className="space-y-2">
-      {vaultTokens.map((token, index) => {
-        const vaultMapping = getVaultTokenMapping(token.address);
-        const token1 = vaultMapping?.tokens[0];
-        const token2 = vaultMapping?.tokens[1];
-        
-        // Ищем данные для этого Vault токена
-        const vaultInfo = vaultData.find(data => data.vaultTokenAddress === token.address);
-        const value = vaultInfo ? vaultInfo.totalValueUSD : 0;
-        
-        return (
+      {vaultTokens
+        .map((token, index) => {
+          const vaultMapping = getVaultTokenMapping(token.address);
+          const token1 = vaultMapping?.tokens[0];
+          const token2 = vaultMapping?.tokens[1];
+          
+          // Ищем данные для этого Vault токена
+          const vaultInfo = vaultData.find(data => data.vaultTokenAddress === token.address);
+          const value = vaultInfo ? vaultInfo.totalValueUSD : 0;
+          
+          return {
+            token,
+            index,
+            token1,
+            token2,
+            value
+          };
+        })
+        .sort((a, b) => b.value - a.value) // Сортировка от большего к меньшему
+        .map(({ token, index, token1, token2, value }) => (
           <div key={`${token.address}-${index}`} className="flex items-center justify-between py-1">
             <div className="flex items-center gap-2">
               {token1 && token2 && (
@@ -150,7 +160,7 @@ export function VaultTokensDisplay({ vaultTokens, walletAddress, onVaultDataChan
                   </Avatar>
                 </div>
               )}
-              <div className="text-sm text-muted-foreground">
+              <div className="text-sm font-medium">
                 {token1?.symbol}/{token2?.symbol}
               </div>
             </div>
@@ -158,8 +168,7 @@ export function VaultTokensDisplay({ vaultTokens, walletAddress, onVaultDataChan
               ${value.toFixed(2)}
             </div>
           </div>
-        );
-      })}
+        ))}
     </div>
   );
 }
