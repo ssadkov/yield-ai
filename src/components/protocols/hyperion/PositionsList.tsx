@@ -23,6 +23,7 @@ export function PositionsList({ address, onPositionsValueChange, walletTokens }:
   const { account } = useWallet();
   const [positions, setPositions] = useState<any[]>([]);
   const [vaultTokens, setVaultTokens] = useState<Token[]>([]);
+  const [vaultData, setVaultData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { isExpanded, toggleSection } = useCollapsible();
@@ -91,9 +92,9 @@ export function PositionsList({ address, onPositionsValueChange, walletTokens }:
     return sum + positionValue + farmRewards + feeRewards;
   }, 0);
 
-  // Считаем стоимость Vault токенов
-  const vaultTokensValue = vaultTokens.reduce((sum, token) => {
-    return sum + (token.value ? parseFloat(token.value) : 0);
+  // Считаем стоимость Vault токенов из данных блокчейна
+  const vaultTokensValue = vaultData.reduce((sum, vaultInfo) => {
+    return sum + (vaultInfo.totalValueUSD || 0);
   }, 0);
 
   // Общая стоимость (позиции + Vault токены)
@@ -187,7 +188,11 @@ export function PositionsList({ address, onPositionsValueChange, walletTokens }:
             {vaultTokens.length > 0 && (
               <div className="mt-4 border-t pt-4">
                 <h4 className="text-sm font-medium mb-2 text-muted-foreground">Vault Positions</h4>
-                <VaultTokensDisplay vaultTokens={vaultTokens} />
+                <VaultTokensDisplay 
+                  vaultTokens={vaultTokens} 
+                  walletAddress={walletAddress}
+                  onVaultDataChange={setVaultData}
+                />
               </div>
             )}
             
