@@ -9,21 +9,35 @@ import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import Image from "next/image";
 import { ManagePositionsButton } from "../ManagePositionsButton";
 import { useCollapsible } from "@/contexts/CollapsibleContext";
+import { Token } from "@/lib/types/token";
+import { filterHyperionVaultTokens } from "@/lib/services/hyperion/vaultTokens";
+import { VaultTokensDisplay } from "./VaultTokensDisplay";
 
 interface PositionsListProps {
   address?: string;
   onPositionsValueChange?: (value: number) => void;
+  walletTokens?: Token[]; // Добавляем токены кошелька
 }
 
-export function PositionsList({ address, onPositionsValueChange }: PositionsListProps) {
+export function PositionsList({ address, onPositionsValueChange, walletTokens }: PositionsListProps) {
   const { account } = useWallet();
   const [positions, setPositions] = useState<any[]>([]);
+  const [vaultTokens, setVaultTokens] = useState<Token[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { isExpanded, toggleSection } = useCollapsible();
 
   const walletAddress = address || account?.address?.toString();
   const protocol = getProtocolByName("Hyperion");
+
+  // Обрабатываем Vault токены при получении walletTokens
+  useEffect(() => {
+    if (walletTokens) {
+      const vaultTokensList = filterHyperionVaultTokens(walletTokens);
+      setVaultTokens(vaultTokensList);
+      console.log('[Hyperion PositionsList] Vault tokens found:', vaultTokensList.length);
+    }
+  }, [walletTokens]);
 
   useEffect(() => {
     async function loadPositions() {
@@ -77,6 +91,14 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
     return sum + positionValue + farmRewards + feeRewards;
   }, 0);
 
+  // Считаем стоимость Vault токенов
+  const vaultTokensValue = vaultTokens.reduce((sum, token) => {
+    return sum + (token.value ? parseFloat(token.value) : 0);
+  }, 0);
+
+  // Общая стоимость (позиции + Vault токены)
+  const totalHyperionValue = totalValue + vaultTokensValue;
+
   // Считаем общую стоимость всех позиций и наград
   const totalRewardsValue = positions.reduce((sum, position) => {
   
@@ -95,8 +117,8 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
 
   // Вызываем колбэк при изменении общей суммы позиций
   useEffect(() => {
-    onPositionsValueChange?.(totalValue);
-  }, [totalValue, onPositionsValueChange]);
+    onPositionsValueChange?.(totalHyperionValue);
+  }, [totalHyperionValue, onPositionsValueChange]);
 
   if (loading) {
     return <div className="text-sm text-muted-foreground">Loading positions...</div>;
@@ -110,7 +132,8 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
     return <div className="text-sm text-muted-foreground">Connect wallet to view positions</div>;
   }
 
-  if (positions.length === 0) {
+  // Не показываем секцию, если нет ни позиций, ни Vault токенов
+  if (positions.length === 0 && vaultTokens.length === 0) {
     return null;
   }
 
@@ -143,7 +166,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
             <CardTitle className="text-lg">Hyperion</CardTitle>
           </div>
           <div className="flex items-center gap-2">
-            <div className="text-lg">${totalValue.toFixed(2)}</div>
+            <div className="text-lg">${totalHyperionValue.toFixed(2)}</div>
             <ChevronDown className={cn(
               "h-5 w-5 transition-transform",
               isExpanded('hyperion') ? "transform rotate-0" : "transform -rotate-90"
@@ -155,21 +178,35 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
       {isExpanded('hyperion') && (
         <CardContent className="flex-1 overflow-y-auto px-3 pt-0">
           <ScrollArea className="h-full">
+            {/* Обычные позиции в пулах */}
             {sortedPositions.map((position, index) => (
               <PositionCard key={`${position.assetName}-${index}`} position={position} />
             ))}
-			<div className="flex">
-             <div className="flex items-left">
-			   <div className="text-sm text-muted-foreground text-right pl-3">
-                 {"💰 Total rewards:"}
-               </div>
-			 </div>
-             <div className="flex-2 items-right">
-               <div className="text-sm font-medium text-right">
-                 ${totalRewardsValue.toFixed(2)}
-               </div>
-			 </div>
-            </div>
+            
+            {/* Vault токены как подраздел */}
+            {vaultTokens.length > 0 && (
+              <div className="mt-4 border-t pt-4">
+                <h4 className="text-sm font-medium mb-2 text-muted-foreground">Vault Positions</h4>
+                <VaultTokensDisplay vaultTokens={vaultTokens} />
+              </div>
+            )}
+            
+            {/* Total rewards для обычных позиций */}
+            {totalRewardsValue > 0 && (
+              <div className="flex">
+                <div className="flex items-left">
+                  <div className="text-sm text-muted-foreground text-right pl-3">
+                    {"💰 Total rewards:"}
+                  </div>
+                </div>
+                <div className="flex-2 items-right">
+                  <div className="text-sm font-medium text-right">
+                    ${totalRewardsValue.toFixed(2)}
+                  </div>
+                </div>
+              </div>
+            )}
+            
             {protocol && <ManagePositionsButton protocol={protocol} />}
           </ScrollArea>
         </CardContent>

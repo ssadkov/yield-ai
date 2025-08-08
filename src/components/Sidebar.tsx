@@ -158,6 +158,7 @@ export default function Sidebar() {
                   <Component
                     key={name}
                     address={account.address.toString()}
+                    walletTokens={tokens} // Передаем токены кошелька для проверки Vault токенов
                     onPositionsValueChange={
                       name === 'Hyperion' ? handleHyperionValueChange :
                       name === 'Echelon' ? handleEchelonValueChange :
