@@ -178,7 +178,7 @@ export function MesoPositions({ address, onPositionsValueChange }: MesoPositions
   }
 
   return (
-    <div className="space-y-4 text-base">
+    <div className="text-base">
       <ScrollArea>
         {sortedPositions.map((position, index) => {
           const mapping = getMesoTokenByAddress(position.assetName);
@@ -221,7 +221,7 @@ export function MesoPositions({ address, onPositionsValueChange }: MesoPositions
           );
         })}
       </ScrollArea>
-      <div className="pt-6 pb-2 flex items-center justify-between">
+      <div className="pt-6 flex items-center justify-between">
         <span className="text-xl">Total assets in Meso:</span>
         <span className="text-xl text-primary font-bold">${(totalValue + (rewards?.totalUsd || 0)).toFixed(2)}</span>
       </div>
