@@ -67,6 +67,14 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
   const [quoteDebug, setQuoteDebug] = useState<any>(null);
   const [showSlippage, setShowSlippage] = useState(false);
   
+  // Состояние для отслеживания изменений данных
+  const [lastQuoteData, setLastQuoteData] = useState({
+    fromToken: null as Token | null,
+    toToken: null as Token | null,
+    amount: '',
+    slippage: 0.5
+  });
+  
   // Token selection
   const [fromToken, setFromToken] = useState<Token | null>(null);
   const [toToken, setToToken] = useState<Token | null>(null);
@@ -172,7 +180,16 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
         setToToken(secondToken as Token);
       }
     }
-  }, [availableTokens, availableToTokens, fromToken, toToken]);
+    
+    // Логируем токены при загрузке модала
+    console.log('=== MODAL LOADED - TOKENS IN SELECTORS ===');
+    console.log('Available From Tokens:', availableTokens);
+    console.log('Available To Tokens:', availableToTokens);
+    console.log('All Wallet Tokens:', tokens);
+    console.log('From Token:', fromToken);
+    console.log('To Token:', toToken);
+    console.log('==========================================');
+  }, [availableTokens, availableToTokens, fromToken, toToken, tokens]);
 
   const getQuote = async () => {
     if (!fromToken || !toToken || !amount || parseFloat(amount) <= 0 || !userAddress) {
@@ -225,6 +242,14 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
         path: quoteData.route || quoteData.path || [],
         estimatedFromAmount: humanReadableAmount,
         estimatedToAmount: toTokenAmount,
+      });
+
+      // Сохраняем данные для отслеживания изменений
+      setLastQuoteData({
+        fromToken,
+        toToken,
+        amount,
+        slippage
       });
 
     } catch (error: any) {
@@ -332,6 +357,16 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
             receivedAmount: quoteDebug?.quotes?.[0]?.toTokenAmount || swapQuote.amount,
             receivedSymbol: toToken.symbol,
           });
+          
+          // Сбрасываем quote после успешного выполнения
+          setSwapQuote(null);
+          setQuoteDebug(null);
+          setLastQuoteData({
+            fromToken: null,
+            toToken: null,
+            amount: '',
+            slippage: 0.5
+          });
         } catch (walletError: any) {
           let errorMessage = 'Failed to sign transaction';
           if (walletError.message) {
@@ -384,26 +419,38 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
   // const formatUSD = (num: number | string) => { ... };
 
   // Убираем функцию getTokenPrice - она больше не используется
-  // const getTokenPrice = (token: Token) => {
-  //   // Ищем токен в tokens кошелька по адресу
-  //   const walletToken = tokens.find(t => {
-  //     const tokenAddress = token.faAddress || token.tokenAddress;
-  //     if (!tokenAddress) return false;
-      
-  //     // Clean address for comparison
-  //     let cleanAddress = tokenAddress;
-  //     if (cleanAddress.startsWith('@')) cleanAddress = cleanAddress.slice(1);
-  //     if (!cleanAddress.startsWith('0x')) cleanAddress = `0x${cleanAddress}`;
-      
-  //     return t.address === cleanAddress;
-  //   });
-      
-  //   if (walletToken && walletToken.price) {
-  //     return parseFloat(walletToken.price);
-  //   }
-      
-  //   return 0;
-  // };
+  // const getTokenPrice = (token: Token) => { ... };
+
+  // Проверяем, изменились ли данные с момента получения quote
+  const hasDataChanged = () => {
+    if (!lastQuoteData.fromToken || !lastQuoteData.toToken) return true;
+    
+    return (
+      lastQuoteData.fromToken.faAddress !== fromToken?.faAddress ||
+      lastQuoteData.toToken.faAddress !== toToken?.faAddress ||
+      lastQuoteData.amount !== amount ||
+      lastQuoteData.slippage !== slippage
+    );
+  };
+
+  // Получаем конфигурацию кнопки
+  const getButtonConfig = () => {
+    if (!swapQuote || hasDataChanged()) {
+      return {
+        text: 'Get Quote',
+        action: getQuote,
+        disabled: !fromToken || !toToken || !amount,
+        variant: 'default' as const
+      };
+    }
+    
+    return {
+      text: 'Execute Swap',
+      action: executeSwap,
+      disabled: false,
+      variant: 'default' as const
+    };
+  };
 
   const getTokenBalance = (token: Token) => {
     const balance = findTokenBalance(tokens, token);
@@ -439,6 +486,15 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
 
   const swapTokens = () => {
     if (fromToken && toToken) {
+      // Логируем все токены селекторов для анализа
+      console.log('=== TOKENS IN SELECTORS ===');
+      console.log('From Token:', fromToken);
+      console.log('To Token:', toToken);
+      console.log('Available From Tokens:', availableTokens);
+      console.log('Available To Tokens:', availableToTokens);
+      console.log('All Wallet Tokens:', tokens);
+      console.log('==========================');
+      
       setFromToken(toToken);
       setToToken(fromToken);
       
@@ -453,6 +509,13 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
       setQuoteDebug(null);
       setError(null);
       setSwapResult(null); // Clear swap result when swapping tokens
+      // Сбрасываем данные для отслеживания изменений
+      setLastQuoteData({
+        fromToken: null,
+        toToken: null,
+        amount: '',
+        slippage: 0.5
+      });
     }
   };
 
@@ -502,6 +565,13 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                     setQuoteDebug(null);
                     setError(null);
                     setSwapResult(null); // Clear swap result when changing token
+                    // Сбрасываем данные для отслеживания изменений
+                    setLastQuoteData({
+                      fromToken: null,
+                      toToken: null,
+                      amount: '',
+                      slippage: 0.5
+                    });
                   }
                 }}
               >
@@ -577,6 +647,15 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                     onChange={(e) => {
                       setAmount(e.target.value);
                       setSwapResult(null); // Clear swap result when changing amount
+                      // Сбрасываем quote при изменении количества
+                      setSwapQuote(null);
+                      setQuoteDebug(null);
+                      setLastQuoteData({
+                        fromToken: null,
+                        toToken: null,
+                        amount: '',
+                        slippage: 0.5
+                      });
                     }}
                     className="h-9 text-sm"
                   />
@@ -639,6 +718,13 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                       setQuoteDebug(null);
                       setError(null);
                       setSwapResult(null); // Clear swap result when changing token
+                      // Сбрасываем данные для отслеживания изменений
+                      setLastQuoteData({
+                        fromToken: null,
+                        toToken: null,
+                        amount: '',
+                        slippage: 0.5
+                      });
                     }
                   }}
                 >
@@ -749,6 +835,15 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
               <Select value={slippage.toString()} onValueChange={(value) => {
                 setSlippage(Number(value));
                 setSwapResult(null); // Clear swap result when changing slippage
+                // Сбрасываем quote при изменении slippage
+                setSwapQuote(null);
+                setQuoteDebug(null);
+                setLastQuoteData({
+                  fromToken: null,
+                  toToken: null,
+                  amount: '',
+                  slippage: 0.5
+                });
               }}>
                 <SelectTrigger className="h-9">
                   <SelectValue className="text-sm">{slippage}%</SelectValue>
@@ -857,33 +952,18 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
           {/* Action Buttons */}
           <div className="flex gap-2">
             <Button 
-              onClick={getQuote} 
-              disabled={loading || !fromToken || !toToken || !amount}
+              onClick={getButtonConfig().action}
+              disabled={loading || getButtonConfig().disabled}
+              variant={getButtonConfig().variant}
               className="flex-1"
             >
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Getting Quote...
+                  {getButtonConfig().text === 'Get Quote' ? 'Getting Quote...' : 'Executing...'}
                 </>
               ) : (
-                'Get Quote'
-              )}
-            </Button>
-            
-            <Button 
-              onClick={executeSwap} 
-              disabled={loading || !swapQuote}
-              variant="default"
-              className="flex-1"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Executing...
-                </>
-              ) : (
-                'Execute Swap'
+                getButtonConfig().text
               )}
             </Button>
           </div>
