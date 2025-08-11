@@ -6,6 +6,7 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import Image from "next/image";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ManagePositionsButton } from "../ManagePositionsButton";
 import { useCollapsible } from "@/contexts/CollapsibleContext";
 import tokenList from "@/lib/data/tokenList.json";
@@ -33,6 +34,20 @@ interface Position {
 interface MesoApiResponse {
   success: boolean;
   data: Position[];
+}
+
+interface RewardsApiResponse {
+  success: boolean;
+  rewards: Array<{
+    side: 'supply' | 'borrow';
+    poolInner: string;
+    rewardPoolInner: string;
+    tokenAddress: string;
+    amount: number;
+    symbol: string;
+    usdValue: number;
+  }>;
+  totalUsd: number;
 }
 
 function formatTokenAmount(amount: string, decimals: number): string {
@@ -78,6 +93,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
   const [error, setError] = useState<string | null>(null);
   const { isExpanded, toggleSection } = useCollapsible();
   const [totalValue, setTotalValue] = useState(0);
+  const [rewards, setRewards] = useState<RewardsApiResponse | null>(null);
 
   const walletAddress = address || account?.address?.toString();
   const protocol = getProtocolByName("Meso Finance");
@@ -115,6 +131,27 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
     }
 
     loadPositions();
+  }, [walletAddress]);
+
+  // Загружаем награды для отображения в Sidebar
+  useEffect(() => {
+    const fetchRewards = async () => {
+      if (!walletAddress) {
+        setRewards(null);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/protocols/meso/rewards?address=${walletAddress}`);
+        if (!res.ok) throw new Error(`Rewards API ${res.status}`);
+        const json = (await res.json()) as RewardsApiResponse;
+        if (json?.success) setRewards(json);
+        else setRewards({ success: true, rewards: [], totalUsd: 0 });
+      } catch (e) {
+        console.error('[Meso] Rewards load error:', e);
+        setRewards({ success: true, rewards: [], totalUsd: 0 });
+      }
+    };
+    fetchRewards();
   }, [walletAddress]);
 
   // Пересчитываем общую стоимость при изменении позиций (вычитаем borrow)
@@ -161,7 +198,7 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
             <CardTitle className="text-lg">Meso Finance</CardTitle>
           </div>
           <div className="flex items-center gap-2">
-            <div className="text-lg">${totalValue.toFixed(2)}</div>
+            <div className="text-lg">${(totalValue + (rewards?.totalUsd || 0)).toFixed(2)}</div>
             <ChevronDown className={cn(
               "h-5 w-5 transition-transform",
               isExpanded('meso') ? "transform rotate-0" : "transform -rotate-90"
@@ -223,6 +260,32 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
                 </div>
               );
             })}
+
+            {/* 💰 Total rewards */}
+            {rewards && rewards.rewards && rewards.rewards.length > 0 && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center justify-between pt-2 border-t border-gray-200 cursor-help">
+                      <span className="text-sm text-muted-foreground">💰 Total rewards:</span>
+                      <span className="text-sm font-medium">${rewards.totalUsd.toFixed(2)}</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <div className="space-y-1">
+                      <div className="font-medium">Rewards</div>
+                      {rewards.rewards
+                        .sort((a, b) => b.usdValue - a.usdValue)
+                        .map((r, idx) => (
+                          <div key={idx} className="text-xs">
+                            {r.symbol}: {r.amount.toFixed(6)} (${r.usdValue.toFixed(2)})
+                          </div>
+                        ))}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
             {protocol && <ManagePositionsButton protocol={protocol} />}
           </ScrollArea>
         </CardContent>
