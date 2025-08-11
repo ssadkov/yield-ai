@@ -460,26 +460,21 @@ export const useWalletStore = create<WalletState>()(
             
             const newPrices: TokenPrices = { ...state.prices };
             
-            // Handle different response formats
-            let tokensArray: any[] = [];
-            if (pricesData && typeof pricesData === 'object') {
-              if (Array.isArray(pricesData)) {
-                tokensArray = pricesData;
-              } else if (pricesData.data && Array.isArray(pricesData.data)) {
-                tokensArray = pricesData.data;
+                    // Handle Panora API response format
+        if (pricesData && typeof pricesData === 'object') {
+          // Panora API returns prices as a map of address -> price
+          if (pricesData.data && typeof pricesData.data === 'object') {
+            const fetchedPrices = pricesData.data;
+            
+            for (const address in fetchedPrices) {
+              const price = fetchedPrices[address];
+              
+              if (address && price !== undefined && price !== null) {
+                newPrices[address] = price;
               }
             }
-            
-            if (tokensArray.length > 0) {
-              tokensArray.forEach((token: any) => {
-                const address = token.tokenAddress || token.faAddress;
-                const price = token.usdPrice;
-                
-                if (address && price) {
-                                     newPrices[address] = price;
-                }
-              });
-            }
+          }
+        }
             
             set({
               prices: newPrices,

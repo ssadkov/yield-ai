@@ -27,7 +27,8 @@ import { useTransactionSubmitter } from '@/lib/hooks/useTransactionSubmitter';
 import { Token } from '@/lib/types/panora';
 import tokenList from '@/lib/data/tokenList.json';
 import { getProtocolsList } from '@/lib/protocols/getProtocolsList';
-import { useWalletStore } from '@/lib/stores/walletStore';
+// Убираем useWalletStore - используем готовые цены из tokens
+// import { useWalletStore } from '@/lib/stores/walletStore';
 
 interface SwapQuote {
   amount: string;
@@ -52,7 +53,13 @@ interface SwapModalProps {
 export function SwapModal({ isOpen, onClose }: SwapModalProps) {
   const { tokens, address: userAddress } = useWalletData();
   const { submitTransaction, isConnected } = useTransactionSubmitter();
-  const { prices, fetchPrices } = useWalletStore();
+  
+  // Убираем fetchPrices - используем готовые цены из tokens
+  // const { prices, fetchPrices } = useWalletStore();
+  
+  // Используем готовые цены из tokens кошелька - не нужно логировать
+  // console.log('[SwapModal] Current tokens with prices:', tokens);
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [swapQuote, setSwapQuote] = useState<SwapQuote | null>(null);
@@ -148,39 +155,6 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
     return found?.amount || '0';
   }
 
-  // Load prices when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      const tokenAddresses = new Set<string>();
-      
-      // Collect all token addresses from available tokens (user tokens)
-      availableTokens.forEach(token => {
-        if (token.tokenInfo?.faAddress) tokenAddresses.add(token.tokenInfo.faAddress);
-        if (token.tokenInfo?.tokenAddress) tokenAddresses.add(token.tokenInfo.tokenAddress);
-      });
-      
-      // Collect all token addresses from availableToTokens
-      availableToTokens.forEach(token => {
-        if (hasTokenInfo(token)) {
-          // User tokens with tokenInfo
-          if (token.tokenInfo?.faAddress) tokenAddresses.add(token.tokenInfo.faAddress);
-          if (token.tokenInfo?.tokenAddress) tokenAddresses.add(token.tokenInfo.tokenAddress);
-        } else {
-          // Popular tokens (direct Token objects)
-          const tokenData = token as Token;
-          if (tokenData.faAddress) tokenAddresses.add(tokenData.faAddress);
-          if (tokenData.tokenAddress) tokenAddresses.add(tokenData.tokenAddress);
-        }
-      });
-      
-      // One request for all tokens
-      if (tokenAddresses.size > 0) {
-        console.log('[SwapModal] Loading prices for tokens:', Array.from(tokenAddresses));
-        fetchPrices(Array.from(tokenAddresses));
-      }
-    }
-  }, [isOpen, availableTokens, availableToTokens]);
-
   // Set default tokens on load
   useEffect(() => {
     if (availableTokens.length > 0 && !fromToken) {
@@ -212,41 +186,8 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
     setQuoteDebug(null);
     setSwapResult(null); // Clear previous swap result
 
-    // Загружаем свежие цены для выбранных токенов перед получением котировки
-    try {
-      const tokenAddresses = [fromToken.faAddress || fromToken.tokenAddress, toToken.faAddress || toToken.tokenAddress]
-        .filter((addr): addr is string => addr !== null);
-      
-      // Получаем свежие цены через API Panora
-      const pricesResponse = await fetch(`/api/panora/tokenPrices?chainId=1&tokenAddress=${tokenAddresses.join(',')}`);
-      if (pricesResponse.ok) {
-        const pricesData = await pricesResponse.json();
-        console.log('Loaded fresh prices for swap tokens:', pricesData);
-        
-        // Обновляем цены в токенах
-        if (pricesData.data?.data) {
-          const freshPrices = pricesData.data.data;
-          
-          // Обновляем цену fromToken
-          const fromTokenPrice = freshPrices.find((p: any) => 
-            p.tokenAddress === fromToken.tokenAddress || p.faAddress === fromToken.faAddress
-          );
-          if (fromTokenPrice) {
-            setFromToken(prev => prev ? { ...prev, usdPrice: fromTokenPrice.usdPrice } : null);
-          }
-          
-          // Обновляем цену toToken
-          const toTokenPrice = freshPrices.find((p: any) => 
-            p.tokenAddress === toToken.tokenAddress || p.faAddress === toToken.faAddress
-          );
-          if (toTokenPrice) {
-            setToToken(prev => prev ? { ...prev, usdPrice: toTokenPrice.usdPrice } : null);
-          }
-        }
-      }
-    } catch (priceError) {
-      console.warn('Failed to refresh prices, continuing with current prices:', priceError);
-    }
+    // Используем готовые цены из tokens кошелька - не нужно загружать свежие цены
+    // Цены уже актуальные и загружены при открытии приложения
 
     try {
       const humanReadableAmount = amount;
@@ -439,26 +380,30 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
     return Number(num).toLocaleString('en-US', { maximumFractionDigits: 2 });
   };
 
-  const formatUSD = (num: number | string) => {
-    return Number(num).toLocaleString('en-US', { 
-      style: 'currency', 
-      currency: 'USD',
-      maximumFractionDigits: 2 
-    });
-  };
+  // Убираем formatUSD - он больше не используется
+  // const formatUSD = (num: number | string) => { ... };
 
-  // Get token price from cache
-  const getTokenPrice = (token: Token) => {
-    const address = token.faAddress || token.tokenAddress;
-    if (!address) return 0;
-    
-    // Clean address for cache lookup
-    let cleanAddress = address;
-    if (cleanAddress.startsWith('@')) cleanAddress = cleanAddress.slice(1);
-    if (!cleanAddress.startsWith('0x')) cleanAddress = `0x${cleanAddress}`;
-    
-    return prices[cleanAddress] || 0;
-  };
+  // Убираем функцию getTokenPrice - она больше не используется
+  // const getTokenPrice = (token: Token) => {
+  //   // Ищем токен в tokens кошелька по адресу
+  //   const walletToken = tokens.find(t => {
+  //     const tokenAddress = token.faAddress || token.tokenAddress;
+  //     if (!tokenAddress) return false;
+      
+  //     // Clean address for comparison
+  //     let cleanAddress = tokenAddress;
+  //     if (cleanAddress.startsWith('@')) cleanAddress = cleanAddress.slice(1);
+  //     if (!cleanAddress.startsWith('0x')) cleanAddress = `0x${cleanAddress}`;
+      
+  //     return t.address === cleanAddress;
+  //   });
+      
+  //   if (walletToken && walletToken.price) {
+  //     return parseFloat(walletToken.price);
+  //   }
+      
+  //   return 0;
+  // };
 
   const getTokenBalance = (token: Token) => {
     const balance = findTokenBalance(tokens, token);
@@ -603,9 +548,7 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                             </div>
                             <div className="text-xs text-muted-foreground">
                               {formatNumber(balance.balance)} {tokenInfo.symbol}
-                              {Number(getTokenPrice(tokenInfo)) > 0 && (
-                                <span className="ml-1">(${formatUSD(getTokenPrice(tokenInfo))})</span>
-                              )}
+                              {/* Убираем отображение цены */}
                             </div>
                           </div>
                         </SelectItem>
@@ -616,36 +559,30 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
               </Select>
               
                              {fromToken && (
-                 <div className="text-xs text-muted-foreground">
-                   Balance: {formatNumber(getTokenBalance(fromToken).balance)} {fromToken.symbol}
-                   {Number(getTokenPrice(fromToken)) > 0 && (
-                     <span className="ml-1">(${formatUSD(getTokenBalance(fromToken).balance * Number(getTokenPrice(fromToken)))})</span>
-                   )}
-                 </div>
-               )}
+                  <div className="text-xs text-muted-foreground">
+                    Balance: {formatNumber(getTokenBalance(fromToken).balance)} {fromToken.symbol}
+                    {/* Убираем отображение USD стоимости */}
+                  </div>
+                )}
             </div>
 
             {/* Amount Input */}
             <div className="space-y-1">
               <Label className="text-xs">Amount</Label>
               <div className="space-y-1">
-                                 <Input
-                   type="number"
-                   placeholder="0.0"
-                   value={amount}
-                   onChange={(e) => {
-                     setAmount(e.target.value);
-                     setSwapResult(null); // Clear swap result when changing amount
-                   }}
-                   className="h-9 text-sm"
-                 />
-                 
-                 {fromToken && amount && Number(getTokenPrice(fromToken)) > 0 && (
-                   <div className="text-xs text-muted-foreground text-left">
-                     {formatUSD(parseFloat(amount) * Number(getTokenPrice(fromToken)))}
-                   </div>
-                 )}
-               </div>
+                  <Input
+                    type="number"
+                    placeholder="0.0"
+                    value={amount}
+                    onChange={(e) => {
+                      setAmount(e.target.value);
+                      setSwapResult(null); // Clear swap result when changing amount
+                    }}
+                    className="h-9 text-sm"
+                  />
+                  
+                  {/* Убираем отображение USD стоимости */}
+                </div>
               {fromToken && (
                 <div className="flex gap-1">
                   <Button 
@@ -750,9 +687,7 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                                   </div>
                                   <div className="text-xs text-muted-foreground">
                                     {formatNumber(balance.balance)} {tokenInfo.symbol}
-                                    {Number(getTokenPrice(tokenInfo)) > 0 && (
-                                      <span className="ml-1">(${formatUSD(getTokenPrice(tokenInfo))})</span>
-                                    )}
+                                    {/* Убираем отображение цены */}
                                   </div>
                                 </div>
                               </SelectItem>
@@ -778,11 +713,7 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                                     className="rounded-full"
                                   />
                                   <span className="text-sm">{tokenData.symbol}</span>
-                                  {Number(getTokenPrice(tokenData)) > 0 && (
-                                    <span className="text-xs text-muted-foreground ml-1">
-                                      (${formatUSD(getTokenPrice(tokenData))})
-                                    </span>
-                                  )}
+                                  {/* Убираем отображение цены */}
                                 </div>
                               </SelectItem>
                             );
@@ -803,7 +734,7 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                   </div>
                   {quoteDebug?.quotes?.[0]?.toTokenAmountUSD && parseFloat(quoteDebug.quotes[0].toTokenAmountUSD) > 0 && (
                     <div className="text-xs text-muted-foreground">
-                      {formatUSD(parseFloat(quoteDebug.quotes[0].toTokenAmountUSD))}
+                      ${formatNumber(parseFloat(quoteDebug.quotes[0].toTokenAmountUSD))}
                     </div>
                   )}
                 </div>

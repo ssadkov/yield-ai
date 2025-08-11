@@ -61,7 +61,6 @@ export async function GET(request: Request) {
     }
 
     // Получаем позиции через локальный SDK
-    console.log("📡 Calling Hyperion SDK...");
     const positions = await sdk.Position.fetchAllPositionsByAddress({
       address: address
     });
