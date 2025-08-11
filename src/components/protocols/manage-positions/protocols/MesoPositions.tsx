@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { getMesoTokenByAddress } from "@/lib/protocols/meso/tokens";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface MesoPositionsProps {
   address?: string;
@@ -38,6 +39,20 @@ interface Position {
 interface MesoApiResponse {
   success: boolean;
   data: Position[];
+}
+
+interface RewardsApiResponse {
+  success: boolean;
+  rewards: Array<{
+    side: 'supply' | 'borrow';
+    poolInner: string;
+    rewardPoolInner: string;
+    tokenAddress: string;
+    amount: number;
+    symbol: string;
+    usdValue: number;
+  }>;
+  totalUsd: number;
 }
 
 function formatTokenAmount(amount: string, decimals: number): string {
@@ -72,6 +87,7 @@ export function MesoPositions({ address, onPositionsValueChange }: MesoPositions
   const [error, setError] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(true);
   const [totalValue, setTotalValue] = useState(0);
+  const [rewards, setRewards] = useState<RewardsApiResponse | null>(null);
   
 
   const walletAddress = address || account?.address?.toString();
@@ -110,6 +126,27 @@ export function MesoPositions({ address, onPositionsValueChange }: MesoPositions
     }
 
     loadPositions();
+  }, [walletAddress]);
+
+  // Load rewards for summary
+  useEffect(() => {
+    const loadRewards = async () => {
+      if (!walletAddress) {
+        setRewards(null);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/protocols/meso/rewards?address=${walletAddress}`);
+        if (!res.ok) throw new Error(`Rewards API ${res.status}`);
+        const json = (await res.json()) as RewardsApiResponse;
+        if (json?.success) setRewards(json);
+        else setRewards({ success: true, rewards: [], totalUsd: 0 });
+      } catch (e) {
+        console.error('[Meso Managing] Rewards load error:', e);
+        setRewards({ success: true, rewards: [], totalUsd: 0 });
+      }
+    };
+    loadRewards();
   }, [walletAddress]);
 
   // Сортировка по USD-стоимости
@@ -184,10 +221,36 @@ export function MesoPositions({ address, onPositionsValueChange }: MesoPositions
           );
         })}
       </ScrollArea>
-      <div className="flex items-center justify-between pt-6 pb-6">
+      <div className="pt-6 pb-2 flex items-center justify-between">
         <span className="text-xl">Total assets in Meso:</span>
-        <span className="text-xl text-primary font-bold">${totalValue.toFixed(2)}</span>
+        <span className="text-xl text-primary font-bold">${(totalValue + (rewards?.totalUsd || 0)).toFixed(2)}</span>
       </div>
+      {rewards && rewards.rewards && rewards.rewards.length > 0 && (
+        <div className="text-right">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-sm text-muted-foreground inline-flex items-center gap-1 cursor-help">
+                  <span>💰</span>
+                  <span>including rewards {(rewards.totalUsd || 0).toFixed(2)}</span>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="space-y-1">
+                  <div className="font-medium">Rewards</div>
+                  {rewards.rewards
+                    .sort((a, b) => b.usdValue - a.usdValue)
+                    .map((r, idx) => (
+                      <div key={idx} className="text-xs">
+                        {r.symbol}: {r.amount.toFixed(6)} (${r.usdValue.toFixed(2)})
+                      </div>
+                    ))}
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      )}
     </div>
   );
 } 
