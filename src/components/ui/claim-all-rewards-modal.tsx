@@ -7,6 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
 import { useToast } from '@/components/ui/use-toast';
 import { CheckCircle, AlertCircle, Loader2, Gift } from 'lucide-react';
+import { isUserRejectedError } from '@/lib/utils/errors';
 import { ClaimableRewardsSummary } from '@/lib/stores/walletStore';
 import { useClaimRewards } from '@/lib/hooks/useClaimRewards';
 import { useWalletStore } from '@/lib/stores/walletStore';
@@ -47,19 +48,7 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
   const [claimedValue, setClaimedValue] = useState(0);
 
   // Helper: detect user rejected errors from different wallets
-  const isUserRejected = (err: any): boolean => {
-    if (!err) return false;
-    const code = (err as any).code;
-    const name = (err as any).name || '';
-    const message = ((err as any).message || '').toString().toLowerCase();
-    return (
-      code === 4001 ||
-      name.toLowerCase().includes('userrejected') ||
-      message.includes('user rejected') ||
-      message.includes('rejected by user') ||
-      message.includes('request rejected')
-    );
-  };
+  const isUserRejected = isUserRejectedError;
 
   // Get protocols with rewards
   const protocolsWithRewards = summary?.protocols ? 

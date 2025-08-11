@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
+import { isUserRejectedError } from '@/lib/utils/errors';
 
 // Add Aptos wallet types
 declare global {
@@ -416,7 +417,7 @@ export default function TestPanoraPage() {
             errorMessage = walletError.message;
           } else if (walletError.name === 'PetraApiError') {
             errorMessage = 'Petra wallet error. Please check your wallet connection and try again.';
-          } else if (walletError.code === 'USER_REJECTED') {
+          } else if (isUserRejectedError(walletError)) {
             errorMessage = 'Transaction was rejected by user.';
           } else if (walletError.code === 'WALLET_NOT_CONNECTED') {
             errorMessage = 'Wallet not connected. Please connect your wallet first.';

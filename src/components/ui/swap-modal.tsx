@@ -24,6 +24,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useWalletData } from '@/contexts/WalletContext';
 import { useTransactionSubmitter } from '@/lib/hooks/useTransactionSubmitter';
+import { isUserRejectedError } from '@/lib/utils/errors';
 import { Token } from '@/lib/types/panora';
 import tokenList from '@/lib/data/tokenList.json';
 import { getProtocolsList } from '@/lib/protocols/getProtocolsList';
@@ -373,7 +374,7 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
             errorMessage = walletError.message;
           } else if (walletError.name === 'PetraApiError') {
             errorMessage = 'Petra wallet error. Please check your wallet connection and try again.';
-          } else if (walletError.code === 'USER_REJECTED') {
+          } else if (isUserRejectedError(walletError)) {
             errorMessage = 'Transaction was rejected by user.';
           } else if (walletError.code === 'WALLET_NOT_CONNECTED') {
             errorMessage = 'Wallet not connected. Please connect your wallet first.';
