@@ -87,6 +87,7 @@ export function MesoPositions({ address, onPositionsValueChange }: MesoPositions
   const [error, setError] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(true);
   const [totalValue, setTotalValue] = useState(0);
+  const [isClaiming, setIsClaiming] = useState(false);
   const [rewards, setRewards] = useState<RewardsApiResponse | null>(null);
   
 
@@ -127,6 +128,78 @@ export function MesoPositions({ address, onPositionsValueChange }: MesoPositions
 
     loadPositions();
   }, [walletAddress]);
+
+  // Expose a refresh helper for claim post-processing
+  const refreshData = async () => {
+    try {
+      // reload positions
+      if (walletAddress) {
+        const response = await fetch(`/api/protocols/meso/userPositions?address=${walletAddress}`);
+        if (response.ok) {
+          const data = await response.json() as MesoApiResponse;
+          if (data.success && Array.isArray(data.data)) {
+            setPositions(data.data);
+          }
+        }
+        // reload rewards
+        const res = await fetch(`/api/protocols/meso/rewards?address=${walletAddress}`);
+        if (res.ok) {
+          const json = await res.json() as RewardsApiResponse;
+          if (json?.success) setRewards(json);
+        }
+      }
+    } catch (e) {
+      // ignore refresh errors
+    }
+  };
+
+  const handleClaimAll = async () => {
+    if (!signAndSubmitTransaction || !account?.address) return;
+    try {
+      setIsClaiming(true);
+      const functionAddress = '0x68476f9d437e3f32fd262ba898b5e3ee0a23a1d586a6cf29a28add35f253f6f7';
+      const tokens = [
+        "0x1::aptos_coin::AptosCoin",
+        "0x357b0b74bc833e95a115ad22604854d6b0fca151cecd94111770e5d6ffc9dc2b",
+        "0x111ae3e5bc816a5e63c2da97d0aa3886519e0cd5e4b046659fa35796bd11542a::stapt_token::StakedApt",
+        "0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b",
+        "0x111ae3e5bc816a5e63c2da97d0aa3886519e0cd5e4b046659fa35796bd11542a::amapt_token::AmnisApt",
+        "0xf22bede237a07e121b56d91a491eb7bcdfd1f5907926a9e58338f964a01b17fa::asset::WBTC",
+        "0xfaf4e633ae9eb31366c9ca24214231760926576c7b625313b3688b5e900731f6::staking::StakedThalaAPT",
+        "0xb36527754eb54d7ff55daf13bcb54b42b88ec484bd6f0e3b2e0d1db169de6451",
+        "0xf22bede237a07e121b56d91a491eb7bcdfd1f5907926a9e58338f964a01b17fa::asset::USDT",
+        "0xf22bede237a07e121b56d91a491eb7bcdfd1f5907926a9e58338f964a01b17fa::asset::USDC",
+        "0xf22bede237a07e121b56d91a491eb7bcdfd1f5907926a9e58338f964a01b17fa::asset::WETH",
+        "0x68844a0d7f2587e726ad0579f3d640865bb4162c08a4589eeda3f9689ec52a3d",
+        "0x5e156f1207d0ebfa19a9eeff00d62a282278fb8719f4fab3a586a0a2c0fffbea::coin::T",
+        "0x2ebb2ccac5e027a87fa0e2e5f656a3a4238d6a48d93ec9b610d570fc0aa0df12",
+        "0xada35ada7e43e2ee1c39633ffccec38b76ce702b4efc2e60b50f63fbe4f710d8::apetos_token::ApetosCoin",
+        "0x159df6b7689437016108a019fd5bef736bac692b6d4a1f10c941f6fbb9a74ca6::oft::CakeOFT",
+        "0x63be1898a424616367e19bbd881f456a78470e123e2770b5b5dcdceb61279c54::movegpt_token::MovegptCoin",
+        "0xaef6a8c3182e076db72d64324617114cacf9a52f28325edc10b483f7f05da0e7"
+      ];
+      const payload = {
+        function: `${functionAddress}::meso::claim_all_apt_rewards` as `${string}::${string}::${string}`,
+        typeArguments: [] as string[],
+        functionArguments: [tokens] as any[]
+      } as const;
+
+      const tx = await signAndSubmitTransaction({ data: payload });
+      toast({
+        title: 'Claim submitted',
+        description: `Transaction ${tx.hash.slice(0, 6)}...${tx.hash.slice(-4)}`,
+      });
+      // Refresh state after short delay
+      setTimeout(() => {
+        refreshData();
+      }, 1500);
+    } catch (e) {
+      console.error('[Meso Managing] Claim all error:', e);
+      toast({ title: 'Error', description: 'Failed to claim rewards', variant: 'destructive' });
+    } finally {
+      setIsClaiming(false);
+    }
+  };
 
   // Load rewards for summary
   useEffect(() => {
@@ -249,6 +322,15 @@ export function MesoPositions({ address, onPositionsValueChange }: MesoPositions
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
+          <div className="mt-2">
+            <button
+              className="px-3 py-1 bg-green-600 text-white rounded text-sm font-semibold disabled:opacity-60"
+              onClick={handleClaimAll}
+              disabled={isClaiming}
+            >
+              {isClaiming ? 'Claiming…' : 'Claim all rewards'}
+            </button>
+          </div>
         </div>
       )}
     </div>
