@@ -80,7 +80,7 @@ export const useHyperionData = (address?: string) => {
         fetchPrices(Array.from(tokenAddresses), true); // Force refresh
       }
     }
-  }, [positions, fetchPrices]);
+  }, [positions]); // Убрали fetchPrices из зависимостей
 
   // Manual refresh function
   const refreshData = useCallback(async () => {
@@ -126,7 +126,7 @@ export const useHyperionData = (address?: string) => {
         await fetchPrices(Array.from(tokenAddresses), true); // Force refresh
       }
     }
-  }, [address, fetchPositions, fetchPools, fetchPrices, positions]);
+  }, [address, positions]); // Убрали fetchPositions, fetchPools, fetchPrices из зависимостей
 
   // Computed values
   const isLoading = positionsLoading || poolsLoading || pricesLoading;

@@ -43,28 +43,28 @@ export const useWalletData = (address?: string) => {
   // Set address when it changes
   useEffect(() => {
     setAddress(address || null);
-  }, [address, setAddress]);
+  }, [address]); // Убрали setAddress из зависимостей
 
   // Auto-fetch balance when address changes
   useEffect(() => {
     if (address) {
       fetchBalance(address);
     }
-  }, [address, fetchBalance]);
+  }, [address]); // Убрали fetchBalance из зависимостей
 
   // Auto-fetch positions when address changes
   useEffect(() => {
     if (address) {
       fetchPositions(address);
     }
-  }, [address, fetchPositions]);
+  }, [address]); // Убрали fetchPositions из зависимостей
 
   // Auto-fetch rewards when address changes
   useEffect(() => {
     if (address) {
       fetchRewards(address);
     }
-  }, [address, fetchRewards]);
+  }, [address]); // Убрали fetchRewards из зависимостей
 
   // Auto-fetch prices when positions are available
   useEffect(() => {
@@ -95,7 +95,7 @@ export const useWalletData = (address?: string) => {
         fetchPrices(Array.from(tokenAddresses));
       }
     }
-  }, [positions, fetchPrices]);
+  }, [positions]); // Убрали fetchPrices из зависимостей
 
   // Computed values
   const isLoading = useMemo(() => {
@@ -108,26 +108,26 @@ export const useWalletData = (address?: string) => {
 
   const totalValue = useMemo(() => {
     return getTotalValue();
-  }, [getTotalValue]);
+  }, []); // Убрали getTotalValue из зависимостей
 
   // Refresh functions
   const refreshBalance = useCallback(() => {
     if (address) {
       fetchBalance(address, true);
     }
-  }, [address, fetchBalance]);
+  }, [address]); // Убрали fetchBalance из зависимостей
 
   const refreshPositions = useCallback(() => {
     if (address) {
       fetchPositions(address, undefined, true);
     }
-  }, [address, fetchPositions]);
+  }, [address]); // Убрали fetchPositions из зависимостей
 
   const refreshRewards = useCallback(() => {
     if (address) {
       fetchRewards(address, undefined, true);
     }
-  }, [address, fetchRewards]);
+  }, [address]); // Убрали fetchRewards из зависимостей
 
   const refreshPrices = useCallback((tokenAddresses?: string[]) => {
     if (tokenAddresses) {
@@ -147,7 +147,7 @@ export const useWalletData = (address?: string) => {
         fetchPrices(Array.from(allTokenAddresses), true);
       }
     }
-  }, [positions, fetchPrices]);
+  }, [positions]); // Убрали fetchPrices из зависимостей
 
   const refreshAll = useCallback(() => {
     if (address) {
@@ -156,7 +156,7 @@ export const useWalletData = (address?: string) => {
       fetchRewards(address, undefined, true);
       refreshPrices();
     }
-  }, [address, fetchBalance, fetchPositions, fetchRewards, refreshPrices]);
+  }, [address, fetchBalance, fetchPositions, fetchRewards]); // Убрали refreshPrices из зависимостей
 
   return {
     // Data

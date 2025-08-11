@@ -77,7 +77,7 @@ export const useAuroData = (address?: string) => {
         fetchPrices(Array.from(tokenAddresses));
       }
     }
-  }, [positions, fetchPrices]);
+  }, [positions]); // Убрали fetchPrices из зависимостей
 
   // Manual refresh function
   const refreshData = useCallback(async () => {
@@ -112,7 +112,7 @@ export const useAuroData = (address?: string) => {
         await fetchPrices(Array.from(tokenAddresses), true); // Force refresh
       }
     }
-  }, [address, fetchPositions, fetchPools, fetchRewards, fetchPrices, positions]);
+  }, [address, positions]); // Убрали fetchPositions, fetchPools, fetchRewards, fetchPrices из зависимостей
 
   // Check if any data is loading
   const isLoading = positionsLoading || rewardsLoading || poolsLoading || pricesLoading;
