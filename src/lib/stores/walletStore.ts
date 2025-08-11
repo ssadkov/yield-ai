@@ -26,6 +26,7 @@ export interface ClaimableRewardsSummary {
     echelon: { value: number; count: number };
     auro: { value: number; count: number };
     hyperion: { value: number; count: number };
+    meso: { value: number; count: number };
   };
 }
 
@@ -245,7 +246,7 @@ export const useWalletStore = create<WalletState>()(
             console.log('[WalletStore] Fetching rewards for address:', address);
             
             // Define protocols to fetch if not specified
-            const protocolsToFetch = protocols || ['echelon', 'auro', 'hyperion'];
+            const protocolsToFetch = protocols || ['echelon', 'auro', 'hyperion', 'meso'];
             const newRewards: ProtocolRewards = { ...state.rewards };
             
             // Fetch rewards for each protocol
@@ -270,6 +271,19 @@ export const useWalletStore = create<WalletState>()(
                     console.log(`[WalletStore] ${protocol} rewards extracted from positions:`, rewards.length);
                   } else {
                     console.warn(`[WalletStore] Failed to fetch ${protocol} positions:`, response.status);
+                    newRewards[protocol] = [];
+                  }
+                } else if (protocol === 'meso') {
+                  // Meso rewards via dedicated API
+                  const response = await fetch(`/api/protocols/meso/rewards?address=${encodeURIComponent(address)}`);
+                  
+                  if (response.ok) {
+                    const data = await response.json();
+                    // Store as flat array of rewards
+                    newRewards[protocol] = (data?.rewards && Array.isArray(data.rewards)) ? data.rewards : [];
+                    console.log(`[WalletStore] ${protocol} rewards fetched:`, (newRewards[protocol] as any[]).length);
+                  } else {
+                    console.warn(`[WalletStore] Failed to fetch ${protocol} rewards:`, response.status);
                     newRewards[protocol] = [];
                   }
                 } else {
@@ -547,7 +561,8 @@ export const useWalletStore = create<WalletState>()(
             protocols: {
               echelon: { value: 0, count: 0 },
               auro: { value: 0, count: 0 },
-              hyperion: { value: 0, count: 0 }
+              hyperion: { value: 0, count: 0 },
+              meso: { value: 0, count: 0 }
             }
           };
           
@@ -731,6 +746,24 @@ export const useWalletStore = create<WalletState>()(
               summary.protocols.hyperion.count = 1; // Conservative estimate
             }
           }
+        }
+        
+        // Process Meso rewards (array from API; already in USD per item)
+        const mesoRewards = (state.rewards.meso as any[]) || [];
+        if (Array.isArray(mesoRewards) && mesoRewards.length > 0) {
+          let mesoTotal = 0;
+          mesoRewards.forEach((r: any) => {
+            const usd = typeof r.usdValue === 'number' ? r.usdValue : 0;
+            const amt = typeof r.amount === 'number' ? r.amount : 0;
+            // Count rewards by token amount > 0 to include sub-cent USD values
+            if (amt > 0) {
+              summary.protocols.meso.count += 1;
+            }
+            if (usd > 0) {
+              mesoTotal += usd;
+            }
+          });
+          summary.protocols.meso.value = mesoTotal;
         }
           
                      // Calculate total value

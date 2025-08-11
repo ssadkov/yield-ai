@@ -103,6 +103,10 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
             console.log('[ClaimAll] Using Echelon special handling');
             await handleEchelonClaim();
             console.log('[ClaimAll] Echelon handling completed');
+          } else if (protocol === 'meso') {
+            // Special handling for Meso - single tx claim_all_apt_rewards
+            console.log('[ClaimAll] Using Meso special handling');
+            await handleMesoClaim();
           } else {
             // Standard claim for other protocols
             console.log('[ClaimAll] Using standard claim for:', protocol);
@@ -171,6 +175,60 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
       setCurrentProtocol('');
       setCurrentStep('');
     }
+  };
+
+  // Special handling for Meso - single call claim_all_apt_rewards
+  const handleMesoClaim = async () => {
+    if (!signAndSubmitTransaction || !account?.address) {
+      throw new Error('Wallet not connected');
+    }
+
+    const functionAddress = '0x68476f9d437e3f32fd262ba898b5e3ee0a23a1d586a6cf29a28add35f253f6f7';
+    const tokens = [
+      "0x1::aptos_coin::AptosCoin",
+      "0x357b0b74bc833e95a115ad22604854d6b0fca151cecd94111770e5d6ffc9dc2b",
+      "0x111ae3e5bc816a5e63c2da97d0aa3886519e0cd5e4b046659fa35796bd11542a::stapt_token::StakedApt",
+      "0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b",
+      "0x111ae3e5bc816a5e63c2da97d0aa3886519e0cd5e4b046659fa35796bd11542a::amapt_token::AmnisApt",
+      "0xf22bede237a07e121b56d91a491eb7bcdfd1f5907926a9e58338f964a01b17fa::asset::WBTC",
+      "0xfaf4e633ae9eb31366c9ca24214231760926576c7b625313b3688b5e900731f6::staking::StakedThalaAPT",
+      "0xb36527754eb54d7ff55daf13bcb54b42b88ec484bd6f0e3b2e0d1db169de6451",
+      "0xf22bede237a07e121b56d91a491eb7bcdfd1f5907926a9e58338f964a01b17fa::asset::USDT",
+      "0xf22bede237a07e121b56d91a491eb7bcdfd1f5907926a9e58338f964a01b17fa::asset::USDC",
+      "0xf22bede237a07e121b56d91a491eb7bcdfd1f5907926a9e58338f964a01b17fa::asset::WETH",
+      "0x68844a0d7f2587e726ad0579f3d640865bb4162c08a4589eeda3f9689ec52a3d",
+      "0x5e156f1207d0ebfa19a9eeff00d62a282278fb8719f4fab3a586a0a2c0fffbea::coin::T",
+      "0x2ebb2ccac5e027a87fa0e2e5f656a3a4238d6a48d93ec9b610d570fc0aa0df12",
+      "0xada35ada7e43e2ee1c39633ffccec38b76ce702b4efc2e60b50f63fbe4f710d8::apetos_token::ApetosCoin",
+      "0x159df6b7689437016108a019fd5bef736bac692b6d4a1f10c941f6fbb9a74ca6::oft::CakeOFT",
+      "0x63be1898a424616367e19bbd881f456a78470e123e2770b5b5dcdceb61279c54::movegpt_token::MovegptCoin",
+      "0xaef6a8c3182e076db72d64324617114cacf9a52f28325edc10b483f7f05da0e7"
+    ];
+
+    setCurrentStep('Claiming Meso rewards...');
+    const payload = {
+      data: {
+        function: `${functionAddress}::meso::claim_all_apt_rewards` as `${string}::${string}::${string}`,
+        typeArguments: [] as string[],
+        functionArguments: [tokens] as any[]
+      }
+    } as const;
+
+    const tx = await signAndSubmitTransaction(payload as any);
+
+    setResults(prev => [...prev, { protocol: 'meso', success: true, hash: tx.hash }]);
+    const mesoValue = summary.protocols.meso?.value || 0;
+    setClaimedValue(prev => prev + mesoValue);
+
+    toast({
+      title: `meso rewards claimed!`,
+      description: `Transaction: ${tx.hash.slice(0, 8)}...${tx.hash.slice(-8)}`,
+      action: (
+        <ToastAction altText="View in Explorer" onClick={() => window.open(`https://explorer.aptoslabs.com/txn/${tx.hash}?network=mainnet`, '_blank')}>
+          View in Explorer
+        </ToastAction>
+      ),
+    });
   };
 
   // Special handling for Hyperion using SDK
