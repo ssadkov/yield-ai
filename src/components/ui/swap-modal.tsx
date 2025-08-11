@@ -27,6 +27,7 @@ import { useTransactionSubmitter } from '@/lib/hooks/useTransactionSubmitter';
 import { Token } from '@/lib/types/panora';
 import tokenList from '@/lib/data/tokenList.json';
 import { getProtocolsList } from '@/lib/protocols/getProtocolsList';
+import { useWalletStore } from '@/lib/stores/walletStore';
 
 interface SwapQuote {
   amount: string;
@@ -51,6 +52,7 @@ interface SwapModalProps {
 export function SwapModal({ isOpen, onClose }: SwapModalProps) {
   const { tokens, address: userAddress } = useWalletData();
   const { submitTransaction, isConnected } = useTransactionSubmitter();
+  const { prices, fetchPrices } = useWalletStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [swapQuote, setSwapQuote] = useState<SwapQuote | null>(null);
@@ -145,6 +147,39 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
 
     return found?.amount || '0';
   }
+
+  // Load prices when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      const tokenAddresses = new Set<string>();
+      
+      // Collect all token addresses from available tokens (user tokens)
+      availableTokens.forEach(token => {
+        if (token.tokenInfo?.faAddress) tokenAddresses.add(token.tokenInfo.faAddress);
+        if (token.tokenInfo?.tokenAddress) tokenAddresses.add(token.tokenInfo.tokenAddress);
+      });
+      
+      // Collect all token addresses from availableToTokens
+      availableToTokens.forEach(token => {
+        if (hasTokenInfo(token)) {
+          // User tokens with tokenInfo
+          if (token.tokenInfo?.faAddress) tokenAddresses.add(token.tokenInfo.faAddress);
+          if (token.tokenInfo?.tokenAddress) tokenAddresses.add(token.tokenInfo.tokenAddress);
+        } else {
+          // Popular tokens (direct Token objects)
+          const tokenData = token as Token;
+          if (tokenData.faAddress) tokenAddresses.add(tokenData.faAddress);
+          if (tokenData.tokenAddress) tokenAddresses.add(tokenData.tokenAddress);
+        }
+      });
+      
+      // One request for all tokens
+      if (tokenAddresses.size > 0) {
+        console.log('[SwapModal] Loading prices for tokens:', Array.from(tokenAddresses));
+        fetchPrices(Array.from(tokenAddresses));
+      }
+    }
+  }, [isOpen, availableTokens, availableToTokens]);
 
   // Set default tokens on load
   useEffect(() => {
@@ -412,6 +447,19 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
     });
   };
 
+  // Get token price from cache
+  const getTokenPrice = (token: Token) => {
+    const address = token.faAddress || token.tokenAddress;
+    if (!address) return 0;
+    
+    // Clean address for cache lookup
+    let cleanAddress = address;
+    if (cleanAddress.startsWith('@')) cleanAddress = cleanAddress.slice(1);
+    if (!cleanAddress.startsWith('0x')) cleanAddress = `0x${cleanAddress}`;
+    
+    return prices[cleanAddress] || 0;
+  };
+
   const getTokenBalance = (token: Token) => {
     const balance = findTokenBalance(tokens, token);
     const humanBalance = Number(balance) / Math.pow(10, token.decimals);
@@ -553,9 +601,12 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                               />
                               <span className="text-sm">{tokenInfo.symbol} </span>
                             </div>
-                                                         <div className="text-xs text-muted-foreground">
-                               {formatNumber(balance.balance)} {tokenInfo.symbol}
-                             </div>
+                            <div className="text-xs text-muted-foreground">
+                              {formatNumber(balance.balance)} {tokenInfo.symbol}
+                              {Number(getTokenPrice(tokenInfo)) > 0 && (
+                                <span className="ml-1">(${formatUSD(getTokenPrice(tokenInfo))})</span>
+                              )}
+                            </div>
                           </div>
                         </SelectItem>
                       );
@@ -567,6 +618,9 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                              {fromToken && (
                  <div className="text-xs text-muted-foreground">
                    Balance: {formatNumber(getTokenBalance(fromToken).balance)} {fromToken.symbol}
+                   {Number(getTokenPrice(fromToken)) > 0 && (
+                     <span className="ml-1">(${formatUSD(getTokenBalance(fromToken).balance * Number(getTokenPrice(fromToken)))})</span>
+                   )}
                  </div>
                )}
             </div>
@@ -575,18 +629,23 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
             <div className="space-y-1">
               <Label className="text-xs">Amount</Label>
               <div className="space-y-1">
-                <Input
-                  type="number"
-                  placeholder="0.0"
-                  value={amount}
-                  onChange={(e) => {
-                    setAmount(e.target.value);
-                    setSwapResult(null); // Clear swap result when changing amount
-                  }}
-                  className="h-9 text-sm"
-                />
-                
-              </div>
+                                 <Input
+                   type="number"
+                   placeholder="0.0"
+                   value={amount}
+                   onChange={(e) => {
+                     setAmount(e.target.value);
+                     setSwapResult(null); // Clear swap result when changing amount
+                   }}
+                   className="h-9 text-sm"
+                 />
+                 
+                 {fromToken && amount && Number(getTokenPrice(fromToken)) > 0 && (
+                   <div className="text-xs text-muted-foreground text-left">
+                     {formatUSD(parseFloat(amount) * Number(getTokenPrice(fromToken)))}
+                   </div>
+                 )}
+               </div>
               {fromToken && (
                 <div className="flex gap-1">
                   <Button 
@@ -689,9 +748,12 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                                     />
                                     <span className="text-sm">{tokenInfo.symbol} </span>
                                   </div>
-                                                               <div className="text-xs text-muted-foreground">
-                               {formatNumber(balance.balance)} {tokenInfo.symbol}
-                             </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {formatNumber(balance.balance)} {tokenInfo.symbol}
+                                    {Number(getTokenPrice(tokenInfo)) > 0 && (
+                                      <span className="ml-1">(${formatUSD(getTokenPrice(tokenInfo))})</span>
+                                    )}
+                                  </div>
                                 </div>
                               </SelectItem>
                             );
@@ -715,7 +777,12 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                                     height={16}
                                     className="rounded-full"
                                   />
-                                                                     <span className="text-sm">{tokenData.symbol}</span>
+                                  <span className="text-sm">{tokenData.symbol}</span>
+                                  {Number(getTokenPrice(tokenData)) > 0 && (
+                                    <span className="text-xs text-muted-foreground ml-1">
+                                      (${formatUSD(getTokenPrice(tokenData))})
+                                    </span>
+                                  )}
                                 </div>
                               </SelectItem>
                             );
