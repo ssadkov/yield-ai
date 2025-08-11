@@ -115,7 +115,7 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
     }
 
     // Otherwise return popular tokens
-    const popularSymbols = ['USDT', 'USDC', 'APT', 'stAPT', 'xBTC', 'aBTC', 'wBTC', 'RION', 'THL', 'AURO'];
+    const popularSymbols = ['USDt', 'USDC', 'APT', 'stAPT', 'xBTC', 'aBTC', 'wBTC', 'RION', 'THL', 'AURO'];
     return (tokenList.data.data as Token[])
       .filter(token => popularSymbols.includes(token.symbol))
       .slice(0, 10);
@@ -372,7 +372,7 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
   };
 
   const formatNumber = (num: number | string) => {
-    return Number(num).toLocaleString('en-US', { maximumFractionDigits: 6 });
+    return Number(num).toLocaleString('en-US', { maximumFractionDigits: 2 });
   };
 
   const formatUSD = (num: number | string) => {
@@ -526,7 +526,7 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                                 height={16}
                                 className="rounded-full"
                               />
-                              <span className="text-sm">{tokenInfo.symbol}</span>
+                              <span className="text-sm">{tokenInfo.symbol} </span>
                             </div>
                             <div className="text-xs text-muted-foreground">
                               {formatNumber(balance.balance)} (${formatNumber(balance.usdValue)})
@@ -667,10 +667,10 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                                       height={16}
                                       className="rounded-full"
                                     />
-                                    <span className="text-sm">{tokenInfo.symbol}</span>
+                                    <span className="text-sm">{tokenInfo.symbol} </span>
                                   </div>
                                   <div className="text-xs text-muted-foreground">
-                                    {formatNumber(balance.balance)} (${formatNumber(balance.usdValue)})
+                                    {formatNumber(balance.balance)} ({formatUSD(balance.usdValue)})
                                   </div>
                                 </div>
                               </SelectItem>
