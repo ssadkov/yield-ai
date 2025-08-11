@@ -46,6 +46,21 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
   const [currentStep, setCurrentStep] = useState<string>('');
   const [claimedValue, setClaimedValue] = useState(0);
 
+  // Helper: detect user rejected errors from different wallets
+  const isUserRejected = (err: any): boolean => {
+    if (!err) return false;
+    const code = (err as any).code;
+    const name = (err as any).name || '';
+    const message = ((err as any).message || '').toString().toLowerCase();
+    return (
+      code === 4001 ||
+      name.toLowerCase().includes('userrejected') ||
+      message.includes('user rejected') ||
+      message.includes('rejected by user') ||
+      message.includes('request rejected')
+    );
+  };
+
   // Get protocols with rewards
   const protocolsWithRewards = summary?.protocols ? 
     Object.entries(summary.protocols)
@@ -149,26 +164,26 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
           
         } catch (error) {
           console.error(`Error claiming ${protocol} rewards:`, error);
-          
+          const msg = isUserRejected(error) ? 'User rejected' : (error instanceof Error ? error.message : 'Unknown error');
           setResults(prev => [...prev, {
             protocol,
             success: false,
-            error: error instanceof Error ? error.message : 'Unknown error'
+            error: msg
           }]);
-          
           toast({
-            title: `Failed to claim ${protocol} rewards`,
-            description: error instanceof Error ? error.message : 'Unknown error',
-            variant: 'destructive',
+            title: isUserRejected(error) ? `Claim cancelled` : `Failed to claim ${protocol} rewards` ,
+            description: msg,
+            variant: isUserRejected(error) ? 'default' : 'destructive',
           });
         }
       }
     } catch (error) {
       console.error('Error in claim all process:', error);
+      const msg = isUserRejected(error) ? 'User rejected' : (error instanceof Error ? error.message : 'Unknown error');
       toast({
-        title: 'Claim process failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive',
+        title: isUserRejected(error) ? 'Claim cancelled' : 'Claim process failed',
+        description: msg,
+        variant: isUserRejected(error) ? 'default' : 'destructive',
       });
     } finally {
       setIsProcessing(false);
@@ -319,16 +334,15 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
             
           } catch (error) {
             console.error('Error claiming Hyperion position:', error);
-            
+            const msg = isUserRejected(error) ? 'User rejected' : (error instanceof Error ? error.message : 'Unknown error');
             // Add individual error result for this position
             setResults(prev => [...prev, {
               protocol: 'hyperion',
               success: false,
-              error: error instanceof Error ? error.message : 'Unknown error',
+              error: msg,
               positionId: position.position.objectId.slice(0, 8),
               value: totalRewards
             }]);
-            
             // Don't throw error, continue with next position
             continue;
           }
@@ -462,14 +476,13 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
           
         } catch (error) {
           console.error('Error claiming Echelon reward:', error);
-          
+          const msg = isUserRejected(error) ? 'User rejected' : (error instanceof Error ? error.message : 'Unknown error');
           // Add individual error result
           setResults(prev => [...prev, {
             protocol: 'echelon',
             success: false,
-            error: error instanceof Error ? error.message : 'Unknown error'
+            error: msg
           }]);
-          
           // Don't throw error, continue with next reward (same as in original)
           continue;
         }
