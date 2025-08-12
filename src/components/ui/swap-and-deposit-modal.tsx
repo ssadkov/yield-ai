@@ -158,10 +158,14 @@ export function SwapAndDepositModal({
     decimals: selectedToken?.decimals || 18,
   });
 
-  // Доходность
+  // Доходность (используем фактический ввод пользователя в swapAmount; для теста достаточно оценки)
   const yieldResult = useMemo(() => 
-    calcYield(protocol.apy, amount, tokenOut?.decimals || 18),
-    [protocol.apy, amount, tokenOut?.decimals]
+    calcYield(
+      protocol.apy,
+      swapAmount,
+      selectedToken?.decimals || tokenOut?.decimals || 18
+    ),
+    [protocol.apy, swapAmount, selectedToken?.decimals, tokenOut?.decimals]
   );
 
   const handleSwapAndDeposit = async () => {
