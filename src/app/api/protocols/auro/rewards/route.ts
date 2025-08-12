@@ -19,6 +19,23 @@ const config = new AptosConfig({
 });
 const aptos = new Aptos(config);
 
+// Simple in-memory cache (ephemeral on serverless) to reduce duplicate requests
+type CacheEntry = { timestamp: number; response: any };
+const CACHE_TTL_MS = 60_000; // 60s
+const rewardsCache = new Map<string, CacheEntry>();
+
+function getCache(key: string) {
+  const entry = rewardsCache.get(key);
+  if (entry && Date.now() - entry.timestamp < CACHE_TTL_MS) {
+    return entry.response;
+  }
+  return null;
+}
+
+function setCache(key: string, response: any) {
+  rewardsCache.set(key, { timestamp: Date.now(), response });
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const address = searchParams.get('address');
@@ -38,8 +55,16 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    console.log('=== Auro Rewards GET API Route Started ===');
-    console.log('Address:', address);
+    // Cache by address for GET
+    const cacheKey = `GET:${address}`;
+    const cached = getCache(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached, {
+        headers: {
+          'Cache-Control': 'public, max-age=30, s-maxage=30, stale-while-revalidate=60',
+        }
+      });
+    }
 
     // Fetch positions for the address
     const positionsResponse = await fetch(`${request.nextUrl.origin}/api/protocols/auro/userPositions?address=${encodeURIComponent(address)}`);
@@ -98,14 +123,24 @@ export async function GET(request: NextRequest) {
     // Call the POST logic directly with the body data
     // Create a mock NextRequest-like object for the POST function
     const mockRequest = {
-      json: async () => body
+      json: async () => ({ ...body, address })
     } as NextRequest;
     
-    return await POST(mockRequest);
+    const result = await POST(mockRequest);
+    try {
+      const json = await result.json();
+      setCache(cacheKey, json);
+      return NextResponse.json(json, {
+        headers: {
+          'Cache-Control': 'public, max-age=30, s-maxage=30, stale-while-revalidate=60',
+        }
+      });
+    } catch {
+      return result;
+    }
 
   } catch (error) {
-    console.error('=== Auro Rewards GET API Route Error ===');
-    console.error('Error:', error);
+    console.error('Auro Rewards GET error:', error);
     return NextResponse.json(
       { 
         success: false,
@@ -119,8 +154,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('=== Auro Rewards API Route Started ===');
-    console.log('🔑 APTOS_API_KEY exists:', !!APTOS_API_KEY);
     
     // Получаем данные из запроса
     const body = await request.json();
@@ -140,52 +173,29 @@ export async function POST(request: NextRequest) {
     // console.log('Количество пулов:', poolsData.length);
     
     for (const pos of positionsInfo) {
-      console.log('Обрабатываем позицию:', {
-        address: pos.address,
-        poolAddress: pos.poolAddress,
-        debtAmount: pos.debtAmount,
-        hasDebt: pos.debtAmount && parseFloat(pos.debtAmount) > 0
-      });
       
       if (!pos.address || !pos.poolAddress) {
-        console.log('Пропускаем позицию - нет address или poolAddress');
         continue;
       }
       
       // Находим collateral pool
       const collateralPool = poolsData.find(p => p.poolAddress === pos.poolAddress);
-      console.log('Найденный collateral pool:', collateralPool ? {
-        type: collateralPool.type,
-        poolAddress: collateralPool.poolAddress,
-        rewardPoolAddress: collateralPool.rewardPoolAddress
-      } : 'НЕ НАЙДЕН');
       
       if (collateralPool && collateralPool.rewardPoolAddress) {
         pairs.push({ position: pos.address, pool: collateralPool.rewardPoolAddress });
-        console.log('Добавлена collateral пара:', { position: pos.address, pool: collateralPool.rewardPoolAddress });
       }
       
       // Проверяем, есть ли долг у позиции
       const hasDebt = pos.debtAmount && parseFloat(pos.debtAmount) > 0;
-      console.log('Проверка долга:', { debtAmount: pos.debtAmount, hasDebt });
       
       if (hasDebt) {
         // Ищем borrow pool (пул типа BORROW) - он один для всех позиций
         const borrowPool = poolsData.find(p => p.type === 'BORROW');
-        console.log('Найденный borrow pool:', borrowPool ? {
-          type: borrowPool.type,
-          poolAddress: borrowPool.poolAddress,
-          borrowRewardsPoolAddress: borrowPool.borrowRewardsPoolAddress
-        } : 'НЕ НАЙДЕН');
         
         if (borrowPool && borrowPool.borrowRewardsPoolAddress) {
           pairs.push({ position: pos.address, pool: borrowPool.borrowRewardsPoolAddress });
-          console.log('Добавлена borrow пара:', { position: pos.address, pool: borrowPool.borrowRewardsPoolAddress });
-        } else {
-          console.log('Borrow пара НЕ добавлена - нет borrowPool или borrowRewardsPoolAddress');
         }
       } else {
-        console.log('Долга нет - borrow пара не нужна');
       }
     }
     
@@ -211,7 +221,6 @@ export async function POST(request: NextRequest) {
     
     for (const { position, pool } of pairs) {
       try {
-        console.log('Вызов claimable_rewards:', { position, pool });
         const single = await aptos.view({
           payload: {
             function: `${AURO_ADDRESS}::rewards_pool::claimable_rewards`,
@@ -219,7 +228,6 @@ export async function POST(request: NextRequest) {
             functionArguments: [position, pool]
           }
         });
-        console.log('Ответ claimable_rewards:', single);
         if (single && Array.isArray(single) && single.length > 0) {
           const s0 = single[0];
           let result;
@@ -245,7 +253,7 @@ export async function POST(request: NextRequest) {
           rewardsData.push({ key: '', value: '0' });
         }
       } catch (e) {
-        console.error('Single reward error:', e);
+        console.error('Auro single reward error:', e);
         rewardsData.push({ key: '', value: '0' });
       }
     }
@@ -285,12 +293,21 @@ export async function POST(request: NextRequest) {
       }
     };
 
-    console.log('=== Auro Rewards API Route Completed ===');
-    return NextResponse.json(result);
+    // Cache by normalized addresses list if provided
+    const addressList = Array.isArray(positionsInfo)
+      ? positionsInfo.map((p: any) => p.address).filter(Boolean).sort().join(',')
+      : 'unknown';
+    const postCacheKey = `POST:${addressList}`;
+    setCache(postCacheKey, result);
+
+    return NextResponse.json(result, {
+      headers: {
+        'Cache-Control': 'public, max-age=30, s-maxage=30, stale-while-revalidate=60',
+      }
+    });
 
   } catch (error) {
-    console.error('=== Auro Rewards API Route Error ===');
-    console.error('Error fetching rewards:', error);
+    console.error('Auro Rewards POST error:', error);
     return NextResponse.json(
       { 
         success: false,

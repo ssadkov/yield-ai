@@ -65,20 +65,18 @@ async function getCollateralToken(poolAddress: string): Promise<string | null> {
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('=== Auro API Route Started ===');
-    
+    // Auro API route started
     const { searchParams } = new URL(request.url);
     const address = searchParams.get('address');
 
-    console.log('Request URL:', request.url);
-    console.log('Address parameter:', address);
+    
 
     if (!address) {
-      console.log('No address provided, returning 400');
+      
       return NextResponse.json({ error: 'Address parameter is required' }, { status: 400 });
     }
 
-    console.log('Getting collection address for Auro Finance...');
+    
 
     // Get collection address using direct HTTP request to fullnode
     const viewPayload = {
@@ -87,7 +85,7 @@ export async function GET(request: NextRequest) {
       arguments: []
     };
 
-    console.log('Calling view function with payload:', viewPayload);
+    
 
     const viewHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -201,7 +199,7 @@ export async function GET(request: NextRequest) {
           arguments: [positionAddresses.map((addr: string) => ({ inner: addr }))]
         };
 
-        console.log("Calling view function:", payloadPositionInfo.function);
+        
         
         const viewResponse = await fetch('https://fullnode.mainnet.aptoslabs.com/v1/view', {
           method: 'POST',
@@ -277,15 +275,12 @@ export async function GET(request: NextRequest) {
       message: "Collection address and user positions retrieved successfully"
     };
 
-    console.log('Returning result:', JSON.stringify(result, null, 2));
-    console.log('=== Auro API Route Completed ===');
+    
 
     return NextResponse.json(result);
 
   } catch (error) {
-    console.error('=== Auro API Route Error ===');
-    console.error('Error getting collection address:', error);
-    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    console.error('Auro userPositions error:', error);
     return NextResponse.json(
       { 
         error: 'Failed to get collection address', 

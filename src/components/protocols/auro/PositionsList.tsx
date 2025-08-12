@@ -209,8 +209,8 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
   useEffect(() => {
     if (!walletAddress) {
       setPositions((prev) => prev);
-      setRewardsData((prev) => prev);
-      setTotalRewardsValue((prev) => prev);
+      setRewardsData((prev: any) => prev);
+      setTotalRewardsValue((prev: number) => prev);
       onPositionsCheckComplete?.();
       return;
     }

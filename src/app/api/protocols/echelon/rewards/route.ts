@@ -3,6 +3,23 @@ import { NextRequest, NextResponse } from 'next/server';
 const ECHELON_FARMING_ADDRESS = "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba";
 const APTOS_API_KEY = process.env.APTOS_API_KEY;
 
+// Simple in-memory cache to reduce duplicate requests within short window
+type CacheEntry = { timestamp: number; response: any };
+const CACHE_TTL_MS = 60_000; // 60s
+const echelonRewardsCache = new Map<string, CacheEntry>();
+
+function getCache(key: string) {
+  const entry = echelonRewardsCache.get(key);
+  if (entry && Date.now() - entry.timestamp < CACHE_TTL_MS) {
+    return entry.response;
+  }
+  return null;
+}
+
+function setCache(key: string, response: any) {
+  echelonRewardsCache.set(key, { timestamp: Date.now(), response });
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const address = searchParams.get('address');
@@ -22,6 +39,15 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const cacheKey = `echelon:rewards:${address}`;
+    const cached = getCache(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached, {
+        headers: {
+          'Cache-Control': 'public, max-age=30, s-maxage=30, stale-while-revalidate=60',
+        }
+      });
+    }
     // Get account resources
     const resourcesResponse = await fetch(
       `https://fullnode.mainnet.aptoslabs.com/v1/accounts/${address}/resources`,
@@ -140,13 +166,20 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
+    const result = {
       success: true,
       data: rewards
+    };
+
+    setCache(cacheKey, result);
+    return NextResponse.json(result, {
+      headers: {
+        'Cache-Control': 'public, max-age=30, s-maxage=30, stale-while-revalidate=60',
+      }
     });
 
   } catch (error) {
-    console.error('Error fetching Echelon rewards:', error);
+    console.error('Echelon rewards error:', error);
     return NextResponse.json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error occurred'

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('=== Auro Pools API Route Started ===');
+  
     
     // Fetch data from Auro Finance API
     const response = await fetch('https://api.auro.finance/api/v1/pool', {
@@ -62,12 +62,11 @@ export async function GET(request: NextRequest) {
       message: "Auro pools data retrieved successfully"
     };
 
-    console.log('=== Auro Pools API Route Completed ===');
+  
     return NextResponse.json(result);
 
   } catch (error) {
-    console.error('=== Auro Pools API Route Error ===');
-    console.error('Error fetching Auro pools:', error);
+  console.error('Auro pools error:', error);
     return NextResponse.json(
       { 
         success: false,
