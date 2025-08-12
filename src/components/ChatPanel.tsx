@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SwapModal } from '@/components/ui/swap-modal';
@@ -32,12 +31,6 @@ export default function ChatPanel() {
           <Link href="https://forms.gle/NEpu5DjsmhVUprA5A" passHref target="_blank" rel="noopener noreferrer">
             <Button>Share Feedback</Button>
           </Link>
-          <Button 
-            variant="outline" 
-            onClick={() => setIsSwapModalOpen(true)}
-          >
-            Swap
-          </Button>
         </div>
         
         <div className="grid grid-cols-2 gap-4 w-full max-w-md">

@@ -2,8 +2,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Loader2, ExternalLink } from "lucide-react";
 import { useEffect, useState } from "react";
-import { HyperionSwapService } from '@/lib/services/protocols/hyperion/swap';
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
+import { HyperionSwapService } from '@/lib/services/protocols/hyperion/swap';
 import tokenList from '@/lib/data/tokenList.json';
 import { useDeposit } from '@/lib/hooks/useDeposit';
 import { ProtocolKey } from '@/lib/transactions/types';
@@ -12,6 +12,7 @@ import Image from 'next/image';
 interface SwapAndDepositStatusModalProps {
   isOpen: boolean;
   onClose: () => void;
+  provider?: 'panora' | 'hyperion';
   amount: string;
   fromToken: {
     symbol: string;
@@ -36,7 +37,7 @@ interface SwapAndDepositStatusModalProps {
 
 type Status = 'idle' | 'loading' | 'success' | 'error';
 
-export function SwapAndDepositStatusModal({ isOpen, onClose, amount, fromToken, toToken, protocol, userAddress }: SwapAndDepositStatusModalProps) {
+export function SwapAndDepositStatusModal({ isOpen, onClose, provider = 'panora', amount, fromToken, toToken, protocol, userAddress }: SwapAndDepositStatusModalProps) {
   const [status, setStatus] = useState<Status>('idle');
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -86,119 +87,110 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, amount, fromToken, 
         if (!isFA(toToken.address)) throw new Error(`Invalid toToken address: ${toToken.address}`);
         if (!isAptosAddr(userAddress)) throw new Error(`Invalid user address: ${userAddress}`);
         if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) throw new Error('Invalid amount');
-        const swapService = HyperionSwapService.getInstance();
+        let modifiedPayload: any;
 
-        // Преобразуем amount в минимальные единицы
-        const decimalsA = fromToken.decimals || 8;
-        console.log('fromToken.decimals:', fromToken.decimals, 'amount:', amount);
-        const amountInMinimalUnits = Math.floor(parseFloat(amount) * Math.pow(10, decimalsA));
-        console.log('amountInMinimalUnits:', amountInMinimalUnits);
-
-        // Предварительная оценка через estFromAmount и estToAmount
-        const estFromAmount = await swapService.estFromAmount({
-          amount: amountInMinimalUnits,
-          from: fromToken.address,
-          to: toToken.address,
-          safeMode: true, // Включаем safeMode для более точной оценки
-        });
-        console.log('Estimated from amount:', estFromAmount);
-
-        const estToAmount = await swapService.estToAmount({
-          amount: amountInMinimalUnits,
-          from: fromToken.address,
-          to: toToken.address,
-          safeMode: true, // Включаем safeMode для более точной оценки
-        });
-        console.log('Estimated to amount:', estToAmount);
-
-        // Проверяем, что оценки не нулевые
-        if (!estFromAmount?.amountOut || !estToAmount?.amountOut) {
-          throw new Error('No liquidity available for this swap');
-        }
-
-        // Проверяем минимальное выходное количество
-        const minAmountOut = Math.floor(parseFloat(estToAmount.amountOut) * 0.99); // 1% slippage
-        if (minAmountOut <= 0) {
-          throw new Error('Output amount too small for swap');
-        }
-
-        // 1. Получить quote и path
-        const quote = await swapService.getQuoteAndPath({
-          amount: amountInMinimalUnits,
-          from: fromToken.address,
-          to: toToken.address,
-        });
-
-        // Преобразуем amount и amountOut в минимальные единицы (BigInt)
-        const decimalsB = toToken.decimals || 8;
-        const amountOutRaw = parseFloat(quote.amountOut);
-        if (isNaN(amountOutRaw) || amountOutRaw <= 0) throw new Error('No liquidity or amount too small for swap (amountOut=0)');
-        
-        // Используем значение из estToAmount без дополнительной конвертации
-        const amountOut = estToAmount.amountOut;
-        if (!amountOut || amountOut === '0') throw new Error('Amount out is zero');
-
-        // Используем path из estToAmount, так как он короче и эффективнее
-        const path = estToAmount.path;
-        if (!path || path.length === 0) {
-          throw new Error('No valid swap path found');
-        }
-
-        // Нормализуем адреса в path
-        const normalizedPath = path.map((addr: string) => {
-          if (addr === '0xa') {
-            return '0x000000000000000000000000000000000000000000000000000000000000000a';
+        if (provider === 'panora') {
+          // Старый проверенный путь Panora: сначала quote, затем execute-swap
+          const slippagePercentage = '1'; // 1%
+          const quoteResp = await fetch('/api/panora/swap-quote', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chainId: '1',
+              fromTokenAddress: fromToken.address,
+              toTokenAddress: toToken.address,
+              fromTokenAmount: amount, // human-readable для Panora
+              toWalletAddress: userAddress,
+              slippagePercentage,
+              getTransactionData: 'transactionPayload',
+            }),
+          });
+          if (!quoteResp.ok) {
+            const err = await quoteResp.json().catch(() => ({}));
+            throw new Error(err.error || 'Failed to get Panora quote');
           }
-          return addr;
-        });
+          const quoteData = await quoteResp.json();
 
-        console.log('Hyperion swap params:', {
-          amountUser: amount,
-          amountIn: amountInMinimalUnits.toString(),
-          amountOut,
-          decimalsA,
-          decimalsB,
-          from: fromToken.address,
-          to: toToken.address,
-          recipient: userAddress,
-          poolRoute: normalizedPath,
-          estimatedFromAmount: estFromAmount,
-          estimatedToAmount: estToAmount,
-          minAmountOut,
-        });
+          const execResp = await fetch('/api/panora/execute-swap', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ quoteData, walletAddress: userAddress }),
+          });
+          if (!execResp.ok) {
+            const err = await execResp.json().catch(() => ({}));
+            throw new Error(err.error || 'Failed to build Panora transaction');
+          }
+          modifiedPayload = await execResp.json();
+        } else {
+          // Возврат к прежнему локальному пути Hyperion
+          const swapService = HyperionSwapService.getInstance();
 
-        // 2. Получить payload
-        const payload = await swapService.getSwapPayload({
-          currencyA: fromToken.address,
-          currencyB: toToken.address,
-          currencyAAmount: amountInMinimalUnits.toString(),
-          currencyBAmount: amountOut,
-          slippage: 0.01, // 1% slippage
-          poolRoute: normalizedPath,
-          recipient: userAddress,
-        });
+          const decimalsA = fromToken.decimals || 8;
+          const amountInMinimalUnits = Math.floor(parseFloat(amount) * Math.pow(10, decimalsA));
 
-        // Добавляем type_arguments к payload
-        const modifiedPayload = {
-          ...payload,
-          type_arguments: ['0x1::aptos_coin::AptosCoin']
-        };
+          const estToAmount = await swapService.estToAmount({
+            amount: amountInMinimalUnits,
+            from: fromToken.address,
+            to: toToken.address,
+            safeMode: true,
+          });
+          if (!estToAmount?.amountOut) throw new Error('No liquidity available for this swap');
 
-        // 3. Отправить payload через wallet-адаптер
-        // В некоторых версиях wallet-adapter нужно передавать просто payload, а не { data: payload }
+          const path = Array.isArray(estToAmount.path) ? estToAmount.path : [];
+          if (path.length === 0) throw new Error('No valid swap path found');
+
+          const normalizedPath = path.map((addr: string) =>
+            addr === '0xa' ? '0x000000000000000000000000000000000000000000000000000000000000000a' : addr
+          );
+
+          const payload = await swapService.getSwapPayload({
+            currencyA: fromToken.address,
+            currencyB: toToken.address,
+            currencyAAmount: amountInMinimalUnits.toString(),
+            currencyBAmount: estToAmount.amountOut,
+            slippage: 0.01,
+            poolRoute: normalizedPath,
+            recipient: userAddress,
+          });
+
+          modifiedPayload = { ...payload, type_arguments: ['0x1::aptos_coin::AptosCoin'] };
+        }
+
+        // 2) Отправить payload через wallet-адаптер (с нормализацией имён полей)
         if (!wallet.signAndSubmitTransaction) throw new Error('Wallet not connected');
+        const normalizedCamel = {
+          function: modifiedPayload.function,
+          typeArguments: modifiedPayload.typeArguments || modifiedPayload.type_arguments || [],
+          functionArguments: modifiedPayload.functionArguments || modifiedPayload.arguments || [],
+        };
+        const normalizedSnake = {
+          function: modifiedPayload.function,
+          type_arguments: modifiedPayload.type_arguments || modifiedPayload.typeArguments || [],
+          arguments: modifiedPayload.arguments || modifiedPayload.functionArguments || [],
+        } as any;
+
         let txResult;
         try {
+          // Предпочтительно: новый формат с data + camelCase
           txResult = await wallet.signAndSubmitTransaction({
-            data: modifiedPayload,
-            options: { maxGasAmount: 20000 }, // Network limit is 20000
+            data: normalizedCamel,
+            options: { maxGasAmount: 20000 },
           });
-        } catch (e: any) {
-          // Попробовать без обертки, если ошибка формата
-          if (e?.message?.includes('Invalid transaction format') || e?.message?.includes('data')) {
-            txResult = await wallet.signAndSubmitTransaction(modifiedPayload);
-          } else {
-            throw e;
+        } catch (e1: any) {
+          try {
+            // Падение по формату — пробуем snake-case напрямую
+            txResult = await wallet.signAndSubmitTransaction(normalizedSnake);
+          } catch (e2: any) {
+            // В некоторых кошельках нужен data + snake-case
+            try {
+              txResult = await wallet.signAndSubmitTransaction({
+                data: normalizedSnake,
+                options: { maxGasAmount: 20000 },
+              });
+            } catch (e3: any) {
+              // Последняя попытка — прямой camelCase
+              txResult = await wallet.signAndSubmitTransaction(normalizedCamel as any);
+            }
           }
         }
         setResult(txResult);
@@ -258,15 +250,41 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, amount, fromToken, 
             }
             
             const events = data.events || [];
-            // 1. Ищем SwapEventV3
-            const swapEvent = events.find((e: any) => e.type && e.type.includes('SwapEventV3'));
-            let amount = null;
+
+            // 1) Для Panora сначала ищем PanoraSwapSummaryEvent
+            let amount = null as string | null;
             let tokenAddress: string | null = null;
-            if (swapEvent && swapEvent.data) {
-              amount = swapEvent.data.amount_out;
-              tokenAddress = swapEvent.data.to_token?.inner;
+            if (provider === 'panora') {
+              const summaryEvent = events.find((e: any) => e.type && e.type.includes('PanoraSwapSummaryEvent'));
+              if (summaryEvent && summaryEvent.data) {
+                const ev = summaryEvent.data;
+                const evUser = (ev.user_address || '').toLowerCase?.();
+                const evInput = (ev.input_token_address || '').toLowerCase?.();
+                const evOutput = (ev.output_token_address || '').toLowerCase?.();
+                const wantUser = (userAddress || '').toLowerCase?.();
+                const wantInput = (fromToken.address || '').toLowerCase?.();
+                const wantOutput = (toToken.address || '').toLowerCase?.();
+
+                // Сверяем адреса пользователя и токенов, чтобы не спутать с другими внутренними событиями
+                const matchesUser = evUser && wantUser && evUser === wantUser;
+                const matchesInOut = !!evInput && !!evOutput && (!!wantInput ? evInput === wantInput : true) && (!!wantOutput ? evOutput === wantOutput : true);
+                if (matchesUser && matchesInOut) {
+                  amount = ev.output_token_amount;
+                  tokenAddress = ev.output_token_address;
+                }
+              }
             }
-            // 2. Если нет SwapEventV3, ищем Deposit с amount > 0
+
+            // 2) Если Panora summary не нашли — пробуем общий SwapEventV3
+            if (!amount) {
+              const swapEvent = events.find((e: any) => e.type && e.type.includes('SwapEventV3'));
+              if (swapEvent && swapEvent.data) {
+                amount = swapEvent.data.amount_out;
+                tokenAddress = swapEvent.data.to_token?.inner;
+              }
+            }
+
+            // 3) Если нет SwapEventV3 — ищем Deposit с amount > 0
             if (!amount) {
               const depositEvent = events.find((e: any) => e.type && e.type.includes('Deposit') && e.data && e.data.amount && Number(e.data.amount) > 0);
               if (depositEvent) {

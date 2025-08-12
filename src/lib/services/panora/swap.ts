@@ -132,71 +132,10 @@ export class PanoraSwapService {
           };
         }
 
-        // Ensure the payload is properly formatted
-        const validatedPayload = {
-          function: rawPayload.function,
-          type_arguments: Array.isArray(rawPayload.type_arguments) ? rawPayload.type_arguments.filter((arg: any) => arg !== null && arg !== undefined) : [],
-          arguments: Array.isArray(rawPayload.arguments) ? rawPayload.arguments.map((arg: any, index: number) => {
-            // For script calls, first argument (signer) should be null
-            if (index === 0) {
-              return null;
-            }
-            // For second argument (signer_cap), should be zero address
-            if (index === 1) {
-              return "0x0000000000000000000000000000000000000000000000000000000000000000";
-            }
-            
-            // For other arguments, ensure they are proper types
-            if (arg === null || arg === undefined) {
-              return null;
-            }
-            
-            // Keep arrays as arrays (don't convert to JSON strings)
-            if (Array.isArray(arg)) {
-              return arg;
-            }
-            
-            // If argument is an object, convert to string representation
-            if (typeof arg === 'object') {
-              return JSON.stringify(arg);
-            }
-            
-            // For numbers and strings, keep as is
-            if (typeof arg === 'number' || typeof arg === 'string') {
-              return arg;
-            }
-            
-            // For other types, convert to string
-            return String(arg);
-          }) : []
-        };
-
-        console.log('Validated payload:', validatedPayload);
-        console.log('Type arguments array check:', Array.isArray(validatedPayload.type_arguments));
-        console.log('Arguments array check:', Array.isArray(validatedPayload.arguments));
-        console.log('Original arguments:', rawPayload.arguments);
-        console.log('Processed arguments:', validatedPayload.arguments);
-        console.log('Arguments types:', validatedPayload.arguments.map((arg: any, index: number) => ({
-          index,
-          value: arg,
-          type: typeof arg,
-          isNull: arg === null,
-          isArray: Array.isArray(arg),
-          isObject: typeof arg === 'object' && arg !== null
-        })));
-        
-        // Special logging for argument 3
-        if (validatedPayload.arguments.length > 3) {
-          console.log('Argument 3 details:', {
-            original: rawPayload.arguments[3],
-            processed: validatedPayload.arguments[3],
-            type: typeof validatedPayload.arguments[3]
-          });
-        }
-
+        // Return payload AS-IS to preserve exact type arguments and argument encoding required by Panora
         return {
           success: true,
-          data: validatedPayload
+          data: rawPayload
         };
       }
 

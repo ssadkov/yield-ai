@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Image from "next/image";
-import { ChevronDown, ArrowLeftRight } from "lucide-react";
+import { ChevronDown, ArrowLeftRight, Settings2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -71,6 +71,8 @@ export function SwapAndDepositModal({
   const [isYieldExpanded, setIsYieldExpanded] = useState(false);
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const [swapProvider, setSwapProvider] = useState<'panora' | 'hyperion'>('hyperion');
+  const [showSettings, setShowSettings] = useState(false);
 
   // Получаем информацию о токене из списка токенов
   const getTokenInfo = (address: string): Token | undefined => {
@@ -304,29 +306,61 @@ export function SwapAndDepositModal({
 
           <Separator />
 
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
+          {/* Actions row with compact settings button */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <Button
-              onClick={handleSwapAndDeposit}
-              disabled={!isValid || isLoading || !selectedToken}
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label="Swap settings"
+              onClick={() => setShowSettings((v) => !v)}
+              className="shrink-0"
             >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                "Swap and Deposit"
-              )}
+              <Settings2 className={`h-4 w-4 ${showSettings ? 'text-primary' : ''}`} />
             </Button>
+
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSwapAndDeposit}
+                disabled={!isValid || isLoading || !selectedToken}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  "Swap and Deposit"
+                )}
+              </Button>
+            </div>
           </div>
+
+          {/* Slide-down minimal settings: temporarily hide provider selector (Panora disabled) */}
+          {false && showSettings && (
+            <div className="mt-2 rounded-lg border p-3 bg-muted/30">
+              <div className="flex items-center gap-3">
+                <Label className="text-xs text-muted-foreground">Swap provider</Label>
+                <Select value={swapProvider} onValueChange={(v) => setSwapProvider(v as 'panora' | 'hyperion')}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="hyperion">Hyperion</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
       <SwapAndDepositStatusModal
         isOpen={isStatusModalOpen}
         onClose={() => setIsStatusModalOpen(false)}
+        provider={swapProvider}
         amount={amountString}
         fromToken={{
           symbol: selectedToken?.symbol || '',
