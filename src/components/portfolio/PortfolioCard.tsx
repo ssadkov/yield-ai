@@ -74,9 +74,11 @@ export function PortfolioCard({ totalValue, tokens, onRefresh, isRefreshing }: P
     
     if (validation.isValid) {
       return "bg-green-50 border-green-200";
-    } else {
-      return "bg-red-50 border-red-200";
     }
+    if ((validation as any).requiresSwap) {
+      return "bg-yellow-50 border-yellow-200";
+    }
+    return "bg-red-50 border-red-200";
   };
 
   return (
