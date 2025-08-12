@@ -176,7 +176,8 @@ export function SwapAndDepositModal({
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={onClose}>
+      {/* Автоматически скрываем исходное окно, пока открыт статус транзакции */}
+      <Dialog open={isOpen && !isStatusModalOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-[425px] p-6 rounded-2xl">
           <DialogHeader>
             <div className="flex items-center gap-2">
@@ -364,7 +365,10 @@ export function SwapAndDepositModal({
       </Dialog>
       <SwapAndDepositStatusModal
         isOpen={isStatusModalOpen}
-        onClose={() => setIsStatusModalOpen(false)}
+        onClose={() => {
+          setIsStatusModalOpen(false);
+          onClose();
+        }}
         provider={swapProvider}
         amount={amountString}
         fromToken={{
