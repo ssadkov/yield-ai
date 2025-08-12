@@ -5,9 +5,11 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SwapModal } from '@/components/ui/swap-modal';
+import { YieldCalculatorModal } from '@/components/ui/yield-calculator-modal';
 
 export default function ChatPanel() {
   const [isSwapModalOpen, setIsSwapModalOpen] = useState(false);
+  const [isYieldCalcOpen, setIsYieldCalcOpen] = useState(false);
 
   return (
     <div className="p-4">
@@ -36,6 +38,12 @@ export default function ChatPanel() {
             onClick={() => setIsSwapModalOpen(true)}
           >
             Swap
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={() => setIsYieldCalcOpen(true)}
+          >
+            Yield Calculator
           </Button>
         </div>
         
@@ -100,6 +108,10 @@ export default function ChatPanel() {
       <SwapModal 
         isOpen={isSwapModalOpen} 
         onClose={() => setIsSwapModalOpen(false)} 
+      />
+      <YieldCalculatorModal 
+        isOpen={isYieldCalcOpen}
+        onClose={() => setIsYieldCalcOpen(false)}
       />
     </div>
   );
