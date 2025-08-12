@@ -218,8 +218,8 @@ export const PositionsList: React.FC<SidebarPositionsListProps> = ({
     }
   }, [onPositionsValueChange, totalValue]);
 
-  // Don't render card if no positions and not loading
-  if (!loading && positions.length === 0) {
+  // Don't render card if no positions
+  if (positions.length === 0) {
     return null;
   }
 
