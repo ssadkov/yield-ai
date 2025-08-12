@@ -71,7 +71,7 @@ export function SwapAndDepositModal({
   const [isYieldExpanded, setIsYieldExpanded] = useState(false);
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
-  const [swapProvider, setSwapProvider] = useState<'panora' | 'hyperion'>('hyperion');
+  const [swapProvider, setSwapProvider] = useState<'panora' | 'hyperion'>('panora');
   const [showSettings, setShowSettings] = useState(false);
 
   // Получаем информацию о токене из списка токенов
@@ -343,8 +343,8 @@ export function SwapAndDepositModal({
             </div>
           </div>
 
-          {/* Slide-down minimal settings: temporarily hide provider selector (Panora disabled) */}
-          {false && showSettings && (
+          {/* Slide-down minimal settings */}
+          {showSettings && (
             <div className="mt-2 rounded-lg border p-3 bg-muted/30">
               <div className="flex items-center gap-3">
                 <Label className="text-xs text-muted-foreground">Swap provider</Label>
@@ -353,6 +353,7 @@ export function SwapAndDepositModal({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="panora">Panora</SelectItem>
                     <SelectItem value="hyperion">Hyperion</SelectItem>
                   </SelectContent>
                 </Select>
