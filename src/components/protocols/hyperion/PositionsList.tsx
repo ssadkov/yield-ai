@@ -17,9 +17,10 @@ interface PositionsListProps {
   address?: string;
   onPositionsValueChange?: (value: number) => void;
   walletTokens?: Token[]; // Добавляем токены кошелька
+  onPositionsCheckComplete?: () => void;
 }
 
-export function PositionsList({ address, onPositionsValueChange, walletTokens }: PositionsListProps) {
+export function PositionsList({ address, onPositionsValueChange, walletTokens, onPositionsCheckComplete }: PositionsListProps) {
   const { account } = useWallet();
   const [positions, setPositions] = useState<any[]>([]);
   const [vaultTokens, setVaultTokens] = useState<Token[]>([]);
@@ -43,7 +44,8 @@ export function PositionsList({ address, onPositionsValueChange, walletTokens }:
   useEffect(() => {
     async function loadPositions() {
       if (!walletAddress) {
-        setPositions([]);
+        setPositions((prev) => prev); // keep previous to avoid flicker
+        onPositionsCheckComplete?.();
         return;
       }
 
@@ -66,9 +68,10 @@ export function PositionsList({ address, onPositionsValueChange, walletTokens }:
       } catch (err) {
         console.error('Error loading Hyperion positions:', err);
         setError('Failed to load positions');
-        setPositions([]);
+        // keep previous positions on error
       } finally {
         setLoading(false);
+        onPositionsCheckComplete?.();
       }
     }
 
@@ -122,7 +125,7 @@ export function PositionsList({ address, onPositionsValueChange, walletTokens }:
   }, [totalHyperionValue, onPositionsValueChange]);
 
   if (loading) {
-    return <div className="text-sm text-muted-foreground">Loading positions...</div>;
+    return null;
   }
 
   if (error) {

@@ -13,6 +13,7 @@ import { useCollapsible } from "@/contexts/CollapsibleContext";
 interface PositionsListProps {
   address?: string;
   onPositionsValueChange?: (value: number) => void;
+  onPositionsCheckComplete?: () => void;
 }
 
 interface Position {
@@ -81,7 +82,7 @@ interface Position {
   }>;
 }
 
-export function PositionsList({ address, onPositionsValueChange }: PositionsListProps) {
+export function PositionsList({ address, onPositionsValueChange, onPositionsCheckComplete }: PositionsListProps) {
   const { account } = useWallet();
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(false);
@@ -94,7 +95,8 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
   useEffect(() => {
     async function loadPositions() {
       if (!walletAddress) {
-        setPositions([]);
+        setPositions((prev) => prev);
+        onPositionsCheckComplete?.();
         return;
       }
 
@@ -120,9 +122,10 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
       } catch (err) {
         console.error('Error loading Tapp positions:', err);
         setError('Failed to load positions');
-        setPositions([]);
+        // keep previous positions on error
       } finally {
         setLoading(false);
+        onPositionsCheckComplete?.();
       }
     }
 

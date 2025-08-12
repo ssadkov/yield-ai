@@ -161,11 +161,13 @@ export const AmnisPositionsList: React.FC<AmnisPositionsListProps> = ({
 interface SidebarPositionsListProps {
   address?: string;
   onPositionsValueChange?: (value: number) => void;
+  onPositionsCheckComplete?: () => void;
 }
 
 export const PositionsList: React.FC<SidebarPositionsListProps> = ({ 
   address, 
-  onPositionsValueChange 
+  onPositionsValueChange,
+  onPositionsCheckComplete,
 }) => {
   const { account } = useWallet();
   const { isExpanded, toggleSection } = useCollapsible();
@@ -175,7 +177,7 @@ export const PositionsList: React.FC<SidebarPositionsListProps> = ({
 
   // Fetch real data from API
   const fetchPositions = useCallback(async () => {
-    if (!address) return;
+    if (!address) { onPositionsCheckComplete?.(); return; }
     
     setLoading(true);
     setError(null);
@@ -195,9 +197,10 @@ export const PositionsList: React.FC<SidebarPositionsListProps> = ({
     } catch (err) {
       console.error('Error fetching Amnis positions:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch positions');
-      setPositions([]);
+      // Keep previous positions on error to avoid flicker
     } finally {
       setLoading(false);
+      onPositionsCheckComplete?.();
     }
   }, [address]);
 

@@ -17,6 +17,7 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/comp
 interface PositionsListProps {
   address?: string;
   onPositionsValueChange?: (value: number) => void;
+  onPositionsCheckComplete?: () => void;
 }
 
 interface Position {
@@ -47,7 +48,7 @@ interface EchelonReward {
   stakeAmount: number;
 }
 
-export function PositionsList({ address, onPositionsValueChange }: PositionsListProps) {
+export function PositionsList({ address, onPositionsValueChange, onPositionsCheckComplete }: PositionsListProps) {
   const { account } = useWallet();
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(false);
@@ -279,8 +280,9 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
   // Объединенный useEffect для загрузки позиций и наград с дебаунсингом
   useEffect(() => {
     if (!walletAddress || walletAddress.length < 10) {
-      setPositions([]);
-      setRewardsData([]);
+      setPositions((prev) => prev);
+      setRewardsData((prev) => prev);
+      onPositionsCheckComplete?.();
       return;
     }
 
@@ -312,10 +314,10 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
       } catch (err) {
         console.error('Error loading Echelon data:', err);
         setError('Failed to load Echelon positions');
-        setPositions([]);
-        setRewardsData([]);
+        // keep previous positions to avoid flicker
       } finally {
         setLoading(false);
+        onPositionsCheckComplete?.();
       }
     }, 500); // Дебаунсинг 500мс
 

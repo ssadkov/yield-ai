@@ -8,6 +8,7 @@ import { Token } from "@/lib/types/token";
 import { Logo } from "./ui/logo";
 import { AlphaBadge } from "./ui/alpha-badge";
 import { CollapsibleProvider } from "@/contexts/CollapsibleContext";
+import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import { PositionsList as HyperionPositionsList } from "./protocols/hyperion/PositionsList";
 import { PositionsList as EchelonPositionsList } from "./protocols/echelon/PositionsList";
 import { PositionsList as AriesPositionsList } from "./protocols/aries/PositionsList";
@@ -30,6 +31,22 @@ export default function Sidebar() {
   const [auroValue, setAuroValue] = useState(0);
   const [amnisValue, setAmnisValue] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [checkingProtocols, setCheckingProtocols] = useState<string[]>([]);
+
+  const allProtocolNames = [
+    "Hyperion",
+    "Echelon",
+    "Aries",
+    "Joule",
+    "Tapp Exchange",
+    "Meso Finance",
+    "Auro Finance",
+    "Amnis Finance",
+  ];
+
+  const resetChecking = useCallback(() => {
+    setCheckingProtocols(allProtocolNames);
+  }, []);
 
   const loadPortfolio = useCallback(async () => {
     if (!account?.address) {
@@ -69,10 +86,17 @@ export default function Sidebar() {
     setMesoValue(0);
     setAuroValue(0);
     setAmnisValue(0);
+    resetChecking();
   }, [loadPortfolio]);
 
   useEffect(() => {
     loadPortfolio();
+    // Initialize checking list when account changes
+    if (account?.address) {
+      resetChecking();
+    } else {
+      setCheckingProtocols([]);
+    }
   }, [loadPortfolio]);
 
   const handleHyperionValueChange = useCallback((value: number) => {
@@ -143,6 +167,26 @@ export default function Sidebar() {
                 onRefresh={handleRefresh}
                 isRefreshing={isRefreshing}
               />
+              {checkingProtocols.length > 0 && (
+                <div className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground">
+                  <span>Checking positions on</span>
+                  <div className="flex items-center gap-1">
+                    {checkingProtocols.map((name) => {
+                      const proto = getProtocolByName(name);
+                      const logo = proto?.logoUrl;
+                      return (
+                        <img
+                          key={name}
+                          src={logo || "/favicon.ico"}
+                          alt={name}
+                          title={name}
+                          className="w-4 h-4 rounded-sm object-contain opacity-80"
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               {[
                 { component: HyperionPositionsList, value: hyperionValue, name: 'Hyperion' },
                 { component: EchelonPositionsList, value: echelonValue, name: 'Echelon' },
@@ -169,6 +213,9 @@ export default function Sidebar() {
                       name === 'Auro Finance' ? handleAuroValueChange :
                       name === 'Amnis Finance' ? handleAmnisValueChange :
                       undefined
+                    }
+                    onPositionsCheckComplete={() =>
+                      setCheckingProtocols((prev) => prev.filter((p) => p !== name))
                     }
                   />
                 ))}

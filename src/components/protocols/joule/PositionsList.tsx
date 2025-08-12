@@ -14,9 +14,10 @@ interface PositionsListProps {
   address?: string;
   onPositionsValueChange?: (value: number) => void;
   mockData?: any;
+  onPositionsCheckComplete?: () => void;
 }
 
-export function PositionsList({ address, onPositionsValueChange, mockData }: PositionsListProps) {
+export function PositionsList({ address, onPositionsValueChange, mockData, onPositionsCheckComplete }: PositionsListProps) {
   const { account } = useWallet();
   const [positions, setPositions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -47,7 +48,8 @@ export function PositionsList({ address, onPositionsValueChange, mockData }: Pos
   useEffect(() => {
     async function loadPositions() {
       if (!walletAddress) {
-        setPositions([]);
+        setPositions((prev) => prev);
+        onPositionsCheckComplete?.();
         return;
       }
 
@@ -80,9 +82,10 @@ export function PositionsList({ address, onPositionsValueChange, mockData }: Pos
       } catch (err) {
         console.error('Error loading Joule positions:', err);
         setError('Failed to load positions');
-        setPositions([]);
+        // keep previous positions on error
       } finally {
         setLoading(false);
+        onPositionsCheckComplete?.();
       }
     }
 

@@ -16,9 +16,10 @@ import { TokenPrice } from "@/lib/types/panora";
 interface PositionsListProps {
   address?: string;
   onPositionsValueChange?: (value: number) => void;
+  onPositionsCheckComplete?: () => void;
 }
 
-export function PositionsList({ address, onPositionsValueChange }: PositionsListProps) {
+export function PositionsList({ address, onPositionsValueChange, onPositionsCheckComplete }: PositionsListProps) {
   const { account } = useWallet();
   const [positions, setPositions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -207,9 +208,10 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
   // Объединенный useEffect для загрузки позиций и наград
   useEffect(() => {
     if (!walletAddress) {
-      setPositions([]);
-      setRewardsData({});
-      setTotalRewardsValue(0);
+      setPositions((prev) => prev);
+      setRewardsData((prev) => prev);
+      setTotalRewardsValue((prev) => prev);
+      onPositionsCheckComplete?.();
       return;
     }
 
@@ -238,11 +240,10 @@ export function PositionsList({ address, onPositionsValueChange }: PositionsList
       } catch (err) {
         console.error('Error loading Auro data:', err);
         setError("Failed to load Auro Finance positions");
-        setPositions([]);
-        setRewardsData({});
-        setTotalRewardsValue(0);
+        // keep previous data on error
       } finally {
         setLoading(false);
+        onPositionsCheckComplete?.();
       }
     };
 
