@@ -361,6 +361,12 @@ export function SwapAndDepositModal({
               </div>
             </div>
           )}
+          {/* Fee info for Panora */}
+          {swapProvider === 'panora' && (
+            <div className="mt-3 text-xs text-muted-foreground text-center">
+              Gasless transaction - no APT required for gas fees. 0.01% swap fee applies.
+            </div>
+          )}
         </DialogContent>
       </Dialog>
       <SwapAndDepositStatusModal
