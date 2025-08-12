@@ -31,6 +31,12 @@ export default function ChatPanel() {
           <Link href="https://forms.gle/NEpu5DjsmhVUprA5A" passHref target="_blank" rel="noopener noreferrer">
             <Button>Share Feedback</Button>
           </Link>
+          <Button 
+            variant="outline" 
+            onClick={() => setIsSwapModalOpen(true)}
+          >
+            Swap
+          </Button>
         </div>
         
         <div className="grid grid-cols-2 gap-4 w-full max-w-md">
