@@ -713,7 +713,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                         onDrop={(e) => handleDropEvent(e, item)}
                       >
                         <CardHeader>
-                          <CardTitle className="flex items-center gap-2">
+                          <CardTitle className="flex items-center gap-2 w-full flex-wrap">
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger>
@@ -796,7 +796,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
-                            <Badge variant="outline">{item.protocol}</Badge>
+                            <Badge variant="outline" className="ml-auto shrink-0">{item.protocol}</Badge>
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -862,7 +862,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                       onDrop={(e) => handleDropEvent(e, bestPool)}
                     >
                       <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
+                        <CardTitle className="flex items-center gap-2 w-full flex-wrap">
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger>
@@ -945,7 +945,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
-                          <Badge variant="outline">{bestPool.protocol}</Badge>
+                          <Badge variant="outline" className="ml-auto shrink-0">{bestPool.protocol}</Badge>
                         </CardTitle>
                       </CardHeader>
                       <CardContent>

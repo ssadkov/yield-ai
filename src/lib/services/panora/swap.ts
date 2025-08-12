@@ -6,6 +6,7 @@ export interface PanoraSwapQuoteRequest {
   toToken: string;
   amount: string;
   slippage: number;
+  toWalletAddress?: string;
 }
 
 export interface PanoraSwapQuoteResponse {
@@ -52,7 +53,7 @@ export class PanoraSwapService {
         fromTokenAddress: request.fromToken,
         toTokenAddress: request.toToken,
         fromTokenAmount: request.amount,
-        toWalletAddress: "0x0000000000000000000000000000000000000000000000000000000000000000", // placeholder
+        toWalletAddress: request.toWalletAddress || "0x0000000000000000000000000000000000000000000000000000000000000000",
         slippagePercentage: slippage.toString(),
         getTransactionData: "transactionPayload",
         integratorFeeAddress: panoraConfig?.integratorFeeAddress || "0x0000000000000000000000000000000000000000000000000000000000000000",

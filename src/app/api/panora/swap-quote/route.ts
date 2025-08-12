@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
       toToken: toTokenAddress,
       amount: fromTokenAmount,
       slippage: parseFloat(slippagePercentage || "1") / 100, // Convert percentage to decimal
+      toWalletAddress,
     });
 
     if (!response.success) {

@@ -148,7 +148,7 @@ export default function TestPanoraPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          chainId: "1", // Aptos mainnet
+          chainId: 1, // Aptos mainnet
           fromTokenAddress: fromToken.faAddress || fromToken.tokenAddress || '',
           toTokenAddress: toToken.faAddress || toToken.tokenAddress || '',
           fromTokenAmount: humanReadableAmount,
@@ -283,72 +283,21 @@ export default function TestPanoraPage() {
         try {
           // Check if Aptos wallet is available
           if (typeof window !== 'undefined' && window.aptos) {
-            const txPayload = swapData;
-            console.log('Transaction payload for signing:', txPayload);
-            
-            // Validate transaction payload
-            if (!txPayload.function || !txPayload.type_arguments || !txPayload.arguments) {
-              console.error('Invalid payload structure:', {
-                hasFunction: !!txPayload.function,
-                hasTypeArguments: !!txPayload.type_arguments,
-                hasArguments: !!txPayload.arguments,
-                payload: txPayload
-              });
-              throw new Error('Invalid transaction payload structure');
+            // 1) Take payload from server/Panora as-is
+            const txPayload =
+              quoteDebug?.transactionPayload ??
+              quoteDebug?.quotes?.[0]?.txData ??
+              swapData?.transactionPayload ??
+              swapData?.txData ?? swapData;
+
+            // 2) Validate minimal structure only; do not mutate args
+            if (!txPayload?.function || !Array.isArray(txPayload?.type_arguments) || !Array.isArray(txPayload?.arguments)) {
+              console.error('Invalid transaction payload from server/Panora:', txPayload);
+              throw new Error('Invalid transaction payload from server/Panora');
             }
-            
-            // Ensure arrays are properly defined and process arguments
-            const typeArguments = Array.isArray(txPayload.type_arguments) ? txPayload.type_arguments : [];
-            const functionArguments = Array.isArray(txPayload.arguments) ? txPayload.arguments.map((arg: any, index: number) => {
-              // For script calls, first argument (signer) should be null
-              if (index === 0) {
-                return null;
-              }
-              // For second argument (signer_cap), should be zero address
-              if (index === 1) {
-                return "0x0000000000000000000000000000000000000000000000000000000000000000";
-              }
-              
-              // For other arguments, ensure they are proper types
-              if (arg === null || arg === undefined) {
-                return null;
-              }
-              
-              // Keep arrays as arrays (don't convert to JSON strings)
-              if (Array.isArray(arg)) {
-                return arg;
-              }
-              
-              // If argument is an object, convert to string representation
-              if (typeof arg === 'object') {
-                return JSON.stringify(arg);
-              }
-              
-              // For numbers and strings, keep as is
-              if (typeof arg === 'number' || typeof arg === 'string') {
-                return arg;
-              }
-              
-              // For other types, convert to string
-              return String(arg);
-            }) : [];
-            
-            console.log('Payload validation passed. Function:', txPayload.function);
-            console.log('Type arguments count:', typeArguments.length);
-            console.log('Arguments count:', functionArguments.length);
-            console.log('Type arguments:', typeArguments);
-            console.log('Function arguments:', functionArguments);
-            
-            // Debug payload structure
-            console.log('=== PAYLOAD DEBUG ===');
-            console.log('Original payload:', txPayload);
-            console.log('Function:', txPayload.function);
-            console.log('Type arguments type:', typeof typeArguments);
-            console.log('Type arguments is array:', Array.isArray(typeArguments));
-            console.log('Function arguments type:', typeof functionArguments);
-            console.log('Function arguments is array:', Array.isArray(functionArguments));
-            console.log('Type arguments content:', JSON.stringify(typeArguments));
-            console.log('Function arguments content:', JSON.stringify(functionArguments));
+
+            console.log('Transaction payload (as-is) for signing:', txPayload);
+            console.log('TX args preview:', txPayload.arguments);
             
             // Sign and submit transaction
             console.log('Sending transaction to wallet for signing...');
@@ -359,9 +308,10 @@ export default function TestPanoraPage() {
               // New format: { payload }
               tx = await window.aptos.signAndSubmitTransaction({
                 payload: {
+                  type: "entry_function_payload",
                   function: txPayload.function,
-                  type_arguments: typeArguments,
-                  arguments: functionArguments
+                  type_arguments: txPayload.type_arguments,
+                  arguments: txPayload.arguments
                 }
               });
             } catch (newFormatError) {
@@ -369,9 +319,10 @@ export default function TestPanoraPage() {
               try {
                 // Legacy format: direct payload
                 tx = await window.aptos.signAndSubmitTransaction({
+                  type: "entry_function_payload",
                   function: txPayload.function,
-                  type_arguments: typeArguments,
-                  arguments: functionArguments
+                  type_arguments: txPayload.type_arguments,
+                  arguments: txPayload.arguments
                 });
               } catch (legacyFormatError) {
                 console.log('Legacy format failed, trying data wrapper:', legacyFormatError);
@@ -379,8 +330,8 @@ export default function TestPanoraPage() {
                 tx = await window.aptos.signAndSubmitTransaction({
                   data: {
                     function: txPayload.function,
-                    typeArguments: typeArguments,
-                    functionArguments: functionArguments
+                    typeArguments: txPayload.type_arguments,
+                    functionArguments: txPayload.arguments
                   },
                   options: {
                     maxGasAmount: 20000,
