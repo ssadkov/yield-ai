@@ -264,8 +264,25 @@ function AprFromResult() {
   const [currentInput, setCurrentInput] = useState<string>('11250.00');
   const [daysMode, setDaysMode] = useState<'days' | 'dates'>('days');
   const [daysInput, setDaysInput] = useState<string>('30');
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
+  const [startDateStr, setStartDateStr] = useState<string>('');
+  const [endDateStr, setEndDateStr] = useState<string>(() => {
+    const d = new Date();
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+    return `${dd}.${mm}.${yyyy}`;
+  });
+
+  // Ensure end date defaults to today when switching to dates mode
+  useEffect(() => {
+    if (daysMode === 'dates' && !endDateStr) {
+      const d = new Date();
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yyyy = d.getFullYear();
+      setEndDateStr(`${dd}.${mm}.${yyyy}`);
+    }
+  }, [daysMode, endDateStr]);
 
   const parseMoney = (v: string) => {
     const cleaned = v.replace(/[^0-9.]/g, '');
@@ -283,13 +300,25 @@ function AprFromResult() {
       return Math.max(1, isNaN(d) ? 0 : d);
     }
     // dates mode
-    const s = startDate ? new Date(startDate) : null;
-    const e = endDate ? new Date(endDate) : null;
+    const parseDDMMYYYY = (s: string): Date | null => {
+      const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(s);
+      if (!m) return null;
+      const dd = parseInt(m[1], 10);
+      const mm = parseInt(m[2], 10);
+      const yyyy = parseInt(m[3], 10);
+      if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
+      const dt = new Date(yyyy, mm - 1, dd);
+      if (dt.getFullYear() !== yyyy || dt.getMonth() !== mm - 1 || dt.getDate() !== dd) return null;
+      return dt;
+    };
+
+    const s = startDateStr ? parseDDMMYYYY(startDateStr) : null;
+    const e = endDateStr ? parseDDMMYYYY(endDateStr) : null;
     if (!s || !e || isNaN(s.getTime()) || isNaN(e.getTime())) return 1;
     const diffMs = e.getTime() - s.getTime();
     const d = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     return Math.max(1, d);
-  }, [daysMode, daysInput, startDate, endDate]);
+  }, [daysMode, daysInput, startDateStr, endDateStr]);
 
   const roi = useMemo(() => {
     if (start <= 0) return 0;
@@ -353,8 +382,50 @@ function AprFromResult() {
             />
           ) : (
             <div className="grid grid-cols-2 gap-2">
-              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-12 text-lg" />
-              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-12 text-lg" />
+              <Input
+                type="text"
+                inputMode="numeric"
+                placeholder="dd.mm.yyyy"
+                value={startDateStr}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/[^0-9.]/g, '');
+                  const parts = v.split('.');
+                  const normalized = parts.length > 3 ? parts.slice(0, 3).join('.') : v;
+                  setStartDateStr(normalized);
+                }}
+                onBlur={() => {
+                  const m = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(startDateStr);
+                  if (m) {
+                    const dd = String(Math.min(31, Math.max(1, parseInt(m[1], 10)))).padStart(2, '0');
+                    const mm = String(Math.min(12, Math.max(1, parseInt(m[2], 10)))).padStart(2, '0');
+                    const yyyy = m[3];
+                    setStartDateStr(`${dd}.${mm}.${yyyy}`);
+                  }
+                }}
+                className="h-12 text-lg"
+              />
+              <Input
+                type="text"
+                inputMode="numeric"
+                placeholder="dd.mm.yyyy"
+                value={endDateStr}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/[^0-9.]/g, '');
+                  const parts = v.split('.');
+                  const normalized = parts.length > 3 ? parts.slice(0, 3).join('.') : v;
+                  setEndDateStr(normalized);
+                }}
+                onBlur={() => {
+                  const m = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(endDateStr);
+                  if (m) {
+                    const dd = String(Math.min(31, Math.max(1, parseInt(m[1], 10)))).padStart(2, '0');
+                    const mm = String(Math.min(12, Math.max(1, parseInt(m[2], 10)))).padStart(2, '0');
+                    const yyyy = m[3];
+                    setEndDateStr(`${dd}.${mm}.${yyyy}`);
+                  }
+                }}
+                className="h-12 text-lg"
+              />
             </div>
           )}
         </div>
