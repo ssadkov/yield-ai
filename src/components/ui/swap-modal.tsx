@@ -106,6 +106,7 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
 
   // Available tokens for "To" selection
   const availableToTokens = useMemo(() => {
+    // 1) Start with user's tokens (with tokenInfo attached)
     const userTokens = tokens
       .map(t => {
         const tokenInfo = getTokenInfo(t.address);
@@ -120,16 +121,40 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
       )
       .sort((a, b) => Number(b.amount) - Number(a.amount));
 
-    // If user has tokens, return them
-    if (userTokens.length > 0) {
-      return userTokens;
-    }
+    // 2) Ensure only native tokens are always present: APT, USDt, USDC (native), WBTC (native)
+    // Native faAddresses (lowercase)
+    const requiredFaAddresses = [
+      '0xa', // APT
+      '0x357b0b74bc833e95a115ad22604854d6b0fca151cecd94111770e5d6ffc9dc2b', // USDt (native)
+      '0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b', // USDC (native)
+      '0x68844a0d7f2587e726ad0579f3d640865bb4162c08a4589eeda3f9689ec52a3d', // WBTC (native)
+    ];
 
-    // Otherwise return popular tokens
-    const popularSymbols = ['USDt', 'USDC', 'APT', 'stAPT', 'xBTC', 'aBTC', 'wBTC', 'RION', 'THL', 'AURO'];
-    return (tokenList.data.data as Token[])
-      .filter(token => popularSymbols.includes(token.symbol))
-      .slice(0, 10);
+    const requiredTokens = (tokenList.data.data as Token[])
+      .filter(token => requiredFaAddresses.includes((token.faAddress || '').toLowerCase()))
+      .filter(token => token.faAddress !== fromToken?.faAddress)
+      .map(token => ({
+        address: token.faAddress || token.tokenAddress || '',
+        name: token.name || token.symbol,
+        symbol: token.symbol,
+        decimals: token.decimals,
+        amount: '0',
+        price: null as string | null,
+        tokenInfo: token
+      }));
+
+    // 3) Merge with deduplication by token address
+    const byAddr = new Map<string, any>();
+    const put = (item: any) => {
+      const addr = (item.tokenInfo?.faAddress || item.tokenInfo?.tokenAddress || item.address || '').toLowerCase();
+      if (!addr) return;
+      if (!byAddr.has(addr)) byAddr.set(addr, item);
+    };
+
+    userTokens.forEach(put);
+    requiredTokens.forEach(put);
+
+    return Array.from(byAddr.values());
   }, [tokens, fromToken]);
 
   // Type guard to check if token has tokenInfo property
