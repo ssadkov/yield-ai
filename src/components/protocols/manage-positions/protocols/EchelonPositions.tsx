@@ -141,6 +141,42 @@ export function EchelonPositions() {
     }
   }, [account?.address]);
 
+  // Унифицированный рефрешер данных (позиции + награды)
+  const reloadData = useCallback(async (positionsDataFromEvent?: any[]) => {
+    // Если пришли позиции из события, устанавливаем их и обновляем награды
+    if (positionsDataFromEvent && Array.isArray(positionsDataFromEvent)) {
+      setPositions(positionsDataFromEvent);
+      try {
+        await fetchRewards();
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
+    if (!account?.address) return;
+    try {
+      setLoading(true);
+      setError(null);
+      const positionsResponse = await fetch(`/api/protocols/echelon/userPositions?address=${account.address}`);
+      if (!positionsResponse.ok) {
+        throw new Error(`Positions API returned status ${positionsResponse.status}`);
+      }
+      const positionsJson = await positionsResponse.json();
+      if (positionsJson.success && Array.isArray(positionsJson.data)) {
+        setPositions(positionsJson.data);
+      } else {
+        setPositions([]);
+      }
+      await fetchRewards();
+    } catch (err) {
+      console.error('[EchelonPositions] Error reloading data:', err);
+      setError('Failed to load Echelon positions');
+    } finally {
+      setLoading(false);
+    }
+  }, [account?.address, fetchRewards]);
+
   // Расчет стоимости rewards
   const calculateRewardsValue = useCallback(() => {
     return rewardsData.reduce((sum, reward) => {
@@ -273,6 +309,27 @@ export function EchelonPositions() {
 
     return () => clearTimeout(timeoutId);
   }, [account?.address, fetchRewards]);
+
+  // Подписка на глобальное событие обновления позиций
+  useEffect(() => {
+    const handleRefresh = (event: CustomEvent) => {
+      if (event.detail?.protocol === 'echelon') {
+        const incoming = event.detail?.data;
+        if (incoming && Array.isArray(incoming)) {
+          // При ручном Refresh из ManagePositions приходят новые позиции
+          reloadData(incoming);
+        } else {
+          // После Withdraw/Claim данных нет — перезагружаем из API
+          reloadData();
+        }
+      }
+    };
+
+    window.addEventListener('refreshPositions', handleRefresh as unknown as EventListener);
+    return () => {
+      window.removeEventListener('refreshPositions', handleRefresh as unknown as EventListener);
+    };
+  }, [reloadData]);
 
   const getTokenInfo = (coinAddress: string) => {
     const token = (tokenList as any).data.data.find(
