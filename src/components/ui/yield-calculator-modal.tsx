@@ -16,6 +16,7 @@ import { calcYield } from '@/lib/utils/calcYield';
 import { useWalletData } from '@/contexts/WalletContext';
 import { getProtocolByName } from '@/lib/protocols/getProtocolsList';
 import { useWalletStore } from '@/lib/stores/walletStore';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface YieldCalculatorModalProps {
   isOpen: boolean;
@@ -151,10 +152,16 @@ export function YieldCalculatorModal({ isOpen, onClose }: YieldCalculatorModalPr
       <DialogContent className="sm:max-w-[520px] p-6 rounded-2xl">
         <DialogHeader>
           <DialogTitle>Yield Calculator</DialogTitle>
-          <DialogDescription>Estimate your earnings based on APR and deposit size.</DialogDescription>
+          <DialogDescription>Estimate your earnings or derive APR from results.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5">
+        <Tabs defaultValue="yield" className="w-full">
+          <TabsList className="mb-3">
+            <TabsTrigger value="yield">Yield</TabsTrigger>
+            <TabsTrigger value="apr">APR</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="yield" className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
             {/* Left: APR & Deposit (inputs) */}
             <div className="space-y-4">
@@ -234,10 +241,147 @@ export function YieldCalculatorModal({ isOpen, onClose }: YieldCalculatorModalPr
           <div className="flex items-center justify-end gap-2">
             <Button variant="outline" onClick={onClose}>Close</Button>
           </div>
-        </div>
+          </TabsContent>
+
+          <TabsContent value="apr" className="space-y-5">
+            {/* APR from result tab */}
+            <AprFromResult />
+
+            <div className="flex items-center justify-end gap-2">
+              <Button variant="outline" onClick={onClose}>Close</Button>
+            </div>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
 }
 
+
+// --- APR from result sub-component ---
+function AprFromResult() {
+  const [startInput, setStartInput] = useState<string>('10000.00');
+  const [currentInput, setCurrentInput] = useState<string>('11250.00');
+  const [daysMode, setDaysMode] = useState<'days' | 'dates'>('days');
+  const [daysInput, setDaysInput] = useState<string>('30');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+
+  const parseMoney = (v: string) => {
+    const cleaned = v.replace(/[^0-9.]/g, '');
+    const parts = cleaned.split('.');
+    const normalized = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : cleaned;
+    const num = parseFloat(normalized);
+    return Number.isFinite(num) ? num : 0;
+  };
+
+  const start = useMemo(() => parseMoney(startInput), [startInput]);
+  const current = useMemo(() => parseMoney(currentInput), [currentInput]);
+  const days = useMemo(() => {
+    if (daysMode === 'days') {
+      const d = parseInt((daysInput || '0').replace(/\D/g, ''), 10);
+      return Math.max(1, isNaN(d) ? 0 : d);
+    }
+    // dates mode
+    const s = startDate ? new Date(startDate) : null;
+    const e = endDate ? new Date(endDate) : null;
+    if (!s || !e || isNaN(s.getTime()) || isNaN(e.getTime())) return 1;
+    const diffMs = e.getTime() - s.getTime();
+    const d = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    return Math.max(1, d);
+  }, [daysMode, daysInput, startDate, endDate]);
+
+  const roi = useMemo(() => {
+    if (start <= 0) return 0;
+    return (current - start) / start;
+  }, [start, current]);
+
+  const aprPct = useMemo(() => {
+    if (days <= 0) return 0;
+    return roi * (365 / days) * 100;
+  }, [roi, days]);
+
+  const formatPct = (v: number) => `${(Number.isFinite(v) ? v : 0).toFixed(2)}%`;
+  const formatUsd = (v: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(Number.isFinite(v) ? v : 0);
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
+      {/* Left: inputs */}
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label>Start capital (USD)</Label>
+          <Input
+            value={startInput}
+            onChange={(e) => {
+              let v = e.target.value.replace(/[^0-9.]/g, '');
+              const parts = v.split('.');
+              if (parts.length > 2) v = parts[0] + '.' + parts.slice(1).join('');
+              setStartInput(v);
+            }}
+            onBlur={() => setStartInput(parseMoney(startInput).toFixed(2))}
+            className="h-12 text-lg text-right"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Current capital (USD)</Label>
+          <Input
+            value={currentInput}
+            onChange={(e) => {
+              let v = e.target.value.replace(/[^0-9.]/g, '');
+              const parts = v.split('.');
+              if (parts.length > 2) v = parts[0] + '.' + parts.slice(1).join('');
+              setCurrentInput(v);
+            }}
+            onBlur={() => setCurrentInput(parseMoney(currentInput).toFixed(2))}
+            className="h-12 text-lg text-right"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label>Period</Label>
+          <div className="flex gap-2">
+            <Button type="button" variant={daysMode === 'days' ? 'default' : 'outline'} size="sm" onClick={() => setDaysMode('days')}>Days</Button>
+            <Button type="button" variant={daysMode === 'dates' ? 'default' : 'outline'} size="sm" onClick={() => setDaysMode('dates')}>Dates</Button>
+          </div>
+          {daysMode === 'days' ? (
+            <Input
+              value={daysInput}
+              onChange={(e) => setDaysInput(e.target.value.replace(/\D/g, ''))}
+              onBlur={() => setDaysInput(String(Math.max(1, parseInt(daysInput || '1', 10) || 1)))}
+              className="h-12 text-lg text-right"
+              placeholder="Days"
+            />
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-12 text-lg" />
+              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-12 text-lg" />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Right: output */}
+      <div className="space-y-3">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">APR</span>
+              <span className="text-2xl font-semibold">{formatPct(aprPct)}</span>
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">ROI</span>
+                <span>{formatPct(roi * 100)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">PnL</span>
+                <span>{formatUsd(current - start)}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
 
