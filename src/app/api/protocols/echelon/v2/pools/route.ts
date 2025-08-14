@@ -28,6 +28,8 @@ type MarketAsset = {
   market: string;
   supplyCap: number;
   borrowCap: number;
+  // Optional staking APR provided by Echelon for staking-like assets (fraction, not %)
+  stakingApr?: number;
 };
 
 function calculateRewardsApr(
@@ -144,6 +146,9 @@ export async function GET() {
     }
 
     // Process assets and create InvestmentData entries
+    // Also collect staking APRs for staking-like assets
+    const stakingAprs: Record<string, { aprPct: number; source: 'echelon' }> = {};
+
     if (Array.isArray(result.data.assets)) {
       result.data.assets.forEach((asset: MarketAsset) => {
         // Get market stats for this asset
@@ -180,6 +185,19 @@ export async function GET() {
         // Calculate total APRs
         const totalSupplyApr = (asset.supplyApr || 0) * 100 + supplyRewardsApr * 100;
         const totalBorrowApr = (asset.borrowApr || 0) * 100 + borrowRewardsApr * 100;
+
+        // Collect staking APR mapping (if available and positive)
+        const rawStakingApr = (asset as any).stakingApr as number | undefined;
+        if (typeof rawStakingApr === 'number' && rawStakingApr > 0) {
+          const aprPct = rawStakingApr * 100;
+          const entry = { aprPct, source: 'echelon' as const };
+          if (asset.address) {
+            stakingAprs[asset.address] = entry;
+          }
+          if (asset.faAddress) {
+            stakingAprs[asset.faAddress] = entry;
+          }
+        }
 
         // Create Supply pool entry if supply is allowed
         if (asset.supplyCap > 0) {
@@ -238,7 +256,8 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
-      data: transformedPools
+      data: transformedPools,
+      stakingAprs,
     }, {
       headers: {
         'Cache-Control': 'public, max-age=30, s-maxage=30, stale-while-revalidate=60',

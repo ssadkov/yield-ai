@@ -5,14 +5,15 @@ import { useDragDrop } from "@/contexts/DragDropContext";
 import { TokenDragData } from "@/types/dragDrop";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface TokenItemProps {
   token: Token;
+  stakingAprs?: Record<string, { aprPct: number; source: string }>;
 }
 
-export function TokenItem({ token }: TokenItemProps) {
+export function TokenItem({ token, stakingAprs = {} }: TokenItemProps) {
   const { startDrag, endDrag, state } = useDragDrop();
   
   const formattedAmount = (parseFloat(token.amount) / Math.pow(10, token.decimals)).toFixed(3);
@@ -20,34 +21,21 @@ export function TokenItem({ token }: TokenItemProps) {
   const formattedPrice = token.price ? `$${parseFloat(token.price).toFixed(2)}` : 'N/A';
   const symbol = token.symbol || token.name || 'Unknown';
 
-  // Check if this is stAPT token and show yield badge
-  const isStApt = token.address === '0x111ae3e5bc816a5e63c2da97d0aa3886519e0cd5e4b046659fa35796bd11542a::stapt_token::StakedApt';
-  const [stAptYield, setStAptYield] = useState<number>(0);
-
-  // Fetch real APR for stAPT from Amnis API
-  useEffect(() => {
-    if (isStApt) {
-      const fetchAmnisAPR = async () => {
-        try {
-          const response = await fetch('/api/protocols/amnis/pools');
-          if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.pools && data.pools.length > 0) {
-              // Use APT staking pool APR
-              const aptPool = data.pools.find((pool: any) => pool.asset === 'APT');
-              if (aptPool && aptPool.apr) {
-                setStAptYield(aptPool.apr);
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Error fetching Amnis APR:', error);
-        }
-      };
-      
-      fetchAmnisAPR();
+  // Resolve staking APR for this token (Echelon-sourced)
+  const stakingAprPct = useMemo(() => {
+    // Try direct address key first
+    if (stakingAprs[token.address]?.aprPct !== undefined) {
+      return stakingAprs[token.address].aprPct as number;
     }
-  }, [isStApt]);
+    // Try faAddress via token list entry (by matching symbol)
+    const tokenList = getTokenList(1);
+    const tokenInfo = tokenList.find(t => t.symbol === symbol);
+    const faAddress = (tokenInfo as any)?.faAddress as string | undefined;
+    if (faAddress && stakingAprs[faAddress]?.aprPct !== undefined) {
+      return stakingAprs[faAddress].aprPct as number;
+    }
+    return 0;
+  }, [stakingAprs, token.address, symbol]);
 
   // Находим токен в списке для получения logoUrl
   const tokenList = getTokenList(1); // 1 - это chainId для Aptos
@@ -97,16 +85,16 @@ export function TokenItem({ token }: TokenItemProps) {
         <div className="flex flex-col">
           <div className="flex items-center gap-1">
             <span className="text-sm font-medium truncate">{symbol}</span>
-            {isStApt && stAptYield > 0 && (
+            {stakingAprPct > 0.01 && (
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Badge variant="secondary" className="text-xs px-1 py-0 h-4 text-green-600 bg-green-100 border-green-200 cursor-help">
-                      {stAptYield.toFixed(2)}%
+                      {stakingAprPct.toFixed(2)}%
                     </Badge>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Current APR from Amnis Finance liquid staking</p>
+                    <p>Liquid staking APR</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
