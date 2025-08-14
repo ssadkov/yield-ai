@@ -42,6 +42,45 @@ export function TokenItem({ token, stakingAprs = {} }: TokenItemProps) {
   const tokenInfo = tokenList.find(t => t.symbol === symbol);
   const logoUrl = tokenInfo?.logoUrl;
 
+  // Infer staking protocol name from token metadata (websiteUrl/name/symbol)
+  const stakingProtocolName = useMemo(() => {
+    const website = (tokenInfo as any)?.websiteUrl as string | undefined;
+    const name = tokenInfo?.name || '';
+    const lowerName = name.toLowerCase();
+    const fromHost = (host: string) => {
+      if (host.includes('amnis')) return 'Amnis';
+      if (host.includes('thala')) return 'Thala';
+      if (host.includes('kofi')) return 'Kofi';
+      if (host.includes('trufin')) return 'TruFin';
+      if (host.includes('ethena')) return 'Ethena';
+      return null;
+    };
+    // Try websiteUrl host
+    if (website) {
+      try {
+        const host = new URL(website).host.toLowerCase();
+        const byHost = fromHost(host);
+        if (byHost) return byHost;
+      } catch (_) {
+        // ignore invalid URL
+      }
+    }
+    // Try name hints
+    if (lowerName.includes('amnis')) return 'Amnis';
+    if (lowerName.includes('thala')) return 'Thala';
+    if (lowerName.includes('kofi')) return 'Kofi';
+    if (lowerName.includes('trufin')) return 'TruFin';
+    if (lowerName.includes('ethena')) return 'Ethena';
+    // Try symbol patterns
+    const upperSymbol = symbol.toUpperCase();
+    if (['THAPT', 'STHAPT'].includes(upperSymbol)) return 'Thala';
+    if (['KAPT', 'STKAPT'].includes(upperSymbol)) return 'Kofi';
+    if (upperSymbol === 'TRUAPT') return 'TruFin';
+    if (upperSymbol === 'SUSDE') return 'Ethena';
+    if (['AMAPT', 'STAPT'].includes(upperSymbol)) return 'Amnis';
+    return null;
+  }, [tokenInfo, symbol]);
+
   const handleDragStart = (e: React.DragEvent) => {
     const dragData: TokenDragData = {
       type: 'token',
@@ -94,7 +133,7 @@ export function TokenItem({ token, stakingAprs = {} }: TokenItemProps) {
                     </Badge>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Liquid staking APR</p>
+                    <p>{stakingProtocolName ? `${stakingProtocolName} protocol staking APR` : 'Staking APR'}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
