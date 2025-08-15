@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Image from "next/image";
-import { ChevronDown, ArrowLeftRight, Settings2 } from "lucide-react";
+import { ChevronDown, ArrowLeftRight, Settings } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -314,13 +314,13 @@ export function SwapAndDepositModal({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               size="icon"
               aria-label="Swap settings"
               onClick={() => setShowSettings((v) => !v)}
               className="shrink-0"
             >
-              <Settings2 className={`h-4 w-4 ${showSettings ? 'text-primary' : ''}`} />
+              <Settings className={`h-4 w-4 ${showSettings ? 'text-primary' : ''}`} />
             </Button>
 
             <div className="flex items-center gap-2">
@@ -363,7 +363,19 @@ export function SwapAndDepositModal({
           {/* Fee info for Panora */}
           {swapProvider === 'panora' && (
             <div className="mt-3 text-xs text-muted-foreground text-center">
-              Gasless transaction - no APT required for gas fees. 0.01% swap fee applies.
+              <div className="flex items-center justify-center gap-2">
+                <span>Gasless transaction - no APT required for gas fees. 0.01% swap fee applies.</span>
+                <span>•</span>
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-xs text-muted-foreground">Powered by</span>
+                  <img
+                    src="/panora_horizontal_logo_black.png"
+                    alt="Panora"
+                    className="w-auto"
+                    style={{ height: '21px', minWidth: '72px' }}
+                  />
+                </div>
+              </div>
             </div>
           )}
         </DialogContent>
