@@ -29,6 +29,11 @@ interface WalletData {
 export default function WalletViewPage() {
   const params = useParams();
   const router = useRouter();
+  
+  if (!params?.address) {
+    return <div>Address not found</div>;
+  }
+  
   const address = params.address as string;
   
   const [walletData, setWalletData] = useState<WalletData | null>(null);

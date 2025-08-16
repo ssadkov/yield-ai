@@ -153,6 +153,11 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
       return true;
     }
     
+    // KoFi Finance стейкинг-пулы считаем стабильными
+    if (item.protocol === 'KoFi Finance' && item.isStakingPool) {
+      return true;
+    }
+    
     return false;
   };
 
@@ -174,6 +179,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
           'Tapp Exchange': true,
           'Auro Finance': true,
           'Amnis Finance': true,
+          'KoFi Finance': true,
           'Echelon': true
         };
         setProtocolsLoading(initialLoadingState);
@@ -321,6 +327,41 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   minStake: pool.minStake,
                   maxStake: pool.maxStake,
                   isActive: pool.isActive
+                };
+              });
+            }
+          },
+          {
+            name: 'KoFi Finance',
+            url: '/api/protocols/kofi/pools',
+            transform: (data: any) => {
+              const pools = data.data || [];
+              
+              return pools.map((pool: any) => {
+                return {
+                  asset: pool.asset || 'Unknown',
+                  provider: pool.provider || 'KoFi Finance',
+                  totalAPY: pool.totalAPY || 0,
+                  depositApy: pool.depositApy || 0,
+                  borrowAPY: pool.borrowAPY || 0,
+                  token: pool.token || '',
+                  protocol: pool.protocol || 'KoFi Finance',
+                  poolType: pool.poolType || 'Staking',
+                  tvlUSD: pool.tvlUSD || 0,
+                  dailyVolumeUSD: pool.dailyVolumeUSD || 0,
+                  // KoFi-specific fields
+                  stakingApr: pool.stakingApr,
+                  isStakingPool: pool.isStakingPool,
+                  stakingToken: pool.stakingToken,
+                  underlyingToken: pool.underlyingToken,
+                  // Echelon-specific data
+                  supplyCap: pool.supplyCap,
+                  borrowCap: pool.borrowCap,
+                  supplyRewardsApr: pool.supplyRewardsApr,
+                  borrowRewardsApr: pool.borrowRewardsApr,
+                  marketAddress: pool.marketAddress,
+                  totalSupply: pool.totalSupply,
+                  totalBorrow: pool.totalBorrow
                 };
               });
             }

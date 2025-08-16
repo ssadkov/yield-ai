@@ -106,6 +106,14 @@ const testPages = [
     path: '/test-echelon',
     icon: Shield,
     color: 'bg-yellow-500'
+  },
+  {
+    name: 'Test KoFi Pools',
+    description: 'Test KoFi Finance staking pools integration',
+    path: '/test-kofi-pools',
+    icon: Coins,
+    badge: 'New',
+    color: 'bg-emerald-600'
   }
 ];
 

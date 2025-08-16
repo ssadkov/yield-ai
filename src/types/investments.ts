@@ -31,6 +31,11 @@ export interface InvestmentData {
   marketAddress?: string;
   totalSupply?: number;
   totalBorrow?: number;
+  // Staking-specific fields
+  stakingApr?: number;
+  isStakingPool?: boolean;
+  stakingToken?: string;
+  underlyingToken?: string;
 }
 
 export interface InvestmentsResponse {

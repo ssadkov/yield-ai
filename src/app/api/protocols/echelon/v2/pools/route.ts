@@ -246,6 +246,38 @@ export async function GET() {
             totalBorrow: marketStat.totalLiability,
           });
         }
+
+        // Create Staking pool entry if stakingApr is available (for stkAPT and other staking tokens)
+        if (typeof rawStakingApr === 'number' && rawStakingApr > 0) {
+          const stakingAprPct = rawStakingApr * 100;
+          
+          // Create a special staking pool entry
+          transformedPools.push({
+            asset: `${asset.symbol} (Staking)`,
+            provider: 'KoFi Finance', // Use KoFi Finance as provider for stkAPT
+            totalAPY: stakingAprPct,
+            depositApy: stakingAprPct,
+            borrowAPY: 0,
+            token: asset.symbol === 'stkAPT' ? '0x1::aptos_coin::AptosCoin' : (asset.faAddress || asset.address), // Use APT address for stkAPT staking
+            protocol: 'KoFi Finance',
+            poolType: 'Staking',
+            tvlUSD: marketStat.totalShares * (asset.price || 0),
+            dailyVolumeUSD: 0,
+            // Additional staking-specific data
+            supplyCap: asset.supplyCap,
+            borrowCap: 0, // Staking pools don't have borrowing
+            supplyRewardsApr: stakingAprPct,
+            borrowRewardsApr: 0,
+            marketAddress: asset.market,
+            totalSupply: marketStat.totalShares,
+            totalBorrow: 0,
+            // Staking-specific fields
+            stakingApr: stakingAprPct,
+            isStakingPool: true,
+            stakingToken: asset.symbol === 'stkAPT' ? 'stkAPT' : asset.symbol,
+            underlyingToken: asset.symbol === 'stkAPT' ? 'APT' : asset.symbol,
+          });
+        }
       });
     }
 

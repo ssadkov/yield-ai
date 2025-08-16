@@ -172,6 +172,44 @@ export const poolSources: PoolSource[] = [
       });
     }
   },
+  // KoFi Finance staking pools API
+  {
+    name: 'KoFi Finance Staking API',
+    url: '/api/protocols/kofi/pools',
+    enabled: true,
+    transform: (data: any) => {
+      // Transform KoFi pools data to InvestmentData format
+      const pools = data.data || [];
+      
+      return pools.map((pool: any) => {
+        return {
+          asset: pool.asset || 'Unknown',
+          provider: pool.provider || 'KoFi Finance',
+          totalAPY: pool.totalAPY || 0,
+          depositApy: pool.depositApy || 0,
+          borrowAPY: pool.borrowAPY || 0,
+          token: pool.token || '',
+          protocol: pool.protocol || 'KoFi Finance',
+          poolType: pool.poolType || 'Staking',
+          tvlUSD: pool.tvlUSD || 0,
+          dailyVolumeUSD: pool.dailyVolumeUSD || 0,
+          // Additional KoFi-specific data
+          stakingApr: pool.stakingApr,
+          isStakingPool: pool.isStakingPool,
+          stakingToken: pool.stakingToken,
+          underlyingToken: pool.underlyingToken,
+          // Echelon-specific data
+          supplyCap: pool.supplyCap,
+          borrowCap: pool.borrowCap,
+          supplyRewardsApr: pool.supplyRewardsApr,
+          borrowRewardsApr: pool.borrowRewardsApr,
+          marketAddress: pool.marketAddress,
+          totalSupply: pool.totalSupply,
+          totalBorrow: pool.totalBorrow
+        };
+      });
+    }
+  },
   // Echelon Markets API v2
   {
     name: 'Echelon Markets API v2',
