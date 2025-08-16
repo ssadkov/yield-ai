@@ -99,5 +99,15 @@
       "apiKey": "ENV_PANORA_API_KEY",
       "rpcUrl": "ENV_APTOS_RPC_URL"
     }
+  },
+  {
+    "name": "Kofi Finance",
+    "category": "Staking",
+    "url": "https://kofi.finance/",
+    "logoUrl": "https://app.kofi.finance/favicon.ico",
+    "description": "Kofi introduces MEV boosted liquid staking on Aptos, delivering enhanced yields while maintaining complete liquidity. Stake your APT and receive kAPT & stkAPT - your key to maximized returns.",
+    "depositType": "native",
+    "isDepositEnabled": true,
+    "managedType": "native"
   }
 ] 
