@@ -26,11 +26,12 @@ export function useDeposit() {
       const protocolInstance = protocols[protocolKey];
       console.log('Protocol instance:', protocolInstance);
       console.log('Protocol instance type:', typeof protocolInstance);
-      console.log('Protocol instance methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(protocolInstance)));
 
       if (!protocolInstance) {
         throw new Error(`Protocol ${protocolKey} not found`);
       }
+
+      console.log('Protocol instance methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(protocolInstance)));
 
       if (typeof protocolInstance.buildDeposit !== 'function') {
         throw new Error(`Protocol ${protocolKey} does not have buildDeposit method`);

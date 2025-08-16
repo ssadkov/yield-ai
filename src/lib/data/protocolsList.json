@@ -12,6 +12,7 @@
   },
   {
     "name": "Aries",
+    "key": "aries",
     "category": "Lending",
     "url": "https://app.ariesmarkets.xyz/lending",
     "logoUrl": "https://ariesmarkets.xyz/favicon-32x32.png",
@@ -23,6 +24,7 @@
   },
   {
     "name": "Joule",
+    "key": "joule",
     "category": "Lending",
     "url": "https://app.joule.finance/rewards?tabId=referral&referralAddress=0x56ff2fc971deecd286314fe99b8ffd6a5e72e62eacdc46ae9b234c5282985f97",
     "logoUrl": "https://app.joule.finance/favicon.ico",
@@ -33,6 +35,7 @@
   },
   {
     "name": "Echelon",
+    "key": "echelon",
     "category": "Lending",
     "url": "https://app.echelon.market/dashboard?network=aptos_mainnet",
     "logoUrl": "/echelon-favicon.ico",
@@ -43,6 +46,7 @@
   },
   {
     "name": "Meso Finance",
+    "key": "meso",
     "category": "Lending",
     "url": "https://app.meso.finance/points?ref=DTORFK5S9ITD",
     "logoUrl": "https://app.meso.finance/logo.png",
@@ -54,6 +58,7 @@
   },
   {
     "name": "Tapp Exchange",
+    "key": "tapp",
     "category": "DEX",
     "url": "https://tapp.exchange/",
     "logoUrl": "https://tapp.exchange/favicon.ico",
@@ -65,6 +70,7 @@
   },
   {
     "name": "Auro Finance",
+    "key": "auro",
     "category": "Lending",
     "url": "https://app.auro.finance?ref=YieldAI",
     "logoUrl": "https://app.auro.finance/logo.png",
@@ -76,6 +82,7 @@
   },
   {
     "name": "Amnis Finance",
+    "key": "amnis",
     "category": "Staking",
     "url": "https://stake.amnis.finance/",
     "logoUrl": "/amnis-logo.png",
@@ -86,6 +93,7 @@
   },
   {
     "name": "Panora",
+    "key": "panora",
     "category": "Aggregator",
     "url": "https://panora.exchange",
     "logoUrl": "https://panora.exchange/assets/favicons/favicon.ico",
@@ -102,6 +110,7 @@
   },
   {
     "name": "Kofi Finance",
+    "key": "kofi",
     "category": "Staking",
     "url": "https://kofi.finance/",
     "logoUrl": "https://app.kofi.finance/favicon.ico",

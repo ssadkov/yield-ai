@@ -51,7 +51,7 @@ export function DepositButton({
   const [protocolAPY, setProtocolAPY] = useState<number>(8.4); // Default fallback
   const walletData = useWalletData();
 
-  // Fetch real APR data for Amnis Finance and Echelon
+  // Fetch real APR data for Amnis Finance, Echelon, and Kofi Finance
   useEffect(() => {
     if (protocol.name === 'Amnis Finance') {
       const fetchAmnisAPR = async () => {
@@ -101,6 +101,37 @@ export function DepositButton({
       };
       
       fetchEchelonAPY();
+    } else if (protocol.name === 'Kofi Finance') {
+      const fetchKofiAPY = async () => {
+        try {
+          console.log('Fetching Kofi Finance APR...');
+          const response = await fetch('/api/protocols/kofi/pools');
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data && data.data.length > 0) {
+              // Find stkAPT staking pool
+              const stkAPTPool = data.data.find((pool: any) => 
+                pool.stakingToken === 'stkAPT' || pool.asset?.includes('stkAPT')
+              );
+              if (stkAPTPool && stkAPTPool.stakingApr) {
+                setProtocolAPY(stkAPTPool.stakingApr);
+                console.log('Fetched Kofi Finance APR:', stkAPTPool.stakingApr);
+              } else {
+                console.log('No stkAPT staking pool found in Kofi data');
+                console.log('Available pools:', data.data.map((p: any) => ({ 
+                  asset: p.asset, 
+                  stakingApr: p.stakingApr,
+                  stakingToken: p.stakingToken 
+                })));
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching Kofi Finance APR:', error);
+        }
+      };
+      
+      fetchKofiAPY();
     }
   }, [protocol.name, tokenIn?.address]);
 
@@ -184,7 +215,7 @@ export function DepositButton({
               console.log(`DepositModal - APR for ${protocol.name}:`, protocolAPY);
               return protocolAPY;
             })(),
-            key: (protocol.name === 'Amnis Finance' ? 'amnis' : protocol.name.toLowerCase()) as ProtocolKey
+            key: protocol.key
           }}
           tokenIn={{
             symbol: tokenIn.symbol,

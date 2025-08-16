@@ -254,12 +254,12 @@ export async function GET() {
           // Create a special staking pool entry
           transformedPools.push({
             asset: `${asset.symbol} (Staking)`,
-            provider: 'KoFi Finance', // Use KoFi Finance as provider for stkAPT
+            provider: 'Kofi Finance', // Use Kofi Finance as provider for stkAPT
             totalAPY: stakingAprPct,
             depositApy: stakingAprPct,
             borrowAPY: 0,
-            token: asset.symbol === 'stkAPT' ? '0x1::aptos_coin::AptosCoin' : (asset.faAddress || asset.address), // Use APT address for stkAPT staking
-            protocol: 'KoFi Finance',
+            token: asset.faAddress || asset.address, // Use original stkAPT address for Echelon
+            protocol: 'Kofi Finance',
             poolType: 'Staking',
             tvlUSD: marketStat.totalShares * (asset.price || 0),
             dailyVolumeUSD: 0,

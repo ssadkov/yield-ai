@@ -90,12 +90,12 @@ export async function GET(request: NextRequest) {
     // Create stkAPT staking pool
     const stkAPTPool: InvestmentData = {
       asset: 'stkAPT (Staking)',
-      provider: 'KoFi Finance',
+      provider: 'Kofi Finance',
       totalAPY: stakingApr,
       depositApy: stakingApr,
       borrowAPY: 0,
       token: '0x1::aptos_coin::AptosCoin', // Use APT address for stkAPT staking
-      protocol: 'KoFi Finance',
+      protocol: 'Kofi Finance',
       poolType: 'Staking',
       tvlUSD: tvlUSD,
       dailyVolumeUSD: 0,

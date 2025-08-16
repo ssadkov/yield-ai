@@ -1,4 +1,4 @@
-export type ProtocolKey = "echelon" | "joule" | "aries" | "hyperion" | "meso" | "auro" | "amnis" | "kofi";
+export type ProtocolKey = "echelon" | "joule" | "aries" | "hyperion" | "meso" | "auro" | "amnis" | "kofi" | "tapp";
 
 export interface DepositParams {
   protocol: ProtocolKey;

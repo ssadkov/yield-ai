@@ -18,7 +18,6 @@ export async function executeDeposit(
     protocol,
     protocolType: typeof protocol,
     protocolKeys: Object.keys(protocol),
-    protocolMethods: Object.getOwnPropertyNames(Object.getPrototypeOf(protocol)),
     token,
     amount
   });
@@ -26,6 +25,8 @@ export async function executeDeposit(
   if (!protocol || typeof protocol !== 'object') {
     throw new Error('Invalid protocol instance');
   }
+
+  console.log('Protocol methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(protocol)));
 
   if (typeof protocol.buildDeposit !== 'function') {
     throw new Error('Protocol does not have buildDeposit method');

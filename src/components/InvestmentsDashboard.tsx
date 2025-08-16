@@ -153,8 +153,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
       return true;
     }
     
-    // KoFi Finance стейкинг-пулы считаем стабильными
-    if (item.protocol === 'KoFi Finance' && item.isStakingPool) {
+    // Kofi Finance стейкинг-пулы считаем стабильными
+    if (item.protocol === 'Kofi Finance' && item.isStakingPool) {
       return true;
     }
     
@@ -179,7 +179,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
           'Tapp Exchange': true,
           'Auro Finance': true,
           'Amnis Finance': true,
-          'KoFi Finance': true,
+          'Kofi Finance': true,
           'Echelon': true
         };
         setProtocolsLoading(initialLoadingState);
@@ -332,7 +332,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
             }
           },
           {
-            name: 'KoFi Finance',
+            name: 'Kofi Finance',
             url: '/api/protocols/kofi/pools',
             transform: (data: any) => {
               const pools = data.data || [];
@@ -340,12 +340,12 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
               return pools.map((pool: any) => {
                 return {
                   asset: pool.asset || 'Unknown',
-                  provider: pool.provider || 'KoFi Finance',
+                  provider: pool.provider || 'Kofi Finance',
                   totalAPY: pool.totalAPY || 0,
                   depositApy: pool.depositApy || 0,
                   borrowAPY: pool.borrowAPY || 0,
                   token: pool.token || '',
-                  protocol: pool.protocol || 'KoFi Finance',
+                  protocol: pool.protocol || 'Kofi Finance',
                   poolType: pool.poolType || 'Staking',
                   tvlUSD: pool.tvlUSD || 0,
                   dailyVolumeUSD: pool.dailyVolumeUSD || 0,

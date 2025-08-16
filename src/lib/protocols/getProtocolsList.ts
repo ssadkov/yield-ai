@@ -1,7 +1,9 @@
 import protocolsList from '../data/protocolsList.json';
+import { ProtocolKey } from '../transactions/types';
 
 export interface Protocol {
   name: string;
+  key: ProtocolKey;
   category: string;
   url: string;
   logoUrl: string;
