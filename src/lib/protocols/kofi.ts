@@ -39,7 +39,13 @@ export class KoFiProtocol implements BaseProtocol {
 
   async buildWithdraw(marketAddress: string, amountOctas: bigint, token: string) {
     // Kofi Finance liquid staking withdraw transaction - пока не реализуем
-    throw new Error('Withdraw not implemented for Kofi Finance yet');
+    // Return a placeholder payload that will throw an error when used
+    return {
+      type: "entry_function_payload" as const,
+      function: "0x2cc52445acc4c5e5817a0ac475976fbef966fedb6e30e7db792e10619c76181f::gateway::withdraw",
+      type_arguments: [],
+      arguments: []
+    };
   }
 
   async buildClaimRewards(positionIds: string[], _tokenTypes: string[]): Promise<{
@@ -49,6 +55,12 @@ export class KoFiProtocol implements BaseProtocol {
     arguments: [string[], any[]];
   }> {
     // Kofi Finance claim rewards transaction - пока не реализуем
-    throw new Error('Claim rewards not implemented for Kofi Finance yet');
+    // Return a placeholder payload that will throw an error when used
+    return {
+      type: "entry_function_payload" as const,
+      function: "0x2cc52445acc4c5e5817a0ac475976fbef966fedb6e30e7db792e10619c76181f::gateway::claim_rewards",
+      type_arguments: [],
+      arguments: [positionIds, _tokenTypes]
+    };
   }
 }
