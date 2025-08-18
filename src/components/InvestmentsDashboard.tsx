@@ -642,7 +642,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
               
               {/* Protocol loading status */}
               <div className="mt-6">
-                <h4 className="text-sm font-medium mb-3">Loading protocols:</h4>
+                <h4 className="text-sm font-medium mb-3">Loading pools:</h4>
                 <div className="space-y-2">
                   {Object.entries(protocolsLoading).map(([protocolName, isLoading]) => (
                     <div key={protocolName} className="flex items-center gap-2 text-sm">

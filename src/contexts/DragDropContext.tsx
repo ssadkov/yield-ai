@@ -203,7 +203,7 @@ export function DragDropProvider({ children }: { children: ReactNode }) {
             name: protocol.name,
             logo: protocol.logoUrl,
             apy: apy,
-            key: (protocol.name === 'Amnis Finance' ? 'amnis' : protocol.name.toLowerCase()) as ProtocolKey
+            key: protocol.key as ProtocolKey
           },
           tokenIn: {
             symbol: dragData.symbol,
@@ -244,7 +244,7 @@ export function DragDropProvider({ children }: { children: ReactNode }) {
             name: protocol.name,
             logo: protocol.logoUrl,
             apy: apy,
-            key: (protocol.name === 'Amnis Finance' ? 'amnis' : protocol.name.toLowerCase()) as ProtocolKey
+            key: protocol.key as ProtocolKey
           },
           tokenIn: {
             symbol: tokenInfo?.symbol || dropTarget.asset,
