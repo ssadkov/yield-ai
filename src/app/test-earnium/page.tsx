@@ -6,13 +6,14 @@ import { Button } from '@/components/ui/button';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
 
 export default function TestEarniumPage() {
-  const { account } = useWallet();
+  const { account, signAndSubmitTransaction } = useWallet();
   const [positions, setPositions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rewards, setRewards] = useState<any[]>([]);
   const [rewardsLoading, setRewardsLoading] = useState(false);
   const [rewardsError, setRewardsError] = useState<string | null>(null);
+  const [claiming, setClaiming] = useState(false);
 
   const loadPositions = async () => {
     if (!account?.address) return;
@@ -50,6 +51,40 @@ export default function TestEarniumPage() {
       setRewards([]);
     } finally {
       setRewardsLoading(false);
+    }
+  };
+
+  const hasClaimableRewards = Array.isArray(rewards) && rewards.some((pool: any) =>
+    Array.isArray(pool.rewards) && pool.rewards.some((r: any) => Number(r.amountRaw || 0) > 0)
+  );
+
+  const claimAllRewards = async () => {
+    if (!account?.address) return;
+    try {
+      setClaiming(true);
+      const functionAddress = '0x7c92a9636a412407aaede35eb2654d176477c00a47bc11ea3338d1f571ec95bc';
+      const payload = {
+        function: `${functionAddress}::premium_staked_pool::claim_all_rewards` as `${string}::${string}::${string}`,
+        typeArguments: [] as string[],
+        functionArguments: [[0, 1, 2, 3]] as any[]
+      } as const;
+
+      if (!signAndSubmitTransaction) {
+        throw new Error('Wallet signAndSubmitTransaction is not available');
+      }
+      const tx = await signAndSubmitTransaction({ data: payload } as any);
+
+      console.log('[Earnium] Claim all submitted:', tx);
+      alert('Claim transaction submitted! Check wallet/Explorer for status.');
+      // Refresh rewards after short delay
+      setTimeout(() => {
+        loadRewards();
+      }, 1500);
+    } catch (e: any) {
+      console.error('[Earnium] Claim all error:', e);
+      alert(`Claim failed: ${e?.message || e}`);
+    } finally {
+      setClaiming(false);
     }
   };
 
@@ -97,6 +132,11 @@ export default function TestEarniumPage() {
             <Button onClick={loadRewards} disabled={rewardsLoading || !account?.address}>
               {rewardsLoading ? 'Loading...' : 'Refresh'}
             </Button>
+            {hasClaimableRewards && account?.address && (
+              <Button onClick={claimAllRewards} disabled={claiming} variant="secondary">
+                {claiming ? 'Claiming...' : 'Claim All Rewards'}
+              </Button>
+            )}
             {!account?.address && (
               <span className="text-sm text-muted-foreground">Connect wallet to view rewards</span>
             )}
