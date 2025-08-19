@@ -118,5 +118,16 @@
     "depositType": "native",
     "isDepositEnabled": true,
     "managedType": "native"
+  },
+  {
+    "name": "Earnium",
+    "key": "earnium",
+    "category": "DEX",
+    "url": "https://app.earnium.io?ref=OXQxIs",
+    "logoUrl": "https://app.earnium.io/logo.png",
+    "description": "Earnium is a decentralized exchange (DEX) built on the Aptos blockchain, designed to become the go-to trading hub for the next billion-dollar daily trading volume on Aptos.",
+    "depositType": "external",
+    "isDepositEnabled": false,
+    "managedType": "native"
   }
 ] 

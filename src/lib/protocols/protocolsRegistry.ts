@@ -7,6 +7,7 @@ import { AuroProtocol } from "./auro";
 import { AmnisProtocol } from "./amnis";
 import { KoFiProtocol } from "./kofi";
 import { TappProtocol } from "./tapp";
+import { EarniumProtocol } from "./earnium";
 import { BaseProtocol } from "./BaseProtocol";
 import { ProtocolKey } from "../transactions/types";
 
@@ -20,4 +21,5 @@ export const protocols: Record<ProtocolKey, BaseProtocol> = {
   amnis: new AmnisProtocol(),
   kofi: new KoFiProtocol(),
   tapp: new TappProtocol(),
+  earnium: new EarniumProtocol(),
 }; 
