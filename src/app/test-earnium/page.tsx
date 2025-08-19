@@ -147,6 +147,22 @@ export default function TestEarniumPage() {
               {rewards.map((poolItem: any) => (
                 <div key={poolItem.pool} className="border rounded p-3">
                   <div className="font-semibold mb-2">Pool #{poolItem.pool}</div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm mb-2">
+                    <div>
+                      <span className="text-muted-foreground">Staked:</span>{' '}
+                      <span className="font-medium">{poolItem.staked?.toLocaleString?.() ?? poolItem.staked}</span>
+                      <span className="text-gray-400"> ({poolItem.stakedRaw} raw)</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Wallet balance:</span>{' '}
+                      <span className="font-medium">{poolItem.walletBalance?.toLocaleString?.() ?? poolItem.walletBalance}</span>
+                      <span className="text-gray-400"> ({poolItem.walletBalanceRaw} raw)</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Unlock time:</span>{' '}
+                      <span className="font-mono">{poolItem.unlockTime}</span>
+                    </div>
+                  </div>
                   {poolItem.rewards.length === 0 ? (
                     <div className="text-sm text-muted-foreground">No rewards</div>
                   ) : (
