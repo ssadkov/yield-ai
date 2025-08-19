@@ -2,9 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import tokenList from '@/lib/data/tokenList.json';
 
 const FULLNODE_VIEW_URL = 'https://fullnode.mainnet.aptoslabs.com/v1/view';
+const INDEXER_GRAPHQL_URL = 'https://indexer.mainnet.aptoslabs.com/v1/graphql';
 const EARNIUM_PACKAGE = '0x7c92a9636a412407aaede35eb2654d176477c00a47bc11ea3338d1f571ec95bc';
 // New single-call view: returns an array of per-pool objects { rewards: { data: [...] }, staked, unlock_time, wallet_balance }
 const VIEW_FUNCTION = `${EARNIUM_PACKAGE}::premium_staked_pool::user_info`;
+const VIEW_POOL_ADDRESS = `${EARNIUM_PACKAGE}::premium_staked_pool::user_balances_pool`;
+const VIEW_STAKE_TOKEN = `${EARNIUM_PACKAGE}::user_balance::stake_token`;
+const VIEW_FA_TOTAL_SUPPLY = `0x1::fungible_asset::total_supply`;
+const VIEW_FA_SUPPLY_OF = `0x1::fungible_asset::supply_of`;
+const FA_METADATA_RESOURCE = `0x1::fungible_asset::Metadata`;
 
 interface RewardEntry {
   key: { inner: string };
@@ -63,14 +69,48 @@ function findTokenMetaFromList(address: string): TokenMeta | null {
   };
 }
 
+function unwrapInner(value: any): string | null {
+  if (!value) return null;
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) return unwrapInner(value[0]);
+  if (typeof value === 'object' && typeof value.inner === 'string') return value.inner;
+  return null;
+}
+
 async function callView(functionFullname: string, args: any[]): Promise<any> {
   const res = await fetch(FULLNODE_VIEW_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ function: functionFullname, type_arguments: [], arguments: args })
   });
-  if (!res.ok) throw new Error(`View call failed: ${res.status} ${res.statusText}`);
-  return res.json();
+  const text = await res.text();
+  if (!res.ok) {
+    console.error('[Earnium][VIEW ERROR]', functionFullname, 'args:', JSON.stringify(args), '->', res.status, res.statusText, text);
+    throw new Error(`VIEW ERROR ${res.status} ${res.statusText}: ${text}`);
+  }
+  return text ? JSON.parse(text) : null;
+}
+
+async function fetchFaMetaFromIndexer(assetType: string): Promise<{ symbol: string | null; decimals: number | null; supplyRaw: string | null }> {
+  try {
+    const query = `query GetFATokenSupply($assetType: String!) { fungible_asset_metadata(where: {asset_type: {_eq: $assetType}}) { symbol decimals supply_v2 } }`;
+    const res = await fetch(INDEXER_GRAPHQL_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, variables: { assetType } })
+    });
+    const json = await res.json();
+    const meta = json?.data?.fungible_asset_metadata?.[0];
+    if (!meta) return { symbol: null, decimals: null, supplyRaw: null };
+    return {
+      symbol: meta.symbol ?? null,
+      decimals: typeof meta.decimals === 'number' ? meta.decimals : Number(meta.decimals ?? 8),
+      supplyRaw: meta.supply_v2 ? String(meta.supply_v2) : null,
+    };
+  } catch (e) {
+    console.warn('[Earnium][INDEXER] fetch meta failed for', assetType, e);
+    return { symbol: null, decimals: null, supplyRaw: null };
+  }
 }
 
 function toHuman(amount: string, decimals: number): number {
@@ -115,7 +155,7 @@ export async function GET(request: NextRequest) {
       ? (Array.isArray(viewResp[0]) ? (viewResp[0] || []) : viewResp)
       : [];
 
-    const results = (rawArray as any[]).map((item: any, idx: number) => {
+    const results = await Promise.all((rawArray as any[]).map(async (item: any, idx: number) => {
       const entries = normalizeEntries(item?.rewards);
       const rewards = entries.map((entry: any) => {
         const key = entry.key || '';
@@ -134,6 +174,55 @@ export async function GET(request: NextRequest) {
       const walletBalanceRaw = String(item?.wallet_balance ?? item?.wallet_lp_balance ?? '0');
       const unlockTime = Number(item?.unlock_time ?? item?.unlockTimestamp ?? 0);
       const defaultDecimals = 8; // assume 8 for LP until specified
+      let poolAddress: string | null = null;
+      let lpInfo: any = null;
+      if (BigInt(stakedRaw || '0') > 0n) {
+        console.log('[Earnium][LP] pool', idx, 'stakedRaw', stakedRaw, 'walletBalanceRaw', walletBalanceRaw);
+        try {
+          const addrResp = await callView(VIEW_POOL_ADDRESS, [String(idx)]);
+          console.log('[Earnium][LP] addrResp', JSON.stringify(addrResp));
+          poolAddress = unwrapInner(addrResp);
+          console.log('[Earnium][LP] poolAddress', poolAddress);
+          if (poolAddress) {
+            // 1) get LP metadata object id via stake_token(UBP)
+            const stakeTokResp = await callView(VIEW_STAKE_TOKEN, [poolAddress]);
+            console.log('[Earnium][LP] stakeTokResp', JSON.stringify(stakeTokResp));
+            const lpMetadataId = unwrapInner(stakeTokResp);
+            console.log('[Earnium][LP] lpMetadataId', lpMetadataId);
+            // 2) Get supply strictly from Indexer (on-chain indexed)
+            let decimals = defaultDecimals;
+            let symbol: string | null = null;
+            let totalSupplyRaw = '0';
+            if (lpMetadataId) {
+              const idx = await fetchFaMetaFromIndexer(lpMetadataId);
+              if (idx.supplyRaw) totalSupplyRaw = idx.supplyRaw;
+              if (idx.decimals != null) decimals = idx.decimals;
+              if (idx.symbol != null) symbol = idx.symbol;
+              console.log('[Earnium][INDEXER] meta', { decimals, symbol, totalSupplyRaw });
+            }
+            const totalSupply = toHuman(totalSupplyRaw, decimals);
+            // 4) user share in % (use integers to keep precision)
+            let sharePercent = 0;
+            try {
+              const denom = BigInt(totalSupplyRaw || '0');
+              if (denom > 0n) {
+                const numer = BigInt(stakedRaw || '0') * 10000n; // two decimals
+                sharePercent = Number(numer / denom) / 100; // xx.xx%
+              }
+            } catch {}
+            lpInfo = {
+              ubpId: poolAddress,
+              metadataId: lpMetadataId,
+              symbol,
+              decimals,
+              totalSupplyRaw,
+              totalSupply,
+              sharePercent,
+            };
+            console.log('[Earnium][LP] summary', { pool: idx, ubpId: poolAddress, metadataId: lpMetadataId, decimals, totalSupplyRaw, sharePercent });
+          }
+        } catch {}
+      }
 
       return {
         pool: idx,
@@ -143,8 +232,10 @@ export async function GET(request: NextRequest) {
         walletBalanceRaw,
         walletBalance: toHuman(walletBalanceRaw, defaultDecimals),
         unlockTime,
+        poolAddress,
+        lp: lpInfo,
       };
-    });
+    }));
 
     return NextResponse.json({ success: true, data: results }, {
       headers: {

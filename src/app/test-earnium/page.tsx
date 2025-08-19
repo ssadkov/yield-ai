@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
+import tokenList from '@/lib/data/tokenList.json';
 
 export default function TestEarniumPage() {
   const { account, signAndSubmitTransaction } = useWallet();
@@ -14,6 +15,8 @@ export default function TestEarniumPage() {
   const [rewardsLoading, setRewardsLoading] = useState(false);
   const [rewardsError, setRewardsError] = useState<string | null>(null);
   const [claiming, setClaiming] = useState(false);
+  const [poolBalances, setPoolBalances] = useState<Record<number, any[]>>({});
+  const [balancesLoading, setBalancesLoading] = useState<Record<number, boolean>>({});
 
   const loadPositions = async () => {
     if (!account?.address) return;
@@ -51,6 +54,24 @@ export default function TestEarniumPage() {
       setRewards([]);
     } finally {
       setRewardsLoading(false);
+    }
+  };
+
+  const loadPoolBalance = async (poolIdx: number, poolAddress: string) => {
+    try {
+      setBalancesLoading(prev => ({ ...prev, [poolIdx]: true }));
+      const res = await fetch('/api/aptos/balances', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: poolAddress })
+      });
+      const json = await res.json();
+      const balances = json?.data?.balances || [];
+      setPoolBalances(prev => ({ ...prev, [poolIdx]: balances }));
+    } catch (e) {
+      setPoolBalances(prev => ({ ...prev, [poolIdx]: [] }));
+    } finally {
+      setBalancesLoading(prev => ({ ...prev, [poolIdx]: false }));
     }
   };
 
@@ -95,33 +116,7 @@ export default function TestEarniumPage() {
         <p className="text-muted-foreground">Positions and rewards view for Earnium</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Positions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-4 flex items-center gap-2">
-            <Button onClick={loadPositions} disabled={loading || !account?.address}>
-              {loading ? 'Loading...' : 'Refresh'}
-            </Button>
-            {!account?.address && (
-              <span className="text-sm text-muted-foreground">Connect wallet to view positions</span>
-            )}
-          </div>
-          {error && <div className="text-sm text-red-600 mb-3">{error}</div>}
-          {positions.length === 0 ? (
-            <div className="text-sm text-muted-foreground">No positions found</div>
-          ) : (
-            <div className="space-y-2">
-              {positions.map((pos, idx) => (
-                <pre key={idx} className="bg-gray-50 p-3 rounded text-xs overflow-x-auto">
-                  {JSON.stringify(pos, null, 2)}
-                </pre>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Positions block removed as requested */}
 
       <Card>
         <CardHeader>
@@ -163,6 +158,64 @@ export default function TestEarniumPage() {
                       <span className="font-mono">{poolItem.unlockTime}</span>
                     </div>
                   </div>
+                  {poolItem.poolAddress && (
+                    <div className="text-xs text-muted-foreground mb-2">
+                      Pool address: <span className="font-mono">{poolItem.poolAddress}</span>
+                      {poolItem.lp && (
+                        <span className="ml-2">
+                          • LP supply: <span className="font-medium">{(poolItem.lp.totalSupply ?? 0).toLocaleString()}</span>
+                          <span className="text-gray-400"> ({poolItem.lp.totalSupplyRaw} raw)</span>
+                          {typeof poolItem.lp.sharePercent === 'number' && (
+                            <span className="ml-2">• Your share: <span className="font-medium">{poolItem.lp.sharePercent.toFixed(2)}%</span></span>
+                          )}
+                        </span>
+                      )}
+                      <span className="ml-2">
+                        <button
+                          className="underline"
+                          onClick={() => loadPoolBalance(poolItem.pool, poolItem.lp?.metadataId || poolItem.poolAddress)}
+                          disabled={balancesLoading[poolItem.pool]}
+                        >
+                          {balancesLoading[poolItem.pool] ? 'Loading balances…' : 'Load pool balances'}
+                        </button>
+                      </span>
+                    </div>
+                  )}
+                  {Array.isArray(poolBalances[poolItem.pool]) && poolBalances[poolItem.pool].length > 0 && (
+                    <div className="mt-2 text-xs">
+                      <div className="font-semibold mb-1">Pool token balances:</div>
+                      <div className="space-y-1">
+                        {poolBalances[poolItem.pool].map((b: any, i: number) => {
+                          const findToken = (address: string) => {
+                            const addr = address?.toLowerCase();
+                            const tokens = (tokenList as any).data?.data || [];
+                            return tokens.find((t: any) => {
+                              const fa = t.faAddress ? t.faAddress.toLowerCase() : null;
+                              const coin = t.tokenAddress ? t.tokenAddress.toLowerCase() : null;
+                              return fa === addr || coin === addr;
+                            });
+                          };
+                          const t = findToken(b.asset_type);
+                          const symbol = t?.symbol || t?.panoraSymbol || b.asset_type.slice(0, 6) + '…';
+                          const decimals = typeof t?.decimals === 'number' ? t.decimals : 8;
+                          const toHuman = (raw: bigint, d: number) => Number(raw) / Math.pow(10, d);
+                          const poolAmountRaw = BigInt(b.amount || '0');
+                          const totalSupplyRaw = BigInt(poolItem.lp?.totalSupplyRaw || '0');
+                          const stakedRaw = BigInt(poolItem.stakedRaw || '0');
+                          const userAmountRaw = totalSupplyRaw > 0n ? (poolAmountRaw * stakedRaw) / totalSupplyRaw : 0n;
+                          const poolAmount = toHuman(poolAmountRaw, decimals);
+                          const userAmount = toHuman(userAmountRaw, decimals);
+                          return (
+                            <div key={i} className="flex items-center gap-3">
+                              <span className="w-28 font-medium">{symbol}</span>
+                              <span className="text-gray-600">Pool: {poolAmount.toLocaleString()} <span className="text-gray-400">({b.amount} raw)</span></span>
+                              <span className="text-gray-700">• You: {userAmount.toLocaleString()} <span className="text-gray-400">({userAmountRaw.toString()} raw)</span></span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                   {poolItem.rewards.length === 0 ? (
                     <div className="text-sm text-muted-foreground">No rewards</div>
                   ) : (
