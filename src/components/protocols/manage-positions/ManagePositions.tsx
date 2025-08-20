@@ -10,6 +10,7 @@ import { TappPositions } from "./protocols/TappPositions";
 import { MesoPositions } from "./protocols/MesoPositions";
 import { AuroPositions } from "./protocols/AuroPositions";
 import { AmnisPositions } from "./protocols/AmnisPositions";
+import { EarniumPositionsManaging } from "./protocols/EarniumPositions";
 import { RefreshCw, Info, ExternalLink } from "lucide-react";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useState } from "react";
@@ -96,6 +97,8 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
         return <AuroPositions />;
       case 'amnis finance':
         return <AmnisPositions />;
+      case 'earnium':
+        return <EarniumPositionsManaging />;
       default:
         return (
           <div className="text-sm text-muted-foreground">
