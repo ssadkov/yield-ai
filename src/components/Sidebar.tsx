@@ -17,6 +17,7 @@ import { PositionsList as TappPositionsList } from "./protocols/tapp/PositionsLi
 import { PositionsList as MesoPositionsList } from "./protocols/meso/PositionsList";
 import { PositionsList as AuroPositionsList } from "./protocols/auro/PositionsList";
 import { PositionsList as AmnisPositionsList } from "./protocols/amnis/PositionsList";
+import { PositionsList as EarniumPositionsList } from "./protocols/earnium/PositionsList";
 
 export default function Sidebar() {
   const { account } = useWallet();
@@ -42,6 +43,7 @@ export default function Sidebar() {
     "Meso Finance",
     "Auro Finance",
     "Amnis Finance",
+    "Earnium",
   ];
 
   const resetChecking = useCallback(() => {
@@ -195,7 +197,8 @@ export default function Sidebar() {
                 { component: TappPositionsList, value: tappValue, name: 'Tapp Exchange' },
                 { component: MesoPositionsList, value: mesoValue, name: 'Meso Finance' },
                 { component: AuroPositionsList, value: auroValue, name: 'Auro Finance' },
-                { component: AmnisPositionsList, value: amnisValue, name: 'Amnis Finance' }
+                { component: AmnisPositionsList, value: amnisValue, name: 'Amnis Finance' },
+                { component: EarniumPositionsList, value: 0, name: 'Earnium' },
               ]
                 .sort((a, b) => b.value - a.value)
                 .map(({ component: Component, name }) => (

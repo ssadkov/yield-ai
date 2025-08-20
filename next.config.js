@@ -17,6 +17,12 @@ const nextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'app.earnium.io',
+        port: '',
+        pathname: '/**',
+      },
     ],
     domains: [
       'hyperion.xyz',
@@ -26,7 +32,8 @@ const nextConfig = {
       'tapp.exchange',
       'app.meso.finance',
       'app.auro.finance',
-      'app.kofi.finance'
+      'app.kofi.finance',
+      'app.earnium.io'
     ],
   },
 }
