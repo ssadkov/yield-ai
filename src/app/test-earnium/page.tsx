@@ -199,10 +199,10 @@ export default function TestEarniumPage() {
                           const symbol = t?.symbol || t?.panoraSymbol || b.asset_type.slice(0, 6) + '…';
                           const decimals = typeof t?.decimals === 'number' ? t.decimals : 8;
                           const toHuman = (raw: bigint, d: number) => Number(raw) / Math.pow(10, d);
-                          const poolAmountRaw = BigInt(b.amount || '0');
-                          const totalSupplyRaw = BigInt(poolItem.lp?.totalSupplyRaw || '0');
-                          const stakedRaw = BigInt(poolItem.stakedRaw || '0');
-                          const userAmountRaw = totalSupplyRaw > 0n ? (poolAmountRaw * stakedRaw) / totalSupplyRaw : 0n;
+                          const poolAmountRaw = (() => { try { return BigInt(b.amount || '0'); } catch { return BigInt(0); } })();
+                          const totalSupplyRaw = (() => { try { return BigInt(poolItem.lp?.totalSupplyRaw || '0'); } catch { return BigInt(0); } })();
+                          const stakedRaw = (() => { try { return BigInt(poolItem.stakedRaw || '0'); } catch { return BigInt(0); } })();
+                          const userAmountRaw = totalSupplyRaw > BigInt(0) ? (poolAmountRaw * stakedRaw) / totalSupplyRaw : BigInt(0);
                           const poolAmount = toHuman(poolAmountRaw, decimals);
                           const userAmount = toHuman(userAmountRaw, decimals);
                           return (
