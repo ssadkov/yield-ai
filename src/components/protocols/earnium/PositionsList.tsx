@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { ChevronDown } from "lucide-react";
@@ -268,22 +269,27 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
             {/* Rewards */}
             <div className="mt-2 pt-2 border-t">
               <div className="flex items-center justify-between text-sm">
-                <div className="font-medium">
-                  Total Rewards
-                  <span className="ml-2 text-xs text-muted-foreground">({rewardsSummary.items.length})</span>
-                </div>
-                <div className="font-medium">${rewardsSummary.totalUSD.toFixed(2)}</div>
-              </div>
-              <div className="mt-1 space-y-1 text-xs text-muted-foreground">
-                {rewardsSummary.items.map((it, i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <span>{it.symbol}</span>
-                    <div>
-                      <span className="mr-2">{it.amount.toFixed(4)}</span>
-                      <span>${it.usd.toFixed(2)}</span>
-                    </div>
-                  </div>
-                ))}
+                <div className="text-muted-foreground">💰 Total rewards:</div>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="font-medium cursor-help">${rewardsSummary.totalUSD.toFixed(2)}</div>
+                    </TooltipTrigger>
+                    <TooltipContent className="bg-black text-white border-gray-700">
+                      <div className="space-y-1 text-xs">
+                        {rewardsSummary.items.map((it, i) => (
+                          <div key={i} className="flex items-center justify-between gap-6">
+                            <span>{it.symbol}</span>
+                            <div>
+                              <span className="mr-2">{it.amount.toFixed(4)}</span>
+                              <span>${it.usd.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </div>
           </ScrollArea>

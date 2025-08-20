@@ -31,6 +31,7 @@ export default function Sidebar() {
   const [mesoValue, setMesoValue] = useState(0);
   const [auroValue, setAuroValue] = useState(0);
   const [amnisValue, setAmnisValue] = useState(0);
+  const [earniumValue, setEarniumValue] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [checkingProtocols, setCheckingProtocols] = useState<string[]>([]);
 
@@ -132,6 +133,9 @@ export default function Sidebar() {
   const handleAmnisValueChange = useCallback((value: number) => {
     setAmnisValue(value);
   }, []);
+  const handleEarniumValueChange = useCallback((value: number) => {
+    setEarniumValue(value);
+  }, []);
 
   // Считаем сумму по кошельку
   const walletTotal = tokens.reduce((sum, token) => {
@@ -140,7 +144,7 @@ export default function Sidebar() {
   }, 0);
 
   // Считаем сумму по всем протоколам
-  const totalProtocolsValue = hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + amnisValue;
+  const totalProtocolsValue = hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + amnisValue + earniumValue;
 
   // Итоговая сумма
   const totalAssets = walletTotal + totalProtocolsValue;
@@ -198,7 +202,7 @@ export default function Sidebar() {
                 { component: MesoPositionsList, value: mesoValue, name: 'Meso Finance' },
                 { component: AuroPositionsList, value: auroValue, name: 'Auro Finance' },
                 { component: AmnisPositionsList, value: amnisValue, name: 'Amnis Finance' },
-                { component: EarniumPositionsList, value: 0, name: 'Earnium' },
+                { component: EarniumPositionsList, value: earniumValue, name: 'Earnium' },
               ]
                 .sort((a, b) => b.value - a.value)
                 .map(({ component: Component, name }) => (
@@ -215,6 +219,7 @@ export default function Sidebar() {
                       name === 'Meso Finance' ? handleMesoValueChange :
                       name === 'Auro Finance' ? handleAuroValueChange :
                       name === 'Amnis Finance' ? handleAmnisValueChange :
+                      name === 'Earnium' ? handleEarniumValueChange :
                       undefined
                     }
                     onPositionsCheckComplete={() =>
