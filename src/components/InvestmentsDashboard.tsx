@@ -81,6 +81,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   const [protocolsLoading, setProtocolsLoading] = useState<Record<string, boolean>>({});
   const [protocolsError, setProtocolsError] = useState<Record<string, string | null>>({});
   const [protocolsData, setProtocolsData] = useState<Record<string, InvestmentData[]>>({});
+  const [protocolsLogos, setProtocolsLogos] = useState<Record<string, string>>({});
   const [isClient, setIsClient] = useState(false);
   const [claimModalOpen, setClaimModalOpen] = useState(false);
 
@@ -191,11 +192,13 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
           {
             name: 'Joule',
             url: '/api/protocols/primary-yield?protocol=Joule',
+			logoUrl: '/protocol_ico/joule.png',
             transform: (data: any) => data.data || []
           },
           {
             name: 'Hyperion',
             url: '/api/protocols/hyperion/pools',
+			logoUrl: '/protocol_ico/hyperion.png',
             transform: (data: any) => {
               const filtered = (data.data || [])
                 .filter((pool: any) => {
@@ -230,6 +233,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
           {
             name: 'Tapp Exchange',
             url: '/api/protocols/tapp/pools',
+			logoUrl: '/protocol_ico/tappexchange.png',
             transform: (data: any) => {
               const filtered = (data.data || [])
                 .filter((pool: any) => {
@@ -276,6 +280,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
           {
             name: 'Auro Finance',
             url: '/api/protocols/auro/pools',
+			logoUrl: '/protocol_ico/auro.png',
             transform: (data: any) => {
               const collateralPools = (data.data || [])
                 .filter((pool: any) => pool.type === 'COLLATERAL')
@@ -309,6 +314,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
           {
             name: 'Amnis Finance',
             url: '/api/protocols/amnis/pools',
+			logoUrl: '/protocol_ico/amnis.png',
             transform: (data: any) => {
               const pools = data.pools || [];
               
@@ -334,6 +340,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
           {
             name: 'Kofi Finance',
             url: '/api/protocols/kofi/pools',
+			logoUrl: '/protocol_ico/kofi.png',
             transform: (data: any) => {
               const pools = data.data || [];
               
@@ -369,6 +376,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
           {
             name: 'Echelon',
             url: '/api/protocols/echelon/v2/pools',
+			logoUrl: '/protocol_ico/echelon.png',
             transform: (data: any) => {
               const pools = data.data || [];
               
@@ -397,6 +405,15 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
             }
           }
         ];
+		
+		
+		const initialLogosState = protocolEndpoints.reduce((acc, endpoint) => {
+          acc[endpoint.name] = endpoint.logoUrl || '';
+          return acc;
+        }, {} as Record<string, string>);
+
+        setProtocolsLogos(initialLogosState);
+		
 
         // Fetch all protocols in parallel
         const fetchPromises = protocolEndpoints.map(async (endpoint) => {
@@ -418,11 +435,18 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
             const transformedData = endpoint.transform(data);
             
             console.log(`${endpoint.name} loaded: ${transformedData.length} pools`);
+			
+			console.log('showLoadingIndicators', endpoint);
             
             // Update state progressively
             setProtocolsData(prev => ({
               ...prev,
               [endpoint.name]: transformedData
+            }));
+			
+			setProtocolsLogos(prev => ({
+             ...prev,
+             [endpoint.name]: endpoint.logoUrl
             }));
             
             setProtocolsLoading(prev => ({
@@ -442,7 +466,12 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
               ...prev,
               [endpoint.name]: errorMessage
             }));
-            
+			
+			setProtocolsLogos(prev => ({
+             ...prev,
+             [endpoint.name]: endpoint.logoUrl
+            }));
+
             setProtocolsLoading(prev => ({
               ...prev,
               [endpoint.name]: false
@@ -451,7 +480,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
             return { name: endpoint.name, data: [], success: false, error };
           }
         });
-
+	
         // Wait for all promises to settle
         const results = await Promise.allSettled(fetchPromises);
         
@@ -607,7 +636,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 
   // Show loading indicators for protocols that are still loading
   const showLoadingIndicators = loading && Object.values(protocolsLoading).some(Boolean);
-  
+
   if (showLoadingIndicators) {
     return (
       <div className={className}>
@@ -648,17 +677,41 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                     <div key={protocolName} className="flex items-center gap-2 text-sm">
                       {isLoading ? (
                         <>
-                          <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+                          <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse">
+						    <Avatar className="w-3 h-3">
+							  <img 
+								src={protocolsLogos[protocolName]} 
+								alt={protocolName} 
+								className="object-contain bg-white" 
+							  />
+							</Avatar>
+						  </div>
                           <span>Loading {protocolName}...</span>
                         </>
                       ) : protocolsError[protocolName] ? (
                         <>
-                          <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                          <div className="w-3 h-3 bg-red-500 rounded-full">
+						    <Avatar className="w-3 h-3">
+							  <img 
+								src={protocolsLogos[protocolName]} 
+								alt={protocolName} 
+								className="object-contain bg-white" 
+							  />
+							</Avatar>
+						  </div>
                           <span className="text-red-500">{protocolName}: {protocolsError[protocolName]}</span>
                         </>
                       ) : (
                         <>
-                          <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                          <div className="w-3 h-3 bg-green-500 rounded-full">
+						    <Avatar className="w-3 h-3">
+							  <img 
+								src={protocolsLogos[protocolName]} 
+								alt={protocolName} 
+								className="object-contain bg-white" 
+							  />
+							</Avatar>
+						  </div>
                           <span className="text-green-600">{protocolName}: {protocolsData[protocolName]?.length || 0} pools loaded</span>
                         </>
                       )}
