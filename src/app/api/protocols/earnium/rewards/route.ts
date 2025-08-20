@@ -114,11 +114,16 @@ async function fetchFaMetaFromIndexer(assetType: string): Promise<{ symbol: stri
 }
 
 function toHuman(amount: string, decimals: number): number {
-  const bn = BigInt(amount || '0');
-  const base = 10n ** BigInt(decimals);
-  const intPart = Number(bn / base);
-  const fracPart = Number(bn % base) / Number(base);
-  return intPart + fracPart;
+  try {
+    const bn = BigInt(amount || '0');
+    const base = (BigInt(10) ** BigInt(decimals));
+    const intPart = Number(bn / base);
+    const fracPart = Number(bn % base) / Number(base);
+    return intPart + fracPart;
+  } catch {
+    const num = Number(amount || '0');
+    return num / Math.pow(10, decimals);
+  }
 }
 
 function normalizeEntries(raw: any): Array<{ key: string; value: string }> {
@@ -176,7 +181,7 @@ export async function GET(request: NextRequest) {
       const defaultDecimals = 8; // assume 8 for LP until specified
       let poolAddress: string | null = null;
       let lpInfo: any = null;
-      if (BigInt(stakedRaw || '0') > 0n) {
+      if (BigInt(stakedRaw || '0') > BigInt(0)) {
         console.log('[Earnium][LP] pool', idx, 'stakedRaw', stakedRaw, 'walletBalanceRaw', walletBalanceRaw);
         try {
           const addrResp = await callView(VIEW_POOL_ADDRESS, [String(idx)]);
@@ -205,8 +210,8 @@ export async function GET(request: NextRequest) {
             let sharePercent = 0;
             try {
               const denom = BigInt(totalSupplyRaw || '0');
-              if (denom > 0n) {
-                const numer = BigInt(stakedRaw || '0') * 10000n; // two decimals
+              if (denom > BigInt(0)) {
+                const numer = (BigInt(stakedRaw || '0') * BigInt(10000)); // two decimals
                 sharePercent = Number(numer / denom) / 100; // xx.xx%
               }
             } catch {}
