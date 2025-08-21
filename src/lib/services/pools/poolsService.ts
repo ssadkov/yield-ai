@@ -21,7 +21,7 @@ export class PoolsService {
         // Handle relative URLs for internal APIs
         const fullUrl = source.url.startsWith('http') 
           ? source.url 
-          : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${source.url}`;
+          : `${process.env.NEXT_PUBLIC_API_URL || process.env.VERCEL_URL || 'http://localhost:3000'}${source.url}`;
 
         const response = await fetch(fullUrl, {
           headers: {

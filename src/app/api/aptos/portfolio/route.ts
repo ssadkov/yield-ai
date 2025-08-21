@@ -369,7 +369,7 @@ export async function GET(request: Request) {
     let protocolsValue = 0;
 
     // Get base URL from environment or use default
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.VERCEL_URL || 'http://localhost:3000';
     
     // Fetch positions from all protocols using correct port
     try {

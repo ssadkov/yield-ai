@@ -14,9 +14,12 @@ export async function GET(request: NextRequest) {
 
     console.log('Fetching Amnis positions for address:', address);
 
+    // Get base URL from environment or use default
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.VERCEL_URL || 'http://localhost:3000';
+    
     // Get AMI staking pools using our existing API
     console.log('Fetching AMI staking pools...');
-    const stakingPoolsResponse = await fetch(`${request.nextUrl.origin}/api/protocols/amnis/staking-pools`);
+    const stakingPoolsResponse = await fetch(`${baseUrl}/api/protocols/amnis/staking-pools`);
     
     if (!stakingPoolsResponse.ok) {
       throw new Error(`Failed to fetch staking pools: ${stakingPoolsResponse.status} ${stakingPoolsResponse.statusText}`);
@@ -28,7 +31,7 @@ export async function GET(request: NextRequest) {
     
     // Get AMI token price from our existing Panora API
     console.log('Fetching AMI price from Panora...');
-    const amiPriceResponse = await fetch(`${request.nextUrl.origin}/api/panora/tokenPrices?chainId=1&tokenAddress=0xb36527754eb54d7ff55daf13bcb54b42b88ec484bd6f0e3b2e0d1db169de6451`);
+    const amiPriceResponse = await fetch(`${baseUrl}/api/panora/tokenPrices?chainId=1&tokenAddress=0xb36527754eb54d7ff55daf13bcb54b42b88ec484bd6f0e3b2e0d1db169de6451`);
     
     if (!amiPriceResponse.ok) {
       throw new Error(`Failed to fetch AMI price: ${amiPriceResponse.status} ${amiPriceResponse.statusText}`);

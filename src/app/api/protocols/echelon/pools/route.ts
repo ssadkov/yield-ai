@@ -39,13 +39,16 @@ export async function GET() {
     const externalApiUrl = "https://yield-a.vercel.app/api/echelon/markets";
     console.log('Fetching from external API:', externalApiUrl);
     
+    // Get base URL from environment or use default
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.VERCEL_URL || 'http://localhost:3000';
+    
     const response = await fetch(externalApiUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'application/json',
         'Accept-Language': 'en-US,en;q=0.9',
-        'Origin': 'http://localhost:3000',
-        'Referer': 'http://localhost:3000/'
+        'Origin': baseUrl,
+        'Referer': `${baseUrl}/`
       }
     });
     
