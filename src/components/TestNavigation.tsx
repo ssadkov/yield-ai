@@ -187,6 +187,9 @@ export function TestNavigation() {
           <Link href="/test-config" className="block p-2 bg-blue-100 hover:bg-blue-200 rounded">
             Test Config & Environment
           </Link>
+          <Link href="/test-api-endpoints" className="block p-2 bg-blue-100 hover:bg-blue-200 rounded">
+            Test API Endpoints
+          </Link>
         </div>
       </div>
     </div>

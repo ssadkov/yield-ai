@@ -253,10 +253,17 @@ export const useWalletStore = create<WalletState>()(
           try {
             console.log('[WalletStore] Fetching rewards for address:', address);
             console.log('[WalletStore] Base URL:', getBaseUrl());
+            console.log('[WalletStore] Environment check:', {
+              NODE_ENV: process.env.NODE_ENV,
+              NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+              VERCEL_URL: process.env.VERCEL_URL
+            });
             
             // Define protocols to fetch if not specified
             const protocolsToFetch = protocols || ['echelon', 'auro', 'hyperion', 'meso'];
             const newRewards: ProtocolRewards = { ...state.rewards };
+            
+            console.log('[WalletStore] Protocols to fetch:', protocolsToFetch);
             
             // Fetch rewards for each protocol
             const promises = protocolsToFetch.map(async (protocol) => {
@@ -266,7 +273,10 @@ export const useWalletStore = create<WalletState>()(
                 
                 if (protocol === 'hyperion') {
                   // Hyperion rewards are embedded in positions data
-                  const response = await fetch(`${getBaseUrl()}/api/protocols/${protocol}/userPositions?address=${encodeURIComponent(address)}`);
+                  const hyperionUrl = `${getBaseUrl()}/api/protocols/${protocol}/userPositions?address=${encodeURIComponent(address)}`;
+                  console.log(`[WalletStore] Hyperion using positions URL:`, hyperionUrl);
+                  
+                  const response = await fetch(hyperionUrl);
                   
                   if (response.ok) {
                     const data = await response.json();
@@ -283,6 +293,7 @@ export const useWalletStore = create<WalletState>()(
                     console.log(`[WalletStore] ${protocol} rewards extracted from positions:`, rewards.length);
                   } else {
                     console.warn(`[WalletStore] Failed to fetch ${protocol} positions:`, response.status, response.statusText);
+                    console.warn(`[WalletStore] Failed URL:`, hyperionUrl);
                     newRewards[protocol] = [];
                   }
                 } else if (protocol === 'meso') {
@@ -296,36 +307,79 @@ export const useWalletStore = create<WalletState>()(
                     console.log(`[WalletStore] ${protocol} rewards fetched:`, (newRewards[protocol] as any[]).length);
                   } else {
                     console.warn(`[WalletStore] Failed to fetch ${protocol} rewards:`, response.status, response.statusText);
+                    console.warn(`[WalletStore] Failed URL:`, apiUrl);
                     newRewards[protocol] = [];
                   }
                 } else {
                   // Standard rewards API for echelon and auro
-                  const response = await fetch(`${getBaseUrl()}/api/protocols/${protocol}/rewards?address=${encodeURIComponent(address)}`);
+                  console.log(`[WalletStore] Making request to:`, apiUrl);
+                  const startTime = Date.now();
+                  
+                  const response = await fetch(apiUrl);
+                  const endTime = Date.now();
+                  
+                  console.log(`[WalletStore] ${protocol} response received in ${endTime - startTime}ms:`, {
+                    status: response.status,
+                    statusText: response.statusText,
+                    ok: response.ok,
+                    headers: Object.fromEntries(response.headers.entries())
+                  });
                   
                   if (response.ok) {
                     const data = await response.json();
+                    console.log(`[WalletStore] ${protocol} response data:`, data);
+                    
                     // For Auro, data.data is an object with position addresses as keys
                     // For Echelon, data.data is an array
                     if (protocol === 'auro') {
                       newRewards[protocol] = data.data || {};
+                      console.log(`[WalletStore] Auro rewards structure:`, {
+                        hasData: !!data.data,
+                        dataType: typeof data.data,
+                        keys: data.data ? Object.keys(data.data) : [],
+                        totalPositions: data.data ? Object.keys(data.data).length : 0
+                      });
                       
                     } else {
                       newRewards[protocol] = data.data || [];
-                      console.log(`[WalletStore] ${protocol} rewards fetched:`, newRewards[protocol].length);
+                      console.log(`[WalletStore] ${protocol} rewards fetched:`, {
+                        count: newRewards[protocol].length,
+                        sample: newRewards[protocol].slice(0, 2)
+                      });
                     }
                   } else {
                     console.warn(`[WalletStore] Failed to fetch ${protocol} rewards:`, response.status, response.statusText);
-                    console.warn(`[WalletStore] Failed URL:`, `${getBaseUrl()}/api/protocols/${protocol}/rewards?address=${encodeURIComponent(address)}`);
+                    console.warn(`[WalletStore] Failed URL:`, apiUrl);
+                    
+                    // Try to get response text for more details
+                    try {
+                      const errorText = await response.text();
+                      console.warn(`[WalletStore] ${protocol} error response body:`, errorText);
+                    } catch (e) {
+                      console.warn(`[WalletStore] Could not read error response body:`, e);
+                    }
+                    
                     newRewards[protocol] = protocol === 'auro' ? {} : [];
                   }
                 }
               } catch (error) {
                 console.error(`[WalletStore] Error fetching ${protocol} rewards:`, error);
                 console.error(`[WalletStore] Protocol: ${protocol}, Address: ${address}, Base URL: ${getBaseUrl()}`);
+                
+                // Log more details about the error
+                if (error instanceof Error) {
+                  console.error(`[WalletStore] Error details:`, {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack
+                  });
+                }
+                
                 newRewards[protocol] = [];
               }
             });
             
+            console.log('[WalletStore] Waiting for all promises to resolve...');
             await Promise.all(promises);
             
             // Log summary of loaded rewards
@@ -584,6 +638,14 @@ export const useWalletStore = create<WalletState>()(
         
         getClaimableRewardsSummary: () => {
           const state = get();
+          console.log('[WalletStore] getClaimableRewardsSummary called');
+          console.log('[WalletStore] Current rewards state:', {
+            echelon: state.rewards.echelon,
+            auro: state.rewards.auro,
+            hyperion: state.rewards.hyperion,
+            meso: state.rewards.meso
+          });
+          
           const summary: ClaimableRewardsSummary = {
             totalValue: 0,
             protocols: {
@@ -596,6 +658,11 @@ export const useWalletStore = create<WalletState>()(
           
           // Process Echelon rewards
           const echelonRewards = state.rewards.echelon || [];
+          console.log('[WalletStore] Processing Echelon rewards:', {
+            count: echelonRewards.length,
+            sample: echelonRewards.slice(0, 2)
+          });
+          
           echelonRewards.forEach((reward: any) => {
             if (reward.amount && reward.amount > 0) {
               
@@ -647,12 +714,30 @@ export const useWalletStore = create<WalletState>()(
                 const value = reward.amount * parseFloat(price);
                 summary.protocols.echelon.value += value;
                 summary.protocols.echelon.count++;
+                console.log(`[WalletStore] Echelon reward processed:`, {
+                  token: reward.token,
+                  amount: reward.amount,
+                  price: price,
+                  value: value
+                });
+              } else {
+                console.log(`[WalletStore] Echelon reward skipped (no price):`, {
+                  token: reward.token,
+                  amount: reward.amount,
+                  tokenAddress: tokenAddress,
+                  price: price
+                });
               }
             }
           });
           
           // Process Auro rewards
           const auroRewards = state.rewards.auro || {};
+          console.log('[WalletStore] Processing Auro rewards:', {
+            type: typeof auroRewards,
+            keys: Object.keys(auroRewards),
+            sample: Object.entries(auroRewards).slice(0, 2)
+          });
           
           // Auro rewards are structured as { positionAddress: { collateral: [], borrow: [] } }
           Object.values(auroRewards).forEach((positionRewards: any) => {
@@ -688,6 +773,18 @@ export const useWalletStore = create<WalletState>()(
                           const value = amount * parseFloat(price);
                           summary.protocols.auro.value += value;
                           summary.protocols.auro.count++;
+                          console.log(`[WalletStore] Auro collateral reward processed:`, {
+                            token: tokenInfo.symbol,
+                            amount: amount,
+                            price: price,
+                            value: value
+                          });
+                        } else {
+                          console.log(`[WalletStore] Auro collateral reward skipped (no price):`, {
+                            token: tokenInfo.symbol,
+                            amount: amount,
+                            address: cleanAddress
+                          });
                         }
                       }
                     } catch (error) {
@@ -728,6 +825,18 @@ export const useWalletStore = create<WalletState>()(
                           const value = amount * parseFloat(price);
                           summary.protocols.auro.value += value;
                           summary.protocols.auro.count++;
+                          console.log(`[WalletStore] Auro borrow reward processed:`, {
+                            token: tokenInfo.symbol,
+                            amount: amount,
+                            price: price,
+                            value: value
+                          });
+                        } else {
+                          console.log(`[WalletStore] Auro borrow reward skipped (no price):`, {
+                            token: tokenInfo.symbol,
+                            amount: amount,
+                            address: cleanAddress
+                          });
                         }
                       }
                     } catch (error) {
@@ -741,6 +850,10 @@ export const useWalletStore = create<WalletState>()(
           
           // Process Hyperion rewards (calculate by positions, not individual rewards)
           const hyperionPositions = state.positions.hyperion || [];
+          console.log('[WalletStore] Processing Hyperion positions:', {
+            count: hyperionPositions.length,
+            sample: hyperionPositions.slice(0, 2)
+          });
           
           if (hyperionPositions.length > 0) {
             // Use positions data if available
@@ -752,6 +865,12 @@ export const useWalletStore = create<WalletState>()(
               if (totalRewards > 0) {
                 summary.protocols.hyperion.value += totalRewards;
                 summary.protocols.hyperion.count++;
+                console.log(`[WalletStore] Hyperion position processed:`, {
+                  positionId: position.position?.objectId?.slice(0, 8),
+                  farmRewards: farmRewards,
+                  feeRewards: feeRewards,
+                  totalRewards: totalRewards
+                });
               }
             });
           } else {
@@ -776,6 +895,11 @@ export const useWalletStore = create<WalletState>()(
           
           // Process Meso rewards (array from API; already in USD per item)
           const mesoRewards = (state.rewards.meso as any[]) || [];
+          console.log('[WalletStore] Processing Meso rewards:', {
+            count: mesoRewards.length,
+            sample: mesoRewards.slice(0, 2)
+          });
+          
           if (Array.isArray(mesoRewards) && mesoRewards.length > 0) {
             let mesoTotal = 0;
             mesoRewards.forEach((r: any) => {
@@ -794,6 +918,8 @@ export const useWalletStore = create<WalletState>()(
           
           // Calculate total value
           summary.totalValue = Object.values(summary.protocols).reduce((sum, protocol) => sum + protocol.value, 0);
+          
+          console.log('[WalletStore] Final summary:', summary);
           
           return summary;
         },
