@@ -12,6 +12,7 @@ import { ClaimableRewardsSummary } from '@/lib/stores/walletStore';
 import { useClaimRewards } from '@/lib/hooks/useClaimRewards';
 import { useWalletStore } from '@/lib/stores/walletStore';
 import { ToastAction } from '@/components/ui/toast';
+import { getBaseUrl } from '@/lib/utils/config';
 
 interface ClaimAllRewardsModalProps {
   isOpen: boolean;
@@ -404,7 +405,7 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
     // Load Echelon rewards directly from API (same as in working EchelonPositions)
     let echelonRewards: any[] = [];
     try {
-      const response = await fetch(`/api/protocols/echelon/rewards?address=${account.address}`);
+      const response = await fetch(`${getBaseUrl()}/api/protocols/echelon/rewards?address=${account.address}`);
       const data = await response.json();
       
       console.log('[ClaimAll] Echelon rewards API response:', data);

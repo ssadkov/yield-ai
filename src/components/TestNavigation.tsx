@@ -180,6 +180,15 @@ export function TestNavigation() {
           various integrations, APIs, and features before they are integrated into the main application.
         </p>
       </div>
+
+      <div className="mb-4">
+        <h3 className="text-lg font-semibold mb-2">Configuration & Debug</h3>
+        <div className="space-y-2">
+          <Link href="/test-config" className="block p-2 bg-blue-100 hover:bg-blue-200 rounded">
+            Test Config & Environment
+          </Link>
+        </div>
+      </div>
     </div>
   );
 } 

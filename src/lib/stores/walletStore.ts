@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
+import { getBaseUrl } from '@/lib/utils/config';
 
 // Types for wallet data
 export interface WalletBalance {
@@ -139,33 +140,28 @@ export const useWalletStore = create<WalletState>()(
           
           try {
             console.log('[WalletStore] Fetching balance for address:', address);
+            const apiUrl = `${getBaseUrl()}/api/aptos/walletBalance?address=${encodeURIComponent(address)}`;
+            console.log('[WalletStore] Balance API URL:', apiUrl);
             
-            const response = await fetch(`/api/aptos/walletBalance?address=${encodeURIComponent(address)}`);
+            const response = await fetch(apiUrl);
             
-            if (!response.ok) {
-              throw new Error(`Balance API returned status ${response.status}`);
-            }
-            
-            const data = await response.json();
-            
-            if (data.balances) {
+            if (response.ok) {
+              const data = await response.json();
               set({
-                balance: data.balances,
+                balance: data.balances || [],
                 balanceLoading: false,
                 lastBalanceUpdate: Date.now(),
                 balanceError: null
               });
               console.log('[WalletStore] Balance fetched successfully:', data.balances.length);
             } else {
-              set({
-                balance: [],
-                balanceLoading: false,
-                lastBalanceUpdate: Date.now(),
-                balanceError: null
-              });
+              console.warn('[WalletStore] Failed to fetch balance:', response.status, response.statusText);
+              console.warn('[WalletStore] Failed URL:', apiUrl);
+              throw new Error(`Failed to fetch balance: ${response.statusText}`);
             }
           } catch (error) {
             console.error('[WalletStore] Error fetching balance:', error);
+            console.error('[WalletStore] Address:', address, 'Base URL:', getBaseUrl());
             set({
               balanceLoading: false,
               balanceError: error instanceof Error ? error.message : 'Unknown error'
@@ -187,6 +183,7 @@ export const useWalletStore = create<WalletState>()(
           
           try {
             console.log('[WalletStore] Fetching positions for address:', address);
+            console.log('[WalletStore] Base URL:', getBaseUrl());
             
             // Define protocols to fetch if not specified
             const protocolsToFetch = protocols || ['echelon', 'joule', 'hyperion', 'auro', 'aries', 'amnis'];
@@ -195,23 +192,34 @@ export const useWalletStore = create<WalletState>()(
             // Fetch positions for each protocol
             const promises = protocolsToFetch.map(async (protocol) => {
               try {
-                const response = await fetch(`/api/protocols/${protocol}/userPositions?address=${encodeURIComponent(address)}`);
+                const apiUrl = `${getBaseUrl()}/api/protocols/${protocol}/userPositions?address=${encodeURIComponent(address)}`;
+                console.log(`[WalletStore] Fetching ${protocol} positions from:`, apiUrl);
+                
+                const response = await fetch(apiUrl);
                 
                 if (response.ok) {
                   const data = await response.json();
                   newPositions[protocol] = data.data || data.userPositions || [];
                   console.log(`[WalletStore] ${protocol} positions fetched:`, newPositions[protocol].length);
                 } else {
-                  console.warn(`[WalletStore] Failed to fetch ${protocol} positions:`, response.status);
+                  console.warn(`[WalletStore] Failed to fetch ${protocol} positions:`, response.status, response.statusText);
+                  console.warn(`[WalletStore] Failed URL:`, apiUrl);
                   newPositions[protocol] = [];
                 }
               } catch (error) {
                 console.error(`[WalletStore] Error fetching ${protocol} positions:`, error);
+                console.error(`[WalletStore] Protocol: ${protocol}, Address: ${address}, Base URL: ${getBaseUrl()}`);
                 newPositions[protocol] = [];
               }
             });
             
             await Promise.all(promises);
+            
+            // Log summary of loaded positions
+            console.log('[WalletStore] Positions loading summary:');
+            Object.entries(newPositions).forEach(([protocol, positions]) => {
+              console.log(`[WalletStore] ${protocol}: ${positions.length} positions`);
+            });
             
             set({
               positions: newPositions,
@@ -244,6 +252,7 @@ export const useWalletStore = create<WalletState>()(
           
           try {
             console.log('[WalletStore] Fetching rewards for address:', address);
+            console.log('[WalletStore] Base URL:', getBaseUrl());
             
             // Define protocols to fetch if not specified
             const protocolsToFetch = protocols || ['echelon', 'auro', 'hyperion', 'meso'];
@@ -252,9 +261,12 @@ export const useWalletStore = create<WalletState>()(
             // Fetch rewards for each protocol
             const promises = protocolsToFetch.map(async (protocol) => {
               try {
+                const apiUrl = `${getBaseUrl()}/api/protocols/${protocol}/rewards?address=${encodeURIComponent(address)}`;
+                console.log(`[WalletStore] Fetching ${protocol} rewards from:`, apiUrl);
+                
                 if (protocol === 'hyperion') {
                   // Hyperion rewards are embedded in positions data
-                  const response = await fetch(`/api/protocols/${protocol}/userPositions?address=${encodeURIComponent(address)}`);
+                  const response = await fetch(`${getBaseUrl()}/api/protocols/${protocol}/userPositions?address=${encodeURIComponent(address)}`);
                   
                   if (response.ok) {
                     const data = await response.json();
@@ -270,12 +282,12 @@ export const useWalletStore = create<WalletState>()(
                     newRewards[protocol] = rewards;
                     console.log(`[WalletStore] ${protocol} rewards extracted from positions:`, rewards.length);
                   } else {
-                    console.warn(`[WalletStore] Failed to fetch ${protocol} positions:`, response.status);
+                    console.warn(`[WalletStore] Failed to fetch ${protocol} positions:`, response.status, response.statusText);
                     newRewards[protocol] = [];
                   }
                 } else if (protocol === 'meso') {
                   // Meso rewards via dedicated API
-                  const response = await fetch(`/api/protocols/meso/rewards?address=${encodeURIComponent(address)}`);
+                  const response = await fetch(`${getBaseUrl()}/api/protocols/meso/rewards?address=${encodeURIComponent(address)}`);
                   
                   if (response.ok) {
                     const data = await response.json();
@@ -283,36 +295,51 @@ export const useWalletStore = create<WalletState>()(
                     newRewards[protocol] = (data?.rewards && Array.isArray(data.rewards)) ? data.rewards : [];
                     console.log(`[WalletStore] ${protocol} rewards fetched:`, (newRewards[protocol] as any[]).length);
                   } else {
-                    console.warn(`[WalletStore] Failed to fetch ${protocol} rewards:`, response.status);
+                    console.warn(`[WalletStore] Failed to fetch ${protocol} rewards:`, response.status, response.statusText);
                     newRewards[protocol] = [];
                   }
                 } else {
                   // Standard rewards API for echelon and auro
-                  const response = await fetch(`/api/protocols/${protocol}/rewards?address=${encodeURIComponent(address)}`);
+                  const response = await fetch(`${getBaseUrl()}/api/protocols/${protocol}/rewards?address=${encodeURIComponent(address)}`);
                   
                   if (response.ok) {
                     const data = await response.json();
-                                         // For Auro, data.data is an object with position addresses as keys
-                     // For Echelon, data.data is an array
-                     if (protocol === 'auro') {
-                       newRewards[protocol] = data.data || {};
-                       
-                     } else {
+                    // For Auro, data.data is an object with position addresses as keys
+                    // For Echelon, data.data is an array
+                    if (protocol === 'auro') {
+                      newRewards[protocol] = data.data || {};
+                      
+                    } else {
                       newRewards[protocol] = data.data || [];
                       console.log(`[WalletStore] ${protocol} rewards fetched:`, newRewards[protocol].length);
                     }
                   } else {
-                    console.warn(`[WalletStore] Failed to fetch ${protocol} rewards:`, response.status);
+                    console.warn(`[WalletStore] Failed to fetch ${protocol} rewards:`, response.status, response.statusText);
+                    console.warn(`[WalletStore] Failed URL:`, `${getBaseUrl()}/api/protocols/${protocol}/rewards?address=${encodeURIComponent(address)}`);
                     newRewards[protocol] = protocol === 'auro' ? {} : [];
                   }
                 }
               } catch (error) {
                 console.error(`[WalletStore] Error fetching ${protocol} rewards:`, error);
+                console.error(`[WalletStore] Protocol: ${protocol}, Address: ${address}, Base URL: ${getBaseUrl()}`);
                 newRewards[protocol] = [];
               }
             });
             
             await Promise.all(promises);
+            
+            // Log summary of loaded rewards
+            console.log('[WalletStore] Rewards loading summary:');
+            Object.entries(newRewards).forEach(([protocol, rewards]) => {
+              if (Array.isArray(rewards)) {
+                console.log(`[WalletStore] ${protocol}: ${rewards.length} rewards`);
+              } else if (typeof rewards === 'object' && rewards !== null) {
+                const count = Object.keys(rewards).length;
+                console.log(`[WalletStore] ${protocol}: ${count} positions with rewards`);
+              } else {
+                console.log(`[WalletStore] ${protocol}: no rewards data`);
+              }
+            });
             
             // Collect token addresses for price fetching
             const tokenAddresses: string[] = [];
@@ -382,7 +409,7 @@ export const useWalletStore = create<WalletState>()(
                     if (!cleanAddress.startsWith('0x')) {
                       cleanAddress = `0x${cleanAddress}`;
                     }
-                                       tokenAddresses.push(cleanAddress);
+                    tokenAddresses.push(cleanAddress);
                   }
                   
                   // Also try to get address by symbol as fallback
@@ -403,7 +430,7 @@ export const useWalletStore = create<WalletState>()(
                           if (!cleanAddress.startsWith('0x')) {
                             cleanAddress = `0x${cleanAddress}`;
                           }
-                                                   tokenAddresses.push(cleanAddress);
+                          tokenAddresses.push(cleanAddress);
                         }
                       }
                     } catch (error) {
@@ -414,12 +441,13 @@ export const useWalletStore = create<WalletState>()(
               }
             });
             
-                         // Fetch prices if we have token addresses
-             if (tokenAddresses.length > 0) {
-               // Remove duplicates
-               const uniqueTokenAddresses = [...new Set(tokenAddresses)];
-               await get().fetchPrices(uniqueTokenAddresses);
-             }
+            // Fetch prices if we have token addresses
+            if (tokenAddresses.length > 0) {
+              // Remove duplicates
+              const uniqueTokenAddresses = [...new Set(tokenAddresses)];
+              console.log('[WalletStore] Fetching prices for', uniqueTokenAddresses.length, 'tokens');
+              await get().fetchPrices(uniqueTokenAddresses);
+            }
             
             set({
               rewards: newRewards,
@@ -451,7 +479,7 @@ export const useWalletStore = create<WalletState>()(
           set({ pricesLoading: true, pricesError: null });
           
           try {
-                         // Fetch prices for tokens
+            // Fetch prices for tokens
             
             // Clean addresses
             const cleanAddresses = tokenAddresses.map(address => {
@@ -462,7 +490,7 @@ export const useWalletStore = create<WalletState>()(
               if (!cleanAddress.startsWith('0x')) {
                 cleanAddress = `0x${cleanAddress}`;
               }
-                             return cleanAddress;
+              return cleanAddress;
             });
             
             // Use Panora API to fetch prices
@@ -474,21 +502,21 @@ export const useWalletStore = create<WalletState>()(
             
             const newPrices: TokenPrices = { ...state.prices };
             
-                    // Handle Panora API response format
-        if (pricesData && typeof pricesData === 'object') {
-          // Panora API returns prices as a map of address -> price
-          if (pricesData.data && typeof pricesData.data === 'object') {
-            const fetchedPrices = pricesData.data;
-            
-            for (const address in fetchedPrices) {
-              const price = fetchedPrices[address];
-              
-              if (address && price !== undefined && price !== null) {
-                newPrices[address] = price;
+            // Handle Panora API response format
+            if (pricesData && typeof pricesData === 'object') {
+              // Panora API returns prices as a map of address -> price
+              if (pricesData.data && typeof pricesData.data === 'object') {
+                const fetchedPrices = pricesData.data;
+                
+                for (const address in fetchedPrices) {
+                  const price = fetchedPrices[address];
+                  
+                  if (address && price !== undefined && price !== null) {
+                    newPrices[address] = price;
+                  }
+                }
               }
             }
-          }
-        }
             
             set({
               prices: newPrices,
@@ -585,11 +613,11 @@ export const useWalletStore = create<WalletState>()(
                   cleanAddress = `0x${cleanAddress}`;
                 }
                 
-                                 // Check if we have a price for this address
-                 if (state.prices[cleanAddress]) {
-                   tokenAddress = cleanAddress;
-                   price = state.prices[cleanAddress];
-                 }
+                // Check if we have a price for this address
+                if (state.prices[cleanAddress]) {
+                  tokenAddress = cleanAddress;
+                  price = state.prices[cleanAddress];
+                }
               }
               
               // If no price found by tokenType, try to find by symbol in token list
@@ -610,16 +638,16 @@ export const useWalletStore = create<WalletState>()(
                     if (!tokenAddress.startsWith('0x')) {
                       tokenAddress = `0x${tokenAddress}`;
                     }
-                                         price = state.prices[tokenAddress] || '0';
+                    price = state.prices[tokenAddress] || '0';
                   }
                 }
               }
               
-                             if (tokenAddress && parseFloat(price) > 0) {
-                 const value = reward.amount * parseFloat(price);
-                 summary.protocols.echelon.value += value;
-                 summary.protocols.echelon.count++;
-               }
+              if (tokenAddress && parseFloat(price) > 0) {
+                const value = reward.amount * parseFloat(price);
+                summary.protocols.echelon.value += value;
+                summary.protocols.echelon.count++;
+              }
             }
           });
           
@@ -631,147 +659,143 @@ export const useWalletStore = create<WalletState>()(
             if (positionRewards && typeof positionRewards === 'object') {
               // Process collateral rewards
               if (positionRewards.collateral && Array.isArray(positionRewards.collateral)) {
-                                 positionRewards.collateral.forEach((reward: any) => {
-
-                                     if (reward && reward.key && reward.value && parseFloat(reward.value) > 0) {
+                positionRewards.collateral.forEach((reward: any) => {
+                  if (reward && reward.key && reward.value && parseFloat(reward.value) > 0) {
                     // Get token info to calculate proper amount
                     try {
-                     const tokenList = require('@/lib/data/tokenList.json');
-                     
-                     // Clean the address from reward.key (it's a token address, not symbol)
-                     let cleanAddress = reward.key;
-                     if (cleanAddress.startsWith('@')) {
-                       cleanAddress = cleanAddress.slice(1);
-                     }
-                     if (!cleanAddress.startsWith('0x')) {
-                       cleanAddress = `0x${cleanAddress}`;
-                     }
-                     
-                     // Find token by address
-                     const tokenInfo = tokenList.data.data.find((token: any) => 
-                       (token.tokenAddress === cleanAddress || token.faAddress === cleanAddress)
-                     );
-                     
-                     if (tokenInfo) {
-                       const decimals = tokenInfo.decimals || 8;
-                       const amount = parseFloat(reward.value) / Math.pow(10, decimals);
-                       
-                       const price = state.prices[cleanAddress] || '0';
-                       if (parseFloat(price) > 0) {
-                         const value = amount * parseFloat(price);
-                         summary.protocols.auro.value += value;
-                         summary.protocols.auro.count++;
-                       }
-                     }
-                   } catch (error) {
-                     console.warn('Failed to process Auro collateral reward:', reward.key);
-                   }
-                 }
+                      const tokenList = require('@/lib/data/tokenList.json');
+                      
+                      // Clean the address from reward.key (it's a token address, not symbol)
+                      let cleanAddress = reward.key;
+                      if (cleanAddress.startsWith('@')) {
+                        cleanAddress = cleanAddress.slice(1);
+                      }
+                      if (!cleanAddress.startsWith('0x')) {
+                        cleanAddress = `0x${cleanAddress}`;
+                      }
+                      
+                      // Find token by address
+                      const tokenInfo = tokenList.data.data.find((token: any) => 
+                        (token.tokenAddress === cleanAddress || token.faAddress === cleanAddress)
+                      );
+                      
+                      if (tokenInfo) {
+                        const decimals = tokenInfo.decimals || 8;
+                        const amount = parseFloat(reward.value) / Math.pow(10, decimals);
+                        
+                        const price = state.prices[cleanAddress] || '0';
+                        if (parseFloat(price) > 0) {
+                          const value = amount * parseFloat(price);
+                          summary.protocols.auro.value += value;
+                          summary.protocols.auro.count++;
+                        }
+                      }
+                    } catch (error) {
+                      console.warn('Failed to process Auro collateral reward:', reward.key);
+                    }
+                  }
                 });
               }
               
               // Process borrow rewards
               if (positionRewards.borrow && Array.isArray(positionRewards.borrow)) {
-                                 positionRewards.borrow.forEach((reward: any) => {
-
-                                     if (reward && reward.key && reward.value && parseFloat(reward.value) > 0) {
+                positionRewards.borrow.forEach((reward: any) => {
+                  if (reward && reward.key && reward.value && parseFloat(reward.value) > 0) {
                     // Get token info to calculate proper amount
                     try {
-                     const tokenList = require('@/lib/data/tokenList.json');
-                     
-                     // Clean the address from reward.key (it's a token address, not symbol)
-                     let cleanAddress = reward.key;
-                     if (cleanAddress.startsWith('@')) {
-                       cleanAddress = cleanAddress.slice(1);
-                     }
-                     if (!cleanAddress.startsWith('0x')) {
-                       cleanAddress = `0x${cleanAddress}`;
-                     }
-                     
-                     // Find token by address
-                     const tokenInfo = tokenList.data.data.find((token: any) => 
-                       (token.tokenAddress === cleanAddress || token.faAddress === cleanAddress)
-                     );
-                     
-                     if (tokenInfo) {
-                       const decimals = tokenInfo.decimals || 8;
-                       const amount = parseFloat(reward.value) / Math.pow(10, decimals);
-                       
-                       const price = state.prices[cleanAddress] || '0';
-                       if (parseFloat(price) > 0) {
-                         const value = amount * parseFloat(price);
-                         summary.protocols.auro.value += value;
-                         summary.protocols.auro.count++;
-                       }
-                     }
-                   } catch (error) {
-                     console.warn('Failed to process Auro borrow reward:', reward.key);
-                   }
-                 }
+                      const tokenList = require('@/lib/data/tokenList.json');
+                      
+                      // Clean the address from reward.key (it's a token address, not symbol)
+                      let cleanAddress = reward.key;
+                      if (cleanAddress.startsWith('@')) {
+                        cleanAddress = cleanAddress.slice(1);
+                      }
+                      if (!cleanAddress.startsWith('0x')) {
+                        cleanAddress = `0x${cleanAddress}`;
+                      }
+                      
+                      // Find token by address
+                      const tokenInfo = tokenList.data.data.find((token: any) => 
+                        (token.tokenAddress === cleanAddress || token.faAddress === cleanAddress)
+                      );
+                      
+                      if (tokenInfo) {
+                        const decimals = tokenInfo.decimals || 8;
+                        const amount = parseFloat(reward.value) / Math.pow(10, decimals);
+                        
+                        const price = state.prices[cleanAddress] || '0';
+                        if (parseFloat(price) > 0) {
+                          const value = amount * parseFloat(price);
+                          summary.protocols.auro.value += value;
+                          summary.protocols.auro.count++;
+                        }
+                      }
+                    } catch (error) {
+                      console.warn('Failed to process Auro borrow reward:', reward.key);
+                    }
+                  }
                 });
               }
             }
           });
           
-                  // Process Hyperion rewards (calculate by positions, not individual rewards)
-        const hyperionPositions = state.positions.hyperion || [];
-        
-        if (hyperionPositions.length > 0) {
-          // Use positions data if available
-          hyperionPositions.forEach((position: any) => {
-            const farmRewards = position.farm?.unclaimed?.reduce((sum: number, r: any) => sum + parseFloat(r.amountUSD || "0"), 0) || 0;
-            const feeRewards = position.fees?.unclaimed?.reduce((sum: number, r: any) => sum + parseFloat(r.amountUSD || "0"), 0) || 0;
-            const totalRewards = farmRewards + feeRewards;
-            
-            if (totalRewards > 0) {
-              summary.protocols.hyperion.value += totalRewards;
-              summary.protocols.hyperion.count++;
-            }
-          });
-        } else {
-          // Fallback to rewards data if positions not available
-          const hyperionRewards = state.rewards.hyperion || [];
-          if (hyperionRewards.length > 0) {
-            // For fallback, we estimate 1 position per reward group
-            // This is not perfect but better than showing 0
-            let totalValue = 0;
-            hyperionRewards.forEach((reward: any) => {
-              if (reward.amountUSD && parseFloat(reward.amountUSD) > 0) {
-                totalValue += parseFloat(reward.amountUSD);
+          // Process Hyperion rewards (calculate by positions, not individual rewards)
+          const hyperionPositions = state.positions.hyperion || [];
+          
+          if (hyperionPositions.length > 0) {
+            // Use positions data if available
+            hyperionPositions.forEach((position: any) => {
+              const farmRewards = position.farm?.unclaimed?.reduce((sum: number, r: any) => sum + parseFloat(r.amountUSD || "0"), 0) || 0;
+              const feeRewards = position.fees?.unclaimed?.reduce((sum: number, r: any) => sum + parseFloat(r.amountUSD || "0"), 0) || 0;
+              const totalRewards = farmRewards + feeRewards;
+              
+              if (totalRewards > 0) {
+                summary.protocols.hyperion.value += totalRewards;
+                summary.protocols.hyperion.count++;
               }
             });
-            
-            if (totalValue > 0) {
-              summary.protocols.hyperion.value = totalValue;
-              summary.protocols.hyperion.count = 1; // Conservative estimate
+          } else {
+            // Fallback to rewards data if positions not available
+            const hyperionRewards = state.rewards.hyperion || [];
+            if (hyperionRewards.length > 0) {
+              // For fallback, we estimate 1 position per reward group
+              // This is not perfect but better than showing 0
+              let totalValue = 0;
+              hyperionRewards.forEach((reward: any) => {
+                if (reward.amountUSD && parseFloat(reward.amountUSD) > 0) {
+                  totalValue += parseFloat(reward.amountUSD);
+                }
+              });
+              
+              if (totalValue > 0) {
+                summary.protocols.hyperion.value = totalValue;
+                summary.protocols.hyperion.count = 1; // Conservative estimate
+              }
             }
           }
-        }
-        
-        // Process Meso rewards (array from API; already in USD per item)
-        const mesoRewards = (state.rewards.meso as any[]) || [];
-        if (Array.isArray(mesoRewards) && mesoRewards.length > 0) {
-          let mesoTotal = 0;
-          mesoRewards.forEach((r: any) => {
-            const usd = typeof r.usdValue === 'number' ? r.usdValue : 0;
-            const amt = typeof r.amount === 'number' ? r.amount : 0;
-            // Count rewards by token amount > 0 to include sub-cent USD values
-            if (amt > 0) {
-              summary.protocols.meso.count += 1;
-            }
-            if (usd > 0) {
-              mesoTotal += usd;
-            }
-          });
-          summary.protocols.meso.value = mesoTotal;
-        }
           
-                     // Calculate total value
-           summary.totalValue = Object.values(summary.protocols).reduce((sum, protocol) => sum + protocol.value, 0);
-           
-
-           
-           return summary;
+          // Process Meso rewards (array from API; already in USD per item)
+          const mesoRewards = (state.rewards.meso as any[]) || [];
+          if (Array.isArray(mesoRewards) && mesoRewards.length > 0) {
+            let mesoTotal = 0;
+            mesoRewards.forEach((r: any) => {
+              const usd = typeof r.usdValue === 'number' ? r.usdValue : 0;
+              const amt = typeof r.amount === 'number' ? r.amount : 0;
+              // Count rewards by token amount > 0 to include sub-cent USD values
+              if (amt > 0) {
+                summary.protocols.meso.count += 1;
+              }
+              if (usd > 0) {
+                mesoTotal += usd;
+              }
+            });
+            summary.protocols.meso.value = mesoTotal;
+          }
+          
+          // Calculate total value
+          summary.totalValue = Object.values(summary.protocols).reduce((sum, protocol) => sum + protocol.value, 0);
+          
+          return summary;
         },
         
         getTotalValue: () => {
