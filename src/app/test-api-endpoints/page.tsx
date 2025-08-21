@@ -17,7 +17,7 @@ export default function TestApiEndpointsPage() {
       const response = await fetch(url);
       const endTime = Date.now();
       
-      const result = {
+      const result: any = {
         url,
         status: response.status,
         statusText: response.statusText,
