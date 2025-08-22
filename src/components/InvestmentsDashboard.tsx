@@ -20,7 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import tokenList from "@/lib/data/tokenList.json";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Search, Funnel, X } from "lucide-react";
 import { ExternalLink } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DepositButton } from "@/components/ui/deposit-button";
@@ -86,6 +86,9 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   const [claimModalOpen, setClaimModalOpen] = useState(false);
   const [summary, setSummary] = useState<any>(null);
 
+  const [showSearchOptions, setShowSearchOptions] = useState(false);
+  const [searchByProtocols, setSearchByProtocols] = useState(false);
+  
   const { state, handleDrop, validateDrop } = useDragDrop();
   const { getClaimableRewardsSummary, fetchRewards, fetchPositions, rewardsLoading } = useWalletStore();
   const { account } = useWallet();
@@ -172,6 +175,20 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     }
     
     return false;
+  };
+  
+  const handleProtocolSelect = (protocolName: string) => {
+    setSearchByProtocols(protocolName);
+    setSearchQuery(''); // Очищаем поле поиска
+    setShowSearchOptions(false); // Закрываем окно опций
+  };
+
+  // Функция для обработки ввода в поле поиска
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    if (value) {
+      setSearchByProtocols(''); // Сбрасываем выбор протокола при вводе текста
+    }
   };
 
     // Start loading immediately when component mounts (only on client)
@@ -417,15 +434,13 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
             }
           }
         ];
-		
-		
+
 		const initialLogosState = protocolEndpoints.reduce((acc, endpoint) => {
           acc[endpoint.name] = endpoint.logoUrl || '';
           return acc;
         }, {} as Record<string, string>);
 
         setProtocolsLogos(initialLogosState);
-		
 
         // Fetch all protocols in parallel
         const fetchPromises = protocolEndpoints.map(async (endpoint) => {
@@ -447,9 +462,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
             const transformedData = endpoint.transform(data);
             
             console.log(`${endpoint.name} loaded: ${transformedData.length} pools`);
-			
-			console.log('showLoadingIndicators', endpoint);
-            
+
             // Update state progressively
             setProtocolsData(prev => ({
               ...prev,
@@ -586,6 +599,12 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     
     const tokenInfo = getTokenInfo(item.asset, item.token);
     const displaySymbol = tokenInfo?.symbol || item.asset;
+	const displayProtocol = item.protocol;
+
+	if (searchByProtocols) {
+	  return displayProtocol?.toLowerCase().includes(searchByProtocols.toLowerCase());
+    }
+
     return displaySymbol.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
@@ -648,6 +667,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 
   // Show loading indicators for protocols that are still loading
   const showLoadingIndicators = loading && Object.values(protocolsLoading).some(Boolean);
+  const protocolNames = Object.keys(protocolsData);
 
   if (showLoadingIndicators) {
     return (
@@ -966,7 +986,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 
                   // Check if this is a DEX pool with two tokens
                   const isDex = !!(bestPool.token1Info && bestPool.token2Info);
-
+				  
+				  
                   return (
                     <Card 
                       key={symbol}
@@ -1085,25 +1106,76 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
             </div>
           </div>
         </TabsContent>
-
         <TabsContent value="pro" className="mt-6">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search tokens..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8"
-              />
-            </div>
-            <div className="flex gap-1">
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+		  
+		  <div className="relative flex-1 max-w-md" onBlur={(e) => {
+		    // Закрываем, если фокус ушёл за пределы контейнера
+		    if (!e.currentTarget.contains(e.relatedTarget as Node)) setShowSearchOptions(false);
+		  }}>
+		  
+		  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+		    
+		  <div className="flex gap-1 min-w-[200px] w-full sm:min-w-0 sm:w-auto flex-none">
+			<Input
+		      placeholder="Search tokens..."
+			  value={searchQuery}
+		      onChange={(e) => handleSearchChange(e.target.value)}
+			  onFocus={() => setShowSearchOptions(true)}
+			  onClick={() => setShowSearchOptions(true)}
+			  className="pl-8 max-w-[100%] min-w-[200px]"
+	        />
+
+			{showSearchOptions && (
+			  <div
+			    className="absolute left-0 top-full mt-1 w-full rounded-md border bg-background shadow-md z-50 p-3"
+			    tabIndex={-1}
+			  >
+			    <div className="flex items-center space-x-2 relative">
+				  <div className="absolute -top-2 -right-4 z-10">
+				      <TooltipProvider>
+				        <Tooltip>
+				          <TooltipTrigger asChild>
+					        <Button
+						      variant="ghost"
+						      size="sm"
+						      onClick={() => setShowSearchOptions()}
+						      className="h-4 w-4 p-0 hover:bg-transparent hover:text-foreground/60 opacity-80 transition-colors cursor-pointer"
+						    >
+						      <X className={cn(
+							   "h-3 w-3"
+						      )} />
+						    </Button>				      
+						  </TooltipTrigger>
+						  <TooltipContent>
+						    <p>Filter by protocol: {searchByProtocols}</p>
+						  </TooltipContent>
+					    </Tooltip>
+					  </TooltipProvider>
+				  </div>
+				  <div className="flex flex-wrap gap-2 pt-10">
+				    {protocolNames.map((protocolName) => (
+				      <button
+					    key={protocolName}
+					    onClick={() => handleProtocolSelect(protocolName)}
+						className={`px-3 py-1 text-sm border rounded-md transition-colors ${ searchByProtocols === protocolName ? 'bg-blue-500 text-white border-blue-500' : 'hover:bg-gray-100'}`}
+					  >
+				        {protocolName}
+					  </button>
+				    ))}
+			      </div>
+			    </div>
+			  </div>
+			)}
+			</div>
+		  </div>
+            <div className="flex gap-1 flex-none">
               {['USD', 'APT', 'BTC', 'ETH'].map((token) => (
                 <Button
                   key={token}
                   variant="outline"
                   size="sm"
-                  onClick={() => setSearchQuery(token)}
+                  onClick={() => handleSearchChange(token)}
                   className="h-9 px-2"
                 >
                   {token}
@@ -1130,7 +1202,50 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
               <TableHeader>
                 <TableRow>
                   <TableHead>Token</TableHead>
-                  <TableHead>Protocol</TableHead>
+                  <TableHead>
+					Protocol
+					{searchByProtocols ? (
+				      <TooltipProvider>
+				        <Tooltip>
+				          <TooltipTrigger asChild>
+					        <Button
+						      variant="ghost"
+						      size="sm"
+						      onClick={() => setShowSearchOptions(true)}
+						      className="h-4 w-4 p-0 hover:bg-transparent hover:text-foreground/60 opacity-80 transition-colors cursor-pointer"
+						    >
+						      <Funnel className={cn(
+							   "h-3 w-3"
+						      )} />
+						    </Button>				      
+						  </TooltipTrigger>
+						  <TooltipContent>
+						    <p>Filter by protocol: {searchByProtocols}</p>
+						  </TooltipContent>
+					    </Tooltip>
+					  </TooltipProvider>
+					) : (
+					  <TooltipProvider>
+				        <Tooltip>
+				          <TooltipTrigger asChild>
+					        <Button
+						      variant="ghost"
+						      size="sm"
+						      onClick={() => setShowSearchOptions(true)}
+						      className="h-4 w-4 p-0 text-muted-foreground hover:bg-transparent hover:text-foreground/60 opacity-80 transition-colors cursor-pointer"
+						    >
+						      <Funnel className={cn(
+							   "h-3 w-3"
+						      )} />
+						    </Button>				      
+						  </TooltipTrigger>
+						  <TooltipContent>
+						    <p>Filter by protocol</p>
+						  </TooltipContent>
+					    </Tooltip>
+					  </TooltipProvider>
+					)}
+				</TableHead>
                   <TableHead>
                     <Tooltip>
                       <TooltipTrigger>Supply</TooltipTrigger>
@@ -1264,7 +1379,9 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                           </TooltipProvider>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline">{item.protocol}</Badge>
+                          <Badge variant="outline">
+						    {item.protocol}
+						  </Badge>
                         </TableCell>
                         <TableCell>{item.depositApy ? `${item.depositApy.toFixed(2)}%` : "-"}</TableCell>
                         <TableCell>{item.borrowAPY ? `${item.borrowAPY.toFixed(2)}%` : "-"}</TableCell>
