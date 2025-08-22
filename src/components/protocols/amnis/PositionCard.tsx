@@ -50,9 +50,12 @@ export const AmnisPositionCard: React.FC<AmnisPositionCardProps> = ({
     <Card className="w-full">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold">
-            {tokenSymbol} Staking
-          </CardTitle>
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-lg font-semibold">
+              {tokenSymbol} Staking
+            </CardTitle>
+            <Badge variant="secondary">Staking</Badge>
+          </div>
           <Badge variant={position.isActive ? "default" : "secondary"}>
             {position.isActive ? "Active" : "Inactive"}
           </Badge>

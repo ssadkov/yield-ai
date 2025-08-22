@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { AmnisPositionCard } from './PositionCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { ExternalLink, Plus, ChevronDown, ChevronRight } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
@@ -274,6 +275,7 @@ export const PositionsList: React.FC<SidebarPositionsListProps> = ({
                                               <div>
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium">{position.tokenSymbol || "AMI"}</span>
+                            <Badge variant="secondary">Staking</Badge>
                           </div>
                           <div className="text-xs text-muted-foreground">
                             ${(position.usdValue / parseFloat(position.stakedAmount)).toFixed(3)}
