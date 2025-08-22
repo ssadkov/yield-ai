@@ -101,9 +101,9 @@ export function EarniumPositionsManaging() {
         const sym = t?.symbol || b.asset_type; const logo = t?.logoUrl;
         if (sym && !pairSet.find((x) => x.symbol === sym)) pairSet.push({ logo, symbol: sym });
       });
-      const pairSymbols = pairSet.map((x) => x.symbol).slice(0, 2);
-      const pairIcons = pairSet.map((x) => x.logo).filter(Boolean).slice(0, 2);
-      enriched.push({ pairSymbols, pairIcons, poolUserUSD });
+             const pairSymbols = pairSet.map((x) => x.symbol).slice(0, 2);
+       const pairIcons = pairSet.map((x) => x.logo).filter(Boolean).slice(0, 2);
+       enriched.push({ pairSymbols, pairIcons, poolUserUSD, rewards: p.rewards });
 
       // rewards USD
       (p.rewards || []).forEach((r: any) => {
@@ -176,6 +176,23 @@ export function EarniumPositionsManaging() {
                   <TooltipContent className="bg-black text-white border-gray-700">
                     <div className="space-y-1 text-xs">
                       <div className="text-center">Total unclaimed rewards</div>
+                      <div className="border-t border-gray-600 pt-1 mt-1">
+                        {pools.map((p, i) => (
+                          p.rewards?.map((r: any, j: number) => {
+                            const t = findToken(r.tokenKey);
+                            const decimals = typeof t?.decimals === 'number' ? t.decimals : 8;
+                            const amountHuman = Number(r.amountRaw || '0') / Math.pow(10, decimals);
+                            return (
+                              <div key={`${i}-${j}`} className="flex items-center justify-between gap-6">
+                                <span>{t?.symbol || 'Unknown'}</span>
+                                <div>
+                                  <span className="mr-2">{amountHuman.toFixed(4)}</span>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )).flat()}
+                      </div>
                     </div>
                   </TooltipContent>
                 </Tooltip>
