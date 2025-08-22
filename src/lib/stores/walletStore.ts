@@ -649,7 +649,7 @@ export const useWalletStore = create<WalletState>()(
             meso: state.rewards.meso
           });
           
-          // DEBUG: Log all available prices
+          // DEBUG: Log all available prices (can be removed after testing)
           console.log('[WalletStore] Available prices:', {
             count: Object.keys(state.prices).length,
             addresses: Object.keys(state.prices),
@@ -714,15 +714,15 @@ export const useWalletStore = create<WalletState>()(
           };
           
           // Process Echelon rewards
-          const echelonRewards = state.rewards.echelon || [];
+          const echelonRewards = Array.isArray(state.rewards.echelon) ? state.rewards.echelon : [];
           console.log('[WalletStore] Processing Echelon rewards:', {
             count: echelonRewards.length,
             sample: echelonRewards.slice(0, 2)
           });
           
-          // DEBUG: Log detailed Echelon reward structure
+          // DEBUG: Log detailed Echelon reward structure (can be removed after testing)
           if (echelonRewards.length > 0) {
-            console.log('[WalletStore] Echelon rewards detailed structure:', echelonRewards.map(r => ({
+            console.log('[WalletStore] Echelon rewards detailed structure:', echelonRewards.map((r: any) => ({
               token: r.token,
               tokenType: r.tokenType,
               amount: r.amount,
@@ -834,7 +834,7 @@ export const useWalletStore = create<WalletState>()(
           });
           
           // Process Auro rewards
-          const auroRewards = state.rewards.auro || {};
+          const auroRewards = typeof state.rewards.auro === 'object' && !Array.isArray(state.rewards.auro) ? state.rewards.auro : {};
           console.log('[WalletStore] Processing Auro rewards:', {
             type: typeof auroRewards,
             keys: Object.keys(auroRewards),
@@ -977,7 +977,7 @@ export const useWalletStore = create<WalletState>()(
             });
           } else {
             // Fallback to rewards data if positions not available
-            const hyperionRewards = state.rewards.hyperion || [];
+            const hyperionRewards = Array.isArray(state.rewards.hyperion) ? state.rewards.hyperion : [];
             if (hyperionRewards.length > 0) {
               // For fallback, we estimate 1 position per reward group
               // This is not perfect but better than showing 0
@@ -996,30 +996,30 @@ export const useWalletStore = create<WalletState>()(
           }
           
           // Process Meso rewards (array from API; already in USD per item)
-          const mesoRewards = (state.rewards.meso as any[]) || [];
+          const mesoRewards = Array.isArray(state.rewards.meso) ? state.rewards.meso : [];
           console.log('[WalletStore] Processing Meso rewards:', {
             count: mesoRewards.length,
             sample: mesoRewards.slice(0, 2)
           });
           
-          if (Array.isArray(mesoRewards) && mesoRewards.length > 0) {
-            let mesoTotal = 0;
-            mesoRewards.forEach((r: any) => {
-              const usd = typeof r.usdValue === 'number' ? r.usdValue : 0;
-              const amt = typeof r.amount === 'number' ? r.amount : 0;
-              // Count rewards by token amount > 0 to include sub-cent USD values
-              if (amt > 0) {
-                summary.protocols.meso.count += 1;
-              }
-              if (usd > 0) {
-                mesoTotal += usd;
-              }
-            });
-            summary.protocols.meso.value = mesoTotal;
-          }
+                      if (Array.isArray(mesoRewards) && mesoRewards.length > 0) {
+              let mesoTotal = 0;
+              mesoRewards.forEach((reward: any) => {
+                const usd = typeof reward.usdValue === 'number' ? reward.usdValue : 0;
+                const amt = typeof reward.amount === 'number' ? reward.amount : 0;
+                // Count rewards by token amount > 0 to include sub-cent USD values
+                if (amt > 0) {
+                  summary.protocols.meso.count += 1;
+                }
+                if (usd > 0) {
+                  mesoTotal += usd;
+                }
+              });
+              summary.protocols.meso.value = mesoTotal;
+            }
           
           // Calculate total value
-          summary.totalValue = Object.values(summary.protocols).reduce((sum, protocol) => sum + protocol.value, 0);
+          summary.totalValue = Object.values(summary.protocols).reduce((sum: number, protocol: any) => sum + protocol.value, 0);
           
           console.log('[WalletStore] Final summary:', summary);
           
@@ -1031,7 +1031,7 @@ export const useWalletStore = create<WalletState>()(
           // Calculate total value from positions and prices
           let total = 0;
           
-          Object.values(state.positions).forEach(protocolPositions => {
+          Object.values(state.positions).forEach((protocolPositions: any[]) => {
             protocolPositions.forEach((position: any) => {
               // This is a simplified calculation - you might need to adjust based on your data structure
               if (position.value) {
