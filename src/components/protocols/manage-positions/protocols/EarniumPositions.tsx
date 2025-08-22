@@ -155,19 +155,7 @@ export function EarniumPositionsManaging() {
           </div>
         ))}
 
-        {rewardsUSD > 0 && (
-          <div className="space-y-2">
-            <div className="flex justify-end">
-              <button
-                className="px-3 py-1 bg-green-600 text-white rounded text-sm font-semibold disabled:opacity-60"
-                onClick={claimAll}
-                disabled={claiming}
-              >
-                {claiming ? 'Claiming...' : 'Claim rewards'}
-              </button>
-            </div>
-          </div>
-        )}
+
       </div>
 
       {/* Desktop layout - Total Assets */}
@@ -176,11 +164,22 @@ export function EarniumPositionsManaging() {
         <div className="text-right">
           <span className="text-xl text-primary font-bold">${pools.reduce((sum, p) => sum + (p.poolUserUSD || 0), 0).toFixed(2)}</span>
           {rewardsUSD > 0 && (
-            <div className="text-sm text-muted-foreground mt-1 flex flex-col items-end gap-1 text-right">
-              <div className="flex items-center gap-1 text-right">
-                <span>💰</span>
-                <span>including rewards ${rewardsUSD.toFixed(2)}</span>
-              </div>
+            <div className="text-sm text-muted-foreground mt-1 flex flex-col items-end gap-1">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-1 cursor-help">
+                      <span>💰</span>
+                      <span>including rewards ${rewardsUSD.toFixed(2)}</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-black text-white border-gray-700">
+                    <div className="space-y-1 text-xs">
+                      <div className="text-center">Total unclaimed rewards</div>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           )}
         </div>
@@ -194,13 +193,38 @@ export function EarniumPositionsManaging() {
         </div>
         {rewardsUSD > 0 && (
           <div className="space-y-2">
-            <div className="text-sm text-muted-foreground flex items-center gap-1">
-              <span>💰</span>
-              <span>including rewards ${rewardsUSD.toFixed(2)}</span>
-            </div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="text-sm text-muted-foreground flex items-center gap-1 cursor-help">
+                    <span>💰</span>
+                    <span>including rewards ${rewardsUSD.toFixed(2)}</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent className="bg-black text-white border-gray-700">
+                  <div className="space-y-1 text-xs">
+                    <div className="text-center">Total unclaimed rewards</div>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         )}
       </div>
+      {rewardsUSD > 0 && (
+          <div className="space-y-2">
+ 
+            <div className="flex justify-end">
+              <button
+                className="px-3 py-1 bg-green-600 text-white rounded text-sm font-semibold disabled:opacity-60"
+                onClick={claimAll}
+                disabled={claiming}
+              >
+                {claiming ? 'Claiming...' : 'Claim rewards'}
+              </button>
+            </div>
+          </div>
+        )}
     </div>
   );
 }
