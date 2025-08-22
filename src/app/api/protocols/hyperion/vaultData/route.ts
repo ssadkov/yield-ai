@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('🔍 Hyperion vaultData API called:', { vaultTokenAddress, walletAddress });
+    // console.log('🔍 Hyperion vaultData API called:', { vaultTokenAddress, walletAddress });
 
     // Получаем маппинг Vault токена
     const vaultMapping = getVaultTokenMapping(vaultTokenAddress);

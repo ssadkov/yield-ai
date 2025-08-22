@@ -17,7 +17,7 @@ interface CollapsibleProviderProps {
 }
 
 export function CollapsibleProvider({ children }: CollapsibleProviderProps) {
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['wallet', 'hyperion', 'echelon', 'aries', 'joule', 'tapp', 'meso', 'auro', 'amnis']));
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['wallet', 'hyperion', 'echelon', 'aries', 'joule', 'tapp', 'meso', 'auro', 'amnis', 'aave']));
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections(prev => {
@@ -32,7 +32,7 @@ export function CollapsibleProvider({ children }: CollapsibleProviderProps) {
   };
 
   const expandAll = () => {
-    setExpandedSections(new Set(['wallet', 'hyperion', 'echelon', 'aries', 'joule', 'tapp', 'meso', 'auro', 'amnis']));
+    setExpandedSections(new Set(['wallet', 'hyperion', 'echelon', 'aries', 'joule', 'tapp', 'meso', 'auro', 'amnis', 'aave']));
   };
 
   const collapseAll = () => {

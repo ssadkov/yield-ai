@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
       underlyingToken: 'APT',
     };
 
-    console.log('Created stkAPT staking pool:', stkAPTPool);
+    // console.log('Created stkAPT staking pool:', stkAPTPool);
 
     return NextResponse.json({
       success: true,

@@ -114,6 +114,14 @@ const testPages = [
     icon: Coins,
     badge: 'New',
     color: 'bg-emerald-600'
+  },
+  {
+    name: 'Test Aave',
+    description: 'Test Aave protocol integration',
+    path: '/test-aave',
+    icon: Shield,
+    badge: 'New',
+    color: 'bg-blue-600'
   }
 ];
 
