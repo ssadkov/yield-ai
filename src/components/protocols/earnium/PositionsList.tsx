@@ -9,6 +9,7 @@ import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import Image from "next/image";
 import tokenList from "@/lib/data/tokenList.json";
 import { useCollapsible } from "@/contexts/CollapsibleContext";
+import { ManagePositionsButton } from "../ManagePositionsButton";
 
 interface PositionsListProps {
   address?: string;
@@ -292,6 +293,9 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
                 </TooltipProvider>
               </div>
             </div>
+            
+            {/* Кнопка Manage Positions */}
+            {protocol && <ManagePositionsButton protocol={protocol} />}
           </ScrollArea>
         </CardContent>
       )}

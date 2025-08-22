@@ -89,8 +89,9 @@ export default function Sidebar() {
     setMesoValue(0);
     setAuroValue(0);
     setAmnisValue(0);
+    setEarniumValue(0);
     resetChecking();
-  }, [loadPortfolio]);
+  }, [loadPortfolio, resetChecking]);
 
   useEffect(() => {
     loadPortfolio();
