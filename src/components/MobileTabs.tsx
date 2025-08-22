@@ -11,6 +11,7 @@ import { PositionsList as JoulePositionsList } from "./protocols/joule/Positions
 import { PositionsList as TappPositionsList } from "./protocols/tapp/PositionsList";
 import { PositionsList as MesoPositionsList } from "./protocols/meso/PositionsList";
 import { PositionsList as AuroPositionsList } from "./protocols/auro/PositionsList";
+import { PositionsList as EarniumPositionsList } from "./protocols/earnium/PositionsList";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { AptosPortfolioService } from "@/lib/services/aptos/portfolio";
 import { Token } from "@/lib/types/token";
@@ -32,6 +33,7 @@ function MobileTabsContent() {
   const [tappValue, setTappValue] = useState<number>(0);
   const [mesoValue, setMesoValue] = useState<number>(0);
   const [auroValue, setAuroValue] = useState<number>(0);
+  const [earniumValue, setEarniumValue] = useState<number>(0);
 
   // Функция для скролла к верху
   const scrollToTop = () => {
@@ -54,14 +56,14 @@ function MobileTabsContent() {
         }, 0);
 
         setTokens(portfolio.tokens);
-        setTotalValue((total + hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue).toFixed(2));
+        setTotalValue((total + hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + earniumValue).toFixed(2));
       } catch (error) {
         console.error("Failed to load portfolio:", error);
       }
     }
 
     loadPortfolio();
-  }, [account?.address, hyperionValue, echelonValue, ariesValue, jouleValue, tappValue, mesoValue, auroValue]);
+  }, [account?.address, hyperionValue, echelonValue, ariesValue, jouleValue, tappValue, mesoValue, auroValue, earniumValue]);
 
   // Обработчики изменения суммы позиций в протоколах
   const handleHyperionValueChange = (value: number) => {
@@ -90,6 +92,10 @@ function MobileTabsContent() {
 
   const handleAuroValueChange = (value: number) => {
     setAuroValue(value);
+  };
+
+  const handleEarniumValueChange = (value: number) => {
+    setEarniumValue(value);
   };
 
   return (
@@ -160,6 +166,12 @@ function MobileTabsContent() {
                         value: auroValue, 
                         name: 'Auro Finance',
                         handler: handleAuroValueChange
+                      },
+                      { 
+                        component: EarniumPositionsList, 
+                        value: earniumValue, 
+                        name: 'Earnium',
+                        handler: handleEarniumValueChange
                       }
                     ]
                       .sort((a, b) => b.value - a.value)

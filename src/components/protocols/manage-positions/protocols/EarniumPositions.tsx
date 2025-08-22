@@ -156,10 +156,8 @@ export function EarniumPositionsManaging() {
         ))}
 
         {rewardsUSD > 0 && (
-          <div className="flex items-center justify-between">
-            <div className="text-gray-600">💰 Rewards</div>
-            <div className="flex items-center gap-2">
-              <span className="text-base font-semibold">${rewardsUSD.toFixed(2)}</span>
+          <div className="space-y-2">
+            <div className="flex justify-end">
               <button
                 className="px-3 py-1 bg-green-600 text-white rounded text-sm font-semibold disabled:opacity-60"
                 onClick={claimAll}
@@ -167,6 +165,38 @@ export function EarniumPositionsManaging() {
               >
                 {claiming ? 'Claiming...' : 'Claim rewards'}
               </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Desktop layout - Total Assets */}
+      <div className="hidden md:flex items-center justify-between pt-6 pb-6">
+        <span className="text-xl">Total assets in Earnium:</span>
+        <div className="text-right">
+          <span className="text-xl text-primary font-bold">${pools.reduce((sum, p) => sum + (p.poolUserUSD || 0), 0).toFixed(2)}</span>
+          {rewardsUSD > 0 && (
+            <div className="text-sm text-muted-foreground mt-1 flex flex-col items-end gap-1 text-right">
+              <div className="flex items-center gap-1 text-right">
+                <span>💰</span>
+                <span>including rewards ${rewardsUSD.toFixed(2)}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Mobile layout - Total Assets */}
+      <div className="md:hidden pt-6 pb-6 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-lg">Total assets in Earnium:</span>
+          <span className="text-lg text-primary font-bold">${pools.reduce((sum, p) => sum + (p.poolUserUSD || 0), 0).toFixed(2)}</span>
+        </div>
+        {rewardsUSD > 0 && (
+          <div className="space-y-2">
+            <div className="text-sm text-muted-foreground flex items-center gap-1">
+              <span>💰</span>
+              <span>including rewards ${rewardsUSD.toFixed(2)}</span>
             </div>
           </div>
         )}
