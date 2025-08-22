@@ -172,7 +172,7 @@ export async function GET(request: NextRequest) {
         underlying_asset: userReserve.underlying_asset,
         scaled_a_token_balance: userReserve.scaled_a_token_balance,
         scaled_variable_debt: userReserve.scaled_variable_debt,
-        decimals: userReserve.decimals,
+        decimals: Number(userReserve.decimals),
         liquidity_index: reserve.liquidity_index,
         variable_borrow_index: reserve.variable_borrow_index
       });
@@ -208,7 +208,7 @@ export async function GET(request: NextRequest) {
           underlying_asset: userReserve.underlying_asset,
           symbol: reserve.symbol,
           name: reserve.name,
-          decimals: userReserve.decimals,
+          decimals: Number(userReserve.decimals),
           deposit_amount: depositAmount,
           deposit_value_usd: depositValueUSD,
           borrow_amount: borrowAmount,
