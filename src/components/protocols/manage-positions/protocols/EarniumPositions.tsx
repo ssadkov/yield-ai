@@ -144,12 +144,12 @@ export function EarniumPositionsManaging() {
         {pools.map((p, i) => (
           <div key={i} className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="flex -space-x-2">
-                {(p.pairIcons || []).map((logo: string, idx: number) => (
-                  <Image key={idx} src={logo} alt={p.pairSymbols?.[idx] || 'token'} width={22} height={22} className="rounded ring-1 ring-background object-contain" />
-                ))}
-              </div>
-              <div className="text-base font-medium">{(p.pairSymbols || []).join(' / ') || 'Pool'}</div>
+                             <div className="flex -space-x-2">
+                 {(p.pairIcons || []).map((logo: string, idx: number) => (
+                   <Image key={idx} src={logo} alt={p.pairSymbols?.[idx] || 'token'} width={30} height={30} className="rounded ring-1 ring-background object-contain" />
+                 ))}
+               </div>
+               <div className="text-lg font-medium">{(p.pairSymbols || []).join(' / ') || 'Pool'}</div>
             </div>
             <div className="text-lg font-bold">${(p.poolUserUSD || 0).toFixed(2)}</div>
           </div>
