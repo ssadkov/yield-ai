@@ -112,6 +112,10 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
             // Special handling for Meso - single tx claim_all_apt_rewards
             console.log('[ClaimAll] Using Meso special handling');
             await handleMesoClaim();
+          } else if (protocol === 'earnium') {
+            // Special handling for Earnium - single tx claim_all_rewards
+            console.log('[ClaimAll] Using Earnium special handling');
+            await handleEarniumClaim();
           } else {
             // Standard claim for other protocols
             console.log('[ClaimAll] Using standard claim for:', protocol);
@@ -234,6 +238,125 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
         </ToastAction>
       ),
     });
+  };
+
+  // Special handling for Earnium - single call claim_all_rewards
+  const handleEarniumClaim = async () => {
+    if (!signAndSubmitTransaction || !account?.address) {
+      throw new Error('Wallet not connected');
+    }
+
+    console.log('[ClaimAll] Starting Earnium claim for address:', account.address);
+
+    // Load Earnium rewards to get pool indices
+    let earniumRewards: any[] = [];
+    try {
+      const response = await fetch(`${getBaseUrl()}/api/protocols/earnium/rewards?address=${account.address}`);
+      const data = await response.json();
+      
+      console.log('[ClaimAll] Earnium rewards API response:', data);
+      
+      if (data.success && Array.isArray(data.data)) {
+        earniumRewards = data.data;
+        console.log('[ClaimAll] Found Earnium rewards:', earniumRewards);
+      } else {
+        earniumRewards = [];
+        console.log('[ClaimAll] No Earnium rewards found or invalid response');
+      }
+    } catch (error) {
+      console.error('Error loading Earnium rewards:', error);
+      earniumRewards = [];
+    }
+
+    if (earniumRewards.length === 0) {
+      setResults(prev => [...prev, {
+        protocol: 'earnium',
+        success: false,
+        error: 'No claimable rewards found'
+      }]);
+      return;
+    }
+
+    // Get pool indices that have rewards
+    const poolIndices = earniumRewards
+      .filter((pool: any) => 
+        Array.isArray(pool.rewards) && 
+        pool.rewards.some((r: any) => Number(r.amountRaw || 0) > 0)
+      )
+      .map((pool: any) => pool.pool);
+
+    if (poolIndices.length === 0) {
+      setResults(prev => [...prev, {
+        protocol: 'earnium',
+        success: false,
+        error: 'No pools with claimable rewards found'
+      }]);
+      return;
+    }
+
+    console.log('[ClaimAll] Claiming rewards for pools:', poolIndices);
+
+    setCurrentStep('Claiming Earnium rewards...');
+
+    try {
+      // Use the EarniumProtocol to build the claim payload
+      const { EarniumProtocol } = await import('@/lib/protocols/earnium');
+      const earniumProtocol = new EarniumProtocol();
+      
+      const payload = await earniumProtocol.buildClaimRewards(
+        poolIndices.map(String), // Convert to string array
+        [], // tokenTypes not used for Earnium
+        account.address.toString()
+      );
+
+      const tx = await signAndSubmitTransaction({
+        data: {
+          function: payload.function as `${string}::${string}::${string}`,
+          typeArguments: payload.type_arguments,
+          functionArguments: payload.arguments
+        },
+        options: { maxGasAmount: 20000 },
+      });
+
+      setResults(prev => [...prev, { 
+        protocol: 'earnium', 
+        success: true, 
+        hash: tx.hash 
+      }]);
+
+      // Update claimed value
+      const earniumValue = summary.protocols.earnium?.value || 0;
+      setClaimedValue(prev => prev + earniumValue);
+
+      toast({
+        title: `Earnium rewards claimed!`,
+        description: `Transaction: ${tx.hash.slice(0, 8)}...${tx.hash.slice(-8)}`,
+        action: (
+          <ToastAction altText="View in Explorer" onClick={() => window.open(`https://explorer.aptoslabs.com/txn/${tx.hash}?network=mainnet`, '_blank')}>
+            View in Explorer
+          </ToastAction>
+        ),
+      });
+
+      // Refresh rewards data after successful claim
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('refreshPositions', { detail: { protocol: 'earnium' } }));
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error claiming Earnium rewards:', error);
+      const msg = isUserRejected(error) ? 'User rejected' : (error instanceof Error ? error.message : 'Unknown error');
+      setResults(prev => [...prev, {
+        protocol: 'earnium',
+        success: false,
+        error: msg
+      }]);
+      toast({
+        title: isUserRejected(error) ? 'Claim cancelled' : 'Failed to claim Earnium rewards',
+        description: msg,
+        variant: isUserRejected(error) ? 'default' : 'destructive',
+      });
+    }
   };
 
   // Special handling for Hyperion using SDK
@@ -388,6 +511,19 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
         });
         
         return { positionIds: auroPositionIds, tokenTypes: auroTokenTypes };
+        
+      case 'earnium':
+        // For Earnium, we need pool indices that have rewards
+        const earniumRewards = protocolRewards && Array.isArray(protocolRewards) ? protocolRewards : [];
+        const earniumPoolIndices: string[] = [];
+        
+        earniumRewards.forEach((pool: any) => {
+          if (Array.isArray(pool.rewards) && pool.rewards.some((r: any) => Number(r.amountRaw || 0) > 0)) {
+            earniumPoolIndices.push(pool.pool.toString());
+          }
+        });
+        
+        return { positionIds: earniumPoolIndices, tokenTypes: [] };
         
       default:
         return { positionIds: [], tokenTypes: [] };
