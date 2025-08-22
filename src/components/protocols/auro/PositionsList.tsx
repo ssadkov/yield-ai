@@ -443,7 +443,7 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
                     </div>
                     <div className="text-right ml-4">
                       <div className="text-sm font-medium">${value}</div>
-                      <div className="text-xs text-muted-foreground">{collateral} {collateralSymbol}</div>
+                      <div className="text-xs text-muted-foreground">{collateral}</div>
                     </div>
                   </div>
                   {/* Debt строка — всегда на новой строке, как borrow в Echelon */}
