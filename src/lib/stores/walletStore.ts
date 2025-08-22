@@ -702,6 +702,71 @@ export const useWalletStore = create<WalletState>()(
               return {};
             }
           };
+
+          // Helper function to get Auro token prices directly from Panora
+          const getAuroTokenPrices = async (auroRewards: Record<string, any>) => {
+            try {
+              const { PanoraPricesService } = await import('@/lib/services/panora/prices');
+              const pricesService = PanoraPricesService.getInstance();
+              
+              // Collect unique token addresses from auro rewards
+              const addresses = new Set<string>();
+              Object.values(auroRewards).forEach((positionRewards: any) => {
+                if (positionRewards.collateral) {
+                  positionRewards.collateral.forEach((reward: any) => {
+                    if (reward?.key) {
+                      let cleanAddress = reward.key;
+                      if (cleanAddress.startsWith('@')) {
+                        cleanAddress = cleanAddress.slice(1);
+                      }
+                      if (!cleanAddress.startsWith('0x')) {
+                        cleanAddress = `0x${cleanAddress}`;
+                      }
+                      addresses.add(cleanAddress);
+                    }
+                  });
+                }
+                if (positionRewards.borrow) {
+                  positionRewards.borrow.forEach((reward: any) => {
+                    if (reward?.key) {
+                      let cleanAddress = reward.key;
+                      if (cleanAddress.startsWith('@')) {
+                        cleanAddress = cleanAddress.slice(1);
+                      }
+                      if (!cleanAddress.startsWith('0x')) {
+                        cleanAddress = `0x${cleanAddress}`;
+                      }
+                      addresses.add(cleanAddress);
+                    }
+                  });
+                }
+              });
+              
+              const uniqueAddresses = Array.from(addresses);
+              if (uniqueAddresses.length === 0) return {};
+              
+              console.log('[WalletStore] Fetching Auro prices for addresses:', uniqueAddresses);
+              const response = await pricesService.getPrices(1, uniqueAddresses);
+              
+              const prices: Record<string, string> = {};
+              if (response.data) {
+                response.data.forEach((price: any) => {
+                  if (price.tokenAddress) {
+                    prices[price.tokenAddress] = price.usdPrice;
+                  }
+                  if (price.faAddress) {
+                    prices[price.faAddress] = price.usdPrice;
+                  }
+                });
+              }
+              
+              console.log('[WalletStore] Auro prices fetched:', prices);
+              return prices;
+            } catch (error) {
+              console.error('[WalletStore] Error fetching Auro prices:', error);
+              return {};
+            }
+          };
           
           const summary: ClaimableRewardsSummary = {
             totalValue: 0,
@@ -841,6 +906,12 @@ export const useWalletStore = create<WalletState>()(
             sample: Object.entries(auroRewards).slice(0, 2)
           });
           
+          // Get Auro token prices directly from Panora API
+          let auroPrices: Record<string, string> = {};
+          if (Object.keys(auroRewards).length > 0) {
+            auroPrices = await getAuroTokenPrices(auroRewards);
+          }
+          
           // Auro rewards are structured as { positionAddress: { collateral: [], borrow: [] } }
           Object.values(auroRewards).forEach((positionRewards: any) => {
             if (positionRewards && typeof positionRewards === 'object') {
@@ -861,6 +932,12 @@ export const useWalletStore = create<WalletState>()(
                         cleanAddress = `0x${cleanAddress}`;
                       }
                       
+                      console.log(`[WalletStore] Processing Auro collateral reward:`, {
+                        key: reward.key,
+                        cleanAddress: cleanAddress,
+                        value: reward.value
+                      });
+                      
                       // Find token by address
                       const tokenInfo = tokenList.data.data.find((token: any) => 
                         (token.tokenAddress === cleanAddress || token.faAddress === cleanAddress)
@@ -870,7 +947,18 @@ export const useWalletStore = create<WalletState>()(
                         const decimals = tokenInfo.decimals || 8;
                         const amount = parseFloat(reward.value) / Math.pow(10, decimals);
                         
-                        const price = state.prices[cleanAddress] || '0';
+                        // Check direct prices first, then fallback to store prices
+                        let price = '0';
+                        if (auroPrices[cleanAddress]) {
+                          price = auroPrices[cleanAddress];
+                          console.log(`[WalletStore] Found direct Auro price: ${price}`);
+                        } else if (state.prices[cleanAddress]) {
+                          price = state.prices[cleanAddress];
+                          console.log(`[WalletStore] Found store price: ${price}`);
+                        } else {
+                          console.log(`[WalletStore] No price found for address: ${cleanAddress}`);
+                        }
+                        
                         if (parseFloat(price) > 0) {
                           const value = amount * parseFloat(price);
                           summary.protocols.auro.value += value;
@@ -885,12 +973,15 @@ export const useWalletStore = create<WalletState>()(
                           console.log(`[WalletStore] Auro collateral reward skipped (no price):`, {
                             token: tokenInfo.symbol,
                             amount: amount,
-                            address: cleanAddress
+                            address: cleanAddress,
+                            reason: 'Price is 0 or not found'
                           });
                         }
+                      } else {
+                        console.log(`[WalletStore] No token info found for address: ${cleanAddress}`);
                       }
                     } catch (error) {
-                      console.warn('Failed to process Auro collateral reward:', reward.key);
+                      console.warn('Failed to process Auro collateral reward:', reward.key, error);
                     }
                   }
                 });
@@ -913,6 +1004,12 @@ export const useWalletStore = create<WalletState>()(
                         cleanAddress = `0x${cleanAddress}`;
                       }
                       
+                      console.log(`[WalletStore] Processing Auro borrow reward:`, {
+                        key: reward.key,
+                        cleanAddress: cleanAddress,
+                        value: reward.value
+                      });
+                      
                       // Find token by address
                       const tokenInfo = tokenList.data.data.find((token: any) => 
                         (token.tokenAddress === cleanAddress || token.faAddress === cleanAddress)
@@ -922,7 +1019,18 @@ export const useWalletStore = create<WalletState>()(
                         const decimals = tokenInfo.decimals || 8;
                         const amount = parseFloat(reward.value) / Math.pow(10, decimals);
                         
-                        const price = state.prices[cleanAddress] || '0';
+                        // Check direct prices first, then fallback to store prices
+                        let price = '0';
+                        if (auroPrices[cleanAddress]) {
+                          price = auroPrices[cleanAddress];
+                          console.log(`[WalletStore] Found direct Auro price: ${price}`);
+                        } else if (state.prices[cleanAddress]) {
+                          price = state.prices[cleanAddress];
+                          console.log(`[WalletStore] Found store price: ${price}`);
+                        } else {
+                          console.log(`[WalletStore] No price found for address: ${cleanAddress}`);
+                        }
+                        
                         if (parseFloat(price) > 0) {
                           const value = amount * parseFloat(price);
                           summary.protocols.auro.value += value;
@@ -937,12 +1045,15 @@ export const useWalletStore = create<WalletState>()(
                           console.log(`[WalletStore] Auro borrow reward skipped (no price):`, {
                             token: tokenInfo.symbol,
                             amount: amount,
-                            address: cleanAddress
+                            address: cleanAddress,
+                            reason: 'Price is 0 or not found'
                           });
                         }
+                      } else {
+                        console.log(`[WalletStore] No token info found for address: ${cleanAddress}`);
                       }
                     } catch (error) {
-                      console.warn('Failed to process Auro borrow reward:', reward.key);
+                      console.warn('Failed to process Auro borrow reward:', reward.key, error);
                     }
                   }
                 });
