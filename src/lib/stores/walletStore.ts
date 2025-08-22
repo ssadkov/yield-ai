@@ -28,6 +28,7 @@ export interface ClaimableRewardsSummary {
     auro: { value: number; count: number };
     hyperion: { value: number; count: number };
     meso: { value: number; count: number };
+    earnium: { value: number; count: number };
   };
 }
 
@@ -260,7 +261,7 @@ export const useWalletStore = create<WalletState>()(
             });
             
             // Define protocols to fetch if not specified
-            const protocolsToFetch = protocols || ['echelon', 'auro', 'hyperion', 'meso'];
+            const protocolsToFetch = protocols || ['echelon', 'auro', 'hyperion', 'meso', 'earnium'];
             const newRewards: ProtocolRewards = { ...state.rewards };
             
             console.log('[WalletStore] Protocols to fetch:', protocolsToFetch);
@@ -304,6 +305,20 @@ export const useWalletStore = create<WalletState>()(
                     const data = await response.json();
                     // Store as flat array of rewards
                     newRewards[protocol] = (data?.rewards && Array.isArray(data.rewards)) ? data.rewards : [];
+                    console.log(`[WalletStore] ${protocol} rewards fetched:`, (newRewards[protocol] as any[]).length);
+                  } else {
+                    console.warn(`[WalletStore] Failed to fetch ${protocol} rewards:`, response.status, response.statusText);
+                    console.warn(`[WalletStore] Failed URL:`, apiUrl);
+                    newRewards[protocol] = [];
+                  }
+                } else if (protocol === 'earnium') {
+                  // Earnium rewards via dedicated API
+                  const response = await fetch(`${getBaseUrl()}/api/protocols/earnium/rewards?address=${encodeURIComponent(address)}`);
+                  
+                  if (response.ok) {
+                    const data = await response.json();
+                    // Store as array of pools
+                    newRewards[protocol] = (data?.data && Array.isArray(data.data)) ? data.data : [];
                     console.log(`[WalletStore] ${protocol} rewards fetched:`, (newRewards[protocol] as any[]).length);
                   } else {
                     console.warn(`[WalletStore] Failed to fetch ${protocol} rewards:`, response.status, response.statusText);
@@ -646,7 +661,8 @@ export const useWalletStore = create<WalletState>()(
             echelon: state.rewards.echelon,
             auro: state.rewards.auro,
             hyperion: state.rewards.hyperion,
-            meso: state.rewards.meso
+            meso: state.rewards.meso,
+            earnium: state.rewards.earnium
           });
           
           // DEBUG: Log all available prices (can be removed after testing)
@@ -767,6 +783,57 @@ export const useWalletStore = create<WalletState>()(
               return {};
             }
           };
+
+          // Helper function to get Earnium token prices directly from Panora
+          const getEarniumTokenPrices = async (earniumRewards: any[]) => {
+            try {
+              const { PanoraPricesService } = await import('@/lib/services/panora/prices');
+              const pricesService = PanoraPricesService.getInstance();
+              
+              // Collect unique token addresses from earnium rewards
+              const addresses = new Set<string>();
+              earniumRewards.forEach((pool: any) => {
+                if (pool.rewards && Array.isArray(pool.rewards)) {
+                  pool.rewards.forEach((reward: any) => {
+                    if (reward.tokenKey) {
+                      let cleanAddress = reward.tokenKey;
+                      if (cleanAddress.startsWith('@')) {
+                        cleanAddress = cleanAddress.slice(1);
+                      }
+                      if (!cleanAddress.startsWith('0x')) {
+                        cleanAddress = `0x${cleanAddress}`;
+                      }
+                      addresses.add(cleanAddress);
+                    }
+                  });
+                }
+              });
+              
+              const uniqueAddresses = Array.from(addresses);
+              if (uniqueAddresses.length === 0) return {};
+              
+              console.log('[WalletStore] Fetching Earnium prices for addresses:', uniqueAddresses);
+              const response = await pricesService.getPrices(1, uniqueAddresses);
+              
+              const prices: Record<string, string> = {};
+              if (response.data) {
+                response.data.forEach((price: any) => {
+                  if (price.tokenAddress) {
+                    prices[price.tokenAddress] = price.usdPrice;
+                  }
+                  if (price.faAddress) {
+                    prices[price.faAddress] = price.usdPrice;
+                  }
+                });
+              }
+              
+              console.log('[WalletStore] Earnium prices fetched:', prices);
+              return prices;
+            } catch (error) {
+              console.error('[WalletStore] Error fetching Earnium prices:', error);
+              return {};
+            }
+          };
           
           const summary: ClaimableRewardsSummary = {
             totalValue: 0,
@@ -774,7 +841,8 @@ export const useWalletStore = create<WalletState>()(
               echelon: { value: 0, count: 0 },
               auro: { value: 0, count: 0 },
               hyperion: { value: 0, count: 0 },
-              meso: { value: 0, count: 0 }
+              meso: { value: 0, count: 0 },
+              earnium: { value: 0, count: 0 }
             }
           };
           
@@ -1113,21 +1181,96 @@ export const useWalletStore = create<WalletState>()(
             sample: mesoRewards.slice(0, 2)
           });
           
-                      if (Array.isArray(mesoRewards) && mesoRewards.length > 0) {
-              let mesoTotal = 0;
-              mesoRewards.forEach((reward: any) => {
-                const usd = typeof reward.usdValue === 'number' ? reward.usdValue : 0;
-                const amt = typeof reward.amount === 'number' ? reward.amount : 0;
-                // Count rewards by token amount > 0 to include sub-cent USD values
-                if (amt > 0) {
-                  summary.protocols.meso.count += 1;
-                }
-                if (usd > 0) {
-                  mesoTotal += usd;
+          if (Array.isArray(mesoRewards) && mesoRewards.length > 0) {
+            let mesoTotal = 0;
+            mesoRewards.forEach((reward: any) => {
+              const usd = typeof reward.usdValue === 'number' ? reward.usdValue : 0;
+              const amt = typeof reward.amount === 'number' ? reward.amount : 0;
+              // Count rewards by token amount > 0 to include sub-cent USD values
+              if (amt > 0) {
+                summary.protocols.meso.count += 1;
+              }
+              if (usd > 0) {
+                mesoTotal += usd;
+              }
+            });
+            summary.protocols.meso.value = mesoTotal;
+          }
+
+          // Process Earnium rewards (array of pools from API)
+          const earniumRewards = Array.isArray(state.rewards.earnium) ? state.rewards.earnium : [];
+          console.log('[WalletStore] Processing Earnium rewards:', {
+            count: earniumRewards.length,
+            sample: earniumRewards.slice(0, 2)
+          });
+
+          // Get Earnium token prices directly from Panora API
+          let earniumPrices: Record<string, string> = {};
+          if (earniumRewards.length > 0) {
+            earniumPrices = await getEarniumTokenPrices(earniumRewards);
+          }
+
+          earniumRewards.forEach((pool: any) => {
+            if (pool.rewards && Array.isArray(pool.rewards)) {
+              console.log(`[WalletStore] Processing Earnium pool ${pool.pool}:`, {
+                poolId: pool.pool,
+                rewardsCount: pool.rewards.length,
+                staked: pool.staked
+              });
+
+              pool.rewards.forEach((reward: any) => {
+                if (reward.amount && reward.amount > 0) {
+                  console.log(`[WalletStore] Processing Earnium reward:`, {
+                    token: reward.symbol,
+                    tokenKey: reward.tokenKey,
+                    amount: reward.amount,
+                    decimals: reward.decimals
+                  });
+
+                  // Clean the token address
+                  let cleanAddress = reward.tokenKey;
+                  if (cleanAddress.startsWith('@')) {
+                    cleanAddress = cleanAddress.slice(1);
+                  }
+                  if (!cleanAddress.startsWith('0x')) {
+                    cleanAddress = `0x${cleanAddress}`;
+                  }
+
+                  // Check direct prices first, then fallback to store prices
+                  let price = '0';
+                  if (earniumPrices[cleanAddress]) {
+                    price = earniumPrices[cleanAddress];
+                    console.log(`[WalletStore] Found direct Earnium price: ${price}`);
+                  } else if (state.prices[cleanAddress]) {
+                    price = state.prices[cleanAddress];
+                    console.log(`[WalletStore] Found store price: ${price}`);
+                  } else {
+                    console.log(`[WalletStore] No price found for address: ${cleanAddress}`);
+                  }
+
+                  if (parseFloat(price) > 0) {
+                    const value = reward.amount * parseFloat(price);
+                    summary.protocols.earnium.value += value;
+                    summary.protocols.earnium.count++;
+                    console.log(`[WalletStore] Earnium reward processed:`, {
+                      token: reward.symbol,
+                      amount: reward.amount,
+                      price: price,
+                      value: value,
+                      pool: pool.pool
+                    });
+                  } else {
+                    console.log(`[WalletStore] Earnium reward skipped (no price):`, {
+                      token: reward.symbol,
+                      amount: reward.amount,
+                      address: cleanAddress,
+                      reason: 'Price is 0 or not found'
+                    });
+                  }
                 }
               });
-              summary.protocols.meso.value = mesoTotal;
             }
+          });
           
           // Calculate total value
           summary.totalValue = Object.values(summary.protocols).reduce((sum: number, protocol: any) => sum + protocol.value, 0);
