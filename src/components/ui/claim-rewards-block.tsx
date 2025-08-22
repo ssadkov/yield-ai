@@ -7,14 +7,14 @@ import { Gift } from 'lucide-react';
 import { ClaimableRewardsSummary } from '@/lib/stores/walletStore';
 
 interface ClaimRewardsBlockProps {
-  summary: ClaimableRewardsSummary;
+  summary: ClaimableRewardsSummary | null;
   onClaim: () => void;
   loading?: boolean;
 }
 
 export function ClaimRewardsBlock({ summary, onClaim, loading = false }: ClaimRewardsBlockProps) {
-  // Don't render if invalid summary or no rewards
-  if (!summary || !summary.protocols || summary.totalValue <= 0) {
+  // Don't render if loading or invalid summary or no rewards
+  if (loading || !summary || !summary.protocols || summary.totalValue <= 0) {
     return null;
   }
 

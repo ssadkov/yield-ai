@@ -18,7 +18,16 @@ export default function TestClaimRewards() {
     }
   }, [account?.address, fetchRewards]);
 
-  const summary = getClaimableRewardsSummary();
+  const [summary, setSummary] = useState<any>(null);
+  
+  // Load summary when rewards change
+  useEffect(() => {
+    const loadSummary = async () => {
+      const summaryData = await getClaimableRewardsSummary();
+      setSummary(summaryData);
+    };
+    loadSummary();
+  }, [getClaimableRewardsSummary, rewardsLoading]);
 
   return (
     <div className="p-8 max-w-4xl mx-auto">
@@ -71,11 +80,13 @@ export default function TestClaimRewards() {
       </div>
 
       {/* Claim All Rewards Modal */}
-      <ClaimAllRewardsModal
-        isOpen={claimModalOpen}
-        onClose={() => setClaimModalOpen(false)}
-        summary={summary}
-      />
+      {summary && (
+        <ClaimAllRewardsModal
+          isOpen={claimModalOpen}
+          onClose={() => setClaimModalOpen(false)}
+          summary={summary}
+        />
+      )}
     </div>
   );
 } 

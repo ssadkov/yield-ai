@@ -84,6 +84,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   const [protocolsLogos, setProtocolsLogos] = useState<Record<string, string>>({});
   const [isClient, setIsClient] = useState(false);
   const [claimModalOpen, setClaimModalOpen] = useState(false);
+  const [summary, setSummary] = useState<any>(null);
 
   const { state, handleDrop, validateDrop } = useDragDrop();
   const { getClaimableRewardsSummary, fetchRewards, fetchPositions, rewardsLoading } = useWalletStore();
@@ -102,6 +103,17 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
       fetchPositions(account.address.toString(), ['hyperion']); // Load Hyperion positions for claim all
     }
   }, [account?.address, fetchRewards, fetchPositions]);
+
+  // Load summary when rewards change
+  useEffect(() => {
+    const loadSummary = async () => {
+      if (account?.address) {
+        const summaryData = await getClaimableRewardsSummary();
+        setSummary(summaryData);
+      }
+    };
+    loadSummary();
+  }, [account?.address, getClaimableRewardsSummary, rewardsLoading]);
 
   const getTokenInfo = (asset: string, tokenAddress?: string): Token | undefined => {
     if (tokenAddress) {
@@ -742,17 +754,12 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
         </CollapsibleProvider>
       )}
 
-      {/* Claim Rewards Block */}
-              {(() => {
-          const summary = getClaimableRewardsSummary();
-          return (
-            <ClaimRewardsBlock 
-              summary={summary}
-              onClaim={() => setClaimModalOpen(true)}
-              loading={rewardsLoading}
-            />
-          );
-        })()}
+              {/* Claim Rewards Block */}
+        <ClaimRewardsBlock 
+          summary={summary}
+          onClaim={() => setClaimModalOpen(true)}
+          loading={rewardsLoading}
+        />
 
       <div className="mb-4 pl-4">
         <div className="flex items-center justify-between">
@@ -1323,12 +1330,14 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
       </Tabs>
 
       {/* Claim All Rewards Modal */}
-      <ClaimAllRewardsModal
-        isOpen={claimModalOpen}
-        onClose={() => setClaimModalOpen(false)}
-        summary={getClaimableRewardsSummary()}
-        positions={useWalletStore.getState().positions.hyperion}
-      />
+      {summary && (
+        <ClaimAllRewardsModal
+          isOpen={claimModalOpen}
+          onClose={() => setClaimModalOpen(false)}
+          summary={summary}
+          positions={useWalletStore.getState().positions.hyperion}
+        />
+      )}
     </div>
   );
 } 

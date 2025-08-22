@@ -80,7 +80,7 @@ interface WalletState {
   getPositions: (protocol?: string) => any[];
   getRewards: (protocol?: string) => any[];
   getTokenPrice: (tokenAddress: string) => string;
-  getClaimableRewardsSummary: () => ClaimableRewardsSummary;
+  getClaimableRewardsSummary: () => Promise<ClaimableRewardsSummary>;
   
   // Utilities
   clearData: () => void;
@@ -500,7 +500,10 @@ export const useWalletStore = create<WalletState>()(
               // Remove duplicates
               const uniqueTokenAddresses = [...new Set(tokenAddresses)];
               console.log('[WalletStore] Fetching prices for', uniqueTokenAddresses.length, 'tokens');
+              console.log('[WalletStore] Token addresses for prices:', uniqueTokenAddresses);
               await get().fetchPrices(uniqueTokenAddresses);
+            } else {
+              console.log('[WalletStore] No token addresses found for price fetching');
             }
             
             set({
@@ -636,7 +639,7 @@ export const useWalletStore = create<WalletState>()(
           return state.prices[cleanAddress] || '0';
         },
         
-        getClaimableRewardsSummary: () => {
+        getClaimableRewardsSummary: async () => {
           const state = get();
           console.log('[WalletStore] getClaimableRewardsSummary called');
           console.log('[WalletStore] Current rewards state:', {
@@ -645,6 +648,60 @@ export const useWalletStore = create<WalletState>()(
             hyperion: state.rewards.hyperion,
             meso: state.rewards.meso
           });
+          
+          // DEBUG: Log all available prices
+          console.log('[WalletStore] Available prices:', {
+            count: Object.keys(state.prices).length,
+            addresses: Object.keys(state.prices),
+            sample: Object.entries(state.prices).slice(0, 5)
+          });
+          
+          // Helper function to get Echelon token prices directly from Panora
+          const getEchelonTokenPrices = async (rewards: any[]) => {
+            try {
+              const { PanoraPricesService } = await import('@/lib/services/panora/prices');
+              const pricesService = PanoraPricesService.getInstance();
+              
+              // Collect unique token addresses from rewards
+              const addresses = new Set<string>();
+              rewards.forEach((reward: any) => {
+                if (reward.tokenType && reward.tokenType !== 'Unknown') {
+                  let cleanAddress = reward.tokenType;
+                  if (cleanAddress.startsWith('@')) {
+                    cleanAddress = cleanAddress.slice(1);
+                  }
+                  if (!cleanAddress.startsWith('0x')) {
+                    cleanAddress = `0x${cleanAddress}`;
+                  }
+                  addresses.add(cleanAddress);
+                }
+              });
+              
+              const uniqueAddresses = Array.from(addresses);
+              if (uniqueAddresses.length === 0) return {};
+              
+              console.log('[WalletStore] Fetching Echelon prices for addresses:', uniqueAddresses);
+              const response = await pricesService.getPrices(1, uniqueAddresses);
+              
+              const prices: Record<string, string> = {};
+              if (response.data) {
+                response.data.forEach((price: any) => {
+                  if (price.tokenAddress) {
+                    prices[price.tokenAddress] = price.usdPrice;
+                  }
+                  if (price.faAddress) {
+                    prices[price.faAddress] = price.usdPrice;
+                  }
+                });
+              }
+              
+              console.log('[WalletStore] Echelon prices fetched:', prices);
+              return prices;
+            } catch (error) {
+              console.error('[WalletStore] Error fetching Echelon prices:', error);
+              return {};
+            }
+          };
           
           const summary: ClaimableRewardsSummary = {
             totalValue: 0,
@@ -663,11 +720,33 @@ export const useWalletStore = create<WalletState>()(
             sample: echelonRewards.slice(0, 2)
           });
           
+          // DEBUG: Log detailed Echelon reward structure
+          if (echelonRewards.length > 0) {
+            console.log('[WalletStore] Echelon rewards detailed structure:', echelonRewards.map(r => ({
+              token: r.token,
+              tokenType: r.tokenType,
+              amount: r.amount,
+              rewardName: r.rewardName
+            })));
+          }
+          
+          // Get Echelon token prices directly from Panora API
+          let echelonPrices: Record<string, string> = {};
+          if (echelonRewards.length > 0) {
+            echelonPrices = await getEchelonTokenPrices(echelonRewards);
+          }
+          
           echelonRewards.forEach((reward: any) => {
             if (reward.amount && reward.amount > 0) {
               
               let tokenAddress = null;
               let price = '0';
+              
+              console.log(`[WalletStore] Processing Echelon reward:`, {
+                token: reward.token,
+                tokenType: reward.tokenType,
+                amount: reward.amount
+              });
               
               // First, try to use tokenType directly if it's a valid address
               if (reward.tokenType && reward.tokenType !== 'Unknown') {
@@ -680,15 +759,25 @@ export const useWalletStore = create<WalletState>()(
                   cleanAddress = `0x${cleanAddress}`;
                 }
                 
-                // Check if we have a price for this address
-                if (state.prices[cleanAddress]) {
+                console.log(`[WalletStore] Cleaned address: ${cleanAddress}`);
+                
+                // Check direct prices first, then fallback to store prices
+                if (echelonPrices[cleanAddress]) {
+                  tokenAddress = cleanAddress;
+                  price = echelonPrices[cleanAddress];
+                  console.log(`[WalletStore] Found direct price: ${price}`);
+                } else if (state.prices[cleanAddress]) {
                   tokenAddress = cleanAddress;
                   price = state.prices[cleanAddress];
+                  console.log(`[WalletStore] Found price in store: ${price}`);
+                } else {
+                  console.log(`[WalletStore] No price found for address: ${cleanAddress}`);
                 }
               }
               
               // If no price found by tokenType, try to find by symbol in token list
               if (!tokenAddress) {
+                console.log(`[WalletStore] Trying symbol fallback for: ${reward.token}`);
                 const tokenSymbol = reward.token;
                 const tokenList = require('@/lib/data/tokenList.json');
                 const tokenInfo = tokenList.data.data.find((token: any) => 
@@ -696,6 +785,7 @@ export const useWalletStore = create<WalletState>()(
                 );
                 
                 if (tokenInfo) {
+                  console.log(`[WalletStore] Found token info:`, tokenInfo);
                   tokenAddress = tokenInfo.faAddress || tokenInfo.tokenAddress;
                   if (tokenAddress) {
                     // Clean the address
@@ -705,8 +795,19 @@ export const useWalletStore = create<WalletState>()(
                     if (!tokenAddress.startsWith('0x')) {
                       tokenAddress = `0x${tokenAddress}`;
                     }
-                    price = state.prices[tokenAddress] || '0';
+                    console.log(`[WalletStore] Fallback address: ${tokenAddress}`);
+                    
+                    // Check direct prices first, then fallback to store prices
+                    if (echelonPrices[tokenAddress]) {
+                      price = echelonPrices[tokenAddress];
+                      console.log(`[WalletStore] Found direct fallback price: ${price}`);
+                    } else {
+                      price = state.prices[tokenAddress] || '0';
+                      console.log(`[WalletStore] Found store fallback price: ${price}`);
+                    }
                   }
+                } else {
+                  console.log(`[WalletStore] No token info found for symbol: ${tokenSymbol}`);
                 }
               }
               
@@ -725,7 +826,8 @@ export const useWalletStore = create<WalletState>()(
                   token: reward.token,
                   amount: reward.amount,
                   tokenAddress: tokenAddress,
-                  price: price
+                  price: price,
+                  reason: !tokenAddress ? 'No token address found' : 'Price is 0 or invalid'
                 });
               }
             }
