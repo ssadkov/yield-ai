@@ -1,22 +1,68 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { WalletConnect } from "@/components/WalletConnect";
+
+interface AavePool {
+  asset: string;
+  provider: string;
+  totalAPY: number;
+  depositApy: number;
+  borrowAPY: number;
+  token: string;
+  protocol: string;
+  poolType: string;
+  liquidityRate: number;
+  variableBorrowRate: number;
+  decimals: number;
+}
 
 export default function TestAavePage() {
   const { account } = useWallet();
   const [address, setAddress] = useState("");
   const [loading, setLoading] = useState(false);
+  const [poolsLoading, setPoolsLoading] = useState(false);
   const [data, setData] = useState<any>(null);
+  const [pools, setPools] = useState<AavePool[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [poolsError, setPoolsError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState<"positions" | "pools">("pools");
 
   const testAddress = address || account?.address?.toString() || "";
+
+  // Load pools on component mount
+  useEffect(() => {
+    fetchPools();
+  }, []);
+
+  const fetchPools = async () => {
+    try {
+      setPoolsLoading(true);
+      setPoolsError(null);
+
+      const response = await fetch('/api/protocols/aave/pools');
+      const result = await response.json();
+
+      if (result.success) {
+        setPools(result.data || []);
+      } else {
+        setPoolsError(result.error || "Failed to fetch pools");
+      }
+    } catch (err) {
+      console.error("Error fetching Aave pools:", err);
+      setPoolsError("Failed to fetch pools");
+    } finally {
+      setPoolsLoading(false);
+    }
+  };
 
   const checkPositions = async () => {
     if (!testAddress) {
@@ -45,12 +91,26 @@ export default function TestAavePage() {
     }
   };
 
+  // Filter pools based on search query
+  const filteredPools = pools.filter(pool => 
+    pool.asset.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    pool.token.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const formatPercentage = (value: number) => {
+    return `${value.toFixed(2)}%`;
+  };
+
+  const formatAPR = (value: number) => {
+    return `${(value * 100).toFixed(4)}%`;
+  };
+
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
+    <div className="container mx-auto p-6 max-w-6xl">
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Test Aave Protocol Integration</h1>
         <p className="text-muted-foreground">
-          Test the Aave protocol integration and check user positions
+          Test the Aave protocol integration - view pools and check user positions
         </p>
       </div>
 
@@ -65,141 +125,257 @@ export default function TestAavePage() {
           </CardContent>
         </Card>
 
-        {/* Address Input */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Test Address</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid w-full max-w-sm items-center gap-1.5">
-              <Label htmlFor="address">Wallet Address</Label>
-              <Input
-                id="address"
-                placeholder="Enter Aptos address or use connected wallet"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <Button 
-                onClick={checkPositions} 
-                disabled={loading || !testAddress}
-              >
-                {loading ? "Checking..." : "Check Aave Positions"}
-              </Button>
-              {account?.address && (
-                <Badge variant="outline">
-                  Using connected wallet: {account.address.toString().slice(0, 8)}...
-                </Badge>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        {/* Main Tabs */}
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "positions" | "pools")}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="pools">Aave Pools</TabsTrigger>
+            <TabsTrigger value="positions">User Positions</TabsTrigger>
+          </TabsList>
 
-        {/* Results */}
-        {data && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Results</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <Label className="text-sm font-medium">Net Value</Label>
-                    <div className="text-2xl font-bold">
-                      ${data.totalValue?.toFixed(2) || "0.00"}
-                    </div>
+          {/* Pools Tab */}
+          <TabsContent value="pools" className="space-y-6">
+            {/* Search and Refresh */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Aave Lending Pools</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="relative flex-1 max-w-md">
+                    <Input
+                      placeholder="Search pools by asset or token address..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
                   </div>
-                  <div>
-                    <Label className="text-sm font-medium">Total Deposits</Label>
-                    <div className="text-lg font-semibold text-green-600">
-                      ${data.totalDepositValue?.toFixed(2) || "0.00"}
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium">Total Borrows</Label>
-                    <div className="text-lg font-semibold text-red-600">
-                      ${data.totalBorrowValue?.toFixed(2) || "0.00"}
-                    </div>
-                  </div>
+                  <Button 
+                    onClick={fetchPools} 
+                    disabled={poolsLoading}
+                    variant="outline"
+                  >
+                    {poolsLoading ? "Refreshing..." : "Refresh Pools"}
+                  </Button>
                 </div>
-
-                <div>
-                  <Label className="text-sm font-medium">Positions Count</Label>
-                  <div className="text-lg font-semibold">
-                    {data.data?.length || 0} positions
-                  </div>
+                
+                <div className="text-sm text-muted-foreground">
+                  Found {filteredPools.length} pools • Data refreshes every 5 minutes
                 </div>
+              </CardContent>
+            </Card>
 
-                {data.data && data.data.length > 0 && (
-                  <div>
-                    <Label className="text-sm font-medium">Position Details</Label>
-                    <div className="mt-2 space-y-2">
-                      {data.data.map((position: any, index: number) => (
-                        <div key={index} className="p-3 border rounded-lg bg-muted/50">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="font-medium">
-                              {position.symbol} ({position.name})
-                            </div>
-                            <Badge variant={position.usage_as_collateral_enabled ? "default" : "secondary"}>
-                              {position.usage_as_collateral_enabled ? "Collateral" : "No Collateral"}
-                            </Badge>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <div className="text-muted-foreground">Deposit</div>
-                              <div className="font-medium text-green-600">
-                                {position.deposit_amount?.toFixed(6)} {position.symbol}
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                ${position.deposit_value_usd?.toFixed(2)}
-                              </div>
-                            </div>
-                            
-                            <div>
-                              <div className="text-muted-foreground">Borrow</div>
-                              <div className="font-medium text-red-600">
-                                {position.borrow_amount?.toFixed(6)} {position.symbol}
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                ${position.borrow_value_usd?.toFixed(2)}
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="text-xs text-muted-foreground mt-2">
-                            Asset: {position.underlying_asset?.slice(0, 8)}...
+            {/* Pools Display */}
+            {poolsLoading ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <div className="text-lg">Loading Aave pools...</div>
+                </CardContent>
+              </Card>
+            ) : poolsError ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-destructive">Error Loading Pools</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-destructive">{poolsError}</div>
+                </CardContent>
+              </Card>
+            ) : filteredPools.length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center text-muted-foreground">
+                  No pools found matching the search criteria
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4">
+                {filteredPools.map((pool, index) => (
+                  <Card key={index} className="hover:shadow-md transition-shadow">
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-xl">{pool.asset}</CardTitle>
+                          <div className="text-sm text-muted-foreground mt-1">
+                            {pool.poolType} • {pool.token.slice(0, 8)}...{pool.token.slice(-8)}
                           </div>
                         </div>
-                      ))}
+                        <div className="text-right">
+                          <div className="text-2xl font-bold text-green-600">
+                            {formatPercentage(pool.totalAPY)}
+                          </div>
+                          <div className="text-sm text-muted-foreground">Supply APY</div>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <div className="text-muted-foreground">Supply APR</div>
+                          <div className="font-medium text-green-600">
+                            {formatAPR(pool.liquidityRate)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Borrow APR</div>
+                          <div className="font-medium text-red-600">
+                            {formatAPR(pool.variableBorrowRate)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Borrow APY</div>
+                          <div className="font-medium text-red-600">
+                            {formatPercentage(pool.borrowAPY)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground">Decimals</div>
+                          <div className="font-medium">{pool.decimals}</div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Positions Tab */}
+          <TabsContent value="positions" className="space-y-6">
+            {/* Address Input */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Check User Positions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid w-full max-w-sm items-center gap-1.5">
+                  <Label htmlFor="address">Wallet Address</Label>
+                  <Input
+                    id="address"
+                    placeholder="Enter Aptos address or use connected wallet"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    onClick={checkPositions} 
+                    disabled={loading || !testAddress}
+                  >
+                    {loading ? "Checking..." : "Check Aave Positions"}
+                  </Button>
+                  {account?.address && (
+                    <Badge variant="outline">
+                      Using connected wallet: {account.address.toString().slice(0, 8)}...
+                    </Badge>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Results */}
+            {data && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Position Results</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <Label className="text-sm font-medium">Net Value</Label>
+                        <div className="text-2xl font-bold">
+                          ${data.totalValue?.toFixed(2) || "0.00"}
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">Total Deposits</Label>
+                        <div className="text-lg font-semibold text-green-600">
+                          ${data.totalDepositValue?.toFixed(2) || "0.00"}
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium">Total Borrows</Label>
+                        <div className="text-lg font-semibold text-red-600">
+                          ${data.totalBorrowValue?.toFixed(2) || "0.00"}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-sm font-medium">Positions Count</Label>
+                      <div className="text-lg font-semibold">
+                        {data.data?.length || 0} positions
+                      </div>
+                    </div>
+
+                    {data.data && data.data.length > 0 && (
+                      <div>
+                        <Label className="text-sm font-medium">Position Details</Label>
+                        <div className="mt-2 space-y-2">
+                          {data.data.map((position: any, index: number) => (
+                            <div key={index} className="p-3 border rounded-lg bg-muted/50">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="font-medium">
+                                  {position.symbol} ({position.name})
+                                </div>
+                                <Badge variant={position.usage_as_collateral_enabled ? "default" : "secondary"}>
+                                  {position.usage_as_collateral_enabled ? "Collateral" : "No Collateral"}
+                                </Badge>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <div className="text-muted-foreground">Deposit</div>
+                                  <div className="font-medium text-green-600">
+                                    {position.deposit_amount?.toFixed(6)} {position.symbol}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    ${position.deposit_value_usd?.toFixed(2)}
+                                  </div>
+                                </div>
+                                
+                                <div>
+                                  <div className="text-muted-foreground">Borrow</div>
+                                  <div className="font-medium text-red-600">
+                                    {position.borrow_amount?.toFixed(6)} {position.symbol}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    ${position.borrow_value_usd?.toFixed(2)}
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <div className="text-xs text-muted-foreground mt-2">
+                                Asset: {position.underlying_asset?.slice(0, 8)}...
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <Label className="text-sm font-medium">Raw Response</Label>
+                      <pre className="mt-2 p-3 bg-muted rounded-lg text-xs overflow-auto">
+                        {JSON.stringify(data, null, 2)}
+                      </pre>
                     </div>
                   </div>
-                )}
+                </CardContent>
+              </Card>
+            )}
 
-                <div>
-                  <Label className="text-sm font-medium">Raw Response</Label>
-                  <pre className="mt-2 p-3 bg-muted rounded-lg text-xs overflow-auto">
-                    {JSON.stringify(data, null, 2)}
-                  </pre>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Error Display */}
-        {error && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-destructive">Error</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-destructive">{error}</div>
-            </CardContent>
-          </Card>
-        )}
+            {/* Error Display */}
+            {error && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-destructive">Error</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-destructive">{error}</div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
 
         {/* API Info */}
         <Card>
@@ -208,21 +384,20 @@ export default function TestAavePage() {
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             <div>
-              <strong>Endpoint:</strong> <code>/api/protocols/aave/positions</code>
+              <strong>Pools Endpoint:</strong> <code>/api/protocols/aave/pools</code>
+            </div>
+            <div>
+              <strong>Positions Endpoint:</strong> <code>/api/protocols/aave/positions</code>
             </div>
             <div>
               <strong>Method:</strong> GET
             </div>
             <div>
-              <strong>Parameters:</strong> <code>address</code> (query parameter)
-            </div>
-            <div>
               <strong>Status:</strong> <Badge variant="default">Live Implementation</Badge>
             </div>
             <div className="mt-4 p-3 bg-muted rounded-lg">
-              <strong>Note:</strong> This implementation now uses real Aave Aptos contract calls to fetch 
-              user positions, deposits, and borrows. It calculates actual amounts using liquidity and 
-              borrow indices with RAY28 scaling (1e28).
+              <strong>Note:</strong> This implementation now shows both Aave lending pools with real-time APR/APY calculations 
+              and user positions. Pools data refreshes every 5 minutes, positions are fetched on-demand.
             </div>
           </CardContent>
         </Card>
