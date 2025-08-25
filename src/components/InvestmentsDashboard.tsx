@@ -88,6 +88,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 
   const [showSearchOptions, setShowSearchOptions] = useState(false);
   const [searchByProtocols, setSearchByProtocols] = useState(false);
+  const [selectedFilterProtocol, setSelectedFilterProtocol] = useState('');
   
   const { state, handleDrop, validateDrop } = useDragDrop();
   const { getClaimableRewardsSummary, fetchRewards, fetchPositions, rewardsLoading } = useWalletStore();
@@ -178,7 +179,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   };
   
   const handleProtocolSelect = (protocolName: string) => {
-    setSearchByProtocols(protocolName);
+    setSelectedFilterProtocol(protocolName);
+	setSearchByProtocols(true);
     setSearchQuery(''); // Очищаем поле поиска
     setShowSearchOptions(false); // Закрываем окно опций
   };
@@ -187,7 +189,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
     if (value) {
-      setSearchByProtocols(''); // Сбрасываем выбор протокола при вводе текста
+      setSelectedFilterProtocol('');
+	  setSearchByProtocols(false);
     }
   };
 
@@ -602,7 +605,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 	const displayProtocol = item.protocol;
 
 	if (searchByProtocols) {
-	  return displayProtocol?.toLowerCase().includes(searchByProtocols.toLowerCase());
+	  return displayProtocol?.toLowerCase().includes(selectedFilterProtocol.toLowerCase());
     }
 
     return displaySymbol.toLowerCase().includes(searchQuery.toLowerCase());
@@ -1139,7 +1142,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 					        <Button
 						      variant="ghost"
 						      size="sm"
-						      onClick={() => setShowSearchOptions()}
+						      onClick={() => setShowSearchOptions(false)}
 						      className="h-4 w-4 p-0 hover:bg-transparent hover:text-foreground/60 opacity-80 transition-colors cursor-pointer"
 						    >
 						      <X className={cn(
@@ -1148,7 +1151,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 						    </Button>				      
 						  </TooltipTrigger>
 						  <TooltipContent>
-						    <p>Filter by protocol: {searchByProtocols}</p>
+						    <p>Filter by protocol: {selectedFilterProtocol}</p>
 						  </TooltipContent>
 					    </Tooltip>
 					  </TooltipProvider>
@@ -1158,7 +1161,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 				      <button
 					    key={protocolName}
 					    onClick={() => handleProtocolSelect(protocolName)}
-						className={`px-3 py-1 text-sm border rounded-md transition-colors ${ searchByProtocols === protocolName ? 'bg-blue-500 text-white border-blue-500' : 'hover:bg-gray-100'}`}
+						className={`px-3 py-1 text-sm border rounded-md transition-colors ${ selectedFilterProtocol === protocolName ? 'bg-blue-500 text-white border-blue-500' : 'hover:bg-gray-100'}`}
 					  >
 				        {protocolName}
 					  </button>
@@ -1220,7 +1223,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 						    </Button>				      
 						  </TooltipTrigger>
 						  <TooltipContent>
-						    <p>Filter by protocol: {searchByProtocols}</p>
+						    <p>Filter by protocol: {selectedFilterProtocol}</p>
 						  </TooltipContent>
 					    </Tooltip>
 					  </TooltipProvider>
