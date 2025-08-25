@@ -217,7 +217,7 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
     if (onPositionsValueChange) {
       onPositionsValueChange(totalValue);
     }
-  }, [onPositionsValueChange]); // Убираем totalValue из зависимостей
+  }, [onPositionsValueChange, totalValue]); // ✅ Возвращаем totalValue в зависимости
 
   // Сортируем позиции по стоимости (deposits сверху, borrows снизу)
   const sortedPositions = [...positions].sort((a, b) => {
