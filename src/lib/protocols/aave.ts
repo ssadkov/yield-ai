@@ -12,8 +12,8 @@ export class AaveProtocol implements BaseProtocol {
       arguments: [
         token,                    // адрес токена
         amountOctas.toString(),   // количество в octas
-        "0x56ff2fc971deecd286314fe99b8ffd6a5e72e62eacdc46ae9b234c5282985f97", // адрес пользователя (будет заменен)
-        "0"                      // referral code (конвертируем в строку)
+        "0x56ff2fc971deecd286314fe99b8ffd6a5e72e62eacdc46ae9b234c5282985f97", // placeholder адрес пользователя
+        "0"                      // referral code
       ]
     };
   }
@@ -26,7 +26,7 @@ export class AaveProtocol implements BaseProtocol {
       arguments: [
         token,                    // адрес токена
         amountOctas.toString(),   // количество в octas
-        "0x56ff2fc971deecd286314fe99b8ffd6a5e72e62eacdc46ae9b234c5282985f97" // адрес пользователя
+        "0x56ff2fc971deecd286314fe99b8ffd6a5e72e62eacdc46ae9b234c5282985f97" // placeholder адрес пользователя
       ]
     };
   }

@@ -53,10 +53,19 @@ export function WithdrawModal({
   const [percentage, setPercentage] = useState([100]);
   const [isLoadingVault, setIsLoadingVault] = useState(false);
 
-  // Загружаем данные Vault при открытии модального окна
+  // Загружаем данные Vault при открытии модального окна (только для протоколов с vault)
   useEffect(() => {
     if (isOpen && userAddress && position.market) {
+      // Для AAVE vault данные не нужны, пропускаем загрузку
+      if (position.coin && position.coin.startsWith('0x')) {
+        console.log('WithdrawModal - AAVE protocol detected, skipping vault data load');
+        setIsLoadingVault(false);
+        return;
+      }
+      
       loadVaultData();
+    } else {
+      setIsLoadingVault(false);
     }
   }, [isOpen, userAddress, position.market]);
 
@@ -97,7 +106,9 @@ export function WithdrawModal({
   };
 
   // Получаем Available Balance из position (userPositions API)
-  const availableBalance = BigInt(position.supply);
+  // Конвертируем дробное число в octas (наименьшие единицы токена)
+  const availableBalanceInOctas = parseFloat(position.supply) * (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
+  const availableBalance = BigInt(Math.floor(availableBalanceInOctas));
   const availableBalanceFormatted = Number(availableBalance) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
 
   // Рассчитываем количество для вывода на основе процента от Available Balance
@@ -138,12 +149,13 @@ export function WithdrawModal({
       return;
     }
 
-    // Для payload используем vaultBalance (реальные обёрнутые токены)
-    const payloadAmount = vaultBalance > 0 
-      ? (vaultBalance * BigInt(percentage[0])) / BigInt(100)
+    // Для AAVE используем availableBalance (из userPositions), так как у нас нет vaultBalance
+    // Для других протоколов можно использовать vaultBalance если он доступен
+    const payloadAmount = availableBalance > 0 
+      ? (availableBalance * BigInt(percentage[0])) / BigInt(100)
       : BigInt(0);
 
-    console.log('WithdrawModal - Payload amount (vault):', payloadAmount.toString());
+    console.log('WithdrawModal - Payload amount (availableBalance):', payloadAmount.toString());
     console.log('WithdrawModal - Display amount (userPositions):', withdrawAmount.toString());
 
     onConfirm(payloadAmount);

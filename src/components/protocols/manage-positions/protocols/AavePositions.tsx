@@ -12,6 +12,8 @@ import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { PanoraPricesService } from "@/lib/services/panora/prices";
 import { TokenPrice } from "@/lib/types/panora";
+import { useWithdraw } from "@/lib/hooks/useWithdraw";
+import { WithdrawModal } from "@/components/ui/withdraw-modal";
 
 interface AavePosition {
   underlying_asset: string;
@@ -61,6 +63,9 @@ export function AavePositions() {
   const [totalValue, setTotalValue] = useState<number>(0);
   const [tokenPrices, setTokenPrices] = useState<Record<string, string>>({});
   const [apyData, setApyData] = useState<Record<string, AavePool>>({});
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [selectedPosition, setSelectedPosition] = useState<AavePosition | null>(null);
+  const { withdraw, isLoading: isWithdrawing } = useWithdraw();
   const pricesService = PanoraPricesService.getInstance();
 
   // Функция для получения информации о токене
@@ -227,16 +232,45 @@ export function AavePositions() {
   }, [account?.address]);
 
   // Получить APR для позиции
-  const getApyForPosition = (position: AavePosition, type: 'deposit' | 'borrow') => {
-    const poolData = apyData[position.underlying_asset];
-    if (poolData) {
-      if (type === 'deposit') {
-        return poolData.depositApy / 100; // Конвертируем из процентов в десятичную форму
-      } else if (type === 'borrow') {
-        return poolData.borrowAPY / 100;
-      }
+  const getApyForPosition = (position: AavePosition, type: 'deposit' | 'borrow'): number | null => {
+    const pool = apyData[position.underlying_asset];
+    if (!pool) return null;
+    
+    if (type === 'deposit') {
+      return pool.depositApy / 100; // Конвертируем из процентов в десятичную дробь
+    } else {
+      return pool.borrowAPY / 100; // Конвертируем из процентов в десятичную дробь
     }
-    return null;
+  };
+
+  // Обработчик открытия модального окна withdraw
+  const handleWithdrawClick = (position: AavePosition) => {
+    setSelectedPosition(position);
+    setShowWithdrawModal(true);
+  };
+
+  // Обработчик подтверждения withdraw
+  const handleWithdrawConfirm = async (amount: bigint) => {
+    if (!selectedPosition) return;
+    
+    try {
+      console.log('Withdraw confirm - selectedPosition:', selectedPosition);
+      console.log('Withdraw confirm - amount:', amount.toString());
+      console.log('Withdraw confirm - token:', selectedPosition.underlying_asset);
+      
+      // AAVE проще - используем underlying_asset напрямую
+      const tokenAddress = selectedPosition.underlying_asset;
+      
+      // Вызываем withdraw через useWithdraw hook
+      await withdraw('aave', tokenAddress, amount, tokenAddress);
+      
+      // Закрываем модал и обновляем состояние
+      setShowWithdrawModal(false);
+      setSelectedPosition(null);
+      
+    } catch (error) {
+      console.error('Withdraw failed:', error);
+    }
   };
 
   // Создаем плоский список позиций для отображения
@@ -390,6 +424,20 @@ export function AavePositions() {
                   <div className="text-base text-muted-foreground font-semibold">
                     {amount.toFixed(4)}
                   </div>
+                  {/* Кнопки действий для deposit позиций */}
+                  {!isBorrow && position.deposit_amount > 0 && (
+                    <div className="flex gap-2 mt-2">
+                      <Button
+                        onClick={() => handleWithdrawClick(position)}
+                        disabled={isWithdrawing}
+                        size="sm"
+                        variant="outline"
+                        className="flex-1"
+                      >
+                        {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -403,6 +451,25 @@ export function AavePositions() {
           <span className="text-xl text-primary font-bold">${totalValue.toFixed(2)}</span>
         </div>
       </div>
+
+      {/* Withdraw Modal */}
+      {selectedPosition && (
+        <WithdrawModal
+          isOpen={showWithdrawModal}
+          onClose={() => {
+            setShowWithdrawModal(false);
+            setSelectedPosition(null);
+          }}
+          onConfirm={handleWithdrawConfirm}
+          position={{ 
+            coin: selectedPosition.underlying_asset, 
+            supply: String(selectedPosition.deposit_amount) 
+          }}
+          tokenInfo={getTokenInfo(selectedPosition.underlying_asset)}
+          isLoading={isWithdrawing}
+          userAddress={account?.address?.toString()}
+        />
+      )}
     </div>
   );
 }
