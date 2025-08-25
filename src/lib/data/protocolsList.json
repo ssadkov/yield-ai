@@ -140,6 +140,6 @@
     "depositType": "external",
     "depositUrl": "https://aptos.aave.com/",
     "isDepositEnabled": false,
-    "managedType": "external"
+    "managedType": "native"
   }
 ] 

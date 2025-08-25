@@ -11,6 +11,7 @@ import { MesoPositions } from "./protocols/MesoPositions";
 import { AuroPositions } from "./protocols/AuroPositions";
 import { AmnisPositions } from "./protocols/AmnisPositions";
 import { EarniumPositionsManaging } from "./protocols/EarniumPositions";
+import { AavePositions } from "./protocols/AavePositions";
 import { RefreshCw, Info, ExternalLink } from "lucide-react";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useState } from "react";
@@ -42,6 +43,8 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
         apiPath = 'meso';
       } else if (protocol.name.toLowerCase().includes('amnis')) {
         apiPath = 'amnis';
+      } else if (protocol.name.toLowerCase().includes('aave')) {
+        apiPath = 'aave';
       }
       
       const response = await fetch(`/api/protocols/${apiPath}/userPositions?address=${account.address}`);
@@ -99,6 +102,8 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
         return <AmnisPositions />;
       case 'earnium':
         return <EarniumPositionsManaging />;
+      case 'aave':
+        return <AavePositions />;
       default:
         return (
           <div className="text-sm text-muted-foreground">
