@@ -452,12 +452,16 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   depositApy: pool.depositApy || 0,
                   borrowAPY: pool.borrowAPY || 0,
                   token: pool.token || '',
-                  protocol: 'Aave',
+                  protocol: pool.protocol || 'Aave',
                   poolType: pool.poolType || 'Lending',
-                  // Aave-specific fields
+                  // Добавить недостающие поля
+                  tvlUSD: pool.tvlUSD || 0,
+                  dailyVolumeUSD: pool.dailyVolumeUSD || 0,
+                  // AAVE-специфичные поля
                   liquidityRate: pool.liquidityRate,
                   variableBorrowRate: pool.variableBorrowRate,
-                  decimals: pool.decimals
+                  decimals: pool.decimals,
+                  marketAddress: pool.marketAddress || pool.token
                 };
               });
             }

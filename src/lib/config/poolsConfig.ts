@@ -26,10 +26,15 @@ export const poolSources: PoolSource[] = [
           token: pool.token || '',
           protocol: pool.protocol || 'Aave',
           poolType: pool.poolType || 'Lending',
+          // Добавить недостающие поля для корректной работы DepositButton
+          tvlUSD: pool.tvlUSD || 0, // AAVE пока не предоставляет TVL
+          dailyVolumeUSD: pool.dailyVolumeUSD || 0, // AAVE пока не предоставляет volume
           // Additional Aave-specific data
           liquidityRate: pool.liquidityRate,
           variableBorrowRate: pool.variableBorrowRate,
-          decimals: pool.decimals
+          decimals: pool.decimals,
+          // Добавить marketAddress для будущих транзакций
+          marketAddress: pool.marketAddress || pool.token // Используем token address как market address
         };
       });
     }

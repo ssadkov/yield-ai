@@ -138,7 +138,11 @@ export async function GET() {
         liquidityIndex: reserve.liquidity_index,
         variableBorrowIndex: reserve.variable_borrow_index,
         priceInMarketRef: reserve.price_in_market_reference_currency,
-        decimals: Number(reserve.decimals) || 8
+        decimals: Number(reserve.decimals) || 8,
+        // Добавить поля для корректной работы с DepositButton
+        marketAddress: reserve.underlying_asset, // Для будущих транзакций
+        tvlUSD: 0, // Пока не доступно
+        dailyVolumeUSD: 0 // Пока не доступно
       };
     });
 
