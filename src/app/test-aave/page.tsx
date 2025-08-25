@@ -25,7 +25,7 @@ interface AavePool {
 }
 
 export default function TestAavePage() {
-  const { account } = useWallet();
+  const { account, signAndSubmitTransaction } = useWallet();
   const [address, setAddress] = useState("");
   const [loading, setLoading] = useState(false);
   const [poolsLoading, setPoolsLoading] = useState(false);
@@ -35,6 +35,11 @@ export default function TestAavePage() {
   const [poolsError, setPoolsError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"positions" | "pools">("pools");
+  
+  // Новые состояния для депозита
+  const [depositAmounts, setDepositAmounts] = useState<Record<string, string>>({});
+  const [depositStatus, setDepositStatus] = useState<Record<string, 'idle' | 'pending' | 'success' | 'error'>>({});
+  const [depositLoading, setDepositLoading] = useState<Record<string, boolean>>({});
 
   const testAddress = address || account?.address?.toString() || "";
 
@@ -61,6 +66,69 @@ export default function TestAavePage() {
       setPoolsError("Failed to fetch pools");
     } finally {
       setPoolsLoading(false);
+    }
+  };
+
+  // Функция для обработки депозита
+  const handleDeposit = async (asset: string, amount: string, decimals: number) => {
+    if (!account?.address || !amount || parseFloat(amount) <= 0) {
+      return;
+    }
+
+    const poolKey = asset;
+    
+    try {
+      // Обновляем статус
+      setDepositStatus(prev => ({ ...prev, [poolKey]: 'pending' }));
+      setDepositLoading(prev => ({ ...prev, [poolKey]: true }));
+
+      // Конвертируем amount в octas
+      const amountOctas = BigInt(parseFloat(amount) * Math.pow(10, decimals));
+      
+      // Создаем payload
+      const payload = {
+        function: "0x39ddcd9e1a39fa14f25e3f9ec8a86074d05cc0881cbf667df8a6ee70942016fb::supply_logic::supply" as `${string}::${string}::${string}`,
+        typeArguments: [] as string[],
+        functionArguments: [
+          asset,                    // адрес токена
+          amountOctas.toString(),   // количество в octas
+          account.address,          // адрес пользователя
+          0                        // referral code
+        ] as any[]
+      };
+
+      console.log('Deposit payload:', payload);
+
+      // Отправляем транзакцию
+      const result = await signAndSubmitTransaction({
+        data: payload,
+        options: {
+          maxGasAmount: 20000,
+        },
+      });
+      
+      console.log('Transaction result:', result);
+      
+      // Обновляем статус на успех
+      setDepositStatus(prev => ({ ...prev, [poolKey]: 'success' }));
+      
+      // Очищаем поле ввода
+      setDepositAmounts(prev => ({ ...prev, [poolKey]: '' }));
+      
+    } catch (error) {
+      console.error('Deposit error:', error);
+      
+      // Обновляем статус на ошибку
+      setDepositStatus(prev => ({ ...prev, [poolKey]: 'error' }));
+      
+    } finally {
+      // Убираем загрузку
+      setDepositLoading(prev => ({ ...prev, [poolKey]: false }));
+      
+      // Сбрасываем статус через 5 секунд
+      setTimeout(() => {
+        setDepositStatus(prev => ({ ...prev, [poolKey]: 'idle' }));
+      }, 5000);
     }
   };
 
@@ -229,6 +297,44 @@ export default function TestAavePage() {
                           <div className="text-muted-foreground">Decimals</div>
                           <div className="font-medium">{pool.decimals}</div>
                         </div>
+                      </div>
+                      
+                      {/* Новые поля для депозита */}
+                      <div className="mt-4 pt-4 border-t">
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            placeholder="Amount"
+                            value={depositAmounts[pool.token] || ''}
+                            onChange={(e) => setDepositAmounts(prev => ({
+                              ...prev,
+                              [pool.token]: e.target.value
+                            }))}
+                            className="w-24"
+                            disabled={!account?.address}
+                          />
+                          <Button
+                            onClick={() => handleDeposit(pool.token, depositAmounts[pool.token] || '', pool.decimals)}
+                            disabled={!depositAmounts[pool.token] || depositLoading[pool.token] || !account?.address}
+                            size="sm"
+                          >
+                            {depositLoading[pool.token] ? 'Depositing...' : 'Deposit'}
+                          </Button>
+                          {depositStatus[pool.token] && depositStatus[pool.token] !== 'idle' && (
+                            <Badge variant={
+                              depositStatus[pool.token] === 'success' ? 'default' :
+                              depositStatus[pool.token] === 'error' ? 'destructive' :
+                              depositStatus[pool.token] === 'pending' ? 'secondary' : 'outline'
+                            }>
+                              {depositStatus[pool.token]}
+                            </Badge>
+                          )}
+                        </div>
+                        {!account?.address && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Connect wallet to deposit
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
