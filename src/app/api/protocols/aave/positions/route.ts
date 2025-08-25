@@ -5,7 +5,7 @@ const AAVE_POOL_DATA_PROVIDER = '0x39ddcd9e1a39fa14f25e3f9ec8a86074d05cc0881cbf6
 const AAVE_POOL = '0x39ddcd9e1a39fa14f25e3f9ec8a86074d05cc0881cbf667df8a6ee70942016fb';
 
 // Constants
-const RAY28 = BigInt('10000000000000000000000000000'); // 1e28
+const RAY27 = BigInt('1000000000000000000000000000'); // 1e27
 const FULLNODE_VIEW_URL = 'https://fullnode.mainnet.aptoslabs.com/v1/view';
 
 interface AaveReserveData {
@@ -70,7 +70,7 @@ function calculateActualAmount(scaledAmount: string, index: string, decimals: nu
   try {
     const scaled = BigInt(scaledAmount);
     const indexValue = BigInt(index);
-    const actualBase = (scaled * indexValue) / RAY28;
+    const actualBase = (scaled * indexValue) / RAY27;
     
     return Number(actualBase) / Math.pow(10, decimals);
   } catch (error) {
