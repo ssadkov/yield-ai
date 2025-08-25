@@ -18,6 +18,7 @@ import { PositionsList as MesoPositionsList } from "./protocols/meso/PositionsLi
 import { PositionsList as AuroPositionsList } from "./protocols/auro/PositionsList";
 import { PositionsList as AmnisPositionsList } from "./protocols/amnis/PositionsList";
 import { PositionsList as EarniumPositionsList } from "./protocols/earnium/PositionsList";
+import { PositionsList as AavePositionsList } from "./protocols/aave/PositionsList";
 
 export default function Sidebar() {
   const { account } = useWallet();
@@ -32,6 +33,7 @@ export default function Sidebar() {
   const [auroValue, setAuroValue] = useState(0);
   const [amnisValue, setAmnisValue] = useState(0);
   const [earniumValue, setEarniumValue] = useState(0);
+  const [aaveValue, setAaveValue] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [checkingProtocols, setCheckingProtocols] = useState<string[]>([]);
 
@@ -45,6 +47,7 @@ export default function Sidebar() {
     "Auro Finance",
     "Amnis Finance",
     "Earnium",
+    "Aave",
   ];
 
   const resetChecking = useCallback(() => {
@@ -90,6 +93,7 @@ export default function Sidebar() {
     setAuroValue(0);
     setAmnisValue(0);
     setEarniumValue(0);
+    setAaveValue(0);
     resetChecking();
   }, [loadPortfolio, resetChecking]);
 
@@ -138,6 +142,10 @@ export default function Sidebar() {
     setEarniumValue(value);
   }, []);
 
+  const handleAaveValueChange = useCallback((value: number) => {
+    setAaveValue(value);
+  }, []);
+
   // Считаем сумму по кошельку
   const walletTotal = tokens.reduce((sum, token) => {
     const value = token.value ? parseFloat(token.value) : 0;
@@ -145,7 +153,7 @@ export default function Sidebar() {
   }, 0);
 
   // Считаем сумму по всем протоколам
-  const totalProtocolsValue = hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + amnisValue + earniumValue;
+  const totalProtocolsValue = hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + amnisValue + earniumValue + aaveValue;
 
   // Итоговая сумма
   const totalAssets = walletTotal + totalProtocolsValue;
@@ -204,6 +212,7 @@ export default function Sidebar() {
                 { component: AuroPositionsList, value: auroValue, name: 'Auro Finance' },
                 { component: AmnisPositionsList, value: amnisValue, name: 'Amnis Finance' },
                 { component: EarniumPositionsList, value: earniumValue, name: 'Earnium' },
+                { component: AavePositionsList, value: aaveValue, name: 'Aave' },
               ]
                 .sort((a, b) => b.value - a.value)
                 .map(({ component: Component, name }) => (
@@ -221,6 +230,7 @@ export default function Sidebar() {
                       name === 'Auro Finance' ? handleAuroValueChange :
                       name === 'Amnis Finance' ? handleAmnisValueChange :
                       name === 'Earnium' ? handleEarniumValueChange :
+                      name === 'Aave' ? handleAaveValueChange :
                       undefined
                     }
                     onPositionsCheckComplete={() =>
