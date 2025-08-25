@@ -178,9 +178,9 @@ export function WithdrawModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl">
             {tokenInfo?.logoUrl && (
               <Image 
                 src={tokenInfo.logoUrl} 
@@ -192,14 +192,14 @@ export function WithdrawModal({
             )}
             Withdraw {tokenInfo?.symbol || "Token"}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-sm">
             Enter the amount you want to withdraw from your position
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Withdraw Percentage</Label>
+            <Label className="text-sm font-medium">Withdraw Percentage</Label>
             <div className="space-y-4">
               <Slider
                 value={percentage}
@@ -221,7 +221,7 @@ export function WithdrawModal({
                 size="sm"
                 onClick={handleMaxClick}
                 disabled={isLoading || isLoadingVault}
-                className="w-full"
+                className="w-full h-10 sm:h-9"
               >
                 MAX (100%)
               </Button>
@@ -249,13 +249,14 @@ export function WithdrawModal({
           </div>
         </div>
 
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={handleClose} disabled={isLoading}>
+        <DialogFooter className="gap-2 flex-col sm:flex-row">
+          <Button variant="outline" onClick={handleClose} disabled={isLoading} className="w-full sm:w-auto h-10">
             Cancel
           </Button>
           <Button 
             onClick={handleConfirm} 
             disabled={isLoading || isLoadingVault || withdrawAmount <= 0}
+            className="w-full sm:w-auto h-10"
           >
             {isLoading ? (
               <>

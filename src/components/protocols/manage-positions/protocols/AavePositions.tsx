@@ -350,8 +350,8 @@ export function AavePositions() {
   }
 
   return (
-    <div className="space-y-4 text-base">
-      <ScrollArea>
+    <div className="space-y-3 sm:space-y-4 text-base">
+      <ScrollArea className="h-[60vh] sm:h-auto">
         {sortedPositions.map((position, index) => {
           const tokenInfo = getTokenInfo(position.underlying_asset);
           const amount = position.amount;
@@ -364,11 +364,90 @@ export function AavePositions() {
             <div 
               key={`${position.underlying_asset}-${position.type}-${index}`} 
               className={cn(
-                'p-4 border-b last:border-b-0 transition-colors',
+                'p-3 sm:p-4 border-b last:border-b-0 transition-colors',
                 isBorrow && 'bg-red-50'
               )}
             >
-              <div className="flex justify-between items-center">
+              {/* Мобильная компоновка - вертикальная */}
+              <div className="block sm:hidden space-y-3">
+                {/* Верхняя строка - токен и бейджи */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {tokenInfo?.logoUrl && (
+                      <div className="w-8 h-8 relative">
+                        <Image 
+                          src={tokenInfo.logoUrl} 
+                          alt={tokenInfo.symbol}
+                          width={32}
+                          height={32}
+                          className="object-contain"
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <div className="text-base font-semibold">{tokenInfo?.symbol || position.symbol}</div>
+                      <div className="text-sm text-muted-foreground">
+                        ${price ? parseFloat(price).toFixed(2) : 'N/A'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-bold">${value}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {amount.toFixed(4)}
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Средняя строка - бейджи */}
+                <div className="flex flex-wrap gap-2">
+                  <Badge 
+                    variant="outline" 
+                    className={cn(
+                      isBorrow
+                        ? 'bg-red-500/10 text-red-600 border-red-500/20'
+                        : 'bg-green-500/10 text-green-600 border-green-500/20',
+                      'text-xs font-normal px-2 py-1 h-6'
+                    )}
+                  >
+                    {isBorrow ? 'Borrow' : 'Supply'}
+                  </Badge>
+                  <Badge variant="outline" className={cn(
+                    isBorrow
+                      ? 'bg-red-500/10 text-red-600 border-red-500/20'
+                      : 'bg-green-500/10 text-green-600 border-green-500/20',
+                    'text-xs font-normal px-2 py-1 h-6'
+                  )}>
+                    APR: {apy !== null ? (apy * 100).toFixed(2) + '%' : 'N/A'}
+                  </Badge>
+                  {position.usage_as_collateral_enabled && position.type === 'deposit' && (
+                    <Badge 
+                      variant="outline" 
+                      className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs font-normal px-2 py-1 h-6"
+                    >
+                      Collateral
+                    </Badge>
+                  )}
+                </div>
+                
+                {/* Нижняя строка - кнопки действий */}
+                {!isBorrow && position.deposit_amount > 0 && (
+                  <div className="pt-2">
+                    <Button
+                      onClick={() => handleWithdrawClick(position)}
+                      disabled={isWithdrawing}
+                      size="sm"
+                      variant="outline"
+                      className="w-full h-10"
+                    >
+                      {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
+                    </Button>
+                  </div>
+                )}
+              </div>
+              
+              {/* Десктопная компоновка - горизонтальная */}
+              <div className="hidden sm:flex justify-between items-center">
                 <div className="flex items-center gap-2">
                   {tokenInfo?.logoUrl && (
                     <div className="w-8 h-8 relative">
@@ -445,10 +524,10 @@ export function AavePositions() {
         })}
       </ScrollArea>
       
-      <div className="flex items-center justify-between pt-6 pb-6">
-        <span className="text-xl">Total assets in Aave:</span>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pt-4 sm:pt-6 pb-4 sm:pb-6 gap-2">
+        <span className="text-lg sm:text-xl">Total assets in Aave:</span>
         <div className="text-right">
-          <span className="text-xl text-primary font-bold">${totalValue.toFixed(2)}</span>
+          <span className="text-lg sm:text-xl text-primary font-bold">${totalValue.toFixed(2)}</span>
         </div>
       </div>
 
