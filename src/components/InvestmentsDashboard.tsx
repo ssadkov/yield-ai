@@ -213,7 +213,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
           'Auro Finance': true,
           'Amnis Finance': true,
           'Kofi Finance': true,
-          'Echelon': true
+          'Echelon': true,
+          'Aave': true
         };
         setProtocolsLoading(initialLoadingState);
         setProtocolsError({});
@@ -432,6 +433,31 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   marketAddress: pool.marketAddress,
                   totalSupply: pool.totalSupply,
                   totalBorrow: pool.totalBorrow
+                };
+              });
+            }
+          },
+          {
+            name: 'Aave',
+            url: '/api/protocols/aave/pools',
+			logoUrl: '/protocol_ico/aave.ico',
+            transform: (data: any) => {
+              const pools = data.data || [];
+              
+              return pools.map((pool: any) => {
+                return {
+                  asset: pool.asset || 'Unknown',
+                  provider: pool.provider || 'Aave',
+                  totalAPY: pool.totalAPY || 0,
+                  depositApy: pool.depositApy || 0,
+                  borrowAPY: pool.borrowAPY || 0,
+                  token: pool.token || '',
+                  protocol: 'Aave',
+                  poolType: pool.poolType || 'Lending',
+                  // Aave-specific fields
+                  liquidityRate: pool.liquidityRate,
+                  variableBorrowRate: pool.variableBorrowRate,
+                  decimals: pool.decimals
                 };
               });
             }

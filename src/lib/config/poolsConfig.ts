@@ -7,6 +7,33 @@ export const poolSources: PoolSource[] = [
     url: '/api/protocols/primary-yield?protocol=Joule',
     enabled: true
   },
+  // Aave Finance pools API
+  {
+    name: 'Aave Finance Pools API',
+    url: '/api/protocols/aave/pools',
+    enabled: true,
+    transform: (data: any) => {
+      // Transform Aave pools data to InvestmentData format
+      const pools = data.data || [];
+      
+      return pools.map((pool: any) => {
+        return {
+          asset: pool.asset || 'Unknown',
+          provider: pool.provider || 'Aave',
+          totalAPY: pool.totalAPY || 0,
+          depositApy: pool.depositApy || 0,
+          borrowAPY: pool.borrowAPY || 0,
+          token: pool.token || '',
+          protocol: pool.protocol || 'Aave',
+          poolType: pool.poolType || 'Lending',
+          // Additional Aave-specific data
+          liquidityRate: pool.liquidityRate,
+          variableBorrowRate: pool.variableBorrowRate,
+          decimals: pool.decimals
+        };
+      });
+    }
+  },
   // Hyperion pools API
   {
     name: 'Hyperion Pools API',
