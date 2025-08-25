@@ -55,8 +55,9 @@ interface TokenInfo {
 export function AavePositions() {
   const { account } = useWallet();
   const [positions, setPositions] = useState<AavePosition[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Начинаем с true
   const [error, setError] = useState<string | null>(null);
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false); // Флаг попытки загрузки
   const [totalValue, setTotalValue] = useState<number>(0);
   const [tokenPrices, setTokenPrices] = useState<Record<string, string>>({});
   const [apyData, setApyData] = useState<Record<string, AavePool>>({});
@@ -158,11 +159,12 @@ export function AavePositions() {
   useEffect(() => {
     if (!account?.address) {
       setPositions([]);
+      setLoading(false);
+      setHasAttemptedLoad(true);
       return;
     }
 
     const timeoutId = setTimeout(async () => {
-      setLoading(true);
       setError(null);
       
       try {
@@ -183,6 +185,7 @@ export function AavePositions() {
         setPositions([]);
       } finally {
         setLoading(false);
+        setHasAttemptedLoad(true);
       }
     }, 500); // Дебаунсинг 500мс
 
@@ -199,6 +202,7 @@ export function AavePositions() {
         } else {
           // Перезагружаем из API
           if (account?.address) {
+            setLoading(true);
             fetch(`/api/protocols/aave/positions?address=${account.address}`)
               .then(res => res.json())
               .then(data => {
@@ -206,7 +210,11 @@ export function AavePositions() {
                   setPositions(data.data);
                 }
               })
-              .catch(console.error);
+              .catch(console.error)
+              .finally(() => {
+                setLoading(false);
+                setHasAttemptedLoad(true);
+              });
           }
         }
       }
@@ -279,7 +287,8 @@ export function AavePositions() {
     setTotalValue(total);
   }, [sortedPositions]);
 
-  if (loading) {
+  // Показываем loading если загружаемся или если нет кошелька и еще не пытались загрузить
+  if (loading || (!account?.address && !hasAttemptedLoad)) {
     return <div>Loading Aave positions...</div>;
   }
 
@@ -297,7 +306,8 @@ export function AavePositions() {
     );
   }
 
-  if (positions.length === 0) {
+  // Показываем "No positions" только если не загружаемся, нет ошибок и уже пытались загрузить
+  if (!loading && !error && hasAttemptedLoad && positions.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
         No Aave positions found
