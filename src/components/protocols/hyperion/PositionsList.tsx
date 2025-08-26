@@ -18,9 +18,11 @@ interface PositionsListProps {
   onPositionsValueChange?: (value: number) => void;
   walletTokens?: Token[]; // Добавляем токены кошелька
   onPositionsCheckComplete?: () => void;
+  showManageButton?: boolean;
 }
 
-export function PositionsList({ address, onPositionsValueChange, walletTokens, onPositionsCheckComplete }: PositionsListProps) {
+export function PositionsList({ address, onPositionsValueChange, walletTokens, onPositionsCheckComplete, showManageButton=true }: PositionsListProps) {
+
   const { account } = useWallet();
   const [positions, setPositions] = useState<any[]>([]);
   const [vaultTokens, setVaultTokens] = useState<Token[]>([]);
@@ -214,8 +216,10 @@ export function PositionsList({ address, onPositionsValueChange, walletTokens, o
                 </div>
               </div>
             )}
-            
-            {protocol && <ManagePositionsButton protocol={protocol} />}
+			
+			{protocol && showManageButton && (
+              <ManagePositionsButton protocol={protocol} />
+            )}
           </ScrollArea>
         </CardContent>
       )}

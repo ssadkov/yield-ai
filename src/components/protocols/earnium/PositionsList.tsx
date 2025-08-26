@@ -15,6 +15,7 @@ interface PositionsListProps {
   address?: string;
   onPositionsValueChange?: (value: number) => void;
   onPositionsCheckComplete?: () => void;
+  showManageButton?: boolean;
 }
 
 type RewardsEntry = { tokenKey: string; amountRaw: string };
@@ -54,7 +55,7 @@ function normalizePriceMap(list: any[]): Record<string, number> {
   return map;
 }
 
-export function PositionsList({ address, onPositionsValueChange, onPositionsCheckComplete }: PositionsListProps) {
+export function PositionsList({ address, onPositionsValueChange, onPositionsCheckComplete, showManageButton=true }: PositionsListProps) {
   const { account } = useWallet();
   const walletAddress = address || account?.address?.toString();
   const protocol = getProtocolByName("Earnium");
@@ -295,7 +296,9 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
             </div>
             
             {/* Кнопка Manage Positions */}
-            {protocol && <ManagePositionsButton protocol={protocol} />}
+            {protocol && showManageButton && (
+              <ManagePositionsButton protocol={protocol} />
+            )}
           </ScrollArea>
         </CardContent>
       )}

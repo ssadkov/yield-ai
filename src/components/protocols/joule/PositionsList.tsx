@@ -15,9 +15,10 @@ interface PositionsListProps {
   onPositionsValueChange?: (value: number) => void;
   mockData?: any;
   onPositionsCheckComplete?: () => void;
+  showManageButton?: boolean;
 }
 
-export function PositionsList({ address, onPositionsValueChange, mockData, onPositionsCheckComplete }: PositionsListProps) {
+export function PositionsList({ address, onPositionsValueChange, mockData, onPositionsCheckComplete, showManageButton=true }: PositionsListProps) {
   const { account } = useWallet();
   const [positions, setPositions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -137,7 +138,9 @@ export function PositionsList({ address, onPositionsValueChange, mockData, onPos
                 onPositionValueChange={(value) => handlePositionValueChange(position.key, value)}
               />
             ))}
-            {protocol && <ManagePositionsButton protocol={protocol} />}
+            {protocol && showManageButton && (
+              <ManagePositionsButton protocol={protocol} />
+            )}
           </ScrollArea>
         </CardContent>
       )}
