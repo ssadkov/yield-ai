@@ -50,7 +50,7 @@ export default function ChatPanel() {
         <div className="grid grid-cols-2 gap-4 w-full max-w-md">
           <Card className="hover:shadow-md transition-shadow cursor-pointer">
             <Link
-              href="https://x.com/FinKeeper"
+              href="https://x.com/yieldai_app"
               target="_blank"
               rel="noopener noreferrer"
             >
