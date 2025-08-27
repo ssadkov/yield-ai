@@ -418,7 +418,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   asset: pool.asset || 'Unknown',
                   provider: pool.provider || 'Echelon',
                   totalAPY: pool.totalAPY || 0,
-                  depositApy: pool.depositApy || 0,
                   borrowAPY: pool.borrowAPY || 0,
                   token: pool.token || '',
                   protocol: 'Echelon',
