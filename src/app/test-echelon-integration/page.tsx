@@ -140,19 +140,19 @@ export default function TestEchelonIntegrationPage() {
                              <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
                                <div className="text-xs font-semibold mb-1">Supply APR Breakdown:</div>
                                <div className="space-y-1">
-                                 {pool.lendingApr > 0 && (
+                                 {pool.lendingApr && pool.lendingApr > 0 && (
                                    <div className="flex justify-between">
                                      <span>Lending APR:</span>
                                      <span className="text-green-400">{pool.lendingApr.toFixed(2)}%</span>
                                    </div>
                                  )}
-                                 {pool.stakingAprOnly > 0 && (
+                                 {pool.stakingAprOnly && pool.stakingAprOnly > 0 && (
                                    <div className="flex justify-between">
                                      <span>Staking APR:</span>
                                      <span className="text-blue-400">{pool.stakingAprOnly.toFixed(2)}%</span>
                                    </div>
                                  )}
-                                 {pool.supplyRewardsApr > 0 && (
+                                 {pool.supplyRewardsApr && pool.supplyRewardsApr > 0 && (
                                    <div className="flex justify-between">
                                      <span>Rewards APR:</span>
                                      <span className="text-yellow-400">{pool.supplyRewardsApr.toFixed(2)}%</span>

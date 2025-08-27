@@ -432,7 +432,11 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   borrowRewardsApr: pool.borrowRewardsApr,
                   marketAddress: pool.marketAddress,
                   totalSupply: pool.totalSupply,
-                  totalBorrow: pool.totalBorrow
+                  totalBorrow: pool.totalBorrow,
+                  // APR breakdown fields
+                  lendingApr: pool.lendingApr,
+                  stakingAprOnly: pool.stakingAprOnly,
+                  totalSupplyApr: pool.totalSupplyApr
                 };
               });
             }
@@ -1429,19 +1433,19 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                 <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
                                   <div className="text-xs font-semibold mb-1">Supply APR Breakdown:</div>
                                   <div className="space-y-1">
-                                    {item.lendingApr > 0 && (
+                                    {item.lendingApr && item.lendingApr > 0 && (
                                       <div className="flex justify-between">
                                         <span>Lending APR:</span>
                                         <span className="text-green-400">{item.lendingApr.toFixed(2)}%</span>
                                       </div>
                                     )}
-                                    {item.stakingAprOnly > 0 && (
+                                    {item.stakingAprOnly && item.stakingAprOnly > 0 && (
                                       <div className="flex justify-between">
                                         <span>Staking APR:</span>
                                         <span className="text-blue-400">{item.stakingAprOnly.toFixed(2)}%</span>
                                       </div>
                                     )}
-                                    {item.supplyRewardsApr > 0 && (
+                                    {item.supplyRewardsApr && item.supplyRewardsApr > 0 && (
                                       <div className="flex justify-between">
                                         <span>Rewards APR:</span>
                                         <span className="text-yellow-400">{item.supplyRewardsApr.toFixed(2)}%</span>

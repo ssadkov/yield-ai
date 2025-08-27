@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface EchelonPool {
   asset: string;
@@ -25,6 +26,10 @@ interface EchelonPool {
   totalBorrow: number;
   stakingApr?: number;
   isStakingPool?: boolean;
+  // APR breakdown fields
+  lendingApr?: number;
+  stakingAprOnly?: number;
+  totalSupplyApr?: number;
 }
 
 export default function TestEchelonPoolsPage() {
@@ -225,24 +230,24 @@ export default function TestEchelonPoolsPage() {
                               <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
                                 <div className="text-xs font-semibold mb-1">Supply APR Breakdown:</div>
                                 <div className="space-y-1">
-                                  {pool.lendingApr > 0 && (
-                                    <div className="flex justify-between">
-                                      <span>Lending APR:</span>
-                                      <span className="text-green-400">{pool.lendingApr.toFixed(2)}%</span>
-                                    </div>
-                                  )}
-                                  {pool.stakingAprOnly > 0 && (
-                                    <div className="flex justify-between">
-                                      <span>Staking APR:</span>
-                                      <span className="text-blue-400">{pool.stakingAprOnly.toFixed(2)}%</span>
-                                    </div>
-                                  )}
-                                  {pool.supplyRewardsApr > 0 && (
-                                    <div className="flex justify-between">
-                                      <span>Rewards APR:</span>
-                                      <span className="text-yellow-400">{pool.supplyRewardsApr.toFixed(2)}%</span>
-                                    </div>
-                                  )}
+                                                                     {pool.lendingApr && pool.lendingApr > 0 && (
+                                     <div className="flex justify-between">
+                                       <span>Lending APR:</span>
+                                       <span className="text-green-400">{pool.lendingApr.toFixed(2)}%</span>
+                                     </div>
+                                   )}
+                                   {pool.stakingAprOnly && pool.stakingAprOnly > 0 && (
+                                     <div className="flex justify-between">
+                                       <span>Staking APR:</span>
+                                       <span className="text-blue-400">{pool.stakingAprOnly.toFixed(2)}%</span>
+                                     </div>
+                                   )}
+                                   {pool.supplyRewardsApr && pool.supplyRewardsApr > 0 && (
+                                     <div className="flex justify-between">
+                                       <span>Rewards APR:</span>
+                                       <span className="text-yellow-400">{pool.supplyRewardsApr.toFixed(2)}%</span>
+                                     </div>
+                                   )}
                                   <div className="border-t border-gray-600 pt-1 mt-1">
                                     <div className="flex justify-between font-semibold">
                                       <span>Total:</span>
