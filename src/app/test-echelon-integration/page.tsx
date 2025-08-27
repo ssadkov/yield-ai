@@ -141,16 +141,16 @@ export default function TestEchelonIntegrationPage() {
                              <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
                                <div className="text-xs font-semibold mb-1">Supply APR Breakdown:</div>
                                <div className="space-y-1">
-                                 {pool.lendingApr && pool.lendingApr > 0 && (
+                                 {pool.depositApy && pool.depositApy > 0 && (
                                    <div className="flex justify-between">
-                                     <span>Lending APR:</span>
-                                     <span className="text-green-400">{pool.lendingApr.toFixed(2)}%</span>
+                                     <span>Deposit APR:</span>
+                                     <span className="text-green-400">{pool.depositApy.toFixed(2)}%</span>
                                    </div>
                                  )}
-                                 {pool.stakingAprOnly && pool.stakingAprOnly > 0 && (
+                                 {pool.stakingApr && pool.stakingApr > 0 && (
                                    <div className="flex justify-between">
                                      <span>Staking APR:</span>
-                                     <span className="text-blue-400">{pool.stakingAprOnly.toFixed(2)}%</span>
+                                     <span className="text-blue-400">{pool.stakingApr.toFixed(2)}%</span>
                                    </div>
                                  )}
                                  {pool.supplyRewardsApr && pool.supplyRewardsApr > 0 && (
@@ -165,36 +165,10 @@ export default function TestEchelonIntegrationPage() {
                                      <span className="text-white">{pool.depositApy.toFixed(2)}%</span>
                                    </div>
                                  </div>
-                                 {/* LTV Information */}
-                                 {pool.ltv && pool.ltv > 0 && (
-                                   <div className="border-t border-gray-600 pt-1 mt-1">
-                                     <div className="text-xs font-semibold mb-1 text-cyan-400">Collateral Info:</div>
-                                     <div className="space-y-1">
-                                       <div className="flex justify-between">
-                                         <span>LTV:</span>
-                                         <span className="text-cyan-400">{(pool.ltv * 100).toFixed(0)}%</span>
-                                       </div>
-                                       {pool.lt && pool.lt > 0 && (
-                                         <div className="flex justify-between">
-                                           <span>Liquidation Threshold:</span>
-                                           <span className="text-orange-400">{(pool.lt * 100).toFixed(0)}%</span>
-                                         </div>
-                                       )}
-                                       {pool.emodeLtv && pool.emodeLtv > 0 && (
-                                         <div className="flex justify-between">
-                                           <span>E-Mode LTV:</span>
-                                           <span className="text-purple-400">{(pool.emodeLtv * 100).toFixed(0)}%</span>
-                                         </div>
-                                       )}
-                                       {pool.emodeLt && pool.emodeLt > 0 && (
-                                         <div className="flex justify-between">
-                                           <span>E-Mode LT:</span>
-                                           <span className="text-pink-400">{(pool.emodeLt * 100).toFixed(0)}%</span>
-                                         </div>
-                                       )}
-                                     </div>
-                                   </div>
-                                 )}
+                                 {/* Note: LTV fields not available in current InvestmentData type */}
+                                 <div className="text-xs text-gray-400 mt-2">
+                                   LTV data not available in current API response
+                                 </div>
                                </div>
                              </TooltipContent>
                            </Tooltip>

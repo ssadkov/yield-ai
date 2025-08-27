@@ -27,6 +27,18 @@ A comprehensive DeFi investment dashboard built on the Aptos blockchain that all
 - **Balance Filtering**: Hide small assets (<$1) for cleaner portfolio view
 - **Token Details**: View token logos, symbols, amounts, and current values
 
+### Risk Management (Echelon)
+- **Health Factor Calculation**: 
+  - Automatic calculation for accounts with borrow positions
+  - Formula: `Health Factor = (Σ collateral × LT) / total liabilities`
+  - Color-coded status: Green (≥1.5 Safe), Yellow (1.0-1.49 Warning), Red (<1.0 Danger)
+  - Only displayed when borrow positions exist
+- **LTV Information**: 
+  - Loan-to-Value ratio displayed in position tooltips
+  - Liquidation Threshold (LT) values for each collateral asset
+  - E-Mode LTV and LT values when available
+  - Note: LTV data currently limited to managing positions view
+
 ## 🏦 Supported Protocols
 
 ### Lending Protocols
@@ -40,6 +52,8 @@ A comprehensive DeFi investment dashboard built on the Aptos blockchain that all
   - Supply and borrow pools
   - Fungible and non-fungible token support
   - **NEW**: Full integration with Ideas dashboard
+  - **NEW**: Health Factor calculation for borrow positions
+  - **NEW**: LTV (Loan-to-Value) information in position tooltips
 - **URL**: [app.echelon.market](https://app.echelon.market/dashboard?network=aptos_mainnet)
 
 #### **Joule**
