@@ -83,9 +83,8 @@ export function PortfolioPageCard({ totalValue, tokens, onRefresh, isRefreshing 
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-lg font-medium"></span>
-        <span className="text-lg font-medium">${displayTotalValue.toFixed(2)}</span>
+      <div className="flex items-center justify-center mb-2 text-2xl font-semibold">
+        ${displayTotalValue.toFixed(2)}
       </div>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center space-x-2">

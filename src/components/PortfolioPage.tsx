@@ -8,8 +8,10 @@ import { AptosPortfolioService } from "@/lib/services/aptos/portfolio";
 import { Token } from "@/lib/types/token";
 import { Logo } from "./ui/logo";
 import { AlphaBadge } from "./ui/alpha-badge";
+import { Input } from "@/components/ui/input";
 import { Button } from '@/components/ui/button';
-import {  ArrowLeft, Wallet, DollarSign, RefreshCw } from 'lucide-react';
+import { PortfolioChart } from './PortfolioChart';
+import {  ArrowLeft, Wallet, DollarSign, RefreshCw, Search } from 'lucide-react';
 import { CollapsibleProvider } from "@/contexts/CollapsibleContext";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import { PositionsList as HyperionPositionsList } from "./protocols/hyperion/PositionsList";
@@ -41,6 +43,7 @@ export default function PortfolioPage() {
   const [aaveValue, setAaveValue] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [checkingProtocols, setCheckingProtocols] = useState<string[]>([]);
+  const [addressInput, setAddressInput] = useState('');
 
   const params = useParams();
   const router = useRouter();
@@ -66,6 +69,18 @@ export default function PortfolioPage() {
   
   const formatAddress = (addr: string) => {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  };
+  
+  const handleSearch = () => {
+    if (addressInput.trim()) {
+      router.push(`/portfolio/${addressInput}`);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
   };
 
   const loadPortfolio = useCallback(async () => {
@@ -172,167 +187,232 @@ export default function PortfolioPage() {
   // Итоговая сумма
   const totalAssets = walletTotal + totalProtocolsValue;
 
+  // Данные для чарта: кошелек + каждый протокол отдельным сектором
+  const chartSectors = [
+    { name: 'Wallet', value: walletTotal },
+    { name: 'Hyperion', value: hyperionValue },
+    { name: 'Echelon', value: echelonValue },
+    { name: 'Aries', value: ariesValue },
+    { name: 'Joule', value: jouleValue },
+    { name: 'Tapp Exchange', value: tappValue },
+    { name: 'Meso Finance', value: mesoValue },
+    { name: 'Auro Finance', value: auroValue },
+    { name: 'Amnis Finance', value: amnisValue },
+    { name: 'Earnium', value: earniumValue },
+    { name: 'Aave', value: aaveValue },
+  ];
+
   return (
 	<CollapsibleProvider>
 	  <div className="container mx-auto px-4 py-8">
-	    <div className="max-w-4xl mx-auto space-y-6">
-          <div className="container mx-auto">
-            <div className="mx-auto">
-              <div className="flex items-left">
-                <Button
-                  variant="ghost"
-                  onClick={() => router.push('/portfolio')}
-                >
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Wallet Explorer
-                </Button>
-              </div>
-            </div>
-          </div>
 
-          <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-            <div className="flex-1 overflow-y-auto m-4">
-              {account?.address ? ( 
-                <>
-                <div className="mt-4 space-y-4"> 
-                  <div className="flex items-center space-x-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
-                      <Wallet className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-xl">Wallet Balance</CardTitle>
-                      <CardDescription className="font-mono">
-                        {formatAddress(account.address)}
-                      </CardDescription>
-                    </div>
+	    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="w-full">
+
+	        <div className="max-w-4xl mx-auto space-y-6">
+              
+			  <div className="container mx-auto">
+                <div className="mx-auto">
+                  <div className="flex items-left">
+                    <Button
+                      variant="ghost"
+                      onClick={() => router.push('/portfolio')}
+                    >
+                      <ArrowLeft className="h-4 w-4 mr-2" />
+                      Back to Wallet Explorer
+                    </Button>
                   </div>
-			    </div>
-                <div className="mt-4 space-y-4">
-                  <PortfolioPageCard 
-                    totalValue={totalAssets.toString()} 
-                    tokens={tokens} 
-                    onRefresh={handleRefresh}
-                    isRefreshing={isRefreshing}
-                  />
-                  {checkingProtocols.length > 0 && (
-                    <div className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground">
-                      <span>Checking positions on</span>
-                      <div className="flex items-center gap-1">
-                        {checkingProtocols.map((name) => {
-                          const proto = getProtocolByName(name);
-                          const logo = proto?.logoUrl;
-                          return (
-                            <img
-                              key={name}
-                              src={logo || "/favicon.ico"}
-                              alt={name}
-                              title={name}
-                              className="w-4 h-4 rounded-sm object-contain opacity-80"
-                            />
-                          );
-                        })}
+                </div>
+              </div>
+
+              <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+                <div className="flex-1 overflow-y-auto m-4">
+                  {account?.address ? ( 
+                    <>
+                    
+					<div className="mt-4 space-y-4"> 
+                      <div className="flex items-center space-x-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
+                          <Wallet className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-xl pt-2 ml-2">Portfolio</CardTitle>
+                        </div>
                       </div>
+			        </div>
+					
+					<div className="w-full mb-4 mt-2">
+				      <div className="relative w-full">
+			            <Input
+				          value={addressInput}
+					      onChange={(e) => setAddressInput(e.target.value)}
+					      onKeyDown={handleKeyDown}
+					      placeholder={account.address}
+					      className="font-mono text-sm h-10 pr-10 w-full truncate"
+				        />
+					    <Button 
+					      size="sm" 
+					      variant="ghost" 
+					      onClick={handleSearch}
+					      className="absolute right-1 top-1 h-8 w-8 p-0 pb-3 cursor-pointer"
+					    >
+					      <Search className="h-4 w-4" />
+					    </Button>
+				      </div>
+			        </div>
+
+				    <div className="block lg:hidden mb-4">
+				      <div className="h-58 flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded p-20">
+				        <PortfolioChart data={chartSectors} />
+				      </div>
+			      </div>
+
+				    <div className="flex flex-col lg:flex-row gap-4">
+				      <div className="flex-1">
+                        <div className="mt-4 space-y-4">
+                          <PortfolioPageCard 
+                            totalValue={totalAssets.toString()} 
+                            tokens={tokens} 
+                            onRefresh={handleRefresh}
+                            isRefreshing={isRefreshing}
+                          />
+                          {checkingProtocols.length > 0 && (
+                            <div className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground">
+                              <span>Checking positions on</span>
+                              <div className="flex items-center gap-1">
+                                {checkingProtocols.map((name) => {
+                                  const proto = getProtocolByName(name);
+                                  const logo = proto?.logoUrl;
+                                  return (
+                                    <img
+                                      key={name}
+                                      src={logo || "/favicon.ico"}
+                                      alt={name}
+                                      title={name}
+                                      className="w-4 h-4 rounded-sm object-contain opacity-80"
+                                    />
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                          {[
+                            { 
+					          component: HyperionPositionsList, 
+					          value: hyperionValue, 
+					          name: 'Hyperion',
+					          showManageButton: false
+					        },
+                            { 
+					          component: EchelonPositionsList, 
+					          value: echelonValue, 
+					          name: 'Echelon',
+					          showManageButton: false
+					        },
+                            { 
+					          component: AriesPositionsList, 
+					          value: ariesValue, 
+					          name: 'Aries',
+					          showManageButton: false
+					        },
+                            { 
+					          component: JoulePositionsList, 
+					          value: jouleValue, 
+					          name: 'Joule',
+					          showManageButton: false
+					        },
+                            { 
+					          component: TappPositionsList, 
+					          value: tappValue, 
+					          name: 'Tapp Exchange',
+					          showManageButton: false
+					        },
+                            { 
+					          component: MesoPositionsList, 
+					          value: mesoValue, 
+					          name: 'Meso Finance',
+					          showManageButton: false
+					        },
+                            { 
+					          component: AuroPositionsList, 
+					          value: auroValue, 
+					          name: 'Auro Finance',
+					          showManageButton: false
+					        },
+                            { 
+					          component: AmnisPositionsList, 
+					          value: amnisValue, 
+					          name: 'Amnis Finance',
+					          showManageButton: false
+					        },
+                            { 
+					          component: EarniumPositionsList, 
+					          value: earniumValue, 
+					          name: 'Earnium',
+					          showManageButton: false
+					        },
+                            { 
+					          component: AavePositionsList, 
+					          value: aaveValue, 
+					          name: 'Aave',
+					          showManageButton: false
+					        },
+                          ]
+                          .sort((a, b) => b.value - a.value)
+                          .map(({ component: Component, name }) => (
+                            <Component
+                              key={name}
+                              address={account.address.toString()}
+                              walletTokens={tokens}
+						      showManageButton={false}
+                              onPositionsValueChange={
+                                name === 'Hyperion' ? handleHyperionValueChange :
+                                name === 'Echelon' ? handleEchelonValueChange :
+                                name === 'Aries' ? handleAriesValueChange :
+                                name === 'Joule' ? handleJouleValueChange :
+                                name === 'Tapp Exchange' ? handleTappValueChange :
+                                name === 'Meso Finance' ? handleMesoValueChange :
+                                name === 'Auro Finance' ? handleAuroValueChange :
+                                name === 'Amnis Finance' ? handleAmnisValueChange :
+                                name === 'Earnium' ? handleEarniumValueChange :
+                                name === 'Aave' ? handleAaveValueChange :
+                                undefined
+                              }
+                              onPositionsCheckComplete={() =>
+                                setCheckingProtocols((prev) => prev.filter((p) => p !== name))
+                              }
+                            />
+                          ))}
+                        </div>
+				      </div>
+                    </div>
+                    </>
+                  ) : (
+                    <div className="mt-4 p-4 bg-muted rounded-lg">
+                      <p className="text-sm text-muted-foreground">
+                        Connect your Aptos wallet to view your assets and positions in DeFi protocols
+                      </p>
                     </div>
                   )}
-                  {[
-                    { 
-					  component: HyperionPositionsList, 
-					  value: hyperionValue, 
-					  name: 'Hyperion',
-					  showManageButton: false
-					},
-                    { 
-					  component: EchelonPositionsList, 
-					  value: echelonValue, 
-					  name: 'Echelon',
-					  showManageButton: false
-					},
-                    { 
-					  component: AriesPositionsList, 
-					  value: ariesValue, 
-					  name: 'Aries',
-					  showManageButton: false
-					},
-                    { 
-					  component: JoulePositionsList, 
-					  value: jouleValue, 
-					  name: 'Joule',
-					  showManageButton: false
-					},
-                    { 
-					  component: TappPositionsList, 
-					  value: tappValue, 
-					  name: 'Tapp Exchange',
-					  showManageButton: false
-					},
-                    { 
-					  component: MesoPositionsList, 
-					  value: mesoValue, 
-					  name: 'Meso Finance',
-					  showManageButton: false
-					},
-                    { 
-					  component: AuroPositionsList, 
-					  value: auroValue, 
-					  name: 'Auro Finance',
-					  showManageButton: false
-					},
-                    { 
-					  component: AmnisPositionsList, 
-					  value: amnisValue, 
-					  name: 'Amnis Finance',
-					  showManageButton: false
-					},
-                    { 
-					  component: EarniumPositionsList, 
-					  value: earniumValue, 
-					  name: 'Earnium',
-					  showManageButton: false
-					},
-                    { 
-					  component: AavePositionsList, 
-					  value: aaveValue, 
-					  name: 'Aave',
-					  showManageButton: false
-					},
-                  ]
-                    .sort((a, b) => b.value - a.value)
-                    .map(({ component: Component, name }) => (
-                      <Component
-                        key={name}
-                        address={account.address.toString()}
-                        walletTokens={tokens}
-						showManageButton={false}
-                        onPositionsValueChange={
-                          name === 'Hyperion' ? handleHyperionValueChange :
-                          name === 'Echelon' ? handleEchelonValueChange :
-                          name === 'Aries' ? handleAriesValueChange :
-                          name === 'Joule' ? handleJouleValueChange :
-                          name === 'Tapp Exchange' ? handleTappValueChange :
-                          name === 'Meso Finance' ? handleMesoValueChange :
-                          name === 'Auro Finance' ? handleAuroValueChange :
-                          name === 'Amnis Finance' ? handleAmnisValueChange :
-                          name === 'Earnium' ? handleEarniumValueChange :
-                          name === 'Aave' ? handleAaveValueChange :
-                          undefined
-                        }
-                        onPositionsCheckComplete={() =>
-                          setCheckingProtocols((prev) => prev.filter((p) => p !== name))
-                        }
-                      />
-                    ))}
                 </div>
-                </>
-              ) : (
-                <div className="mt-4 p-4 bg-muted rounded-lg">
-                  <p className="text-sm text-muted-foreground">
-                    Connect your Aptos wallet to view your assets and positions in DeFi protocols
-                  </p>
-                </div>
-              )}
-            </div>
+              </div>
+			  
+	        </div>
+
+		  </div>
+ 
+          <div className="w-full">
+            
+			<div className="hidden lg:block mb-4 mt-17">
+			  <div className="h-58 flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded p-20">
+				<PortfolioChart data={chartSectors} />
+		      </div>
+			
+			</div>
+			
           </div>
-	    </div>
+          
+        </div>
 	  </div>
     </CollapsibleProvider>
   );
