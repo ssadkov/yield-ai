@@ -38,6 +38,8 @@ A comprehensive DeFi investment dashboard built on the Aptos blockchain that all
   - Liquidation Threshold (LT) values for each collateral asset
   - E-Mode LTV and LT values when available
   - Note: LTV data currently limited to managing positions view
+  - **Important**: LTV fields (ltv, lt, emodeLtv, emodeLt) are not available in the current InvestmentData type
+  - These fields are only accessible in the managing positions view where they are calculated separately
 
 ## 🏦 Supported Protocols
 
