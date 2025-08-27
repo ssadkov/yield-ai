@@ -21,9 +21,6 @@ export async function GET(request: NextRequest) {
     }
 
     const baseUrl = process.env.PANORA_API_URL || 'https://api.panora.exchange';
-    console.log('Using Panora API URL:', baseUrl);
-    console.log('Query params:', queryParams.toString());
-    console.log('API Key present:', !!process.env.PANORA_API_KEY);
 
     const response = await fetch(`${baseUrl}/prices?${queryParams.toString()}`, {
       headers: {

@@ -17,9 +17,10 @@ interface PositionsListProps {
   address?: string;
   onPositionsValueChange?: (value: number) => void;
   onPositionsCheckComplete?: () => void;
+  showManageButton?: boolean;
 }
 
-export function PositionsList({ address, onPositionsValueChange, onPositionsCheckComplete }: PositionsListProps) {
+export function PositionsList({ address, onPositionsValueChange, onPositionsCheckComplete, showManageButton=true }: PositionsListProps) {
   const { account } = useWallet();
   const [positions, setPositions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -541,7 +542,9 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
             )}
             
             {/* Кнопка Manage Positions */}
-            {protocol && <ManagePositionsButton protocol={protocol} />}
+            {protocol && showManageButton && (
+              <ManagePositionsButton protocol={protocol} />
+            )}
           </div>
         </CardContent>
       )}

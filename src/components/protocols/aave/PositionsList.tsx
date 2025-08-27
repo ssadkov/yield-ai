@@ -17,6 +17,7 @@ interface PositionsListProps {
   address?: string;
   onPositionsValueChange?: (value: number) => void;
   onPositionsCheckComplete?: () => void;
+  showManageButton?: boolean;
 }
 
 interface AavePosition {
@@ -41,7 +42,7 @@ interface TokenInfo {
   usdPrice: string | null;
 }
 
-export function PositionsList({ address, onPositionsValueChange, onPositionsCheckComplete }: PositionsListProps) {
+export function PositionsList({ address, onPositionsValueChange, onPositionsCheckComplete, showManageButton=true }: PositionsListProps) {
   const { account } = useWallet();
   const [positions, setPositions] = useState<AavePosition[]>([]);
   const [loading, setLoading] = useState(false);
@@ -359,7 +360,9 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
             
             
             {/* Кнопка управления позициями */}
-            {protocol && <ManagePositionsButton protocol={protocol} />}
+            {protocol && showManageButton && (
+              <ManagePositionsButton protocol={protocol} />
+            )}
           </ScrollArea>
         </CardContent>
       )}
