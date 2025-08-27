@@ -190,6 +190,72 @@ export function EchelonPositions() {
     }, 0);
   }, [rewardsData, tokenPrices]);
 
+    // Расчет Health Factor
+  const calculateHealthFactor = useCallback(() => {
+    // Проверяем, есть ли borrow позиции
+    const hasBorrowPositions = positions.some(p => p.type === 'borrow');
+    if (!hasBorrowPositions) return null;
+
+    // Собираем коллатераль (supply позиции)
+    const collateral = positions.filter(p => p.type === 'supply');
+    const liabilities = positions.filter(p => p.type === 'borrow');
+
+    let accountMargin = 0;
+    let totalLiabilities = 0;
+
+    // Считаем account margin (коллатераль × LT)
+    collateral.forEach(position => {
+      const tokenInfo = getTokenInfo(position.coin);
+      const amount = parseFloat(String(position.amount)) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
+      const price = getTokenPrice(position.coin);
+      const value = price ? amount * parseFloat(price) : 0;
+      
+      // Получаем LT для токена
+      let poolData = apyData[position.coin];
+      if (!poolData && tokenInfo?.symbol) {
+        poolData = apyData[tokenInfo.symbol];
+      }
+      const lt = poolData?.lt || 0.75; // fallback к 75% если LT недоступен
+      
+      accountMargin += value * lt;
+    });
+
+    // Считаем общую задолженность
+    liabilities.forEach(position => {
+      const tokenInfo = getTokenInfo(position.coin);
+      const amount = parseFloat(String(position.amount)) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
+      const price = getTokenPrice(position.coin);
+      const value = price ? amount * parseFloat(price) : 0;
+      
+      totalLiabilities += value;
+    });
+
+    // Если нет долгов, возвращаем null
+    if (totalLiabilities <= 0) return null;
+
+    const healthFactor = accountMargin / totalLiabilities;
+    
+    return {
+      healthFactor,
+      accountMargin,
+      totalLiabilities,
+      isLiquidatable: healthFactor < 1
+    };
+  }, [positions, apyData, tokenPrices]);
+
+  // Вспомогательные функции для Health Factor
+  const getHealthFactorColor = (healthFactor: number) => {
+    if (healthFactor >= 1.5) return 'text-green-500';
+    if (healthFactor >= 1.2) return 'text-yellow-500';
+    return 'text-red-500';
+  };
+
+  const getHealthFactorStatus = (healthFactor: number) => {
+    if (healthFactor >= 1.5) return 'Safe';
+    if (healthFactor >= 1.2) return '';
+    return 'Danger';
+  };
+
   // Claim rewards
   const handleClaimRewards = async () => {
     if (!account?.address || rewardsData.length === 0) return;
@@ -841,6 +907,34 @@ export function EchelonPositions() {
           )}
         </div>
       </div>
+
+      {/* Health Factor Display */}
+      {(() => {
+        const healthData = calculateHealthFactor();
+        if (!healthData) return null;
+        
+        return (
+          <div className="flex items-center justify-between pt-4 pb-6 border-t border-gray-200">
+            <span className="text-lg font-semibold">Account Health:</span>
+            <div className="text-right">
+              <div className="flex items-center gap-3">
+                <div className="text-center">
+                  <div className={`text-2xl font-bold ${getHealthFactorColor(healthData.healthFactor)}`}>
+                    {healthData.healthFactor.toFixed(2)}
+                  </div>
+                  <div className={`text-sm font-medium ${getHealthFactorColor(healthData.healthFactor)}`}>
+                    {getHealthFactorStatus(healthData.healthFactor)}
+                  </div>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  <div>Collateral: ${healthData.accountMargin.toFixed(2)}</div>
+                  <div>Liabilities: ${healthData.totalLiabilities.toFixed(2)}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Deposit Modal */}
       {selectedPosition && (
