@@ -243,20 +243,65 @@ export function EchelonPositions() {
       .then(data => {
         console.log('EchelonPositions - APR data loaded:', data);
         if (data.success && data.data) {
-                      // Создаем маппинг token -> APR данные
+                      // Создаем двойной маппинг: по asset (символ) и по token (адрес) для совместимости
           const apyMapping: Record<string, any> = {};
           data.data.forEach((pool: any) => {
-            apyMapping[pool.token] = {
-              supplyAPY: pool.depositApy,
-              borrowAPY: pool.borrowAPY,
-              supplyRewardsApr: pool.supplyRewardsApr,
-              borrowRewardsApr: pool.borrowRewardsApr,
-              marketAddress: pool.marketAddress,
-              asset: pool.asset
-            };
+            // Используем asset (символ токена) как основной ключ
+            const assetKey = pool.asset;
+            const tokenKey = pool.token;
+            
+            if (assetKey) {
+              const poolData = {
+                supplyAPY: pool.depositApy,
+                borrowAPY: pool.borrowAPY,
+                supplyRewardsApr: pool.supplyRewardsApr,
+                borrowRewardsApr: pool.borrowRewardsApr,
+                marketAddress: pool.marketAddress,
+                asset: pool.asset,
+                poolType: pool.poolType,
+                // Добавляем информацию о том, какие типы операций доступны
+                hasSupply: pool.depositApy > 0,
+                hasBorrow: pool.borrowAPY > 0,
+                hasStaking: pool.stakingApr > 0,
+                // Добавляем разбивку APR для tooltip
+                lendingApr: pool.lendingApr || 0,
+                stakingAprOnly: pool.stakingAprOnly || 0,
+                totalSupplyApr: pool.totalSupplyApr || pool.depositApy || 0
+              };
+              
+              // Сохраняем по символу токена
+              apyMapping[assetKey] = poolData;
+              
+              // Также сохраняем по адресу токена для совместимости с существующим кодом
+              if (tokenKey) {
+                apyMapping[tokenKey] = poolData;
+              }
+              
+              // Специальная обработка для APT токена - добавляем маппинги для альтернативных адресов
+              if (assetKey === 'APT' && pool.aptAlternativeAddresses) {
+                pool.aptAlternativeAddresses.forEach((altAddress: string) => {
+                  apyMapping[altAddress] = poolData;
+                });
+              }
+            }
           });
-          setApyData(apyMapping);
-          console.log('EchelonPositions - APR mapping created:', apyMapping);
+                     setApyData(apyMapping);
+           console.log('EchelonPositions - APR mapping created:', apyMapping);
+           console.log('EchelonPositions - APR mapping keys:', Object.keys(apyMapping));
+           
+           // Специальная проверка для APT
+           if (apyMapping['APT']) {
+             console.log('EchelonPositions - APT pool data found:', apyMapping['APT']);
+           }
+           if (apyMapping['0x1::aptos_coin::AptosCoin']) {
+             console.log('EchelonPositions - APT by address found:', apyMapping['0x1::aptos_coin::AptosCoin']);
+           }
+           if (apyMapping['0xa']) {
+             console.log('EchelonPositions - APT by short address found:', apyMapping['0xa']);
+           }
+           if (apyMapping['0x0a']) {
+             console.log('EchelonPositions - APT by padded address found:', apyMapping['0x0a']);
+           }
         }
       })
               .catch(error => {
@@ -347,10 +392,20 @@ export function EchelonPositions() {
 
       // Получить APR для позиции (обновленная функция)
   const getApyForPosition = (position: any) => {
-          // Ищем данные в новом APR маппинге
-    const poolData = apyData[position.coin];
+    // Ищем данные в APR маппинге по адресу токена
+    let poolData = apyData[position.coin];
+    
+    // Если не найдено по адресу, попробуем найти по символу токена
+    if (!poolData && position.coin) {
+      const tokenInfo = getTokenInfo(position.coin);
+      if (tokenInfo?.symbol) {
+        poolData = apyData[tokenInfo.symbol];
+        console.log(`Trying to find APR data by symbol ${tokenInfo.symbol} for ${position.coin}`);
+      }
+    }
+    
     if (poolData) {
-              console.log(`Found APR data for ${position.coin}:`, poolData);
+      console.log(`Found APR data for ${position.coin}:`, poolData);
       if (position.type === 'supply') {
         const apy = poolData.supplyAPY / 100; // Конвертируем из процентов в десятичную форму
         console.log(`Supply APR for ${position.coin}: ${apy * 100}%`);
@@ -362,7 +417,7 @@ export function EchelonPositions() {
       }
     }
     
-            console.log(`No APR data found for ${position.coin}`);
+    console.log(`No APR data found for ${position.coin}`);
     return null;
   };
 
@@ -411,7 +466,29 @@ export function EchelonPositions() {
     console.log('Deposit click - position:', position);
     console.log('Deposit click - apyData keys:', Object.keys(apyData));
     console.log('Deposit click - apyData for this coin:', apyData[position.coin]);
+    
+         // Попробуем найти market address для депозита
+     let marketAddress = position.market;
+     if (!marketAddress) {
+       let poolData = apyData[position.coin];
+       
+
+       
+       if (!poolData) {
+         const tokenInfo = getTokenInfo(position.coin);
+         if (tokenInfo?.symbol) {
+           poolData = apyData[tokenInfo.symbol];
+           console.log(`Found pool data by symbol ${tokenInfo.symbol}:`, poolData);
+         }
+       }
+       if (poolData?.marketAddress) {
+         marketAddress = poolData.marketAddress;
+         console.log('Found market address for deposit:', marketAddress);
+       }
+     }
+    
     console.log('Deposit click - getApyForPosition result:', getApyForPosition(position));
+    console.log('Deposit click - market address:', marketAddress);
     setSelectedPosition(position);
     setShowDepositModal(true);
   };
@@ -467,23 +544,38 @@ export function EchelonPositions() {
         // console.log('Withdraw confirm - marketAddress from marketData:', marketAddress); // This line is removed
       }
       
-      // Если все еще нет market address, попробуем получить его из apyData
-      if (!marketAddress) {
-        console.log('Withdraw confirm - trying to get market address from apyData');
-        const poolData = apyData[selectedPosition.coin];
-        if (poolData?.marketAddress) {
-          marketAddress = poolData.marketAddress;
-          console.log('Withdraw confirm - marketAddress from apyData:', marketAddress);
+                    // Если все еще нет market address, попробуем получить его из apyData
+        if (!marketAddress) {
+          console.log('Withdraw confirm - trying to get market address from apyData');
+          let poolData = apyData[selectedPosition.coin];
+          
+
+          
+          // Если не найдено по адресу, попробуем найти по символу токена
+          if (!poolData) {
+            const tokenInfo = getTokenInfo(selectedPosition.coin);
+            if (tokenInfo?.symbol) {
+              poolData = apyData[tokenInfo.symbol];
+              console.log(`Trying to find market address by symbol ${tokenInfo.symbol} for ${selectedPosition.coin}`);
+            }
+          }
+          
+          if (poolData?.marketAddress) {
+            marketAddress = poolData.marketAddress;
+            console.log('Withdraw confirm - marketAddress from apyData:', marketAddress);
+          }
         }
-      }
       
-      // Если все еще нет market address, используем локальные данные
-      if (!marketAddress) {
-        console.log('Withdraw confirm - trying to get market address from local data');
-        const localMarket = echelonMarkets.markets.find((m: any) => m.coin === selectedPosition.coin);
-        marketAddress = localMarket?.market;
-        console.log('Withdraw confirm - marketAddress from local data:', marketAddress);
-      }
+             // Если все еще нет market address, используем локальные данные
+       if (!marketAddress) {
+         console.log('Withdraw confirm - trying to get market address from local data');
+         let localMarket = echelonMarkets.markets.find((m: any) => m.coin === selectedPosition.coin);
+         
+
+         
+         marketAddress = localMarket?.market;
+         console.log('Withdraw confirm - marketAddress from local data:', marketAddress);
+       }
       
       if (!marketAddress) {
         console.error('Withdraw confirm - no market address found');
@@ -586,7 +678,48 @@ export function EchelonPositions() {
                         : 'bg-green-500/10 text-green-600 border-green-500/20',
                       'text-xs font-normal px-2 py-0.5 h-5')}
                     >
-                      APR: {apy !== null ? (apy * 100).toFixed(2) + '%' : 'N/A'}
+                      {apy !== null ? (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="cursor-help">
+                                APR: {(apy * 100).toFixed(2)}%
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
+                              <div className="text-xs font-semibold mb-1">APR Breakdown:</div>
+                              <div className="space-y-1">
+                                {!isBorrow && apyData[position.coin]?.lendingApr > 0 && (
+                                  <div className="flex justify-between">
+                                    <span>Lending APR:</span>
+                                    <span className="text-green-400">{apyData[position.coin].lendingApr.toFixed(2)}%</span>
+                                  </div>
+                                )}
+                                {!isBorrow && apyData[position.coin]?.stakingAprOnly > 0 && (
+                                  <div className="flex justify-between">
+                                    <span>Staking APR:</span>
+                                    <span className="text-blue-400">{apyData[position.coin].stakingAprOnly.toFixed(2)}%</span>
+                                  </div>
+                                )}
+                                {!isBorrow && apyData[position.coin]?.supplyRewardsApr > 0 && (
+                                  <div className="flex justify-between">
+                                    <span>Rewards APR:</span>
+                                    <span className="text-yellow-400">{apyData[position.coin].supplyRewardsApr.toFixed(2)}%</span>
+                                  </div>
+                                )}
+                                <div className="border-t border-gray-600 pt-1 mt-1">
+                                  <div className="flex justify-between font-semibold">
+                                    <span>Total:</span>
+                                    <span className="text-white">{(apy * 100).toFixed(2)}%</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ) : (
+                        'APR: N/A'
+                      )}
                     </Badge>
                     <div className="text-lg font-bold">${value}</div>
                   </div>

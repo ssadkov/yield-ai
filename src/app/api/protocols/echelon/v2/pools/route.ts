@@ -199,90 +199,86 @@ export async function GET() {
           }
         }
 
-        // Create Supply pool entry if supply is allowed
-        if (asset.supplyCap > 0) {
-          transformedPools.push({
-            asset: asset.symbol,
-            provider: 'Echelon',
-            totalAPY: totalSupplyApr,
-            depositApy: totalSupplyApr,
-            borrowAPY: 0,
-            token: asset.faAddress || asset.address, // Use faAddress if available, otherwise address
-            protocol: 'Echelon',
-            poolType: 'Lending',
-            tvlUSD: marketStat.totalShares * (asset.price || 0),
-            dailyVolumeUSD: 0, // Echelon doesn't provide volume data
-            // Additional Echelon-specific data
-            supplyCap: asset.supplyCap,
-            borrowCap: asset.borrowCap,
-            supplyRewardsApr: supplyRewardsApr * 100,
-            borrowRewardsApr: borrowRewardsApr * 100,
-            marketAddress: asset.market,
-            totalSupply: marketStat.totalShares,
-            totalBorrow: marketStat.totalLiability,
-          });
-        }
+        // Create combined pool entry with both supply and borrow APRs
+        const hasSupply = asset.supplyCap > 0;
+        const hasBorrow = asset.borrowCap > 0;
+        const hasStaking = typeof rawStakingApr === 'number' && rawStakingApr > 0;
+        
+        if (hasSupply || hasBorrow || hasStaking) {
+          // Determine the main APR for sorting (use supply APR if available, otherwise staking APR)
+          let mainAPR = 0;
+          if (hasSupply) {
+            mainAPR = totalSupplyApr;
+          } else if (hasStaking) {
+            mainAPR = rawStakingApr * 100;
+          }
 
-        // Create Borrow pool entry if borrow is allowed
-        if (asset.borrowCap > 0) {
-          transformedPools.push({
-            asset: `${asset.symbol} (Borrow)`,
-            provider: 'Echelon',
-            totalAPY: -totalBorrowApr, // Negative for borrowing
-            depositApy: 0,
-            borrowAPY: totalBorrowApr,
-            token: asset.faAddress || asset.address, // Use faAddress if available, otherwise address
-            protocol: 'Echelon',
-            poolType: 'Lending',
-            tvlUSD: marketStat.totalLiability * (asset.price || 0),
-            dailyVolumeUSD: 0,
-            // Additional Echelon-specific data
-            supplyCap: asset.supplyCap,
-            borrowCap: asset.borrowCap,
-            supplyRewardsApr: supplyRewardsApr * 100,
-            borrowRewardsApr: borrowRewardsApr * 100,
-            marketAddress: asset.market,
-            totalSupply: marketStat.totalShares,
-            totalBorrow: marketStat.totalLiability,
-          });
-        }
+          // Create pool type description
+          let poolType = 'Lending';
+          if (hasStaking && !hasSupply && !hasBorrow) {
+            poolType = 'Staking';
+          } else if (hasSupply && hasBorrow) {
+            poolType = 'Lending (Supply + Borrow)';
+          } else if (hasSupply) {
+            poolType = 'Lending (Supply Only)';
+          } else if (hasBorrow) {
+            poolType = 'Lending (Borrow Only)';
+          }
 
-        // Create Staking pool entry if stakingApr is available (for stkAPT and other staking tokens)
-        if (typeof rawStakingApr === 'number' && rawStakingApr > 0) {
-          const stakingAprPct = rawStakingApr * 100;
+                     // Создаем основную запись пула
+           const poolEntry = {
+             asset: asset.symbol,
+             provider: 'Echelon',
+             totalAPY: mainAPR,
+             // depositApy должен включать totalSupplyApr + supplyRewardsApr
+             depositApy: (hasSupply ? totalSupplyApr : 0) + (hasStaking ? rawStakingApr * 100 : 0) + supplyRewardsApr * 100,
+             borrowAPY: hasBorrow ? totalBorrowApr : 0,
+             token: asset.faAddress || asset.address, // Use faAddress if available, otherwise address
+             protocol: 'Echelon',
+             poolType: poolType,
+             tvlUSD: (marketStat.totalShares + marketStat.totalLiability) * (asset.price || 0),
+             dailyVolumeUSD: 0, // Echelon doesn't provide volume data
+             // Additional Echelon-specific data
+             supplyCap: asset.supplyCap,
+             borrowCap: asset.borrowCap,
+             supplyRewardsApr: supplyRewardsApr * 100,
+             borrowRewardsApr: borrowRewardsApr * 100,
+             marketAddress: asset.market,
+             totalSupply: marketStat.totalShares,
+             totalBorrow: marketStat.totalLiability,
+             // Staking-specific fields (if applicable)
+             stakingApr: hasStaking ? rawStakingApr * 100 : undefined,
+             isStakingPool: hasStaking && !hasSupply && !hasBorrow,
+             stakingToken: hasStaking ? asset.symbol : undefined,
+             underlyingToken: hasStaking ? asset.symbol : undefined,
+             // Добавляем разбивку APR для tooltip
+             lendingApr: hasSupply ? (asset.supplyApr || 0) * 100 : 0,
+             stakingAprOnly: hasStaking ? rawStakingApr * 100 : 0,
+             // Общий Supply APR = Lending APR + Staking APR
+             totalSupplyApr: (hasSupply ? (asset.supplyApr || 0) * 100 : 0) + (hasStaking ? rawStakingApr * 100 : 0)
+           };
           
-          // Create a special staking pool entry
-          transformedPools.push({
-            asset: `${asset.symbol} (Staking)`,
-            provider: 'Kofi Finance', // Use Kofi Finance as provider for stkAPT
-            totalAPY: stakingAprPct,
-            depositApy: stakingAprPct,
-            borrowAPY: 0,
-            token: asset.faAddress || asset.address, // Use original stkAPT address for Echelon
-            protocol: 'Kofi Finance',
-            poolType: 'Staking',
-            tvlUSD: marketStat.totalShares * (asset.price || 0),
-            dailyVolumeUSD: 0,
-            // Additional staking-specific data
-            supplyCap: asset.supplyCap,
-            borrowCap: 0, // Staking pools don't have borrowing
-            supplyRewardsApr: stakingAprPct,
-            borrowRewardsApr: 0,
-            marketAddress: asset.market,
-            totalSupply: marketStat.totalShares,
-            totalBorrow: 0,
-            // Staking-specific fields
-            stakingApr: stakingAprPct,
-            isStakingPool: true,
-            stakingToken: asset.symbol === 'stkAPT' ? 'stkAPT' : asset.symbol,
-            underlyingToken: asset.symbol === 'stkAPT' ? 'APT' : asset.symbol,
-          });
+          transformedPools.push(poolEntry);
+          
+          // Для APT токена используем основной адрес, но добавляем альтернативные адреса в поле token
+          // Это позволит фронтенду правильно маппить данные без дублирования
+          if (asset.symbol === 'APT') {
+            // Обновляем основную запись, добавляя альтернативные адреса
+            poolEntry.token = asset.faAddress || asset.address; // Основной адрес
+            // Добавляем поле для альтернативных адресов APT
+            (poolEntry as any).aptAlternativeAddresses = ['0xa', '0x0a'];
+          }
         }
       });
     }
 
-    // Sort by total APY in descending order
-    transformedPools.sort((a, b) => Math.abs(b.totalAPY) - Math.abs(a.totalAPY));
+    // Sort by total APY in descending order, prioritizing supply APR over borrow APR
+    transformedPools.sort((a, b) => {
+      // Get the main APR for sorting (prefer supply/deposit APR over borrow APR)
+      const aprA = a.depositApy || Math.abs(a.borrowAPY) || 0;
+      const aprB = b.depositApy || Math.abs(b.borrowAPY) || 0;
+      return aprB - aprA;
+    });
 
     console.log(`Transformed ${transformedPools.length} Echelon pools`);
 

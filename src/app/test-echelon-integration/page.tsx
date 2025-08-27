@@ -129,7 +129,46 @@ export default function TestEchelonIntegrationPage() {
                        <strong>Total APR:</strong> {pool.totalAPY ? pool.totalAPY.toFixed(2) : '0'}%
                      </div>
                      <div>
-                       <strong>Deposit APR:</strong> {pool.depositApy ? pool.depositApy.toFixed(2) : '0'}%
+                       <strong>Deposit APR:</strong> {pool.depositApy ? (
+                         <TooltipProvider>
+                           <Tooltip>
+                             <TooltipTrigger asChild>
+                               <span className="cursor-help">
+                                 {pool.depositApy.toFixed(2)}%
+                               </span>
+                             </TooltipTrigger>
+                             <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
+                               <div className="text-xs font-semibold mb-1">Supply APR Breakdown:</div>
+                               <div className="space-y-1">
+                                 {pool.lendingApr > 0 && (
+                                   <div className="flex justify-between">
+                                     <span>Lending APR:</span>
+                                     <span className="text-green-400">{pool.lendingApr.toFixed(2)}%</span>
+                                   </div>
+                                 )}
+                                 {pool.stakingAprOnly > 0 && (
+                                   <div className="flex justify-between">
+                                     <span>Staking APR:</span>
+                                     <span className="text-blue-400">{pool.stakingAprOnly.toFixed(2)}%</span>
+                                   </div>
+                                 )}
+                                 {pool.supplyRewardsApr > 0 && (
+                                   <div className="flex justify-between">
+                                     <span>Rewards APR:</span>
+                                     <span className="text-yellow-400">{pool.supplyRewardsApr.toFixed(2)}%</span>
+                                   </div>
+                                 )}
+                                 <div className="border-t border-gray-600 pt-1 mt-1">
+                                   <div className="flex justify-between font-semibold">
+                                     <span>Total:</span>
+                                     <span className="text-white">{pool.depositApy.toFixed(2)}%</span>
+                                   </div>
+                                 </div>
+                               </div>
+                             </TooltipContent>
+                           </Tooltip>
+                         </TooltipProvider>
+                       ) : '0'}%
                      </div>
                      <div>
                        <strong>Borrow APR:</strong> {pool.borrowAPY ? pool.borrowAPY.toFixed(2) : '0'}%
