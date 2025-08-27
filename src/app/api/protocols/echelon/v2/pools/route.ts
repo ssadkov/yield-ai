@@ -182,9 +182,9 @@ export async function GET() {
           borrowRewardsApr = calculateRewardsApr(borrowPool, asset.price || 0, rewardCoinsMap);
         }
 
-        // Calculate total APRs
-        const totalSupplyApr = (asset.supplyApr || 0) * 100 + supplyRewardsApr * 100;
-        const totalBorrowApr = (asset.borrowApr || 0) * 100 + borrowRewardsApr * 100;
+        // Calculate total APRs (только lending + staking, без rewards)
+        const totalSupplyApr = (asset.supplyApr || 0) * 100;
+        const totalBorrowApr = (asset.borrowApr || 0) * 100;
 
         // Collect staking APR mapping (if available and positive)
         const rawStakingApr = (asset as any).stakingApr as number | undefined;
@@ -205,12 +205,10 @@ export async function GET() {
         const hasStaking = typeof rawStakingApr === 'number' && rawStakingApr > 0;
         
         if (hasSupply || hasBorrow || hasStaking) {
-          // Determine the main APR for sorting (use supply APR if available, otherwise staking APR)
+          // Determine the main APR for sorting (use depositApy for correct total APR)
           let mainAPR = 0;
-          if (hasSupply) {
-            mainAPR = totalSupplyApr;
-          } else if (hasStaking) {
-            mainAPR = rawStakingApr * 100;
+          if (hasSupply || hasStaking) {
+            mainAPR = (hasSupply ? totalSupplyApr : 0) + (hasStaking ? rawStakingApr * 100 : 0) + (supplyRewardsApr * 100);
           }
 
           // Create pool type description
@@ -230,8 +228,8 @@ export async function GET() {
              asset: asset.symbol,
              provider: 'Echelon',
              totalAPY: mainAPR,
-             // depositApy должен включать totalSupplyApr + supplyRewardsApr
-             depositApy: (hasSupply ? totalSupplyApr : 0) + (hasStaking ? rawStakingApr * 100 : 0) + supplyRewardsApr * 100,
+             // depositApy включает: lending APR + staking APR + rewards APR
+             depositApy: (hasSupply ? totalSupplyApr : 0) + (hasStaking ? rawStakingApr * 100 : 0) + (supplyRewardsApr * 100),
              borrowAPY: hasBorrow ? totalBorrowApr : 0,
              token: asset.faAddress || asset.address, // Use faAddress if available, otherwise address
              protocol: 'Echelon',
@@ -254,7 +252,7 @@ export async function GET() {
              // Добавляем разбивку APR для tooltip
              lendingApr: hasSupply ? (asset.supplyApr || 0) * 100 : 0,
              stakingAprOnly: hasStaking ? rawStakingApr * 100 : 0,
-             // Общий Supply APR = Lending APR + Staking APR
+             // Общий Supply APR = Lending APR + Staking APR (без rewards)
              totalSupplyApr: (hasSupply ? (asset.supplyApr || 0) * 100 : 0) + (hasStaking ? rawStakingApr * 100 : 0)
            };
           
