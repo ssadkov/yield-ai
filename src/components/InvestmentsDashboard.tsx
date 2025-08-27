@@ -858,7 +858,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                     }
                     return item.asset.toUpperCase().includes('USDT') || 
                            item.asset.toUpperCase().includes('USDC') ||
-                           item.asset.toUpperCase().includes('DAI');
+                           item.asset.toUpperCase().includes('DAI') ||
+                           item.asset.toUpperCase().includes('SUSD');
                   })
                   .sort((a, b) => b.totalAPY - a.totalAPY)
                   .slice(0, 3)
