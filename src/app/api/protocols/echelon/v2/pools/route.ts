@@ -30,6 +30,11 @@ type MarketAsset = {
   borrowCap: number;
   // Optional staking APR provided by Echelon for staking-like assets (fraction, not %)
   stakingApr?: number;
+  // LTV fields
+  ltv?: number;
+  lt?: number;
+  emodeLtv?: number;
+  emodeLt?: number;
 };
 
 function calculateRewardsApr(
@@ -253,7 +258,12 @@ export async function GET() {
              lendingApr: hasSupply ? (asset.supplyApr || 0) * 100 : 0,
              stakingAprOnly: hasStaking ? rawStakingApr * 100 : 0,
              // Общий Supply APR = Lending APR + Staking APR (без rewards)
-             totalSupplyApr: (hasSupply ? (asset.supplyApr || 0) * 100 : 0) + (hasStaking ? rawStakingApr * 100 : 0)
+             totalSupplyApr: (hasSupply ? (asset.supplyApr || 0) * 100 : 0) + (hasStaking ? rawStakingApr * 100 : 0),
+             // LTV fields
+             ltv: asset.ltv || 0,
+             lt: asset.lt || 0,
+             emodeLtv: asset.emodeLtv || 0,
+             emodeLt: asset.emodeLt || 0
            };
           
           transformedPools.push(poolEntry);

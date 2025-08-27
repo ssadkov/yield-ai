@@ -30,6 +30,11 @@ interface EchelonPool {
   lendingApr?: number;
   stakingAprOnly?: number;
   totalSupplyApr?: number;
+  // LTV fields
+  ltv?: number;
+  lt?: number;
+  emodeLtv?: number;
+  emodeLt?: number;
 }
 
 export default function TestEchelonPoolsPage() {
@@ -248,12 +253,42 @@ export default function TestEchelonPoolsPage() {
                                        <span className="text-yellow-400">{pool.supplyRewardsApr.toFixed(2)}%</span>
                                      </div>
                                    )}
-                                  <div className="border-t border-gray-600 pt-1 mt-1">
-                                    <div className="flex justify-between font-semibold">
-                                      <span>Total:</span>
-                                      <span className="text-white">{pool.depositApy.toFixed(2)}%</span>
-                                    </div>
-                                  </div>
+                                                                     <div className="border-t border-gray-600 pt-1 mt-1">
+                                     <div className="flex justify-between font-semibold">
+                                       <span>Total:</span>
+                                       <span className="text-white">{pool.depositApy.toFixed(2)}%</span>
+                                     </div>
+                                   </div>
+                                   {/* LTV Information */}
+                                   {pool.ltv && pool.ltv > 0 && (
+                                     <div className="border-t border-gray-600 pt-1 mt-1">
+                                       <div className="text-xs font-semibold mb-1 text-cyan-400">Collateral Info:</div>
+                                       <div className="space-y-1">
+                                         <div className="flex justify-between">
+                                           <span>LTV:</span>
+                                           <span className="text-cyan-400">{(pool.ltv * 100).toFixed(0)}%</span>
+                                         </div>
+                                         {pool.lt && pool.lt > 0 && (
+                                           <div className="flex justify-between">
+                                             <span>Liquidation Threshold:</span>
+                                             <span className="text-orange-400">{(pool.lt * 100).toFixed(0)}%</span>
+                                           </div>
+                                         )}
+                                         {pool.emodeLtv && pool.emodeLtv > 0 && (
+                                           <div className="flex justify-between">
+                                             <span>E-Mode LTV:</span>
+                                             <span className="text-purple-400">{(pool.emodeLtv * 100).toFixed(0)}%</span>
+                                           </div>
+                                         )}
+                                         {pool.emodeLt && pool.emodeLt > 0 && (
+                                           <div className="flex justify-between">
+                                             <span>E-Mode LT:</span>
+                                             <span className="text-pink-400">{(pool.emodeLt * 100).toFixed(0)}%</span>
+                                           </div>
+                                         )}
+                                       </div>
+                                     </div>
+                                   )}
                                 </div>
                               </TooltipContent>
                             </Tooltip>

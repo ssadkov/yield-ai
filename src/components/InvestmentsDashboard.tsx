@@ -436,7 +436,12 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   // APR breakdown fields
                   lendingApr: pool.lendingApr,
                   stakingAprOnly: pool.stakingAprOnly,
-                  totalSupplyApr: pool.totalSupplyApr
+                  totalSupplyApr: pool.totalSupplyApr,
+                  // LTV fields
+                  ltv: pool.ltv,
+                  lt: pool.lt,
+                  emodeLtv: pool.emodeLtv,
+                  emodeLt: pool.emodeLt
                 };
               });
             }
@@ -1451,12 +1456,42 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                         <span className="text-yellow-400">{item.supplyRewardsApr.toFixed(2)}%</span>
                                       </div>
                                     )}
-                                    <div className="border-t border-gray-600 pt-1 mt-1">
-                                      <div className="flex justify-between font-semibold">
-                                        <span>Total:</span>
-                                        <span className="text-white">{item.depositApy.toFixed(2)}%</span>
-                                      </div>
-                                    </div>
+                                                                         <div className="border-t border-gray-600 pt-1 mt-1">
+                                       <div className="flex justify-between font-semibold">
+                                         <span>Total:</span>
+                                         <span className="text-white">{item.depositApy.toFixed(2)}%</span>
+                                       </div>
+                                     </div>
+                                     {/* LTV Information */}
+                                     {item.ltv && item.ltv > 0 && (
+                                       <div className="border-t border-gray-600 pt-1 mt-1">
+                                         <div className="text-xs font-semibold mb-1 text-cyan-400">Collateral Info:</div>
+                                         <div className="space-y-1">
+                                           <div className="flex justify-between">
+                                             <span>LTV:</span>
+                                             <span className="text-cyan-400">{(item.ltv * 100).toFixed(0)}%</span>
+                                           </div>
+                                           {item.lt && item.lt > 0 && (
+                                             <div className="flex justify-between">
+                                               <span>Liquidation Threshold:</span>
+                                               <span className="text-orange-400">{(item.lt * 100).toFixed(0)}%</span>
+                                             </div>
+                                           )}
+                                           {item.emodeLtv && item.emodeLtv > 0 && (
+                                             <div className="flex justify-between">
+                                               <span>E-Mode LTV:</span>
+                                               <span className="text-purple-400">{(item.emodeLtv * 100).toFixed(0)}%</span>
+                                             </div>
+                                           )}
+                                           {item.emodeLt && item.emodeLt > 0 && (
+                                             <div className="flex justify-between">
+                                               <span>E-Mode LT:</span>
+                                               <span className="text-pink-400">{(item.emodeLt * 100).toFixed(0)}%</span>
+                                             </div>
+                                           )}
+                                         </div>
+                                       </div>
+                                     )}
                                   </div>
                                 </TooltipContent>
                               </Tooltip>
