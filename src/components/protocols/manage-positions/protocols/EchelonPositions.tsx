@@ -251,23 +251,28 @@ export function EchelonPositions() {
             const tokenKey = pool.token;
             
             if (assetKey) {
-              const poolData = {
-                supplyAPY: pool.depositApy,
-                borrowAPY: pool.borrowAPY,
-                supplyRewardsApr: pool.supplyRewardsApr,
-                borrowRewardsApr: pool.borrowRewardsApr,
-                marketAddress: pool.marketAddress,
-                asset: pool.asset,
-                poolType: pool.poolType,
-                // Добавляем информацию о том, какие типы операций доступны
-                hasSupply: pool.depositApy > 0,
-                hasBorrow: pool.borrowAPY > 0,
-                hasStaking: pool.stakingApr > 0,
-                // Добавляем разбивку APR для tooltip
-                lendingApr: pool.lendingApr || 0,
-                stakingAprOnly: pool.stakingAprOnly || 0,
-                totalSupplyApr: pool.totalSupplyApr || pool.depositApy || 0
-              };
+                          const poolData = {
+              supplyAPY: pool.depositApy,
+              borrowAPY: pool.borrowAPY,
+              supplyRewardsApr: pool.supplyRewardsApr,
+              borrowRewardsApr: pool.borrowRewardsApr,
+              marketAddress: pool.marketAddress,
+              asset: pool.asset,
+              poolType: pool.poolType,
+              // Добавляем информацию о том, какие типы операций доступны
+              hasSupply: pool.depositApy > 0,
+              hasBorrow: pool.borrowAPY > 0,
+              hasStaking: pool.stakingApr > 0,
+              // Добавляем разбивку APR для tooltip
+              lendingApr: pool.lendingApr || 0,
+              stakingAprOnly: pool.stakingAprOnly || 0,
+              totalSupplyApr: pool.totalSupplyApr || pool.depositApy || 0,
+              // LTV fields
+              ltv: pool.ltv,
+              lt: pool.lt,
+              emodeLtv: pool.emodeLtv,
+              emodeLt: pool.emodeLt
+            };
               
               // Сохраняем по символу токена
               apyMapping[assetKey] = poolData;
@@ -713,6 +718,36 @@ export function EchelonPositions() {
                                     <span className="text-white">{(apy * 100).toFixed(2)}%</span>
                                   </div>
                                 </div>
+                                {/* LTV Information */}
+                                {apyData[position.coin]?.ltv && apyData[position.coin].ltv > 0 && (
+                                  <div className="border-t border-gray-600 pt-1 mt-1">
+                                    <div className="text-xs font-semibold mb-1 text-cyan-400">Collateral Info:</div>
+                                    <div className="space-y-1">
+                                      <div className="flex justify-between">
+                                        <span>LTV:</span>
+                                        <span className="text-cyan-400">{(apyData[position.coin].ltv * 100).toFixed(0)}%</span>
+                                      </div>
+                                      {apyData[position.coin].lt && apyData[position.coin].lt > 0 && (
+                                        <div className="flex justify-between">
+                                          <span>Liquidation Threshold:</span>
+                                          <span className="text-orange-400">{(apyData[position.coin].lt * 100).toFixed(0)}%</span>
+                                        </div>
+                                      )}
+                                      {apyData[position.coin].emodeLtv && apyData[position.coin].emodeLtv > 0 && (
+                                        <div className="flex justify-between">
+                                          <span>E-Mode LTV:</span>
+                                          <span className="text-purple-400">{(apyData[position.coin].emodeLtv * 100).toFixed(0)}%</span>
+                                        </div>
+                                      )}
+                                      {apyData[position.coin].emodeLt && apyData[position.coin].emodeLt > 0 && (
+                                        <div className="flex justify-between">
+                                          <span>E-Mode LT:</span>
+                                          <span className="text-pink-400">{(apyData[position.coin].emodeLt * 100).toFixed(0)}%</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </TooltipContent>
                           </Tooltip>
