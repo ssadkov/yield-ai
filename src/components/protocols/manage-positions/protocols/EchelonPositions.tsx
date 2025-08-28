@@ -58,6 +58,15 @@ export function EchelonPositions() {
   const isModalOpenRef = useRef(false);
   const pricesService = PanoraPricesService.getInstance();
 
+  // Функция для нормализации адресов токенов
+  const normalizeTokenAddress = (coinAddress: string): string => {
+    // Специальная обработка для APT токена
+    if (coinAddress === '0xa' || coinAddress === '0x1') {
+      return '0x1::aptos_coin::AptosCoin';
+    }
+    return coinAddress;
+  };
+
   // Функция для получения информации о токене наград
   const getRewardTokenInfoHelper = (tokenName: string) => {
     const token = (tokenList as any).data.data.find(
@@ -212,6 +221,10 @@ export function EchelonPositions() {
       
       // Получаем LT для токена
       let poolData = apyData[position.coin];
+      if (!poolData) {
+        const normalizedCoin = normalizeTokenAddress(position.coin);
+        poolData = apyData[normalizedCoin];
+      }
       if (!poolData && tokenInfo?.symbol) {
         poolData = apyData[tokenInfo.symbol];
       }
@@ -466,7 +479,14 @@ export function EchelonPositions() {
     // Ищем данные в APR маппинге по адресу токена
     let poolData = apyData[position.coin];
     
-    // Если не найдено по адресу, попробуем найти по символу токена
+    // Если не найдено по адресу, попробуем найти по нормализованному адресу
+    if (!poolData && position.coin) {
+      const normalizedCoin = normalizeTokenAddress(position.coin);
+      poolData = apyData[normalizedCoin];
+      console.log(`Trying to find APR data by normalized address ${normalizedCoin} for ${position.coin}`);
+    }
+    
+    // Если не найдено по нормализованному адресу, попробуем найти по символу токена
     if (!poolData && position.coin) {
       const tokenInfo = getTokenInfo(position.coin);
       if (tokenInfo?.symbol) {
@@ -543,8 +563,14 @@ export function EchelonPositions() {
      if (!marketAddress) {
        let poolData = apyData[position.coin];
        
-
+       // Если не найдено по адресу, попробуем найти по нормализованному адресу
+       if (!poolData) {
+         const normalizedCoin = normalizeTokenAddress(position.coin);
+         poolData = apyData[normalizedCoin];
+         console.log(`Trying to find market address by normalized address ${normalizedCoin} for ${position.coin}`);
+       }
        
+       // Если не найдено по нормализованному адресу, попробуем найти по символу токена
        if (!poolData) {
          const tokenInfo = getTokenInfo(position.coin);
          if (tokenInfo?.symbol) {
@@ -555,6 +581,18 @@ export function EchelonPositions() {
        if (poolData?.marketAddress) {
          marketAddress = poolData.marketAddress;
          console.log('Found market address for deposit:', marketAddress);
+       }
+     }
+     
+     // Если все еще нет market address, попробуем найти в локальных данных
+     if (!marketAddress) {
+       console.log('Deposit click - trying to get market address from local data');
+       const normalizedCoin = normalizeTokenAddress(position.coin);
+       console.log('Deposit click - normalized coin address:', normalizedCoin);
+       let localMarket = echelonMarkets.markets.find((m: any) => m.coin === normalizedCoin);
+       if (localMarket?.market) {
+         marketAddress = localMarket.market;
+         console.log('Found market address for deposit from local data:', marketAddress);
        }
      }
     
@@ -620,9 +658,14 @@ export function EchelonPositions() {
           console.log('Withdraw confirm - trying to get market address from apyData');
           let poolData = apyData[selectedPosition.coin];
           
-
+          // Если не найдено по адресу, попробуем найти по нормализованному адресу
+          if (!poolData) {
+            const normalizedCoin = normalizeTokenAddress(selectedPosition.coin);
+            poolData = apyData[normalizedCoin];
+            console.log(`Trying to find market address by normalized address ${normalizedCoin} for ${selectedPosition.coin}`);
+          }
           
-          // Если не найдено по адресу, попробуем найти по символу токена
+          // Если не найдено по нормализованному адресу, попробуем найти по символу токена
           if (!poolData) {
             const tokenInfo = getTokenInfo(selectedPosition.coin);
             if (tokenInfo?.symbol) {
@@ -640,7 +683,9 @@ export function EchelonPositions() {
              // Если все еще нет market address, используем локальные данные
        if (!marketAddress) {
          console.log('Withdraw confirm - trying to get market address from local data');
-         let localMarket = echelonMarkets.markets.find((m: any) => m.coin === selectedPosition.coin);
+         const normalizedCoin = normalizeTokenAddress(selectedPosition.coin);
+         console.log('Withdraw confirm - normalized coin address:', normalizedCoin);
+         let localMarket = echelonMarkets.markets.find((m: any) => m.coin === normalizedCoin);
          
 
          
