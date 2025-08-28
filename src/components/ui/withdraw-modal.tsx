@@ -106,10 +106,16 @@ export function WithdrawModal({
   };
 
   // Получаем Available Balance из position (userPositions API)
-  // Конвертируем дробное число в octas (наименьшие единицы токена)
-  const availableBalanceInOctas = parseFloat(position.supply) * (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
-  const availableBalance = BigInt(Math.floor(availableBalanceInOctas));
+  // position.supply уже содержит значение в octas (наименьших единицах токена)
+  const availableBalance = BigInt(position.supply);
   const availableBalanceFormatted = Number(availableBalance) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
+
+  console.log('WithdrawModal - Raw data:', {
+    positionSupply: position.supply,
+    tokenInfoDecimals: tokenInfo?.decimals,
+    availableBalance: availableBalance.toString(),
+    availableBalanceFormatted: availableBalanceFormatted
+  });
 
   // Рассчитываем количество для вывода на основе процента от Available Balance
   const withdrawAmount = availableBalance > 0 
@@ -149,14 +155,13 @@ export function WithdrawModal({
       return;
     }
 
-    // Для AAVE используем availableBalance (из userPositions), так как у нас нет vaultBalance
-    // Для других протоколов можно использовать vaultBalance если он доступен
+    // Используем availableBalance (из userPositions API)
     const payloadAmount = availableBalance > 0 
       ? (availableBalance * BigInt(percentage[0])) / BigInt(100)
       : BigInt(0);
 
-    console.log('WithdrawModal - Payload amount (availableBalance):', payloadAmount.toString());
-    console.log('WithdrawModal - Display amount (userPositions):', withdrawAmount.toString());
+    console.log('WithdrawModal - Payload amount:', payloadAmount.toString());
+    console.log('WithdrawModal - Display amount:', withdrawAmount.toString());
 
     onConfirm(payloadAmount);
   };
