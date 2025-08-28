@@ -33,6 +33,26 @@ const CustomTooltip = ({ active, payload }: any) => {
 export function PortfolioChart({ data }: { data: SectorDatum[] }) {
   const chartData = (data || []).filter((d) => d && d.value > 0)
   const sum = chartData.reduce((acc, d) => acc + d.value, 0)
+  
+  // Группируем протоколы менее 5% в "Other"
+  const threshold = 0.05 // 5%
+  
+  // Wallet всегда отображается отдельно
+  //const walletData = chartData.filter(d => d.name.toLowerCase() === 'wallet')
+  //const protocolData = chartData.filter(d => d.name.toLowerCase() !== 'wallet')
+  const protocolData = chartData.filter(d => d.name.toLowerCase())
+  
+  const mainProtocols = protocolData.filter(d => (d.value / sum) >= threshold)
+  const smallProtocols = protocolData.filter(d => (d.value / sum) < threshold)
+  
+  //let finalData = [...walletData, ...mainProtocols]
+  let finalData = [...mainProtocols]
+  if (smallProtocols.length > 0) {
+    const otherValue = smallProtocols.reduce((acc, d) => acc + d.value, 0)
+    if (otherValue > 0) {
+      finalData.push({ name: "Other", value: otherValue })
+    }
+  }
   return (
    
         <div className="mx-auto aspect-square w-full">
@@ -40,17 +60,18 @@ export function PortfolioChart({ data }: { data: SectorDatum[] }) {
             <PieChart>
               <Tooltip content={<CustomTooltip />} />
               <Pie 
-                data={chartData} 
+                data={finalData} 
                 dataKey="value" 
                 nameKey="name"
                 cx="50%" 
                 cy="50%"
                 outerRadius={80}
                 label={({ name, percent }) => `${name}: ${percent ? Math.round(percent * 100) : 0}%`}
-                labelLine={false}
+                labelLine={ true }
+                isAnimationActive={ false }
               >
               
-                {chartData.map((_, index) => (
+                {finalData.map((_, index) => (
                   <Cell key={`cell-${index}`} fill={defaultColors[index % defaultColors.length]} />
                 ))}
               
