@@ -206,11 +206,16 @@ export function AavePositions() {
   // Подписка на глобальное событие обновления позиций
   useEffect(() => {
     const handleRefresh = (event: CustomEvent) => {
+      console.log('AavePositions - Received refreshPositions event:', event.detail);
+      
       if (event.detail?.protocol === 'aave') {
+        console.log('AavePositions - Protocol matches aave, processing event');
         const incoming = event.detail?.data;
         if (incoming && Array.isArray(incoming)) {
+          console.log('AavePositions - Setting positions from event data:', incoming);
           setPositions(incoming);
         } else {
+          console.log('AavePositions - No event data, fetching from API');
           // Перезагружаем из API
           if (account?.address) {
             setLoading(true);
@@ -218,16 +223,23 @@ export function AavePositions() {
               .then(res => res.json())
               .then(data => {
                 if (data.success && data.data) {
+                  console.log('AavePositions - API response success, setting positions:', data.data);
                   setPositions(data.data);
+                } else {
+                  console.log('AavePositions - API response failed:', data);
                 }
               })
-              .catch(console.error)
+              .catch(error => {
+                console.error('AavePositions - API fetch error:', error);
+              })
               .finally(() => {
                 setLoading(false);
                 setHasAttemptedLoad(true);
               });
           }
         }
+      } else {
+        console.log('AavePositions - Protocol does not match aave, ignoring event');
       }
     };
 

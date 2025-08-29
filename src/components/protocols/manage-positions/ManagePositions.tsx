@@ -35,6 +35,8 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
       
       // Специальная обработка для разных протоколов
       let apiPath = protocol.name.toLowerCase();
+      let endpoint = 'userPositions';
+      
       if (protocol.name.toLowerCase().includes('tapp')) {
         apiPath = 'tapp';
       } else if (protocol.name.toLowerCase().includes('auro')) {
@@ -45,9 +47,10 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
         apiPath = 'amnis';
       } else if (protocol.name.toLowerCase().includes('aave')) {
         apiPath = 'aave';
+        endpoint = 'positions'; // AAVE использует endpoint 'positions' вместо 'userPositions'
       }
       
-      const response = await fetch(`/api/protocols/${apiPath}/userPositions?address=${account.address}`);
+      const response = await fetch(`/api/protocols/${apiPath}/${endpoint}?address=${account.address}`);
       
       if (!response.ok) {
         throw new Error(`API returned status ${response.status}`);
@@ -56,10 +59,17 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
       // Обновляем данные в компоненте протокола
       const data = await response.json();
       if (data.success) {
+        console.log('ManagePositions - Dispatching refreshPositions event:', { 
+          protocol: apiPath, 
+          data: data.data,
+          eventDetail: { protocol: apiPath, data: data.data }
+        });
+        
         // Вызываем обновление через событие
         window.dispatchEvent(new CustomEvent('refreshPositions', { 
           detail: { protocol: apiPath, data: data.data }
         }));
+        
         toast({
           title: "Success",
           description: `${protocol.name} positions refreshed successfully`,
