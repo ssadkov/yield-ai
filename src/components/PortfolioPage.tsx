@@ -11,7 +11,7 @@ import { AlphaBadge } from "./ui/alpha-badge";
 import { Input } from "@/components/ui/input";
 import { Button } from '@/components/ui/button';
 import { PortfolioChart } from './chart/PortfolioChart';
-import {  ArrowLeft, Wallet, DollarSign, RefreshCw, Search, Copy } from 'lucide-react';
+import {  ArrowLeft, Wallet, DollarSign, RefreshCw, Search, Copy, ExternalLink } from 'lucide-react';
 import { CollapsibleProvider } from "@/contexts/CollapsibleContext";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import { PositionsList as HyperionPositionsList } from "./protocols/hyperion/PositionsList";
@@ -258,6 +258,19 @@ export default function PortfolioPage() {
 					      className="font-mono text-sm h-10 pr-10 w-full truncate"
 				        />
 					    <div className="absolute right-1 top-1 flex gap-1">
+					      <Button 
+					        size="sm" 
+					        variant="ghost" 
+					        onClick={() => {
+					          if (resolvedAddress) {
+					            window.open(`https://explorer.aptoslabs.com/account/${resolvedAddress}`, '_blank');
+					          }
+					        }}
+					        className="h-8 w-8 p-0 pb-3 cursor-pointer"
+					        title="View on Aptos Explorer"
+					      >
+					        <ExternalLink className="h-4 w-4" />
+					      </Button>
 					      <Button 
 					        size="sm" 
 					        variant="ghost" 
