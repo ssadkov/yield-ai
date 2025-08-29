@@ -11,7 +11,7 @@ import { AlphaBadge } from "./ui/alpha-badge";
 import { Input } from "@/components/ui/input";
 import { Button } from '@/components/ui/button';
 import { PortfolioChart } from './chart/PortfolioChart';
-import {  ArrowLeft, Wallet, DollarSign, RefreshCw, Search } from 'lucide-react';
+import {  ArrowLeft, Wallet, DollarSign, RefreshCw, Search, Copy } from 'lucide-react';
 import { CollapsibleProvider } from "@/contexts/CollapsibleContext";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import { PositionsList as HyperionPositionsList } from "./protocols/hyperion/PositionsList";
@@ -254,17 +254,33 @@ export default function PortfolioPage() {
 				          value={addressInput}
 					      onChange={(e) => setAddressInput(e.target.value)}
 					      onKeyDown={handleKeyDown}
-					      placeholder={account?.address}
+					      placeholder={input}
 					      className="font-mono text-sm h-10 pr-10 w-full truncate"
 				        />
-					    <Button 
-					      size="sm" 
-					      variant="ghost" 
-					      onClick={handleSearch}
-					      className="absolute right-1 top-1 h-8 w-8 p-0 pb-3 cursor-pointer"
-					    >
-					      <Search className="h-4 w-4" />
-					    </Button>
+					    <div className="absolute right-1 top-1 flex gap-1">
+					      <Button 
+					        size="sm" 
+					        variant="ghost" 
+					        onClick={() => {
+					          if (account?.address) {
+					            navigator.clipboard.writeText(account.address);
+					          }
+					        }}
+					        className="h-8 w-8 p-0 pb-3 cursor-pointer"
+					        title="Copy address"
+					      >
+					        <Copy className="h-4 w-4" />
+					      </Button>
+					      <Button 
+					        size="sm" 
+					        variant="ghost" 
+					        onClick={handleSearch}
+					        className="h-8 w-8 p-0 pb-3 cursor-pointer"
+					        title="Search"
+					      >
+					        <Search className="h-4 w-4" />
+					      </Button>
+					    </div>
 				      </div>
 			        </div>
 
@@ -369,7 +385,7 @@ export default function PortfolioPage() {
                           .map(({ component: Component, name }) => (
                             <Component
                               key={name}
-                              address={account?.address.toString()}
+                              address={account?.address ?? ""}
                               walletTokens={tokens}
 						      showManageButton={false}
                               onPositionsValueChange={
