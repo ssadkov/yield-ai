@@ -21,8 +21,8 @@ export class EchelonProtocol implements BaseProtocol {
     return market.market;
   }
 
-  async buildDeposit(amountOctas: bigint, token: string) {
-    console.log('Building deposit for:', { amountOctas, token });
+  async buildDeposit(amountOctas: bigint, token: string, userAddress?: string) {
+    console.log('Building deposit for:', { amountOctas, token, userAddress });
 
     const tokenInfo = await getTokenInfo(token);
     console.log('Token info:', tokenInfo);
@@ -42,8 +42,8 @@ export class EchelonProtocol implements BaseProtocol {
     };
   }
 
-  async buildWithdraw(marketAddress: string, amountOctas: bigint, token: string) {
-    console.log('Building withdraw for:', { marketAddress, amountOctas, token });
+  async buildWithdraw(marketAddress: string, amountOctas: bigint, token: string, userAddress?: string) {
+    console.log('Building withdraw for:', { marketAddress, amountOctas, token, userAddress });
 
     const tokenInfo = await getTokenInfo(token);
     console.log('Token info:', tokenInfo);

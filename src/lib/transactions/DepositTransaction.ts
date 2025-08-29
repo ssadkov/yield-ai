@@ -71,7 +71,7 @@ export async function executeDeposit(
   }
 
   // Standard protocol handling
-  const payload = await protocol.buildDeposit(amount, token);
+  const payload = await protocol.buildDeposit(amount, token, wallet.account?.address?.toString());
   console.log('Generated payload:', payload);
 
   if (!payload || typeof payload !== 'object') {

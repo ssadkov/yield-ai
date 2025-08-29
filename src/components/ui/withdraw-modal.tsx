@@ -106,13 +106,15 @@ export function WithdrawModal({
   };
 
   // Получаем Available Balance из position (userPositions API)
-  // position.supply уже содержит значение в octas (наименьших единицах токена)
-  const availableBalance = BigInt(position.supply);
+  // position.supply содержит значение в человекочитаемом формате, нужно конвертировать в octas
+  const availableBalanceInOctas = parseFloat(position.supply) * (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
+  const availableBalance = BigInt(Math.floor(availableBalanceInOctas));
   const availableBalanceFormatted = Number(availableBalance) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
 
   console.log('WithdrawModal - Raw data:', {
     positionSupply: position.supply,
     tokenInfoDecimals: tokenInfo?.decimals,
+    availableBalanceInOctas: availableBalanceInOctas,
     availableBalance: availableBalance.toString(),
     availableBalanceFormatted: availableBalanceFormatted
   });

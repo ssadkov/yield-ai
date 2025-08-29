@@ -14,8 +14,8 @@ import { PanoraPricesService } from "@/lib/services/panora/prices";
 import { TokenPrice } from "@/lib/types/panora";
 import { useWithdraw } from "@/lib/hooks/useWithdraw";
 import { WithdrawModal } from "@/components/ui/withdraw-modal";
-// import { useDeposit } from "@/lib/hooks/useDeposit";
-// import { DepositModal } from "@/components/ui/deposit-modal";
+import { useDeposit } from "@/lib/hooks/useDeposit";
+import { DepositModal } from "@/components/ui/deposit-modal";
 import { ProtocolKey } from "@/lib/transactions/types";
 
 interface AavePosition {
@@ -69,9 +69,9 @@ export function AavePositions() {
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<AavePosition | null>(null);
   const { withdraw, isLoading: isWithdrawing } = useWithdraw();
-  // const [showDepositModal, setShowDepositModal] = useState(false);
-  // const [selectedDepositPosition, setSelectedDepositPosition] = useState<AavePosition | null>(null);
-  // const { deposit, isLoading: isDepositing } = useDeposit();
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [selectedDepositPosition, setSelectedDepositPosition] = useState<AavePosition | null>(null);
+  const { deposit, isLoading: isDepositing } = useDeposit();
   const pricesService = PanoraPricesService.getInstance();
 
   // Функция для получения информации о токене
@@ -279,35 +279,35 @@ export function AavePositions() {
     }
   };
 
-  // Обработчик открытия модального окна deposit - Hidden
-  // const handleDepositClick = (position: AavePosition) => {
-  //   setSelectedDepositPosition(position);
-  //   setShowDepositModal(true);
-  // };
+  // Обработчик открытия модального окна deposit
+  const handleDepositClick = (position: AavePosition) => {
+    setSelectedDepositPosition(position);
+    setShowDepositModal(true);
+  };
 
-  // Обработчик подтверждения deposit - Hidden
-  // const handleDepositConfirm = async (amount: bigint) => {
-  //   if (!selectedDepositPosition) return;
-  //   
-  //   try {
-  //     console.log('Deposit confirm - selectedPosition:', selectedDepositPosition);
-  //     console.log('Deposit confirm - amount:', amount.toString());
-  //     console.log('Deposit confirm - token:', selectedDepositPosition.underlying_asset);
-  //   
-  //     // AAVE проще - используем underlying_asset напрямую
-  //     const tokenAddress = selectedDepositPosition.underlying_asset;
-  //   
-  //     // Вызываем deposit через useDeposit hook
-  //     await deposit('aave', tokenAddress, amount);
-  //   
-  //     // Закрываем модал и обновляем состояние
-  //     setShowDepositModal(false);
-  //     setSelectedDepositPosition(null);
-  //   
-  //   } catch (error) {
-  //     console.error('Deposit failed:', error);
-  //   }
-  // };
+  // Обработчик подтверждения deposit
+  const handleDepositConfirm = async (amount: bigint) => {
+    if (!selectedDepositPosition) return;
+    
+    try {
+      console.log('Deposit confirm - selectedPosition:', selectedDepositPosition);
+      console.log('Deposit confirm - amount:', amount.toString());
+      console.log('Deposit confirm - token:', selectedDepositPosition.underlying_asset);
+      
+      // AAVE проще - используем underlying_asset напрямую
+      const tokenAddress = selectedDepositPosition.underlying_asset;
+      
+      // Вызываем deposit через useDeposit hook
+      await deposit('aave', tokenAddress, amount);
+      
+      // Закрываем модал и обновляем состояние
+      setShowDepositModal(false);
+      setSelectedDepositPosition(null);
+      
+    } catch (error) {
+      console.error('Deposit failed:', error);
+    }
+  };
 
   // Создаем плоский список позиций для отображения
   const flattenedPositions = positions.flatMap(position => {
@@ -466,23 +466,31 @@ export function AavePositions() {
                   )}
                 </div>
                 
-                {/* Нижняя строка - кнопки действий */}
-                {!isBorrow && position.deposit_amount > 0 && (
-                  <div className="pt-2">
-                    <div className="flex gap-2">
-                      {/* Deposit button hidden */}
-                      <Button
-                        onClick={() => handleWithdrawClick(position)}
-                        disabled={isWithdrawing}
-                        size="sm"
-                        variant="outline"
-                        className="w-full h-10"
-                      >
-                        {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
-                      </Button>
-                    </div>
-                  </div>
-                )}
+                                 {/* Нижняя строка - кнопки действий */}
+                 {!isBorrow && position.deposit_amount > 0 && (
+                   <div className="pt-2">
+                     <div className="flex gap-2">
+                       <Button
+                         onClick={() => handleDepositClick(position)}
+                         disabled={isDepositing}
+                         size="sm"
+                         variant="default"
+                         className="flex-1 h-10"
+                       >
+                         {isDepositing ? 'Depositing...' : 'Deposit'}
+                       </Button>
+                       <Button
+                         onClick={() => handleWithdrawClick(position)}
+                         disabled={isWithdrawing}
+                         size="sm"
+                         variant="outline"
+                         className="flex-1 h-10"
+                       >
+                         {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
+                       </Button>
+                     </div>
+                   </div>
+                 )}
               </div>
               
               {/* Десктопная компоновка - горизонтальная */}
@@ -542,21 +550,29 @@ export function AavePositions() {
                   <div className="text-base text-muted-foreground font-semibold">
                     {amount.toFixed(4)}
                   </div>
-                  {/* Кнопки действий для deposit позиций */}
-                  {!isBorrow && position.deposit_amount > 0 && (
-                    <div className="flex gap-2 mt-2">
-                      {/* Deposit button hidden */}
-                      <Button
-                        onClick={() => handleWithdrawClick(position)}
-                        disabled={isWithdrawing}
-                        size="sm"
-                        variant="outline"
-                        className="w-full"
-                      >
-                        {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
-                      </Button>
-                    </div>
-                  )}
+                                     {/* Кнопки действий для deposit позиций */}
+                   {!isBorrow && position.deposit_amount > 0 && (
+                     <div className="flex gap-2 mt-2">
+                       <Button
+                         onClick={() => handleDepositClick(position)}
+                         disabled={isDepositing}
+                         size="sm"
+                         variant="default"
+                         className="flex-1"
+                       >
+                         {isDepositing ? 'Depositing...' : 'Deposit'}
+                       </Button>
+                       <Button
+                         onClick={() => handleWithdrawClick(position)}
+                         disabled={isWithdrawing}
+                         size="sm"
+                         variant="outline"
+                         className="flex-1"
+                       >
+                         {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
+                       </Button>
+                     </div>
+                   )}
                 </div>
               </div>
             </div>
@@ -590,38 +606,38 @@ export function AavePositions() {
         />
       )}
 
-      {/* Deposit Modal - Hidden */}
-      {/* {selectedDepositPosition && (
-        <DepositModal
-          isOpen={showDepositModal}
-          onClose={() => {
-            setShowDepositModal(false);
-            setSelectedDepositPosition(null);
-          }}
-          protocol={{
-            name: "Aave",
-            logo: "/protocol_ico/aave.ico",
-            apy: (() => {
-              const apyValue = getApyForPosition(selectedDepositPosition, 'deposit');
-              return apyValue ? apyValue * 100 : 0;
-            })(),
-            key: "aave" as ProtocolKey
-          }}
-          tokenIn={{
-            symbol: getTokenInfo(selectedDepositPosition.underlying_asset)?.symbol || selectedDepositPosition.symbol,
-            logo: getTokenInfo(selectedDepositPosition.underlying_asset)?.logoUrl || '/file.svg',
-            decimals: getTokenInfo(selectedDepositPosition.underlying_asset)?.decimals || 8,
-            address: selectedDepositPosition.underlying_asset
-          }}
-          tokenOut={{
-            symbol: getTokenInfo(selectedDepositPosition.underlying_asset)?.symbol || selectedDepositPosition.symbol,
-            logo: getTokenInfo(selectedDepositPosition.underlying_asset)?.logoUrl || '/file.svg',
-            decimals: getTokenInfo(selectedDepositPosition.underlying_asset)?.decimals || 8,
-            address: selectedDepositPosition.underlying_asset
-          }}
-          priceUSD={parseFloat(getTokenPrice(selectedDepositPosition.underlying_asset)) || 0}
-        />
-      )} */}
+             {/* Deposit Modal */}
+       {selectedDepositPosition && (
+         <DepositModal
+           isOpen={showDepositModal}
+           onClose={() => {
+             setShowDepositModal(false);
+             setSelectedDepositPosition(null);
+           }}
+           protocol={{
+             name: "Aave",
+             logo: "/protocol_ico/aave.ico",
+             apy: (() => {
+               const apyValue = getApyForPosition(selectedDepositPosition, 'deposit');
+               return apyValue ? apyValue * 100 : 0;
+             })(),
+             key: "aave" as ProtocolKey
+           }}
+           tokenIn={{
+             symbol: getTokenInfo(selectedDepositPosition.underlying_asset)?.symbol || selectedDepositPosition.symbol,
+             logo: getTokenInfo(selectedDepositPosition.underlying_asset)?.logoUrl || '/file.svg',
+             decimals: getTokenInfo(selectedDepositPosition.underlying_asset)?.decimals || 8,
+             address: selectedDepositPosition.underlying_asset
+           }}
+           tokenOut={{
+             symbol: getTokenInfo(selectedDepositPosition.underlying_asset)?.symbol || selectedDepositPosition.symbol,
+             logo: getTokenInfo(selectedDepositPosition.underlying_asset)?.logoUrl || '/file.svg',
+             decimals: getTokenInfo(selectedDepositPosition.underlying_asset)?.decimals || 8,
+             address: selectedDepositPosition.underlying_asset
+           }}
+           priceUSD={parseFloat(getTokenPrice(selectedDepositPosition.underlying_asset)) || 0}
+         />
+       )}
     </div>
   );
 }

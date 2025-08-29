@@ -137,7 +137,7 @@
     "url": "https://aptos.aave.com/",
     "logoUrl": "/protocol_ico/aave.ico",
     "description": "Aave is an Open Source Protocol to create Non-Custodial Liquidity Markets to earn interest on supplying and borrowing assets with a variable or stable interest rate.",
-    "depositType": "external",
+    "depositType": "native",
     "depositUrl": "https://aptos.aave.com/",
     "isDepositEnabled": true,
     "managedType": "native"
