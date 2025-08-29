@@ -52,7 +52,10 @@ export default function PortfolioPage() {
   
   const { resolvedAddress, resolvedName, isLoading, error } = useAptosAddressResolver(input);
   
-  const account = { address: resolvedAddress };
+
+  let account = null;
+  // Позже присвойте значение
+  account = { address: resolvedAddress };
 
   const allProtocolNames = [
     "Hyperion",
