@@ -220,10 +220,10 @@ export default function PortfolioPage() {
                   <div className="flex items-left">
                     <Button
                       variant="ghost"
-                      onClick={() => router.push('/portfolio')}
+                      onClick={() => router.push('/')}
                     >
                       <ArrowLeft className="h-4 w-4 mr-2" />
-                      Back to Wallet Explorer
+                      Yield AI Dashboard — manage your portfolio
                     </Button>
                   </div>
                 </div>
