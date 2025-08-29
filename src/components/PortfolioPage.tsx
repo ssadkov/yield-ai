@@ -91,7 +91,7 @@ export default function PortfolioPage() {
   };
 
   const loadPortfolio = useCallback(async () => {
-    if (!account?.address) {
+    if (!resolvedAddress) {
       setTokens([]);
       setTotalValue(0);
       return;
@@ -100,7 +100,7 @@ export default function PortfolioPage() {
     try {
       setIsRefreshing(true);
       const portfolioService = new AptosPortfolioService();
-      const portfolio = await portfolioService.getPortfolio(account?.address.toString());
+      const portfolio = await portfolioService.getPortfolio(resolvedAddress);
       setTokens(portfolio.tokens);
       
       // Вычисляем общую стоимость из токенов
@@ -115,7 +115,7 @@ export default function PortfolioPage() {
     } finally {
       setIsRefreshing(false);
     }
-  }, [account?.address]);
+  }, [resolvedAddress]);
 
   const handleRefresh = useCallback(async () => {
     await loadPortfolio();
@@ -136,7 +136,7 @@ export default function PortfolioPage() {
   useEffect(() => {
     loadPortfolio();
     // Initialize checking list when account changes
-    if (account?.address) {
+    if (resolvedAddress) {
       resetChecking();
     } else {
       setCheckingProtocols([]);
@@ -234,7 +234,7 @@ export default function PortfolioPage() {
 
               <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
                 <div className="flex-1 overflow-y-auto m-4">
-                  {account?.address ? ( 
+                  {resolvedAddress ? ( 
                     <>
                     
 					<div className="mt-4 space-y-4"> 
@@ -262,8 +262,8 @@ export default function PortfolioPage() {
 					        size="sm" 
 					        variant="ghost" 
 					        onClick={() => {
-					          if (account?.address) {
-					            navigator.clipboard.writeText(account.address);
+					          if (resolvedAddress) {
+					            navigator.clipboard.writeText(resolvedAddress);
 					          }
 					        }}
 					        className="h-8 w-8 p-0 pb-3 cursor-pointer"
@@ -385,7 +385,7 @@ export default function PortfolioPage() {
                           .map(({ component: Component, name }) => (
                             <Component
                               key={name}
-                              address={account?.address ?? ""}
+                              address={resolvedAddress ?? ""}
                               walletTokens={tokens}
 						      showManageButton={false}
                               onPositionsValueChange={
@@ -413,7 +413,7 @@ export default function PortfolioPage() {
                   ) : (
                     <div className="mt-4 p-4 bg-muted rounded-lg">
                       <p className="text-sm text-muted-foreground">
-                        Connect your Aptos wallet to view your assets and positions in DeFi protocols
+                        Enter a valid Aptos address to view portfolio
                       </p>
                     </div>
                   )}
