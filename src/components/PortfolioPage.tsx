@@ -10,7 +10,7 @@ import { Logo } from "./ui/logo";
 import { AlphaBadge } from "./ui/alpha-badge";
 import { Input } from "@/components/ui/input";
 import { Button } from '@/components/ui/button';
-import { PortfolioChart } from './PortfolioChart';
+import { PortfolioChart } from './chart/PortfolioChart';
 import {  ArrowLeft, Wallet, DollarSign, RefreshCw, Search } from 'lucide-react';
 import { CollapsibleProvider } from "@/contexts/CollapsibleContext";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
@@ -26,6 +26,7 @@ import { PositionsList as EarniumPositionsList } from "./protocols/earnium/Posit
 import { PositionsList as AavePositionsList } from "./protocols/aave/PositionsList";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAptosAddressResolver } from '@/lib/hooks/useAptosAddressResolver';
 
 export default function PortfolioPage() {
   //const { account } = useWallet();
@@ -47,8 +48,11 @@ export default function PortfolioPage() {
 
   const params = useParams();
   const router = useRouter();
-  const address = params.address as string;
-  const account = { address };
+  const input = params.address as string;
+  
+  const { resolvedAddress, resolvedName, isLoading, error } = useAptosAddressResolver(input);
+  
+  const account = { address: resolvedAddress };
 
   const allProtocolNames = [
     "Hyperion",
@@ -93,7 +97,7 @@ export default function PortfolioPage() {
     try {
       setIsRefreshing(true);
       const portfolioService = new AptosPortfolioService();
-      const portfolio = await portfolioService.getPortfolio(account.address.toString());
+      const portfolio = await portfolioService.getPortfolio(account?.address.toString());
       setTokens(portfolio.tokens);
       
       // Вычисляем общую стоимость из токенов
@@ -216,10 +220,10 @@ export default function PortfolioPage() {
                   <div className="flex items-left">
                     <Button
                       variant="ghost"
-                      onClick={() => router.push('/portfolio')}
+                      onClick={() => router.push('/')}
                     >
                       <ArrowLeft className="h-4 w-4 mr-2" />
-                      Back to Wallet Explorer
+                      Yield AI Dashboard — manage your portfolio
                     </Button>
                   </div>
                 </div>
@@ -247,7 +251,7 @@ export default function PortfolioPage() {
 				          value={addressInput}
 					      onChange={(e) => setAddressInput(e.target.value)}
 					      onKeyDown={handleKeyDown}
-					      placeholder={account.address}
+					      placeholder={account?.address}
 					      className="font-mono text-sm h-10 pr-10 w-full truncate"
 				        />
 					    <Button 
@@ -362,7 +366,7 @@ export default function PortfolioPage() {
                           .map(({ component: Component, name }) => (
                             <Component
                               key={name}
-                              address={account.address.toString()}
+                              address={account?.address.toString()}
                               walletTokens={tokens}
 						      showManageButton={false}
                               onPositionsValueChange={

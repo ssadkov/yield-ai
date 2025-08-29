@@ -1,8 +1,7 @@
 export class AptBalanceService {
   static async getAptBalance(address: string): Promise<number> {
     try {
-      console.log('Checking APT balance for address:', address);
-      
+
       // Use our new API endpoint that doesn't require API keys
       const response = await fetch(`/api/aptos/aptBalance?address=${address}`);
       
@@ -20,8 +19,7 @@ export class AptBalanceService {
       }
 
       const aptBalance = data.aptBalance || 0;
-      console.log('APT balance found:', aptBalance);
-      
+
       return aptBalance;
     } catch (error) {
       console.error('Error checking APT balance:', error);

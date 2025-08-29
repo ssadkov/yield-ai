@@ -63,14 +63,12 @@ interface WalletData {
 
 export async function getWalletBalance(address: string): Promise<WalletData> {
   try {
-    console.log('🔍 getWalletBalance called for address:', address);
-    
+
     // Get wallet balances using existing service
     const walletService = AptosWalletService.getInstance();
     console.log('📡 Fetching balances from Aptos...');
     const balanceData = await walletService.getBalances(address);
-    console.log('📊 Raw balance data:', balanceData);
-    
+
     // Get token prices from Panora API using the same service as Sidebar
     let prices: any[] = [];
     try {
@@ -79,45 +77,34 @@ export async function getWalletBalance(address: string): Promise<WalletData> {
       
       // Собираем адреса токенов
       const tokenAddresses = balanceData.balances?.map((balance: any) => balance.asset_type) || [];
-      console.log('🔍 Token addresses for prices:', tokenAddresses);
-      
+
       const pricesResponse = await pricesService.getPrices(1, tokenAddresses);
       // PanoraPricesService возвращает массив напрямую, а не объект с data
       prices = Array.isArray(pricesResponse) ? pricesResponse : (pricesResponse.data || []);
-      console.log('💵 Token prices received:', prices.length, 'tokens');
-      console.log('💵 Sample price data:', prices[0]);
+
     } catch (error) {
       console.warn('⚠️ Failed to fetch token prices:', error);
     }
     
     let totalValueUSD = 0;
     const tokens: TokenBalance[] = [];
-    
-    // Process each balance
-    console.log('🔄 Processing', balanceData.balances?.length || 0, 'balances...');
-    
+
     for (const balance of balanceData.balances || []) {
       const assetType: string = balance.asset_type;
       const amount: string = balance.amount;
-      
-      console.log('🔍 Processing token:', assetType, 'amount:', amount);
-      
+
       // Find price from Panora API response (точно как в AptosPortfolioService)
       const priceData = prices.find((p: any) => 
         p.tokenAddress === assetType || 
         p.faAddress === assetType
       );
-      
-      console.log('💰 Price data found:', priceData);
-      
+
       if (priceData) {
         // Use price data from Panora (точно как в AptosPortfolioService)
         const balanceNumber = parseFloat(amount) / Math.pow(10, priceData.decimals);
         const priceUSD = parseFloat(priceData.usdPrice);
         const valueUSD = balanceNumber * priceUSD;
-        
-        console.log('💱 Calculated:', balanceNumber, 'tokens, $', priceUSD, 'price, $', valueUSD, 'total');
-        
+
         tokens.push({
           address: assetType,
           symbol: priceData.symbol,
@@ -131,8 +118,6 @@ export async function getWalletBalance(address: string): Promise<WalletData> {
         totalValueUSD += valueUSD;
       } else {
         // Fallback for unknown tokens (точно как в AptosPortfolioService)
-        console.log('📝 No price found for token:', assetType);
-        
         const symbol = assetType.includes('::') 
           ? assetType.split('::').pop()?.replace('>', '') || assetType
           : assetType;
@@ -155,12 +140,6 @@ export async function getWalletBalance(address: string): Promise<WalletData> {
     // Ensure number (avoid -0)
     totalValueUSD = Number(totalValueUSD) || 0;
 
-    console.log('✅ Final result:', {
-      address,
-      totalValueUSD,
-      tokenCount: tokens.length,
-    });
-    
     return {
       address,
       timestamp: new Date().toISOString(),

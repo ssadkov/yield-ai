@@ -24,14 +24,6 @@ export class GasStationService {
         return;
       }
 
-      // Логируем все важные переменные
-      console.log('NEXT_PUBLIC_APTOS_GAS_STATION_KEY:', process.env.NEXT_PUBLIC_APTOS_GAS_STATION_KEY);
-      console.log('APTOS_GAS_STATION_API_KEY:', process.env.APTOS_GAS_STATION_API_KEY);
-      console.log('NEXT_PUBLIC_API_URL:', process.env.NEXT_PUBLIC_API_URL);
-      console.log('NEXT_PUBLIC_SPONSOR_PRIVATE_KEY:', process.env.NEXT_PUBLIC_SPONSOR_PRIVATE_KEY);
-      console.log('APTOS_API_KEY:', process.env.APTOS_API_KEY);
-      console.log('APTOS_NETWORK:', process.env.APTOS_NETWORK);
-
       const apiKey = process.env.NEXT_PUBLIC_APTOS_GAS_STATION_KEY;
       
       if (!apiKey) {
