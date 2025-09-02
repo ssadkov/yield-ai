@@ -65,6 +65,14 @@ export function useDeposit() {
         }))
       });
 
+      // Determine appropriate gas limit based on token type
+      let maxGasAmount = 20000; // Default for most tokens
+      
+      // For APT transactions, use lower gas limit to avoid network restrictions
+      if (token === '0x1::aptos_coin::AptosCoin' || token === '0xa') {
+        maxGasAmount = 50;
+      }
+
       const response = await submitTransaction({
         data: {
           function: payload.function,
@@ -72,7 +80,7 @@ export function useDeposit() {
           functionArguments: payload.arguments
         },
         options: {
-          // Let useTransactionSubmitter determine the appropriate gas limit based on APT balance
+          maxGasAmount: maxGasAmount,
         },
       });
       console.log('Transaction response:', response);

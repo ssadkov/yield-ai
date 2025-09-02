@@ -42,7 +42,7 @@ export function useTransactionSubmitter() {
           functionArguments: request.data.functionArguments
         },
         options: {
-          maxGasAmount: Math.min(request.options?.maxGasAmount || 20000, 20000), // Network limit is 20000
+          maxGasAmount: request.options?.maxGasAmount || 20000,
         },
       });
       
@@ -66,7 +66,7 @@ export function useTransactionSubmitter() {
           functionArguments: request.data.functionArguments
         },
         options: {
-          maxGasAmount: Math.min(request.options?.maxGasAmount || 20000, 20000), // Gas station limit is 20000
+          maxGasAmount: request.options?.maxGasAmount || 20000,
         },
         withFeePayer: true, // Enable gas station
       });
