@@ -48,7 +48,7 @@ export default function PortfolioPage() {
 
   const params = useParams();
   const router = useRouter();
-  const input = params.address as string;
+  const input = params?.address as string;
   
   const { resolvedAddress, resolvedName, isLoading, error } = useAptosAddressResolver(input);
   

@@ -1457,10 +1457,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                          <span className="text-white">{item.depositApy.toFixed(2)}%</span>
                                        </div>
                                      </div>
-                                     {/* Note: LTV data not available in current InvestmentData type */}
-                                     <div className="text-xs text-gray-400 mt-2">
-                                       LTV data not available in current API response
-                                     </div>
                                   </div>
                                 </TooltipContent>
                               </Tooltip>
