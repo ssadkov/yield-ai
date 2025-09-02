@@ -13,7 +13,7 @@ export default function ChatPanel() {
 
   return (
     <div className="p-4">
-      <h1 className="text-xl font-bold">Feedback</h1>
+      <h1 className="text-xl font-bold">Tools</h1>
       <p className="text-sm text-muted-foreground mt-2">
         Yield AI – All-in-One DeFi Dashboard for Maximizing Yields on Aptos
       </p>
@@ -30,80 +30,117 @@ export default function ChatPanel() {
       </p>
       <div className="mt-4 flex flex-col items-center gap-4">
         <div className="flex gap-2">
-          <Link href="https://forms.gle/NEpu5DjsmhVUprA5A" passHref target="_blank" rel="noopener noreferrer">
-            <Button>Share Feedback</Button>
-          </Link>
           <Button 
             variant="outline" 
             onClick={() => setIsSwapModalOpen(true)}
+            className="flex items-center gap-2"
           >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+            </svg>
             Swap
           </Button>
           <Button 
             variant="outline" 
             onClick={() => setIsYieldCalcOpen(true)}
+            className="flex items-center gap-2"
           >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
             Yield Calculator
           </Button>
         </div>
-        
-        <div className="grid grid-cols-2 gap-4 w-full max-w-md">
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
+      </div>
+
+      {/* Compact Footer - Mobile only */}
+      <div className="mt-8 pt-4 border-t border-border md:hidden">
+        <div className="flex flex-col items-center gap-3">
+          {/* Social Links */}
+          <div className="flex items-center gap-4">
             <Link
               href="https://x.com/yieldai_app"
               target="_blank"
               rel="noopener noreferrer"
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <svg className="h-4 w-4 text-black" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                  </svg>
-                  Yield AI
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <p className="text-xs text-muted-foreground">Follow our updates</p>
-              </CardContent>
+              <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+              </svg>
+              Yield AI
             </Link>
-          </Card>
-          
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
             <Link
               href="https://x.com/ssadkov"
               target="_blank"
               rel="noopener noreferrer"
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <svg className="h-4 w-4 text-black" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                  </svg>
-                  Founder
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <p className="text-xs text-muted-foreground">Follow the founder</p>
-              </CardContent>
+              <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+              </svg>
+              Founder
             </Link>
-          </Card>
+            <Link
+              href="https://home.yieldai.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+              </svg>
+              Home
+            </Link>
+          </div>
+          
+          {/* Share Feedback Button */}
+          <Link href="https://forms.gle/NEpu5DjsmhVUprA5A" passHref target="_blank" rel="noopener noreferrer">
+            <Button variant="outline" size="sm" className="text-xs">
+              Share Feedback
+            </Button>
+          </Link>
         </div>
       </div>
 
-      {/* Mobile home icon - bottom of feedback block */}
-      <div className="mt-6 flex justify-center md:hidden">
-        <Link 
-          href="https://home.yieldai.app/" 
-          target="_blank"
-          rel="noopener noreferrer"
-          className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-          title="Yield AI Home"
-        >
-          <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
-          </svg>
-        </Link>
+      {/* Desktop Footer - X links + Share Feedback */}
+      <div className="mt-8 pt-4 border-t border-border hidden md:block">
+        <div className="flex flex-col items-center gap-3">
+          {/* Social Links */}
+          <div className="flex items-center gap-4">
+            <Link
+              href="https://x.com/yieldai_app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+              </svg>
+              Yield AI
+            </Link>
+            <Link
+              href="https://x.com/ssadkov"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+              </svg>
+              Founder
+            </Link>
+          </div>
+          
+          {/* Share Feedback Button */}
+          <Link href="https://forms.gle/NEpu5DjsmhVUprA5A" passHref target="_blank" rel="noopener noreferrer">
+            <Button variant="outline" size="sm" className="text-xs">
+              Share Feedback
+            </Button>
+          </Link>
+        </div>
       </div>
+
+
 
       <SwapModal 
         isOpen={isSwapModalOpen} 
