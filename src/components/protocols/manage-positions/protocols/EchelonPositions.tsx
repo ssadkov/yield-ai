@@ -787,7 +787,7 @@ export function EchelonPositions() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center justify-between mb-1">
                     <Badge variant="outline" className={cn(
                       isBorrow
                         ? 'bg-red-500/10 text-red-600 border-red-500/20'
