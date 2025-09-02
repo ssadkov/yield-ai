@@ -745,15 +745,16 @@ export function EchelonPositions() {
           const isBorrow = position.type === 'borrow';
           
           return (
-            <div 
-              key={`${position.coin}-${index}`} 
+                        <div
+              key={`${position.coin}-${index}`}
               className={cn(
-                'p-4 border-b last:border-b-0 transition-colors',
+                'p-3 sm:p-4 border-b last:border-b-0 transition-colors',
                 isBorrow && 'bg-red-50'
               )}
               draggable={false}
             >
-              <div className="flex justify-between items-center">
+              {/* Desktop Layout */}
+              <div className="hidden sm:flex justify-between items-center">
                 <div className="flex items-center gap-2">
                   {tokenInfo?.logoUrl && (
                     <div className="w-8 h-8 relative">
@@ -898,6 +899,159 @@ export function EchelonPositions() {
                     )}
                   </div>
                 </div>
+              </div>
+
+              {/* Mobile Layout */}
+              <div className="sm:hidden space-y-3">
+                {/* Header with token info and USD value */}
+                <div className="flex justify-between items-start">
+                  <div className="flex items-center gap-2">
+                    {tokenInfo?.logoUrl && (
+                      <div className="w-6 h-6 relative">
+                        <Image 
+                          src={tokenInfo.logoUrl} 
+                          alt={tokenInfo.symbol}
+                          width={24}
+                          height={24}
+                          className="object-contain"
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <div className="flex items-center gap-1">
+                        <div className="text-base font-medium">{tokenInfo?.symbol || position.coin.substring(0, 4).toUpperCase()}</div>
+                        <Badge 
+                          variant="outline" 
+                          className={cn(
+                            isBorrow
+                              ? 'bg-red-500/10 text-red-600 border-red-500/20'
+                              : 'bg-green-500/10 text-green-600 border-green-500/20',
+                            'text-xs font-normal px-1.5 py-0.5 h-4'
+                          )}
+                        >
+                          {isBorrow ? 'Borrow' : 'Supply'}
+                        </Badge>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        ${price ? parseFloat(price).toFixed(2) : 'N/A'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-bold">${value}</div>
+                    <div className="text-sm text-muted-foreground">{amount.toFixed(4)}</div>
+                  </div>
+                </div>
+
+                {/* APR Badge */}
+                <div className="flex justify-center">
+                  <Badge variant="outline" className={cn(
+                    isBorrow
+                      ? 'bg-red-500/10 text-red-600 border-red-500/20'
+                      : 'bg-green-500/10 text-green-600 border-green-500/20',
+                    'text-xs font-normal px-2 py-0.5 h-5')}
+                  >
+                    {apy !== null ? (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="cursor-help">
+                              APR: {(apy * 100).toFixed(2)}%
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
+                            <div className="text-xs font-semibold mb-1">APR Breakdown:</div>
+                            <div className="space-y-1">
+                              {!isBorrow && apyData[position.coin]?.lendingApr > 0 && (
+                                <div className="flex justify-between">
+                                  <span>Lending APR:</span>
+                                  <span className="text-green-400">{apyData[position.coin].lendingApr.toFixed(2)}%</span>
+                                </div>
+                              )}
+                              {!isBorrow && apyData[position.coin]?.stakingAprOnly > 0 && (
+                                <div className="flex justify-between">
+                                  <span>Staking APR:</span>
+                                  <span className="text-blue-400">{apyData[position.coin].stakingAprOnly.toFixed(2)}%</span>
+                                </div>
+                              )}
+                              {!isBorrow && apyData[position.coin]?.supplyRewardsApr > 0 && (
+                                <div className="flex justify-between">
+                                  <span>Rewards APR:</span>
+                                  <span className="text-yellow-400">{apyData[position.coin].supplyRewardsApr.toFixed(2)}%</span>
+                                </div>
+                              )}
+                              <div className="border-t border-gray-600 pt-1 mt-1">
+                                <div className="flex justify-between font-semibold">
+                                  <span>Total:</span>
+                                  <span className="text-white">{(apy * 100).toFixed(2)}%</span>
+                                </div>
+                              </div>
+                              {/* LTV Information */}
+                              {apyData[position.coin]?.ltv && apyData[position.coin].ltv > 0 && (
+                                <div className="border-t border-gray-600 pt-1 mt-1">
+                                  <div className="text-xs font-semibold mb-1 text-cyan-400">Collateral Info:</div>
+                                  <div className="space-y-1">
+                                    <div className="flex justify-between">
+                                      <span>LTV:</span>
+                                      <span className="text-cyan-400">{(apyData[position.coin].ltv * 100).toFixed(0)}%</span>
+                                    </div>
+                                    {apyData[position.coin].lt && apyData[position.coin].lt > 0 && (
+                                      <div className="flex justify-between">
+                                        <span>Liquidation Threshold:</span>
+                                        <span className="text-orange-400">{(apyData[position.coin].lt * 100).toFixed(0)}%</span>
+                                      </div>
+                                    )}
+                                    {apyData[position.coin].emodeLtv && apyData[position.coin].emodeLtv > 0 && (
+                                      <div className="flex justify-between">
+                                        <span>E-Mode LTV:</span>
+                                        <span className="text-purple-400">{(apyData[position.coin].emodeLtv * 100).toFixed(0)}%</span>
+                                      </div>
+                                    )}
+                                    {apyData[position.coin].emodeLt && apyData[position.coin].emodeLt > 0 && (
+                                      <div className="flex justify-between">
+                                        <span>E-Mode LT:</span>
+                                        <span className="text-pink-400">{(apyData[position.coin].emodeLt * 100).toFixed(0)}%</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : (
+                      'APR: N/A'
+                    )}
+                  </Badge>
+                </div>
+
+                {/* Action Buttons */}
+                {!isBorrow && (
+                  <div className="flex gap-2">
+                    <button
+                      className={cn(
+                        'px-3 py-2 rounded text-sm font-semibold disabled:opacity-60 transition-all',
+                        'bg-blue-500 text-white hover:bg-blue-600',
+                        'shadow-lg flex-1'
+                      )}
+                      onClick={() => handleDepositClick(position)}
+                    >
+                      Deposit
+                    </button>
+                    <button
+                      className={cn(
+                        'px-3 py-2 rounded text-sm font-semibold disabled:opacity-60 transition-all',
+                        'bg-green-500 text-white hover:bg-green-600',
+                        'shadow-lg flex-1'
+                      )}
+                      onClick={() => handleWithdrawClick(position)}
+                      disabled={isWithdrawing}
+                    >
+                      {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           );
