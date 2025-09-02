@@ -3,6 +3,7 @@ import { useWallet } from '@aptos-labs/wallet-adapter-react';
 import { useToast } from '@/components/ui/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import { protocols } from '../protocols/protocolsRegistry';
+import { showTransactionSuccessToast } from '@/components/ui/transaction-toast';
 import { ProtocolKey } from '../transactions/types';
 
 export function useWithdraw() {
@@ -70,9 +71,9 @@ export function useWithdraw() {
             
             if (txData.success && txData.vm_status === "Executed successfully") {
               console.log('Withdraw transaction confirmed successfully');
-              toast({
-                title: "Withdraw successful!",
-                description: `Transaction hash: ${response.hash.slice(0, 6)}...${response.hash.slice(-4)}`,
+              showTransactionSuccessToast({ 
+                hash: response.hash, 
+                title: "Withdraw successful!" 
               });
               
               // Обновляем позиции после успешного withdraw
