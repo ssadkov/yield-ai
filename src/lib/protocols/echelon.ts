@@ -13,7 +13,23 @@ export class EchelonProtocol implements BaseProtocol {
       throw new Error("Invalid response from Echelon API");
     }
 
-    const market = data.marketData.find((m: any) => m.coin === token);
+    // Special handling for APT token address mapping
+    let searchToken = token;
+    if (token === '0xa') {
+      // If token is faAddress (0xa), search for the full tokenAddress
+      searchToken = '0x1::aptos_coin::AptosCoin';
+    } else if (token === '0x1::aptos_coin::AptosCoin') {
+      // If token is full tokenAddress, also try faAddress as fallback
+      searchToken = '0xa';
+    }
+
+    let market = data.marketData.find((m: any) => m.coin === token);
+    
+    // If not found with original token, try with mapped token
+    if (!market && searchToken !== token) {
+      market = data.marketData.find((m: any) => m.coin === searchToken);
+    }
+    
     if (!market) {
       throw new Error(`Market not found for token ${token}`);
     }
@@ -34,10 +50,13 @@ export class EchelonProtocol implements BaseProtocol {
       ? "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::supply_fa"
       : "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::supply";
 
+    // For non-fungible tokens, use the full token type instead of faAddress
+    const typeArgument = tokenInfo.isFungible ? [] : [tokenInfo.tokenAddress || token];
+    
     return {
       type: "entry_function_payload" as const,
       function: functionName,
-      type_arguments: tokenInfo.isFungible ? [] : [token],
+      type_arguments: typeArgument,
       arguments: [marketAddress, amountOctas.toString()]
     };
   }
@@ -52,10 +71,13 @@ export class EchelonProtocol implements BaseProtocol {
       ? "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::withdraw_fa"
       : "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::withdraw";
 
+    // For non-fungible tokens, use the full token type instead of faAddress
+    const typeArgument = tokenInfo.isFungible ? [] : [tokenInfo.tokenAddress || token];
+
     return {
       type: "entry_function_payload" as const,
       function: functionName,
-      type_arguments: tokenInfo.isFungible ? [] : [token],
+      type_arguments: typeArgument,
       arguments: [marketAddress, amountOctas.toString()]
     };
   }

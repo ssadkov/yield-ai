@@ -68,9 +68,9 @@ export function useDeposit() {
       // Determine appropriate gas limit based on token type
       let maxGasAmount = 20000; // Default for most tokens
       
-      // For APT transactions, use lower gas limit to avoid network restrictions
+      // For APT transactions, use higher gas limit since gas station is working
       if (token === '0x1::aptos_coin::AptosCoin' || token === '0xa') {
-        maxGasAmount = 50;
+        maxGasAmount = 2000; // Increased gas limit for APT transactions with gas station
       }
 
       const response = await submitTransaction({

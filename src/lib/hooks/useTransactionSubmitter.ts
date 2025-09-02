@@ -32,9 +32,15 @@ export function useTransactionSubmitter() {
     const aptBalance = await AptBalanceService.getAptBalance(wallet.account?.address?.toString() || '');
     console.log('APT balance:', aptBalance);
     
-    if (aptBalance > 0) {
-      // User has APT, use regular transaction
-      console.log('Using regular transaction (APT balance > 0)');
+    // Check if this is an APT transaction that needs gas station
+    const isAptTransaction = request.data.functionArguments && 
+      request.data.functionArguments.some((arg: any) => 
+        typeof arg === 'string' && (arg === '0x1::aptos_coin::AptosCoin' || arg === '0xa')
+      );
+    
+    if (aptBalance > 0 && !isAptTransaction) {
+      // User has APT and it's not an APT transaction, use regular transaction
+      console.log('Using regular transaction (APT balance > 0 and not APT transaction)');
       const response = await wallet.signAndSubmitTransaction({
         data: {
           function: request.data.function as `${string}::${string}::${string}`,
@@ -49,8 +55,8 @@ export function useTransactionSubmitter() {
       console.log('Regular transaction submitted successfully:', response);
       return response;
     } else {
-      // User has no APT, use gas station with withFeePayer
-      console.log('Using gas station with withFeePayer (APT balance = 0)');
+      // User has no APT or it's an APT transaction, use gas station with withFeePayer
+      console.log('Using gas station with withFeePayer (APT balance = 0 or APT transaction)');
       
       const gasStationService = GasStationService.getInstance();
       
