@@ -88,7 +88,6 @@ export default function WalletPage() {
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="address">Wallet Address or Domain</Label>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                     <Input
@@ -118,9 +117,9 @@ export default function WalletPage() {
                 </Button>
               </form>
 
-                             <div className="mt-6 text-center text-sm text-gray-500 overflow-hidden">
+                             <div className="mt-6  text-sm text-gray-500 overflow-hidden">
                  <p className="mb-2">Examples:</p>
-                 <p>Address: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef</p>
+                 <p>Address: 0x4ade47d86d1013af5a0e38bbbd5d745a72cf4b9fa9759f4a5f7434b15bb1fbd1</p>
                  <p>Domain: defishow.petra.apt</p>
                </div>
             </CardContent>
