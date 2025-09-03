@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { isValidAptosAddress, isPotentialDomainName, resolveAddressFromName } from '@/lib/utils/aptosNames';
 
 import { Wallet, Search } from 'lucide-react';
 
@@ -15,12 +16,18 @@ export default function WalletPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  const validateAptosAddress = (addr: string): boolean => {
-    // Remove 0x prefix if present
-    const cleanAddr = addr.startsWith('0x') ? addr.slice(2) : addr;
-    // Aptos addresses are 64 characters long and contain only hex characters
-    const aptosAddressRegex = /^[0-9a-fA-F]{64}$/;
-    return aptosAddressRegex.test(cleanAddr);
+  const validateInput = (input: string): boolean => {
+    // Check if it's a valid Aptos address
+    if (isValidAptosAddress(input)) {
+      return true;
+    }
+    
+    // Check if it's a potential domain name (contains . and doesn't start with 0x)
+    if (isPotentialDomainName(input)) {
+      return true;
+    }
+    
+    return false;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,25 +35,35 @@ export default function WalletPage() {
     setError('');
     
     if (!address.trim()) {
-      setError('Please enter a wallet address');
+      setError('Please enter a wallet address or domain name');
       return;
     }
 
-    const cleanAddress = address.trim();
+    const cleanInput = address.trim();
     
-    if (!validateAptosAddress(cleanAddress)) {
-      setError('Invalid Aptos wallet address format');
+    if (!validateInput(cleanInput)) {
+      setError('Invalid Aptos wallet address or domain format');
       return;
     }
-
-    // Normalize address (remove 0x prefix if present)
-    const normalizedAddress = cleanAddress.startsWith('0x') ? cleanAddress.slice(2) : cleanAddress;
 
     setIsLoading(true);
     
     try {
+      let finalAddress = cleanInput;
+      
+      // If it's a domain name, resolve it to address
+      if (isPotentialDomainName(cleanInput)) {
+        const resolvedAddress = await resolveAddressFromName(cleanInput);
+        if (!resolvedAddress) {
+          setError(`Domain "${cleanInput}" not found or invalid`);
+          setIsLoading(false);
+          return;
+        }
+        finalAddress = resolvedAddress;
+      }
+
       // Navigate to wallet view page
-      router.push(`/portfolio/${cleanAddress}`);
+      router.push(`/portfolio/${finalAddress}`);
     } catch (err) {
       setError('Failed to load wallet data');
     } finally {
@@ -65,19 +82,19 @@ export default function WalletPage() {
               </div>
               <CardTitle className="text-2xl font-bold">Wallet Explorer</CardTitle>
               <CardDescription>
-                Enter an Aptos wallet address to view its balance and positions
+                Enter an Aptos wallet address or domain name to view its balance and positions
               </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="address">Wallet Address</Label>
+                  <Label htmlFor="address">Wallet Address or Domain</Label>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                     <Input
                       id="address"
                       type="text"
-                      placeholder="Enter 64-character Aptos address..."
+                      placeholder="Enter Aptos address or domain (e.g., defishow.petra.apt)..."
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
                       className="pl-10"
@@ -102,7 +119,9 @@ export default function WalletPage() {
               </form>
 
                              <div className="mt-6 text-center text-sm text-gray-500 overflow-hidden">
-                 <p>Example: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef</p>
+                 <p className="mb-2">Examples:</p>
+                 <p>Address: 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef</p>
+                 <p>Domain: defishow.petra.apt</p>
                </div>
             </CardContent>
           </Card>
