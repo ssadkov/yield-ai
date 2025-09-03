@@ -71,81 +71,58 @@ export async function GET(request: Request) {
     const page = searchParams.get("page") || "1";
     const limit = searchParams.get("limit") || "50";
 
-    // Create JSON-RPC request to Tapp API
-    const tappApiUrl = "https://api.tapp.exchange/api/v1";
-    const requestBody = {
-      method: "public/pool",
-      jsonrpc: "2.0",
-      id: 4,
-      params: {
-        query: {
-          page: parseInt(page),
-          pageSize: parseInt(limit)
-        }
-      }
-    };
+    // If specific page is requested, return that page only
+    if (page !== "1") {
+      return await fetchSinglePage(chain, parseInt(page), parseInt(limit));
+    }
 
-    // console.log('Fetching Tapp pools from:', tappApiUrl);
-    console.log('Request body:', JSON.stringify(requestBody, null, 2));
-
-    const response = await fetch(tappApiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'application/json',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Origin': request.headers.get('origin') || request.headers.get('host') || process.env.NEXT_PUBLIC_API_URL || process.env.VERCEL_URL || 'https://yield-ai.vercel.app',
-        'Referer': request.headers.get('referer') || `${request.headers.get('origin') || request.headers.get('host') || process.env.NEXT_PUBLIC_API_URL || process.env.VERCEL_URL || 'https://yield-ai.vercel.app'}/`
-      },
-      body: JSON.stringify(requestBody)
-    });
+    // For page 1, fetch ALL pages to get all pools
+    console.log('Fetching ALL Tapp pools pages...');
     
-    if (!response.ok) {
-      console.error(`Tapp API returned ${response.status}: ${response.statusText}`);
-      throw new Error(`Tapp API returned ${response.status}`);
-    }
+    const allPools: any[] = [];
+    let currentPage = 1;
+    let hasMorePages = true;
+    let totalPools = 0;
 
-    const data = await response.json();
-    // console.log('Tapp API response:', data);
-
-    // Check if we have valid data (JSON-RPC format)
-    if (!data.result || !data.result.data) {
-      console.log('No valid pools data, returning empty array');
-      return NextResponse.json({
-        success: true,
-        data: [],
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total: 0
+    while (hasMorePages) {
+      console.log(`Fetching page ${currentPage}...`);
+      
+      const pageData = await fetchSinglePage(chain, currentPage, parseInt(limit));
+      const pageResponse = await pageData.json();
+      
+      if (pageResponse.success && pageResponse.data && pageResponse.data.length > 0) {
+        allPools.push(...pageResponse.data);
+        totalPools = pageResponse.pagination?.total || 0;
+        
+        // Check if we have more pages
+        const currentPageSize = pageResponse.data.length;
+        console.log(`Page ${currentPage}: ${currentPageSize} pools, total so far: ${allPools.length}, total available: ${totalPools}`);
+        
+        // Stop if we got fewer pools than requested (last page)
+        // Don't rely on total from API as it seems incorrect
+        hasMorePages = currentPageSize === parseInt(limit);
+        currentPage++;
+        
+        // Safety check to prevent infinite loops
+        if (currentPage > 10) {
+          console.log('Safety limit reached, stopping pagination');
+          hasMorePages = false;
         }
-      });
+      } else {
+        console.log(`No more data on page ${currentPage}, stopping pagination`);
+        hasMorePages = false;
+      }
     }
 
-    // Transform the data to match our expected format
-    const transformedPools = data.result.data.map((pool: any) => ({
-      pool_id: pool.poolId,
-      token_a: pool.tokens[0]?.symbol || 'Unknown',
-      token_b: pool.tokens[1]?.symbol || 'Unknown',
-      tvl: parseFloat(pool.tvl || "0"),
-      apr: parseFloat(pool.apr?.totalAprPercentage || "0") / 100, // Convert percentage to decimal
-      fee_tier: parseFloat(pool.feeTier || "0"),
-      volume_7d: parseFloat(pool.volumeData?.volume7d || "0"),
-      // Additional fields for reference
-      poolType: pool.poolType,
-      tokens: pool.tokens,
-      volumeData: pool.volumeData,
-      createdAt: pool.createdAt
-    }));
+    console.log(`Total pools loaded: ${allPools.length}`);
 
     const formattedData = {
       success: true,
-      data: transformedPools,
+      data: allPools,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total: data.result.data?.length || 0
+        page: 1,
+        limit: allPools.length,
+        total: allPools.length
       }
     };
 
@@ -173,4 +150,82 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
+}
+
+async function fetchSinglePage(chain: string, page: number, limit: number) {
+  const tappApiUrl = "https://api.tapp.exchange/api/v1";
+  const requestBody = {
+    method: "public/pool",
+    jsonrpc: "2.0",
+    id: 4,
+    params: {
+      query: {
+        chain: chain,
+        page: page,
+        pageSize: limit
+      }
+    }
+  };
+
+  const response = await fetch(tappApiUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'application/json',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Origin': 'http://localhost:3000',
+      'Referer': 'http://localhost:3000/'
+    },
+    body: JSON.stringify(requestBody)
+  });
+  
+  if (!response.ok) {
+    console.error(`Tapp API returned ${response.status}: ${response.statusText}`);
+    throw new Error(`Tapp API returned ${response.status}`);
+  }
+
+  const data = await response.json();
+
+  // Check if we have valid data (JSON-RPC format)
+  if (!data.result || !data.result.data) {
+    console.log(`No valid pools data on page ${page}`);
+    return NextResponse.json({
+      success: true,
+      data: [],
+      pagination: {
+        page: page,
+        limit: limit,
+        total: 0
+      }
+    });
+  }
+
+  // Transform the data to match our expected format
+  const transformedPools = data.result.data.map((pool: any) => {
+    return {
+      pool_id: pool.poolId,
+      token_a: pool.tokens[0]?.symbol || 'Unknown',
+      token_b: pool.tokens[1]?.symbol || 'Unknown',
+      tvl: parseFloat(pool.tvl || "0"),
+      apr: parseFloat(pool.apr?.totalAprPercentage || "0") / 100, // Convert percentage to decimal
+      fee_tier: parseFloat(pool.feeTier || "0"),
+      volume_7d: parseFloat(pool.volumeData?.volume7d || "0"),
+      // Additional fields for reference
+      poolType: pool.poolType,
+      tokens: pool.tokens,
+      volumeData: pool.volumeData,
+      createdAt: pool.createdAt
+    };
+  });
+
+  return NextResponse.json({
+    success: true,
+    data: transformedPools,
+    pagination: data.result.pagination || {
+      page: page,
+      limit: limit,
+      total: transformedPools.length
+    }
+  });
 } 

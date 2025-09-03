@@ -499,6 +499,12 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
             const transformedData = endpoint.transform(data);
             
             console.log(`${endpoint.name} loaded: ${transformedData.length} pools`);
+            
+            // Special logging for Tapp Exchange
+            if (endpoint.name === 'Tapp Exchange Pools API') {
+              console.log('Tapp Exchange data:', transformedData);
+              console.log('Tapp Exchange first pool:', transformedData[0]);
+            }
 
             // Update state progressively
             setProtocolsData(prev => ({
@@ -618,6 +624,12 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 
   // Combine all loaded protocol data
   const allLoadedData = Object.values(protocolsData).flat();
+  
+  // Debug logging for Tapp Exchange
+  const tappData = protocolsData['Tapp Exchange Pools API'] || [];
+  console.log('Tapp Exchange pools in protocolsData:', tappData.length);
+  console.log('All loaded data count:', allLoadedData.length);
+  console.log('Protocols data keys:', Object.keys(protocolsData));
   
   const topInvestments = [...allLoadedData]
     .sort((a, b) => b.totalAPY - a.totalAPY)
