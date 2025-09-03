@@ -522,10 +522,6 @@ export function EchelonPositions() {
     const priceB = getTokenPrice(b.coin);
     const valueA = priceA ? amountA * parseFloat(priceA) : 0;
     const valueB = priceB ? amountB * parseFloat(priceB) : 0;
-    // borrow всегда ниже supply
-    if ((a.type === 'borrow') !== (b.type === 'borrow')) {
-      return a.type === 'borrow' ? 1 : -1;
-    }
     return valueB - valueA;
   });
 
