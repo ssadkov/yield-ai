@@ -547,7 +547,7 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] p-6 rounded-2xl">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto p-6 rounded-2xl w-[calc(100vw-2rem)] sm:w-auto">
         <DialogHeader>
           <div className="flex items-center gap-2">
             <Image 

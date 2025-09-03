@@ -149,7 +149,7 @@ export function YieldCalculatorModal({ isOpen, onClose }: YieldCalculatorModalPr
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[520px] p-6 rounded-2xl">
+      <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto p-6 rounded-2xl w-[calc(100vw-2rem)] sm:w-auto">
         <DialogHeader>
           <DialogTitle>Yield Calculator</DialogTitle>
           <DialogDescription>Estimate your earnings or derive APR from results.</DialogDescription>
@@ -238,18 +238,11 @@ export function YieldCalculatorModal({ isOpen, onClose }: YieldCalculatorModalPr
             </div>
           </div>
           
-          <div className="flex items-center justify-end gap-2">
-            <Button variant="outline" onClick={onClose}>Close</Button>
-          </div>
           </TabsContent>
 
           <TabsContent value="apr" className="space-y-5">
             {/* APR from result tab */}
             <AprFromResult />
-
-            <div className="flex items-center justify-end gap-2">
-              <Button variant="outline" onClick={onClose}>Close</Button>
-            </div>
           </TabsContent>
         </Tabs>
       </DialogContent>
