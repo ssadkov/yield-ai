@@ -297,6 +297,18 @@ export default function PortfolioPage() {
 				      </div>
 			        </div>
 
+				    {/* Display ANS name if available */}
+				    {resolvedName && (
+				      <div className="mt-2 px-2">
+				        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+				          <span className="font-medium">ANS Name:</span>
+				          <span className="font-mono bg-muted px-2 py-1 rounded text-foreground">
+				            {resolvedName}
+				          </span>
+				        </div>
+				      </div>
+				    )}
+
 				    <div className="block lg:hidden mb-4">
 				      <div className="h-58 flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded p-20">
 				        <PortfolioChart data={chartSectors} />
