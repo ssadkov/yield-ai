@@ -28,24 +28,33 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform userPositions to match the expected format
-    const positions = result.data.userPositions.map((position: any) => {
-      const transformedPosition: any = {
+    const positions: any[] = [];
+    
+    result.data.userPositions.forEach((position: any) => {
+      const basePosition = {
         market: position.market,
         coin: position.coin,
         supply: position.supply || 0,
         borrow: position.borrow || 0
       };
 
-      // Add amount and type fields
+      // Create separate position for supply if exists
       if (position.supply > 0) {
-        transformedPosition.amount = position.supply;
-        transformedPosition.type = 'supply';
-      } else if (position.borrow > 0) {
-        transformedPosition.amount = position.borrow;
-        transformedPosition.type = 'borrow';
+        positions.push({
+          ...basePosition,
+          amount: position.supply,
+          type: 'supply'
+        });
       }
 
-      return transformedPosition;
+      // Create separate position for borrow if exists
+      if (position.borrow > 0) {
+        positions.push({
+          ...basePosition,
+          amount: position.borrow,
+          type: 'borrow'
+        });
+      }
     });
 
     return NextResponse.json({

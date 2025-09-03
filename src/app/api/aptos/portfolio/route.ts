@@ -410,7 +410,7 @@ export async function GET(request: Request) {
           
           protocols.echelon.positions = echelonData.data.map((pos: any) => {
             const tokenInfo = getTokenInfo(pos.coin);
-            const amount = pos.supply / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
+            const amount = pos.amount / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
             
             // Ищем цену в динамических данных
             const price = echelonPrices.find((p: TokenPrice) => 
@@ -422,11 +422,12 @@ export async function GET(request: Request) {
               symbol: tokenInfo?.symbol || pos.coin.substring(0, 4).toUpperCase(),
               amount: amount.toFixed(4),
               value: value,
-              apy: pos.supplyApr * 100, // Convert to percentage
-              assetType: 'supply',
+              apy: pos.type === 'supply' ? (pos.supplyApr * 100) : (pos.borrowApr * 100), // Use appropriate APR
+              assetType: pos.type, // Use the actual type (supply or borrow)
               assetInfo: tokenInfo,
               coin: pos.coin,
-              supply: pos.supply
+              supply: pos.supply,
+              borrow: pos.borrow
             };
           });
           protocolsValue += protocols.echelon.positions.reduce((sum: number, pos: any) => sum + pos.value, 0);
