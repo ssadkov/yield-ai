@@ -88,7 +88,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 
   const [showSearchOptions, setShowSearchOptions] = useState(false);
   const [searchByProtocols, setSearchByProtocols] = useState(false);
-  const [selectedFilterProtocol, setSelectedFilterProtocol] = useState('');
+  const [selectedFilterProtocols, setSelectedFilterProtocols] = useState<string[]>([]);
   
   const { state, handleDrop, validateDrop } = useDragDrop();
   const { getClaimableRewardsSummary, fetchRewards, fetchPositions, rewardsLoading } = useWalletStore();
@@ -179,7 +179,15 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   };
   
   const handleProtocolSelect = (protocolName: string) => {
-    setSelectedFilterProtocol(protocolName);
+    setSelectedFilterProtocols(prev => {
+      if (prev.includes(protocolName)) {
+        // Удаляем протокол, если уже выбран
+        return prev.filter(p => p !== protocolName);
+      } else {
+        // Добавляем протокол
+        return [...prev, protocolName];
+      }
+    });
 	setSearchByProtocols(true);
     setSearchQuery(''); // Очищаем поле поиска
     setShowSearchOptions(false); // Закрываем окно опций
@@ -196,7 +204,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   
   // Clear protocol filter
   const clearSearchByProtocols = (value: boolean) => {
-    setSelectedFilterProtocol('');
+    setSelectedFilterProtocols([]);
 	setSearchByProtocols(false);
 	setShowSearchOptions(false);
   }
@@ -657,11 +665,22 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     const displaySymbol = tokenInfo?.symbol || item.asset;
 	const displayProtocol = item.protocol;
 	
+	return (
+      // Если нет выбранных протоколов ИЛИ протокол элемента есть в выбранных
+      (selectedFilterProtocols.length === 0 || 
+       selectedFilterProtocols.some(protocol => 
+         displayProtocol?.toLowerCase().includes(protocol.toLowerCase())
+       )) &&
+      // Поиск по символу
+      (!searchQuery || displaySymbol.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
 	
+	/*
 	return (
       (!selectedFilterProtocol || displayProtocol?.toLowerCase().includes(selectedFilterProtocol.toLowerCase())) &&
       (!searchQuery || displaySymbol.toLowerCase().includes(searchQuery.toLowerCase()))
     );
+	*/
 
     //if (searchByProtocols) {
 	  //return displayProtocol?.toLowerCase().includes(selectedFilterProtocol.toLowerCase());
@@ -1196,15 +1215,34 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 			    tabIndex={-1}
 			  >
 			    <div className="flex items-center space-x-2 relative">
+				 
+				  <div className="absolute -top-2 right-4 z-10">
+				    <TooltipProvider>
+				      <Tooltip>
+				        <TooltipTrigger asChild>   
+					      <button
+					        key={"Clear Protocol"}
+					        onClick={() => clearSearchByProtocols(false)}
+						    className={`text-sm transition-colors cursor-pointer`}
+					      >
+						    Clear
+					      </button>
+						</TooltipTrigger>
+						  <TooltipContent>
+						    <p>Clear filter by protocol</p>
+						  </TooltipContent>
+					    </Tooltip>
+					  </TooltipProvider>
+				  </div> 
 				  <div className="absolute -top-2 -right-4 z-10">
-				      <TooltipProvider>
+					  <TooltipProvider>
 				        <Tooltip>
-				          <TooltipTrigger asChild>
-					        <Button
+				          <TooltipTrigger asChild> 
+							<Button
 						      variant="ghost"
 						      size="sm"
 						      onClick={() => setShowSearchOptions(false)}
-						      className="h-4 w-4 p-0 hover:bg-transparent hover:text-foreground/60 opacity-80 transition-colors cursor-pointer"
+						      className="h-4 w-4 py-0 hover:bg-transparent hover:text-foreground/60 opacity-80 transition-colors cursor-pointer"
 						    >
 						      <X className={cn(
 							   "h-3 w-3"
@@ -1212,7 +1250,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 						    </Button>				      
 						  </TooltipTrigger>
 						  <TooltipContent>
-						    <p>Filter by protocol: {selectedFilterProtocol}</p>
+						    <p>Close filter by protocol</p>
 						  </TooltipContent>
 					    </Tooltip>
 					  </TooltipProvider>
@@ -1222,18 +1260,11 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 				      <button
 					    key={protocolName}
 					    onClick={() => handleProtocolSelect(protocolName)}
-						className={`px-3 py-1 text-sm border rounded-md transition-colors ${ selectedFilterProtocol === protocolName ? 'bg-blue-500 text-white border-blue-500' : 'hover:bg-gray-100'}`}
+						className={`px-3 py-1 text-sm border rounded-md transition-colors ${selectedFilterProtocols.includes(protocolName) ? 'bg-blue-500 text-white border-blue-500' : 'hover:bg-gray-100'}`}
 					  >
 				        {protocolName}
 					  </button>
 				    ))}
-					<button
-					    key={"Clear Protocol"}
-					    onClick={() => clearSearchByProtocols(false)}
-						className={`px-3 py-1 text-sm border rounded-md transition-colors`}
-					  >
-						Clear
-					</button>
 			      </div>
 			    </div>
 			  </div>
@@ -1291,7 +1322,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 						    </Button>				      
 						  </TooltipTrigger>
 						  <TooltipContent>
-						    <p>Filter by protocol: {selectedFilterProtocol}</p>
+						    <p>Filter by protocol</p>
 						  </TooltipContent>
 					    </Tooltip>
 					  </TooltipProvider>
