@@ -188,13 +188,20 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   // Функция для обработки ввода в поле поиска
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
-    if (value) {
-      setSelectedFilterProtocol('');
-	  setSearchByProtocols(false);
-    }
+    //if (value) {
+      //setSelectedFilterProtocol('');
+	  //setSearchByProtocols(false);
+    //}
   };
+  
+  // Clear protocol filter
+  const clearSearchByProtocols = (value: boolean) => {
+    setSelectedFilterProtocol('');
+	setSearchByProtocols(false);
+	setShowSearchOptions(false);
+  }
 
-    // Start loading immediately when component mounts (only on client)
+  // Start loading immediately when component mounts (only on client)
   useEffect(() => {
     if (!isClient) return;
     if (typeof window === 'undefined') return; // Extra check for SSR
@@ -649,12 +656,18 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     const tokenInfo = getTokenInfo(item.asset, item.token);
     const displaySymbol = tokenInfo?.symbol || item.asset;
 	const displayProtocol = item.protocol;
+	
+	
+	return (
+      (!selectedFilterProtocol || displayProtocol?.toLowerCase().includes(selectedFilterProtocol.toLowerCase())) &&
+      (!searchQuery || displaySymbol.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
 
-	if (searchByProtocols) {
-	  return displayProtocol?.toLowerCase().includes(selectedFilterProtocol.toLowerCase());
-    }
+    //if (searchByProtocols) {
+	  //return displayProtocol?.toLowerCase().includes(selectedFilterProtocol.toLowerCase());
+    //}
 
-    return displaySymbol.toLowerCase().includes(searchQuery.toLowerCase());
+    //return displaySymbol.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   // Данные для текущей вкладки
@@ -716,7 +729,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 
   // Show loading indicators for protocols that are still loading
   const showLoadingIndicators = loading && Object.values(protocolsLoading).some(Boolean);
-  const protocolNames = Object.keys(protocolsData);
+  //const protocolNames = Object.keys(protocolsData);
+  const protocolNames = [...Object.keys(protocolsData)].sort((a, b) => a.localeCompare(b));
 
   if (showLoadingIndicators) {
     return (
@@ -1213,6 +1227,13 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 				        {protocolName}
 					  </button>
 				    ))}
+					<button
+					    key={"Clear Protocol"}
+					    onClick={() => clearSearchByProtocols(false)}
+						className={`px-3 py-1 text-sm border rounded-md transition-colors`}
+					  >
+						Clear
+					</button>
 			      </div>
 			    </div>
 			  </div>
