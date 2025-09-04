@@ -64,6 +64,12 @@ export default function ChatPanel() {
             </svg>
             Yield Calculator
           </Button>
+ 
+        </div>
+      </div>
+      <div className="mt-4 flex flex-col items-center gap-4">
+        <div className="flex gap-2">
+
           <Button 
             variant="outline" 
             onClick={handlePortfolioTracker}
