@@ -28,7 +28,24 @@ import { PositionsList as AavePositionsList } from "./protocols/aave/PositionsLi
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAptosAddressResolver } from '@/lib/hooks/useAptosAddressResolver';
 
+//import { styled } from 'styled-components';
+
 export default function PortfolioPage() {
+
+   useEffect(() => {
+    const forceScroll = () => {
+      if (window.innerWidth <= 767) {
+        document.body.style.overflowY = 'auto';
+      }
+    };
+    
+    forceScroll();
+    window.addEventListener('resize', forceScroll);
+    
+    return () => window.removeEventListener('resize', forceScroll);
+  }, []);
+
+
   //const { account } = useWallet();
   const [tokens, setTokens] = useState<Token[]>([]);
   const [totalValue, setTotalValue] = useState(0);
@@ -257,7 +274,7 @@ export default function PortfolioPage() {
 					      placeholder={input}
 					      className="font-mono text-sm h-10 pr-10 w-full truncate"
 				        />
-					    <div className="absolute right-1 top-1 flex gap-1">
+					    <div className="absolute right-1 top-1 flex gap-1 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 overflow-hidden h-8">
 					      <Button 
 					        size="sm" 
 					        variant="ghost" 

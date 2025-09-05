@@ -7,7 +7,7 @@ import { WalletDataProvider } from "@/contexts/WalletContext";
 import { ProtocolProvider } from "@/lib/contexts/ProtocolContext";
 import { DragDropProvider } from "@/contexts/DragDropContext";
 import { Toaster } from "@/components/ui/toaster";
-import { AlphaBanner } from "@/components/ui/alpha-banner";
+//import { AlphaBanner } from "@/components/ui/alpha-banner";
 import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -56,7 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <WalletDataProvider>
             <ProtocolProvider>
               <DragDropProvider>
-                <AlphaBanner />
+                {/*<AlphaBanner />*/}
                 {children}
                 
                 {/* Fixed home icon in bottom right corner - desktop only */}
