@@ -448,9 +448,12 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   totalSupply: pool.totalSupply,
                   totalBorrow: pool.totalBorrow,
                   // APR breakdown fields
-                  depositApy: pool.depositApy || pool.lendingApr || 0,
-                  stakingApr: pool.stakingApr || pool.stakingAprOnly || 0,
-                  totalSupplyApr: pool.totalSupplyApr || pool.depositApy || 0,
+                  depositApy: pool.depositApy || 0,
+                  stakingApr: pool.stakingApr,
+                  totalSupplyApr: pool.totalSupplyApr || 0,
+                  // Individual APR components for tooltip
+                  lendingApr: pool.lendingApr || 0,
+                  stakingAprOnly: pool.stakingAprOnly || 0,
                   // Note: LTV fields not available in current API response
                 };
               });
@@ -1497,30 +1500,30 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                 <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
                                   <div className="text-xs font-semibold mb-1">Supply APR Breakdown:</div>
                                   <div className="space-y-1">
-                                    {item.depositApy && item.depositApy > 0 && (
+                                    {(typeof item.lendingApr === 'number' && item.lendingApr > 0) && (
                                       <div className="flex justify-between">
-                                        <span>Deposit APR:</span>
-                                        <span className="text-green-400">{item.depositApy.toFixed(2)}%</span>
+                                        <span>Lending APR:</span>
+                                        <span className="text-green-400">{item.lendingApr.toFixed(2)}%</span>
                                       </div>
                                     )}
-                                    {item.stakingApr && item.stakingApr > 0 && (
+                                    {(typeof item.stakingApr === 'number' && item.stakingApr > 0) && (
                                       <div className="flex justify-between">
                                         <span>Staking APR:</span>
                                         <span className="text-blue-400">{item.stakingApr.toFixed(2)}%</span>
                                       </div>
                                     )}
-                                    {item.supplyRewardsApr && item.supplyRewardsApr > 0 && (
+                                    {(typeof item.supplyRewardsApr === 'number' && item.supplyRewardsApr > 0) && (
                                       <div className="flex justify-between">
                                         <span>Rewards APR:</span>
                                         <span className="text-yellow-400">{item.supplyRewardsApr.toFixed(2)}%</span>
                                       </div>
                                     )}
-                                                                         <div className="border-t border-gray-600 pt-1 mt-1">
-                                       <div className="flex justify-between font-semibold">
-                                         <span>Total:</span>
-                                         <span className="text-white">{item.depositApy.toFixed(2)}%</span>
-                                       </div>
-                                     </div>
+                                    <div className="border-t border-gray-600 pt-1 mt-1">
+                                      <div className="flex justify-between font-semibold">
+                                        <span>Total:</span>
+                                        <span className="text-white">{item.depositApy.toFixed(2)}%</span>
+                                      </div>
+                                    </div>
                                   </div>
                                 </TooltipContent>
                               </Tooltip>

@@ -36,6 +36,10 @@ export interface InvestmentData {
   isStakingPool?: boolean;
   stakingToken?: string;
   underlyingToken?: string;
+  // APR breakdown fields for tooltip
+  lendingApr?: number;
+  stakingAprOnly?: number;
+  totalSupplyApr?: number;
 }
 
 export interface InvestmentsResponse {
