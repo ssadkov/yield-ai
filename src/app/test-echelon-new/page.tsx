@@ -54,6 +54,7 @@ type RewardCoin = {
   price: number;
   rewardPerSec: number;
   totalAllocPoint: number;
+  endTime?: number; // Unix timestamp when rewards end
 };
 
 type PoolRewardInfo = {
@@ -70,12 +71,19 @@ function calculateRewardsApr(
   rewardCoins: Record<string, RewardCoin>
 ): number {
   const SECONDS_IN_YEAR = 31_536_000;
+  const currentTime = Math.floor(Date.now() / 1000); // Current Unix timestamp
 
   let totalApr = 0;
 
   for (const reward of pool.rewards) {
     const rewardData = rewardCoins[reward.rewardKey];
     if (!rewardData || reward.allocPoint === 0 || pool.stakeAmount === 0) continue;
+
+    // Check if rewards have ended
+    if (rewardData.endTime && rewardData.endTime <= currentTime) {
+      console.log(`Rewards for ${rewardData.symbol} have ended at ${new Date(rewardData.endTime * 1000).toISOString()}`);
+      continue; // Skip expired rewards
+    }
 
     const rewardPerSecForPool =
       (rewardData.rewardPerSec * reward.allocPoint) / rewardData.totalAllocPoint;
@@ -226,6 +234,7 @@ export default function TestEchelonNewPage() {
                   price: rewardData.rewardCoin.price,
                   rewardPerSec: rewardData.rewardPerSec,
                   totalAllocPoint: rewardData.totalAllocPoint,
+                  endTime: rewardData.endTime, // Include endTime if available
                 };
               }
             });
