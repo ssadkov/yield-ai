@@ -10,6 +10,7 @@ import Image from 'next/image';
 import { useCollapsible } from '@/contexts/CollapsibleContext';
 import { ManagePositionsButton } from '../ManagePositionsButton';
 import { getProtocolByName } from '@/lib/protocols/getProtocolsList';
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 interface PositionsListProps {
   address?: string;
@@ -41,14 +42,49 @@ export function PositionsList({
   const [positions, setPositions] = useState<MoarPosition[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [totalValue, setTotalValue] = useState(0);
+  const [rewardsData, setRewardsData] = useState<any>(null);
+  const [totalRewardsValue, setTotalRewardsValue] = useState<number>(0);
   const { isExpanded, toggleSection } = useCollapsible();
   const protocol = getProtocolByName("Moar Market");
 
   useEffect(() => {
     if (address) {
       fetchPositions();
+      fetchRewards();
     }
   }, [address]);
+
+  const fetchRewards = async () => {
+    if (!address) return;
+    
+    try {
+      console.log('🔍 Fetching Moar Market rewards for address:', address);
+      const response = await fetch(`/api/protocols/moar/rewards?address=${address}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setRewardsData(data);
+        setTotalRewardsValue(data.totalUsd || 0);
+        console.log('💰 Rewards loaded:', data);
+      } else {
+        console.warn('💰 Failed to load rewards:', data.error);
+        setRewardsData(null);
+        setTotalRewardsValue(0);
+      }
+    } catch (error) {
+      console.error('💰 Error fetching rewards:', error);
+      setRewardsData(null);
+      setTotalRewardsValue(0);
+    }
+  };
+
+  // Update total value when rewards change
+  useEffect(() => {
+    if (onPositionsValueChange) {
+      const totalWithRewards = totalValue + totalRewardsValue;
+      onPositionsValueChange(totalWithRewards);
+    }
+  }, [onPositionsValueChange, totalValue, totalRewardsValue]);
 
   const fetchPositions = async () => {
     if (!address) return;
@@ -67,17 +103,18 @@ export function PositionsList({
         }, 0);
         
         setTotalValue(total);
-        onPositionsValueChange?.(total);
+        const totalWithRewards = total + totalRewardsValue;
+        onPositionsValueChange?.(totalWithRewards);
       } else {
         setPositions([]);
         setTotalValue(0);
-        onPositionsValueChange?.(0);
+        onPositionsValueChange?.(totalRewardsValue);
       }
     } catch (error) {
       console.error('Error fetching Moar Market positions:', error);
       setPositions([]);
       setTotalValue(0);
-      onPositionsValueChange?.(0);
+      onPositionsValueChange?.(totalRewardsValue);
     } finally {
       setIsLoading(false);
       onPositionsCheckComplete?.();
@@ -167,6 +204,35 @@ export function PositionsList({
                     );
                   })}
                 </div>
+              )}
+              
+              {/* Total Rewards */}
+              {totalRewardsValue > 0 && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center justify-between pt-2 border-t border-gray-200 cursor-help">
+                        <span className="text-sm text-muted-foreground">💰 Total rewards:</span>
+                        <span className="text-sm font-medium">${totalRewardsValue.toFixed(2)}</span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
+                      <div className="text-xs font-semibold mb-1">Rewards breakdown:</div>
+                      <div className="space-y-2 max-h-60 overflow-y-auto">
+                        {rewardsData?.data?.map((reward: any, idx: number) => (
+                          <div key={idx} className="flex items-center gap-2">
+                            {reward.logoUrl && (
+                              <img src={reward.logoUrl} alt={reward.symbol} className="w-3 h-3 rounded-full" />
+                            )}
+                            <span>{reward.symbol}</span>
+                            <span>{reward.amount.toFixed(6)}</span>
+                            <span className="text-gray-300">${reward.usdValue.toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
               
               {protocol && showManageButton && (
