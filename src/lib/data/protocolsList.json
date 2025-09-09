@@ -141,5 +141,17 @@
     "depositUrl": "https://aptos.aave.com/",
     "isDepositEnabled": true,
     "managedType": "native"
+  },
+  {
+    "name": "Moar Market",
+    "key": "moar",
+    "category": "Lending",
+    "url": "https://app.moar.market/",
+    "logoUrl": "/protocol_ico/moar-market-logo-primary.png",
+    "description": "Moar Market is the Credit Layer for Aptos DeFi. It introduces the concept of Composable Leverage - giving you credit to use across DeFi Protocols.",
+    "depositType": "external",
+    "depositUrl": "https://app.moar.market/lend",
+    "isDepositEnabled": true,
+    "managedType": "native"
   }
 ] 

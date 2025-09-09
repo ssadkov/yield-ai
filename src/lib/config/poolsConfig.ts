@@ -275,6 +275,36 @@ export const poolSources: PoolSource[] = [
         };
       });
     }
+  },
+  // Moar Market API - User Positions Only
+  {
+    name: 'Moar Market User Positions',
+    url: '/api/protocols/moar/userPositions',
+    enabled: true,
+    transform: (data: any) => {
+      // Transform Moar Market user positions data to InvestmentData format
+      // For now, return empty array as we're focusing on user positions only
+      const positions = data.data || [];
+      
+      return positions.map((position: any) => {
+        return {
+          asset: position.coin || 'Unknown',
+          provider: 'Moar Market',
+          totalAPY: 0, // Will be populated when we have actual market data
+          depositApy: position.type === 'supply' ? 0 : 0,
+          borrowAPY: position.type === 'borrow' ? 0 : 0,
+          token: position.coin || '',
+          protocol: 'Moar Market',
+          poolType: 'Lending',
+          tvlUSD: 0, // Will be populated when we have actual market data
+          dailyVolumeUSD: 0,
+          // Additional Moar Market-specific data
+          market: position.market,
+          amount: position.amount,
+          type: position.type
+        };
+      });
+    }
   }
 ];
 

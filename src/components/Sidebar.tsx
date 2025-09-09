@@ -18,6 +18,7 @@ import { PositionsList as MesoPositionsList } from "./protocols/meso/PositionsLi
 import { PositionsList as AuroPositionsList } from "./protocols/auro/PositionsList";
 import { PositionsList as AmnisPositionsList } from "./protocols/amnis/PositionsList";
 import { PositionsList as EarniumPositionsList } from "./protocols/earnium/PositionsList";
+import { PositionsList as MoarPositionsList } from "./protocols/moar/PositionsList";
 import { PositionsList as AavePositionsList } from "./protocols/aave/PositionsList";
 
 export default function Sidebar() {
@@ -34,6 +35,7 @@ export default function Sidebar() {
   const [amnisValue, setAmnisValue] = useState(0);
   const [earniumValue, setEarniumValue] = useState(0);
   const [aaveValue, setAaveValue] = useState(0);
+  const [moarValue, setMoarValue] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [checkingProtocols, setCheckingProtocols] = useState<string[]>([]);
 
@@ -48,6 +50,7 @@ export default function Sidebar() {
     "Amnis Finance",
     "Earnium",
     "Aave",
+    "Moar Market",
   ];
 
   const resetChecking = useCallback(() => {
@@ -145,6 +148,10 @@ export default function Sidebar() {
     setAaveValue(value);
   }, []);
 
+  const handleMoarValueChange = useCallback((value: number) => {
+    setMoarValue(value);
+  }, []);
+
   // Считаем сумму по кошельку
   const walletTotal = tokens.reduce((sum, token) => {
     const value = token.value ? parseFloat(token.value) : 0;
@@ -212,6 +219,7 @@ export default function Sidebar() {
                 { component: AmnisPositionsList, value: amnisValue, name: 'Amnis Finance' },
                 { component: EarniumPositionsList, value: earniumValue, name: 'Earnium' },
                 { component: AavePositionsList, value: aaveValue, name: 'Aave' },
+                { component: MoarPositionsList, value: moarValue, name: 'Moar Market' },
               ]
                 .sort((a, b) => b.value - a.value)
                 .map(({ component: Component, name }) => (
@@ -230,6 +238,7 @@ export default function Sidebar() {
                       name === 'Amnis Finance' ? handleAmnisValueChange :
                       name === 'Earnium' ? handleEarniumValueChange :
                       name === 'Aave' ? handleAaveValueChange :
+                      name === 'Moar Market' ? handleMoarValueChange :
                       undefined
                     }
                     onPositionsCheckComplete={() =>
