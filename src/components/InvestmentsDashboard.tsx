@@ -1003,11 +1003,11 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                       </>
                                     ) : (
                                       // Lending tooltip content (existing logic)
+									  //<p className="text-xs">Price: ${tokenInfo.usdPrice}</p>
                                       tokenInfo && (
                                         <>
                                           <p className="text-xs">Name: {tokenInfo.name}</p>
                                           <p className="text-xs">Symbol: {tokenInfo.symbol}</p>
-                                          <p className="text-xs">Price: ${tokenInfo.usdPrice}</p>
                                         </>
                                       )
                                     )}
@@ -1153,11 +1153,11 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                     </>
                                   ) : (
                                     // Lending tooltip content (existing logic)
+									//<p className="text-xs">Price: ${tokenInfo.usdPrice}</p>
                                     tokenInfo && (
                                       <>
                                         <p className="text-xs">Name: {tokenInfo.name}</p>
                                         <p className="text-xs">Symbol: {tokenInfo.symbol}</p>
-                                        <p className="text-xs">Price: ${tokenInfo.usdPrice}</p>
                                       </>
                                     )
                                   )}
@@ -1469,11 +1469,11 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                     </>
                                   ) : (
                                     // Lending tooltip content (existing logic)
+									//<p className="text-xs">Price: ${tokenInfo.usdPrice}</p>
                                     tokenInfo && (
                                       <>
                                         <p className="text-xs">Name: {tokenInfo.name}</p>
                                         <p className="text-xs">Symbol: {tokenInfo.symbol}</p>
-                                        <p className="text-xs">Price: ${tokenInfo.usdPrice}</p>
                                       </>
                                     )
                                   )}
