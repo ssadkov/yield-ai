@@ -58,7 +58,6 @@ function MobileTabsContent() {
         setTokens(portfolio.tokens);
         setTotalValue((total + hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + earniumValue).toFixed(2));
       } catch (error) {
-        console.error("Failed to load portfolio:", error);
       }
     }
 

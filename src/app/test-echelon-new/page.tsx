@@ -81,7 +81,6 @@ function calculateRewardsApr(
 
     // Check if rewards have ended
     if (rewardData.endTime && rewardData.endTime <= currentTime) {
-      console.log(`Rewards for ${rewardData.symbol} have ended at ${new Date(rewardData.endTime * 1000).toISOString()}`);
       continue; // Skip expired rewards
     }
 
@@ -168,7 +167,6 @@ export default function TestEchelonNewPage() {
     setTableData([]);
 
     try {
-      console.log('Fetching markets data...');
       const response = await fetch('/api/protocols/echelon/markets');
       
       if (!response.ok) {
@@ -176,25 +174,21 @@ export default function TestEchelonNewPage() {
       }
       
       const result = await response.json();
-      console.log('Markets API response:', result);
       
       if (result.success && result.data) {
         setMarketsData(result.data);
         
-        console.log('Raw data structure:', JSON.stringify(result.data, null, 2));
         
         // Process data for table
         const processedData: TableRowData[] = [];
         
         // Check if we have assets and marketStats
         if (!result.data.assets || !Array.isArray(result.data.assets)) {
-          console.error('No assets array found in data');
           setError('No assets data found');
           return;
         }
         
         if (!result.data.marketStats || !Array.isArray(result.data.marketStats)) {
-          console.error('No marketStats array found in data');
           setError('No market stats data found');
           return;
         }
@@ -267,16 +261,9 @@ export default function TestEchelonNewPage() {
           }
         }
 
-        console.log('Market stats map size:', marketStatsMap.size);
-        console.log('Supply pools map size:', supplyPoolsMap.size);
-        console.log('Reward coins map size:', Object.keys(rewardCoinsMap).length);
-        console.log('Assets count:', result.data.assets.length);
-        console.log('Sample asset:', result.data.assets[0]);
-        console.log('Sample market stat:', result.data.marketStats[0]);
         
         // Filter and process assets
         result.data.assets.forEach((asset: any) => {
-          console.log('Processing asset:', asset.symbol, 'address:', asset.address, 'market:', asset.market);
           
           // Get market stats for this asset by token address (not market address)
           // Try address first, then faAddress if available
@@ -286,32 +273,15 @@ export default function TestEchelonNewPage() {
           }
           
           if (!marketStat) {
-            console.log('No market stats found for asset:', asset.symbol, 'address:', asset.address, 'faAddress:', asset.faAddress);
-            if (asset.symbol === 'kAPT') {
-              console.log('kAPT details:', {
-                symbol: asset.symbol,
-                address: asset.address,
-                faAddress: asset.faAddress,
-                market: asset.market,
-                supplyCap: asset.supplyCap,
-                borrowCap: asset.borrowCap
-              });
-              console.log('Looking for address:', asset.address);
-              console.log('Looking for faAddress:', asset.faAddress);
-              console.log('Available market stats keys:', Array.from(marketStatsMap.keys()));
-            }
             return; // Skip if no market stats available
           }
           
           // Skip tokens where both supplyCap and borrowCap are 0 AND no activity
           const hasActivity = marketStat.totalShares > 0 || marketStat.totalLiability > 0;
           if (asset.supplyCap === 0 && asset.borrowCap === 0 && !hasActivity) {
-            console.log('Skipping inactive asset:', asset.symbol);
             return;
           }
           
-          console.log('Found market stats for', asset.symbol, ':', marketStat);
-          console.log('Market activity:', { totalShares: marketStat.totalShares, totalLiability: marketStat.totalLiability });
           
           // Calculate rewards APR for both supply and borrow
           const supplyPool = supplyPoolsMap.get(asset.market);
@@ -346,17 +316,6 @@ export default function TestEchelonNewPage() {
           const totalSupplyApr = (asset.supplyApr || 0) * 100 + supplyRewardsApr * 100;
           const totalBorrowApr = (asset.borrowApr || 0) * 100 + borrowRewardsApr * 100;
           
-          // Debug rewards for specific assets
-          if (asset.symbol === 'USDC' || asset.symbol === 'kAPT') {
-            console.log(`${asset.symbol} rewards:`, {
-              supplyRewardsApr: supplyRewardsApr * 100,
-              borrowRewardsApr: borrowRewardsApr * 100,
-              totalSupplyApr,
-              totalBorrowApr,
-              supplyRewardTokens,
-              borrowRewardTokens
-            });
-          }
           
                       processedData.push({
               symbol: asset.symbol || 'Unknown',
@@ -377,37 +336,16 @@ export default function TestEchelonNewPage() {
             });
         });
         
-        console.log('Processed data count:', processedData.length);
-        console.log('Total assets:', result.data.assets.length);
-        console.log('Total market stats:', result.data.marketStats.length);
-        console.log('Sample processed data:', processedData[0]);
         
         // Sort by totalSupply in descending order
         processedData.sort((a, b) => b.totalSupply - a.totalSupply);
         
-        // Log table to console for debugging
-        console.table(processedData.map(item => ({
-          Symbol: item.symbol,
-          Name: item.name,
-          Price: `$${item.price.toFixed(4)}`,
-          'Supply APR': `${item.supplyApr.toFixed(2)}%`,
-          'Borrow APR': `${item.borrowApr.toFixed(2)}%`,
-          'Total Supply APR': `${item.totalSupplyApr.toFixed(2)}%`,
-          'Total Borrow APR': `${item.totalBorrowApr.toFixed(2)}%`,
-          'Supply Rewards APR': `${item.supplyRewardsApr.toFixed(2)}%`,
-          'Supply Reward Tokens': item.supplyRewardTokens.join(', ') || 'N/A',
-          'Borrow Rewards APR': `${item.borrowRewardsApr.toFixed(2)}%`,
-          'Borrow Reward Tokens': item.borrowRewardTokens.join(', ') || 'N/A',
-          'Total Supply': item.totalSupply.toLocaleString(),
-          'Total Borrow': item.totalBorrow.toLocaleString(),
-        })));
         
         setTableData(processedData);
       } else {
         setError(result.error || 'Invalid data format received');
       }
     } catch (err) {
-      console.error('Error in getMarkets:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setMarketsLoading(false);

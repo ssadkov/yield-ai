@@ -216,7 +216,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     
     const fetchData = async () => {
       try {
-        console.log('Starting progressive loading...');
         setLoading(true);
         setError(null);
         
@@ -500,7 +499,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
         // Fetch all protocols in parallel
         const fetchPromises = protocolEndpoints.map(async (endpoint) => {
           try {
-            console.log(`Fetching ${endpoint.name} from ${endpoint.url}...`);
             
             const response = await fetch(endpoint.url, {
               headers: {
@@ -516,13 +514,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
             const data = await response.json();
             const transformedData = endpoint.transform(data);
             
-            console.log(`${endpoint.name} loaded: ${transformedData.length} pools`);
-            
-            // Special logging for Tapp Exchange
-            if (endpoint.name === 'Tapp Exchange Pools API') {
-              console.log('Tapp Exchange data:', transformedData);
-              console.log('Tapp Exchange first pool:', transformedData[0]);
-            }
 
             // Update state progressively
             setProtocolsData(prev => ({
@@ -540,13 +531,9 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
               [endpoint.name]: false
             }));
             
-            console.log(`${endpoint.name} completed: ${transformedData.length} pools`);
             return { name: endpoint.name, data: transformedData, success: true };
           } catch (error) {
-            console.error(`Error fetching ${endpoint.name} from ${endpoint.url}:`, error);
-            
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            console.error(`Error details for ${endpoint.name}:`, errorMessage);
             
             setProtocolsError(prev => ({
               ...prev,
@@ -581,10 +568,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
         setData(allPools);
         setLoading(false);
         
-        console.log(`Total pools loaded: ${allPools.length}`);
         
       } catch (error) {
-        console.error('Error fetching investment data:', error);
         setError('Failed to load investment opportunities');
         setLoading(false);
       }
@@ -609,7 +594,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
       const dragData = JSON.parse(e.dataTransfer.getData('application/json')) as DragData;
       handleDrop(dragData, investment);
     } catch (error) {
-      console.error('Error parsing drag data:', error);
     }
   };
 
@@ -643,11 +627,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   // Combine all loaded protocol data
   const allLoadedData = Object.values(protocolsData).flat();
   
-  // Debug logging for Tapp Exchange
-  const tappData = protocolsData['Tapp Exchange Pools API'] || [];
-  console.log('Tapp Exchange pools in protocolsData:', tappData.length);
-  console.log('All loaded data count:', allLoadedData.length);
-  console.log('Protocols data keys:', Object.keys(protocolsData));
   
   const topInvestments = [...allLoadedData]
     .sort((a, b) => b.totalAPY - a.totalAPY)
@@ -713,7 +692,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     : filteredData; // В Pro вкладке используем все отфильтрованные данные
 
   const handleManageClick = (protocol: Protocol) => {
-    console.log('Selected protocol:', protocol);
     setSelectedProtocol(protocol);
   };
 

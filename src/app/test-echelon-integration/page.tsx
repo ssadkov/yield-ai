@@ -18,7 +18,6 @@ export default function TestEchelonIntegrationPage() {
     setPools([]);
 
     try {
-      console.log('Testing Echelon v2 API...');
       const response = await fetch('/api/protocols/echelon/v2/pools');
       
       if (!response.ok) {
@@ -26,11 +25,9 @@ export default function TestEchelonIntegrationPage() {
       }
       
       const result = await response.json();
-      console.log('Echelon v2 API response:', result);
       
       if (result.success && result.data) {
         setPools(result.data);
-        console.log(`Loaded ${result.data.length} Echelon pools`);
       } else {
         setError(result.error || 'No data found');
       }
@@ -47,7 +44,6 @@ export default function TestEchelonIntegrationPage() {
     setAllPools([]);
 
     try {
-      console.log('Testing all pools integration...');
       const response = await fetch('/api/aptos/pools');
       
       if (!response.ok) {
@@ -55,15 +51,12 @@ export default function TestEchelonIntegrationPage() {
       }
       
       const result = await response.json();
-      console.log('All pools API response:', result);
       
       if (result.data) {
         setAllPools(result.data);
         
         // Filter Echelon pools
         const echelonPools = result.data.filter((pool: InvestmentData) => pool.protocol === 'Echelon');
-        console.log(`Found ${echelonPools.length} Echelon pools in all pools`);
-        console.log('Echelon pools:', echelonPools);
       } else {
         setError('No data found');
       }

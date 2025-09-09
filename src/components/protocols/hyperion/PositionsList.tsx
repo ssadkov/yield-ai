@@ -39,7 +39,6 @@ export function PositionsList({ address, onPositionsValueChange, walletTokens, o
     if (walletTokens) {
       const vaultTokensList = filterHyperionVaultTokens(walletTokens);
       setVaultTokens(vaultTokensList);
-      console.log('[Hyperion PositionsList] Vault tokens found:', vaultTokensList.length);
     }
   }, [walletTokens]);
 
@@ -68,7 +67,6 @@ export function PositionsList({ address, onPositionsValueChange, walletTokens, o
           setPositions([]);
         }
       } catch (err) {
-        console.error('Error loading Hyperion positions:', err);
         setError('Failed to load positions');
         // keep previous positions on error
       } finally {

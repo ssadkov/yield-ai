@@ -43,26 +43,21 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
       cleanAddress = `0x${cleanAddress}`;
     }
     const price = tokenPrices[cleanAddress] || '0';
-    console.log('[Auro Managing] getTokenPrice:', cleanAddress, '=>', price);
     return price;
   }, [tokenPrices]);
 
   // Функция для получения информации о токене наград
   const getRewardTokenInfoHelper = useCallback((tokenAddress: string) => {
-    console.log('[Auro Managing] getRewardTokenInfoHelper called for:', tokenAddress);
     const cleanAddress = tokenAddress.startsWith('@') ? tokenAddress.slice(1) : tokenAddress;
     const fullAddress = cleanAddress.startsWith('0x') ? cleanAddress : `0x${cleanAddress}`;
-    console.log('[Auro Managing] Looking for token with address:', fullAddress);
     
     const token = (tokenList as any).data.data.find((token: any) => 
       token.tokenAddress === fullAddress || 
       token.faAddress === fullAddress
     );
     
-    console.log('[Auro Managing] Found token:', token);
     
     if (!token) {
-      console.log('[Auro Managing] Token not found for address:', fullAddress);
       return undefined;
     }
     
@@ -75,7 +70,6 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
       price: getTokenPrice(fullAddress) // Используем динамическую цену
     };
     
-    console.log('[Auro Managing] Returning token info:', result);
     return result;
   }, [getTokenPrice]);
 
@@ -109,7 +103,6 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
         }
       })
       .catch(error => {
-        console.error('Error loading Auro pools data:', error);
       });
   }, []);
 
@@ -119,8 +112,6 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
 
     const fetchRewards = async () => {
       try {
-        console.log('Fetching rewards for positions:', positions.length);
-        console.log('Available pools:', poolsData.length);
         
         // Формируем positionsInfo в нужном формате
         const positionsInfo = positions.map(pos => ({
@@ -137,11 +128,8 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
           borrowRewardsPoolAddress: pool.borrowRewardsPoolAddress
         }));
 
-        console.log('Positions info:', positionsInfo);
-        console.log('Formatted pools data:', formattedPoolsData);
 
         if (positionsInfo.length === 0 || formattedPoolsData.length === 0) {
-          console.log('No positions or pools found');
           return;
         }
 
@@ -150,7 +138,6 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
           poolsData: formattedPoolsData
         };
 
-        console.log('Sending request:', requestBody);
 
         const response = await fetch('/api/protocols/auro/rewards', {
           method: 'POST',
@@ -160,26 +147,20 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
           body: JSON.stringify(requestBody)
         });
 
-        console.log('Response status:', response.status);
 
         if (response.ok) {
           const data = await response.json();
-          console.log('Rewards response:', data);
           
           if (data.success && data.data) {
             setRewardsData(data.data);
-            console.log('Set rewards data:', data.data);
           } else {
-            console.log('Invalid rewards response format:', data);
             setRewardsData({});
           }
         } else {
           const errorText = await response.text();
-          console.error('Rewards API error:', response.status, errorText);
           setRewardsData({});
         }
       } catch (error) {
-        console.error('Error loading rewards:', error);
         setRewardsData({});
       }
     };
@@ -244,13 +225,11 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
       });
 
       const addressesArray = Array.from(addresses);
-      console.log('[Auro Managing] Token addresses for Panora:', addressesArray);
       
       if (addressesArray.length === 0) return;
 
       try {
         const response = await pricesService.getPrices(1, addressesArray);
-        console.log('[Auro Managing] Panora API response:', response.data);
         if (response.data) {
           const prices: Record<string, string> = {};
           response.data.forEach((price: TokenPrice) => {
@@ -264,7 +243,6 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
           setTokenPrices(prices);
         }
       } catch (error) {
-        console.error('Error fetching token prices:', error);
       }
     };
 

@@ -73,7 +73,6 @@ export default function Sidebar() {
       }, 0);
       setTotalValue(total);
     } catch (error) {
-      console.error('Error loading portfolio:', error);
       setTokens([]);
       setTotalValue(0);
     } finally {

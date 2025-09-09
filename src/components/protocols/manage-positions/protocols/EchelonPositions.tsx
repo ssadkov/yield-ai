@@ -145,7 +145,6 @@ export function EchelonPositions() {
         setRewardsData([]);
       }
     } catch (error) {
-      console.error('Error loading rewards:', error);
       setRewardsData([]);
     }
   }, [account?.address]);
@@ -179,7 +178,6 @@ export function EchelonPositions() {
       }
       await fetchRewards();
     } catch (err) {
-      console.error('[EchelonPositions] Error reloading data:', err);
       setError('Failed to load Echelon positions');
     } finally {
       setLoading(false);
@@ -282,7 +280,6 @@ export function EchelonPositions() {
       // Обновить данные
       await fetchRewards();
     } catch (error) {
-      console.error('Error claiming rewards:', error);
     }
   };
 
@@ -308,7 +305,6 @@ export function EchelonPositions() {
           setTokenPrices(prices);
         }
       } catch (error) {
-        console.error('Error fetching token prices:', error);
       }
     }, 1000); // Дебаунсинг 1 секунда
 
@@ -320,7 +316,6 @@ export function EchelonPositions() {
     fetch('/api/protocols/echelon/v2/pools')
       .then(res => res.json())
       .then(data => {
-        console.log('EchelonPositions - APR data loaded:', data);
         if (data.success && data.data) {
                       // Создаем двойной маппинг: по asset (символ) и по token (адрес) для совместимости
           const apyMapping: Record<string, any> = {};
@@ -370,27 +365,10 @@ export function EchelonPositions() {
             }
           });
                      setApyData(apyMapping);
-           console.log('EchelonPositions - APR mapping created:', apyMapping);
-           console.log('EchelonPositions - APR mapping keys:', Object.keys(apyMapping));
            
-           // Специальная проверка для APT
-           if (apyMapping['APT']) {
-             console.log('EchelonPositions - APT pool data found:', apyMapping['APT']);
-           }
-           if (apyMapping['0x1::aptos_coin::AptosCoin']) {
-             console.log('EchelonPositions - APT by address found:', apyMapping['0x1::aptos_coin::AptosCoin']);
-           }
-           if (apyMapping['0xa']) {
-             console.log('EchelonPositions - APT by short address found:', apyMapping['0xa']);
-           }
-           if (apyMapping['0x0a']) {
-             console.log('EchelonPositions - APT by padded address found:', apyMapping['0x0a']);
-           }
         }
       })
               .catch(error => {
-          console.error('EchelonPositions - APR data load error:', error);
-        console.log('Using fallback APR data');
         // Fallback на старые данные
         // setMarketData(echelonMarkets.markets); // This line is removed
       });
@@ -427,7 +405,6 @@ export function EchelonPositions() {
         // Загружаем награды
         await fetchRewards();
       } catch (err) {
-        console.error('[Managing Positions] Error loading data:', err);
         setError('Failed to load Echelon positions');
         setPositions([]);
         setRewardsData([]);
@@ -483,7 +460,6 @@ export function EchelonPositions() {
     if (!poolData && position.coin) {
       const normalizedCoin = normalizeTokenAddress(position.coin);
       poolData = apyData[normalizedCoin];
-      console.log(`Trying to find APR data by normalized address ${normalizedCoin} for ${position.coin}`);
     }
     
     // Если не найдено по нормализованному адресу, попробуем найти по символу токена
@@ -491,24 +467,18 @@ export function EchelonPositions() {
       const tokenInfo = getTokenInfo(position.coin);
       if (tokenInfo?.symbol) {
         poolData = apyData[tokenInfo.symbol];
-        console.log(`Trying to find APR data by symbol ${tokenInfo.symbol} for ${position.coin}`);
       }
     }
     
     if (poolData) {
-      console.log(`Found APR data for ${position.coin}:`, poolData);
       if (position.type === 'supply') {
         const apy = poolData.supplyAPY / 100; // Конвертируем из процентов в десятичную форму
-        console.log(`Supply APR for ${position.coin}: ${apy * 100}%`);
         return apy;
       } else if (position.type === 'borrow') {
         const apy = poolData.borrowAPY / 100;
-        console.log(`Borrow APR for ${position.coin}: ${apy * 100}%`);
         return apy;
       }
     }
-    
-    console.log(`No APR data found for ${position.coin}`);
     return null;
   };
 
@@ -550,9 +520,6 @@ export function EchelonPositions() {
 
   // Обработчик открытия модального окна deposit
   const handleDepositClick = (position: Position) => {
-    console.log('Deposit click - position:', position);
-    console.log('Deposit click - apyData keys:', Object.keys(apyData));
-    console.log('Deposit click - apyData for this coin:', apyData[position.coin]);
     
          // Попробуем найти market address для депозита
      let marketAddress = position.market;
@@ -563,7 +530,6 @@ export function EchelonPositions() {
        if (!poolData) {
          const normalizedCoin = normalizeTokenAddress(position.coin);
          poolData = apyData[normalizedCoin];
-         console.log(`Trying to find market address by normalized address ${normalizedCoin} for ${position.coin}`);
        }
        
        // Если не найдено по нормализованному адресу, попробуем найти по символу токена
@@ -571,29 +537,22 @@ export function EchelonPositions() {
          const tokenInfo = getTokenInfo(position.coin);
          if (tokenInfo?.symbol) {
            poolData = apyData[tokenInfo.symbol];
-           console.log(`Found pool data by symbol ${tokenInfo.symbol}:`, poolData);
          }
        }
        if (poolData?.marketAddress) {
          marketAddress = poolData.marketAddress;
-         console.log('Found market address for deposit:', marketAddress);
        }
      }
      
      // Если все еще нет market address, попробуем найти в локальных данных
      if (!marketAddress) {
-       console.log('Deposit click - trying to get market address from local data');
        const normalizedCoin = normalizeTokenAddress(position.coin);
-       console.log('Deposit click - normalized coin address:', normalizedCoin);
        let localMarket = echelonMarkets.markets.find((m: any) => m.coin === normalizedCoin);
        if (localMarket?.market) {
          marketAddress = localMarket.market;
-         console.log('Found market address for deposit from local data:', marketAddress);
        }
      }
     
-    console.log('Deposit click - getApyForPosition result:', getApyForPosition(position));
-    console.log('Deposit click - market address:', marketAddress);
     setSelectedPosition(position);
     setShowDepositModal(true);
   };
@@ -634,15 +593,12 @@ export function EchelonPositions() {
     if (!selectedPosition) return;
     
     try {
-      console.log('Withdraw confirm - selectedPosition:', selectedPosition);
       // console.log('Withdraw confirm - marketData:', marketData); // This line is removed
       
       // Если market address нет в позиции, получаем его из API
       let marketAddress = selectedPosition.market;
-      console.log('Withdraw confirm - initial marketAddress:', marketAddress);
       
       if (!marketAddress) {
-        console.log('Withdraw confirm - searching for market by coin:', selectedPosition.coin);
         // const market = marketData.find((m: any) => m.coin === selectedPosition.coin); // This line is removed
         // console.log('Withdraw confirm - found market:', market); // This line is removed
         // marketAddress = market?.market; // This line is removed
@@ -651,14 +607,12 @@ export function EchelonPositions() {
       
                     // Если все еще нет market address, попробуем получить его из apyData
         if (!marketAddress) {
-          console.log('Withdraw confirm - trying to get market address from apyData');
           let poolData = apyData[selectedPosition.coin];
           
           // Если не найдено по адресу, попробуем найти по нормализованному адресу
           if (!poolData) {
             const normalizedCoin = normalizeTokenAddress(selectedPosition.coin);
             poolData = apyData[normalizedCoin];
-            console.log(`Trying to find market address by normalized address ${normalizedCoin} for ${selectedPosition.coin}`);
           }
           
           // Если не найдено по нормализованному адресу, попробуем найти по символу токена
@@ -666,40 +620,30 @@ export function EchelonPositions() {
             const tokenInfo = getTokenInfo(selectedPosition.coin);
             if (tokenInfo?.symbol) {
               poolData = apyData[tokenInfo.symbol];
-              console.log(`Trying to find market address by symbol ${tokenInfo.symbol} for ${selectedPosition.coin}`);
             }
           }
           
           if (poolData?.marketAddress) {
             marketAddress = poolData.marketAddress;
-            console.log('Withdraw confirm - marketAddress from apyData:', marketAddress);
           }
         }
       
              // Если все еще нет market address, используем локальные данные
        if (!marketAddress) {
-         console.log('Withdraw confirm - trying to get market address from local data');
          const normalizedCoin = normalizeTokenAddress(selectedPosition.coin);
-         console.log('Withdraw confirm - normalized coin address:', normalizedCoin);
          let localMarket = echelonMarkets.markets.find((m: any) => m.coin === normalizedCoin);
          
 
          
          marketAddress = localMarket?.market;
-         console.log('Withdraw confirm - marketAddress from local data:', marketAddress);
        }
       
       if (!marketAddress) {
-        console.error('Withdraw confirm - no market address found');
-        console.error('Withdraw confirm - selectedPosition.coin:', selectedPosition.coin);
         // console.error('Withdraw confirm - marketData length:', marketData.length); // This line is removed
         // console.error('Withdraw confirm - marketData coins:', marketData.map((m: any) => m.coin)); // This line is removed
         throw new Error('Market address not found for this token');
       }
       
-      console.log('Withdraw confirm - final marketAddress:', marketAddress);
-      console.log('Withdraw confirm - amount:', amount.toString());
-      console.log('Withdraw confirm - coin:', selectedPosition.coin);
       
       await withdraw('echelon', marketAddress, amount, selectedPosition.coin);
       setShowWithdrawModal(false);
@@ -707,7 +651,6 @@ export function EchelonPositions() {
       isModalOpenRef.current = false;
       closePositionModal(selectedPosition.coin);
     } catch (error) {
-      console.error('Withdraw failed:', error);
     }
   };
 
@@ -719,12 +662,8 @@ export function EchelonPositions() {
     return <div className="text-red-500">{error}</div>;
   }
 
-  console.log('EchelonPositions - render - positions length:', positions.length);
-  console.log('EchelonPositions - render - positions:', positions);
-  console.log('EchelonPositions - render - sortedPositions length:', sortedPositions.length);
 
   if (positions.length === 0) {
-    console.log('EchelonPositions - render - returning null because positions.length === 0');
     return null;
   }
 
@@ -1144,7 +1083,6 @@ export function EchelonPositions() {
             logo: "/echelon-favicon.ico",
             apy: (() => {
               const apyValue = getApyForPosition(selectedPosition) ? getApyForPosition(selectedPosition)! * 100 : 0;
-              console.log('DepositModal - APY value being passed:', apyValue);
               return apyValue;
             })(),
             key: "echelon" as ProtocolKey

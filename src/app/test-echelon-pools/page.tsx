@@ -56,7 +56,6 @@ export default function TestEchelonPoolsPage() {
     setPools([]);
 
     try {
-      console.log('Testing Echelon v2 pools API...');
       const response = await fetch('/api/protocols/echelon/v2/pools');
       
       if (!response.ok) {
@@ -64,7 +63,6 @@ export default function TestEchelonPoolsPage() {
       }
       
       const result = await response.json();
-      console.log('Echelon v2 pools API response:', result);
       
       if (result.success && result.data) {
         setPools(result.data);
@@ -93,7 +91,6 @@ export default function TestEchelonPoolsPage() {
           stakingOnly
         });
 
-        console.log(`Loaded ${result.data.length} Echelon pools with ${uniqueAssets.size} unique assets`);
       } else {
         setError(result.error || 'No data found');
       }
