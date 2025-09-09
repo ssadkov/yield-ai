@@ -5,8 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
+import { ChevronDown, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { useCollapsible } from '@/contexts/CollapsibleContext';
@@ -41,7 +40,7 @@ export function PositionsList({
   const [positions, setPositions] = useState<MoarPosition[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [totalValue, setTotalValue] = useState(0);
-  const { isExpanded, toggleExpanded } = useCollapsible();
+  const { isExpanded, toggleSection } = useCollapsible();
 
   useEffect(() => {
     if (address) {
@@ -89,35 +88,32 @@ export function PositionsList({
 
   return (
     <Card className="w-full">
-      <Collapsible 
-        open={isExpanded('moar')} 
-        onOpenChange={() => toggleExpanded('moar')}
+      <CardHeader 
+        className="py-2 cursor-pointer hover:bg-accent/50 transition-colors"
+        onClick={() => toggleSection('moar')}
       >
-        <CollapsibleTrigger asChild>
-          <CardHeader className="py-2 cursor-pointer hover:bg-accent/50 transition-colors">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-5 h-5 relative">
-                  <Image 
-                    src="/protocol_ico/moar-market-logo-primary.png" 
-                    alt="Moar Market"
-                    width={20}
-                    height={20}
-                    className="object-contain"
-                  />
-                </div>
-                <CardTitle className="text-lg">Moar Market</CardTitle>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="text-lg">${totalValue.toFixed(2)}</div>
-                <ChevronDown className={cn(
-                  "h-5 w-5 transition-transform",
-                  isExpanded('moar') ? "transform rotate-0" : "transform -rotate-90"
-                )} />
-              </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 relative">
+              <Image 
+                src="/protocol_ico/moar-market-logo-primary.png" 
+                alt="Moar Market"
+                width={20}
+                height={20}
+                className="object-contain"
+              />
             </div>
-          </CardHeader>
-        </CollapsibleTrigger>
+            <CardTitle className="text-lg">Moar Market</CardTitle>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="text-lg">${totalValue.toFixed(2)}</div>
+            <ChevronDown className={cn(
+              "h-5 w-5 transition-transform",
+              isExpanded('moar') ? "transform rotate-0" : "transform -rotate-90"
+            )} />
+          </div>
+        </div>
+      </CardHeader>
         
         {isExpanded('moar') && (
           <CardContent className="flex-1 overflow-y-auto px-3 pt-0">
@@ -188,7 +184,6 @@ export function PositionsList({
             </ScrollArea>
           </CardContent>
         )}
-      </Collapsible>
     </Card>
   );
 }
