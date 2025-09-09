@@ -12,6 +12,7 @@ import { AuroPositions } from "./protocols/AuroPositions";
 import { AmnisPositions } from "./protocols/AmnisPositions";
 import { EarniumPositionsManaging } from "./protocols/EarniumPositions";
 import { AavePositions } from "./protocols/AavePositions";
+import { MoarPositions } from "./protocols/MoarPositions";
 import { RefreshCw, Info, ExternalLink } from "lucide-react";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useState } from "react";
@@ -48,6 +49,9 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
       } else if (protocol.name.toLowerCase().includes('aave')) {
         apiPath = 'aave';
         endpoint = 'positions'; // AAVE использует endpoint 'positions' вместо 'userPositions'
+      } else if (protocol.name.toLowerCase().includes('moar')) {
+        apiPath = 'moar';
+        endpoint = 'userPositions';
       }
       
       const response = await fetch(`/api/protocols/${apiPath}/${endpoint}?address=${account.address}`);
@@ -114,6 +118,8 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
         return <EarniumPositionsManaging />;
       case 'aave':
         return <AavePositions />;
+      case 'moar market':
+        return <MoarPositions />;
       default:
         return (
           <div className="text-sm text-muted-foreground">
