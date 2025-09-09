@@ -7,9 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
 import { PanoraPricesService } from '@/lib/services/panora/prices';
+import { useClaimRewards } from '@/lib/hooks/useClaimRewards';
 
 export default function TestMoarPage() {
   const { account } = useWallet();
+  const { claimRewards, isLoading: isClaiming } = useClaimRewards();
   const [testAddress, setTestAddress] = useState('');
   const [poolsData, setPoolsData] = useState<any>(null);
   const [positionsData, setPositionsData] = useState<any>(null);
@@ -21,6 +23,24 @@ export default function TestMoarPage() {
   const pricesService = PanoraPricesService.getInstance();
 
   const address = testAddress || account?.address?.toString() || '';
+
+  // Claim rewards function
+  const handleClaimReward = async (reward: any) => {
+    if (!reward.reward_id || !reward.farming_identifier) {
+      console.error('Missing reward_id or farming_identifier');
+      return;
+    }
+
+    try {
+      await claimRewards('moar', [reward.farming_identifier], [reward.reward_id]);
+      // Refresh rewards data after successful claim
+      setTimeout(() => {
+        fetchRewards();
+      }, 2000);
+    } catch (error) {
+      console.error('Error claiming reward:', error);
+    }
+  };
 
   const fetchPools = async () => {
     setIsLoadingPools(true);
@@ -531,6 +551,18 @@ export default function TestMoarPage() {
                             </div>
                           </>
                         )}
+                      </div>
+                      
+                      {/* Claim button */}
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <Button
+                          onClick={() => handleClaimReward(reward)}
+                          disabled={isClaiming}
+                          size="sm"
+                          className="w-full"
+                        >
+                          {isClaiming ? 'Claiming...' : `Claim ${reward.token_info?.symbol || 'Reward'}`}
+                        </Button>
                       </div>
                     </div>
                   ))}

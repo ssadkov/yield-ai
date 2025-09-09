@@ -33,9 +33,22 @@ export class MoarMarketProtocol implements BaseProtocol {
     type_arguments: string[];
     arguments: any;
   }> {
-    // TODO: Implement Moar Market claim rewards transaction building
-    // This will be implemented once we have the Moar Market smart contract details
+    // For Moar Market, we claim individual rewards
+    // positionIds contains farming_identifiers
+    // tokenTypes contains reward_ids
     
-    throw new Error('Moar Market claim rewards not yet implemented');
+    if (positionIds.length !== 1 || tokenTypes.length !== 1) {
+      throw new Error('Moar Market supports only individual reward claims');
+    }
+    
+    const farmingIdentifier = positionIds[0];
+    const rewardId = tokenTypes[0];
+    
+    return {
+      type: 'entry_function_payload',
+      function: '0xa3afc59243afb6deeac965d40b25d509bb3aebc12f502b8592c283070abc2e07::farming::claim_reward_entry',
+      type_arguments: [],
+      arguments: [rewardId, farmingIdentifier]
+    };
   }
 }
