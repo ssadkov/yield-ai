@@ -94,36 +94,26 @@ export function PositionsList({
         onOpenChange={() => toggleExpanded('moar')}
       >
         <CollapsibleTrigger asChild>
-          <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+          <CardHeader className="py-2 cursor-pointer hover:bg-accent/50 transition-colors">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 relative">
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 relative">
                   <Image 
                     src="/protocol_ico/moar-market-logo-primary.png" 
                     alt="Moar Market"
-                    width={32}
-                    height={32}
+                    width={20}
+                    height={20}
                     className="object-contain"
                   />
                 </div>
-                <div>
-                  <CardTitle className="text-sm font-medium">Moar Market</CardTitle>
-                  <div className="text-xs text-muted-foreground">
-                    {isLoading ? 'Loading...' : `${positions.length} position${positions.length !== 1 ? 's' : ''}`}
-                  </div>
-                </div>
+                <CardTitle className="text-lg">Moar Market</CardTitle>
               </div>
               <div className="flex items-center gap-2">
-                {totalValue > 0 && (
-                  <div className="text-sm font-medium">
-                    ${totalValue.toFixed(2)}
-                  </div>
-                )}
-                {isExpanded('moar') ? (
-                  <ChevronDown className="h-4 w-4" />
-                ) : (
-                  <ChevronRight className="h-4 w-4" />
-                )}
+                <div className="text-lg">${totalValue.toFixed(2)}</div>
+                <ChevronDown className={cn(
+                  "h-5 w-5 transition-transform",
+                  isExpanded('moar') ? "transform rotate-0" : "transform -rotate-90"
+                )} />
               </div>
             </div>
           </CardHeader>
@@ -143,7 +133,7 @@ export function PositionsList({
                     const value = parseFloat(position.value);
                     
                     return (
-                      <div key={`${position.poolId}-${index}`} className="mb-2">
+                      <div key={`${position.poolId}-${index}`} className="mb-2 rounded p-2">
                         <div className="flex justify-between items-center">
                           <div className="flex items-center gap-2">
                             {position.assetInfo.logoUrl && (
@@ -157,19 +147,20 @@ export function PositionsList({
                                 />
                               </div>
                             )}
-                            <div className="flex flex-col">
-                              <div className="text-sm font-medium">
-                                {position.assetInfo.symbol}
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">{position.assetInfo.symbol}</span>
+                                <span className="text-xs font-semibold px-2 py-0.5 rounded bg-green-500/10 text-green-600 border border-green-500/20">
+                                  Supply
+                                </span>
                               </div>
                               <div className="text-xs text-muted-foreground">
                                 Pool #{position.poolId}
                               </div>
                             </div>
                           </div>
-                          <div className="flex flex-col items-end">
-                            <div className="text-sm font-medium">
-                              ${value.toFixed(2)}
-                            </div>
+                          <div className="text-right">
+                            <div className="text-sm font-medium">${value.toFixed(2)}</div>
                             <div className="text-xs text-muted-foreground">
                               {amount.toFixed(4)} {position.assetInfo.symbol}
                             </div>
