@@ -7,6 +7,7 @@ import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import tokenList from "@/lib/data/tokenList.json";
+import { useClaimRewards } from '@/lib/hooks/useClaimRewards';
 
 interface MoarPositionsProps {
   address?: string;
@@ -22,10 +23,12 @@ interface Position {
   };
   amount: number;
   value: string;
+  balance: string;
 }
 
 export function MoarPositions({ address, onPositionsValueChange }: MoarPositionsProps) {
   const { account } = useWallet();
+  const { claimRewards, isLoading: isClaiming } = useClaimRewards();
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +37,25 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
   const [totalRewardsValue, setTotalRewardsValue] = useState<number>(0);
 
   const walletAddress = address || account?.address;
+
+  // Claim individual reward
+  const handleClaimReward = async (reward: any) => {
+    if (!reward.reward_id || !reward.farming_identifier) {
+      console.error('Missing reward_id or farming_identifier');
+      return;
+    }
+
+    try {
+      await claimRewards('moar', [reward.farming_identifier], [reward.reward_id]);
+      // Refresh rewards data after successful claim
+      setTimeout(() => {
+        fetchRewards();
+      }, 2000);
+    } catch (error) {
+      console.error('Error claiming reward:', error);
+    }
+  };
+
 
   // Загрузка rewards
   const fetchRewards = useCallback(async () => {
@@ -286,6 +308,22 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                       </TooltipProvider>
                     ))}
                   </div>
+                  
+                  {/* Individual claim buttons for Desktop */}
+                  <div className="mt-2 pt-2 border-t border-gray-200">
+                    <div className="flex gap-2">
+                      {positionRewards.map((reward: any, rewardIdx: number) => (
+                        <button
+                          key={rewardIdx}
+                          className="px-2 py-1 bg-green-600 text-white rounded text-xs font-semibold disabled:opacity-60 flex-1"
+                          onClick={() => handleClaimReward(reward)}
+                          disabled={isClaiming}
+                        >
+                          {isClaiming ? 'Claiming...' : `Claim ${reward.token_info?.symbol || 'Reward'}`}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -366,6 +404,22 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                           </Tooltip>
                         </TooltipProvider>
                       ))}
+                    </div>
+                    
+                    {/* Individual claim buttons for Mobile */}
+                    <div className="mt-2 pt-2 border-t border-gray-200">
+                      <div className="space-y-2">
+                        {positionRewards.map((reward: any, rewardIdx: number) => (
+                          <button
+                            key={rewardIdx}
+                            className="w-full px-3 py-1 bg-green-600 text-white rounded text-sm font-semibold disabled:opacity-60"
+                            onClick={() => handleClaimReward(reward)}
+                            disabled={isClaiming}
+                          >
+                            {isClaiming ? 'Claiming...' : `Claim ${reward.token_info?.symbol || 'Reward'}`}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 )}
