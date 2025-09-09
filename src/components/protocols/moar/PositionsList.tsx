@@ -121,6 +121,15 @@ export function PositionsList({
     }
   };
 
+  // Don't show the card during loading
+  if (isLoading) {
+    return null;
+  }
+
+  // Don't show the card if there are no positions and no rewards
+  if (positions.length === 0 && totalRewardsValue === 0) {
+    return null;
+  }
 
   return (
     <Card className="w-full">
@@ -142,7 +151,7 @@ export function PositionsList({
             <CardTitle className="text-lg">Moar Market</CardTitle>
           </div>
           <div className="flex items-center gap-2">
-            <div className="text-lg">${totalValue.toFixed(2)}</div>
+            <div className="text-lg">${(totalValue + totalRewardsValue).toFixed(2)}</div>
             <ChevronDown className={cn(
               "h-5 w-5 transition-transform",
               isExpanded('moar') ? "transform rotate-0" : "transform -rotate-90"

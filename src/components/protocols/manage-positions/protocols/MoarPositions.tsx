@@ -196,7 +196,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
   }
 
   if (positions.length === 0) {
-    return <div className="p-4 text-center text-muted-foreground">No Moar Market positions found</div>;
+    return null;
   }
 
   // Сортируем позиции по стоимости (от большей к меньшей)
