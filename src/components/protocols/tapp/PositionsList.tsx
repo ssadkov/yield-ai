@@ -111,17 +111,17 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
         }
         
         const data = await response.json();
-        // console.log('Tapp API response:', data);
+        // // console.log('Tapp API response:', data);
         
         if (data.success && Array.isArray(data.data)) {
-          console.log('Setting positions:', data.data);
+          // console.log('Setting positions:', data.data);
           setPositions(data.data);
         } else {
-          console.log('No valid positions data');
+          // console.log('No valid positions data');
           setPositions([]);
         }
       } catch (err) {
-        console.error('Error loading Tapp positions:', err);
+        // console.error('Error loading Tapp positions:', err);
         setError('Failed to load positions');
         // keep previous positions on error
       } finally {

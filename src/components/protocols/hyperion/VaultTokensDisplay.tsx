@@ -31,16 +31,16 @@ export function VaultTokensDisplay({ vaultTokens, walletAddress, onVaultDataChan
         const calculator = new VaultCalculator();
         const vaultTokenAddresses = vaultTokens.map(token => token.address);
         
-        console.log('[VaultTokensDisplay] Loading vault data for:', vaultTokenAddresses);
+        // console.log('[VaultTokensDisplay] Loading vault data for:', vaultTokenAddresses);
         
         const data = await calculator.getAllVaultData(vaultTokenAddresses, walletAddress);
         setVaultData(data);
         onVaultDataChange?.(data);
         
-        console.log('[VaultTokensDisplay] Vault data loaded:', data);
+        // console.log('[VaultTokensDisplay] Vault data loaded:', data);
 
       } catch (err) {
-        console.error('[VaultTokensDisplay] Error loading vault data:', err);
+        // console.error('[VaultTokensDisplay] Error loading vault data:', err);
         setError('Failed to load vault data');
         setVaultData([]);
         onVaultDataChange?.([]);

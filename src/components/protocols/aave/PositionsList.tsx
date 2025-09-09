@@ -67,13 +67,6 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
     const price = tokenPrices[cleanAddress] || '0';
     // Округляем цену до 2 знаков после запятой
     const roundedPrice = parseFloat(price).toFixed(2);
-    console.log('[Aave] getTokenPrice:', { 
-      original: coinAddress, 
-      clean: cleanAddress, 
-      price, 
-      roundedPrice,
-      availablePrices: Object.keys(tokenPrices)
-    });
     return roundedPrice;
   };
 
@@ -129,23 +122,14 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
 
   // Загружаем цены токенов через Panora API с дебаунсингом
   useEffect(() => {
-    console.log('[Aave] Prices useEffect triggered:', { 
-      walletAddress: walletAddress?.slice(0, 10) + '...', 
-      positionsCount: positions.length,
-      addresses: getAllTokenAddresses()
-    });
-
     const timeoutId = setTimeout(async () => {
       const addresses = getAllTokenAddresses();
       if (addresses.length === 0 || !walletAddress || walletAddress.length < 10) {
-        console.log('[Aave] Skipping price fetch:', { addressesLength: addresses.length, walletAddress: walletAddress?.slice(0, 10) + '...' });
         return;
       }
 
       try {
-        console.log('[Aave] Fetching prices for addresses:', addresses);
         const response = await pricesService.getPrices(1, addresses);
-        console.log('[Aave] Panora API response:', response.data);
         if (response.data) {
           const prices: Record<string, string> = {};
           response.data.forEach((price: TokenPrice) => {
@@ -156,11 +140,10 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
               prices[price.faAddress] = price.usdPrice;
             }
           });
-          console.log('[Aave] Setting token prices:', prices);
           setTokenPrices(prices);
         }
       } catch (error) {
-        console.error('Error fetching token prices:', error);
+        // Error fetching token prices
       }
     }, 1000); // Уменьшаем дебаунсинг до 1 секунды
 
@@ -194,7 +177,6 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
           setPositions([]);
         }
       } catch (err) {
-        console.error('Error fetching Aave positions:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch positions');
         // Keep previous positions on error to avoid flicker
       } finally {

@@ -121,7 +121,7 @@ export function AavePositions() {
     fetch('/api/protocols/aave/pools')
       .then(res => res.json())
       .then(data => {
-        console.log('AavePositions - APR data loaded:', data);
+        // console.log('AavePositions - APR data loaded:', data);
         if (data.success && data.data) {
           // Создаем маппинг token -> APR данные
           const apyMapping: Record<string, AavePool> = {};
@@ -129,11 +129,11 @@ export function AavePositions() {
             apyMapping[pool.token] = pool;
           });
           setApyData(apyMapping);
-          console.log('AavePositions - APR mapping created:', apyMapping);
+          // console.log('AavePositions - APR mapping created:', apyMapping);
         }
       })
       .catch(error => {
-        console.error('AavePositions - APR data load error:', error);
+        // console.error('AavePositions - APR data load error:', error);
       });
   }, []);
 
@@ -159,7 +159,7 @@ export function AavePositions() {
           setTokenPrices(prices);
         }
       } catch (error) {
-        console.error('Error fetching token prices:', error);
+        // console.error('Error fetching token prices:', error);
       }
     }, 1000); // Дебаунсинг 1 секунда
 
@@ -191,7 +191,7 @@ export function AavePositions() {
           setPositions([]);
         }
       } catch (err) {
-        console.error('Error fetching Aave positions:', err);
+        // console.error('Error fetching Aave positions:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch positions');
         setPositions([]);
       } finally {
@@ -206,16 +206,16 @@ export function AavePositions() {
   // Подписка на глобальное событие обновления позиций
   useEffect(() => {
     const handleRefresh = (event: CustomEvent) => {
-      console.log('AavePositions - Received refreshPositions event:', event.detail);
+      // console.log('AavePositions - Received refreshPositions event:', event.detail);
       
       if (event.detail?.protocol === 'aave') {
-        console.log('AavePositions - Protocol matches aave, processing event');
+        // console.log('AavePositions - Protocol matches aave, processing event');
         const incoming = event.detail?.data;
         if (incoming && Array.isArray(incoming)) {
-          console.log('AavePositions - Setting positions from event data:', incoming);
+          // console.log('AavePositions - Setting positions from event data:', incoming);
           setPositions(incoming);
         } else {
-          console.log('AavePositions - No event data, fetching from API');
+          // console.log('AavePositions - No event data, fetching from API');
           // Перезагружаем из API
           if (account?.address) {
             setLoading(true);
@@ -223,14 +223,14 @@ export function AavePositions() {
               .then(res => res.json())
               .then(data => {
                 if (data.success && data.data) {
-                  console.log('AavePositions - API response success, setting positions:', data.data);
+                  // console.log('AavePositions - API response success, setting positions:', data.data);
                   setPositions(data.data);
                 } else {
-                  console.log('AavePositions - API response failed:', data);
+                  // console.log('AavePositions - API response failed:', data);
                 }
               })
               .catch(error => {
-                console.error('AavePositions - API fetch error:', error);
+                // console.error('AavePositions - API fetch error:', error);
               })
               .finally(() => {
                 setLoading(false);
@@ -239,7 +239,7 @@ export function AavePositions() {
           }
         }
       } else {
-        console.log('AavePositions - Protocol does not match aave, ignoring event');
+        // console.log('AavePositions - Protocol does not match aave, ignoring event');
       }
     };
 
@@ -272,9 +272,9 @@ export function AavePositions() {
     if (!selectedPosition) return;
     
     try {
-      console.log('Withdraw confirm - selectedPosition:', selectedPosition);
-      console.log('Withdraw confirm - amount:', amount.toString());
-      console.log('Withdraw confirm - token:', selectedPosition.underlying_asset);
+      // console.log('Withdraw confirm - selectedPosition:', selectedPosition);
+      // console.log('Withdraw confirm - amount:', amount.toString());
+      // console.log('Withdraw confirm - token:', selectedPosition.underlying_asset);
       
       // AAVE проще - используем underlying_asset напрямую
       const tokenAddress = selectedPosition.underlying_asset;
@@ -287,7 +287,7 @@ export function AavePositions() {
       setSelectedPosition(null);
       
     } catch (error) {
-      console.error('Withdraw failed:', error);
+      // console.error('Withdraw failed:', error);
     }
   };
 
@@ -302,9 +302,9 @@ export function AavePositions() {
     if (!selectedDepositPosition) return;
     
     try {
-      console.log('Deposit confirm - selectedPosition:', selectedDepositPosition);
-      console.log('Deposit confirm - amount:', amount.toString());
-      console.log('Deposit confirm - token:', selectedDepositPosition.underlying_asset);
+      // console.log('Deposit confirm - selectedPosition:', selectedDepositPosition);
+      // console.log('Deposit confirm - amount:', amount.toString());
+      // console.log('Deposit confirm - token:', selectedDepositPosition.underlying_asset);
       
       // AAVE проще - используем underlying_asset напрямую
       const tokenAddress = selectedDepositPosition.underlying_asset;
@@ -317,7 +317,7 @@ export function AavePositions() {
       setSelectedDepositPosition(null);
       
     } catch (error) {
-      console.error('Deposit failed:', error);
+      // console.error('Deposit failed:', error);
     }
   };
 

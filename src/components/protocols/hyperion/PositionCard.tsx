@@ -95,7 +95,7 @@ export function PositionCard({ position, isManageView = false }: PositionProps) 
         },
       });
 
-      console.log('Transaction hash:', response.hash);
+      // console.log('Transaction hash:', response.hash);
       toast({
         title: "Success",
         description: `Transaction hash: ${response.hash.slice(0, 6)}...${response.hash.slice(-4)}`,
@@ -106,7 +106,7 @@ export function PositionCard({ position, isManageView = false }: PositionProps) 
         ),
       });
     } catch (error) {
-      console.error('Error claiming rewards:', error);
+      // console.error('Error claiming rewards:', error);
       toast({
         title: "Error",
         description: "Failed to claim rewards",

@@ -89,7 +89,6 @@ export function PositionCard({ position, onPositionValueChange }: PositionProps)
       addresses.add(fullAddress);
     });
     const arr = Array.from(addresses);
-    console.log('[Joule] Token addresses for Panora:', arr);
     return arr;
   };
 
@@ -98,9 +97,6 @@ export function PositionCard({ position, onPositionValueChange }: PositionProps)
     const cleanAddress = address.startsWith('@') ? address.slice(1) : address;
     const fullAddress = cleanAddress.startsWith('0x') ? cleanAddress : `0x${cleanAddress}`;
     const price = tokenPrices[fullAddress] || '0';
-    if (fullAddress.toLowerCase().includes('stapt')) {
-      console.log('[Joule] getTokenPrice for stAPT:', fullAddress, '=>', price);
-    }
     return price;
   };
 
@@ -112,7 +108,6 @@ export function PositionCard({ position, onPositionValueChange }: PositionProps)
 
       try {
         const response = await pricesService.getPrices(1, addresses);
-        console.log('[Joule] Panora API response:', response.data);
         if (response.data) {
           const prices: Record<string, string> = {};
           response.data.forEach((price: TokenPrice) => {
@@ -126,7 +121,7 @@ export function PositionCard({ position, onPositionValueChange }: PositionProps)
           setTokenPrices(prices);
         }
       } catch (error) {
-        console.error('Error fetching token prices:', error);
+        // Error fetching token prices
       }
     };
 

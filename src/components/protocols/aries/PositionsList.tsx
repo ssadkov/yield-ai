@@ -105,7 +105,7 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
         }
         
         const data = await response.json() as AriesResponse;
-        console.log('Aries API response:', data); // Добавляем для отладки
+        // console.log('Aries API response:', data); // Добавляем для отладки
         
         if (data.profiles?.profiles) {
           const profiles = Object.values(data.profiles.profiles);
@@ -162,7 +162,7 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
           }
         }
       } catch (err) {
-        console.error('Error loading Aries positions:', err);
+        // console.error('Error loading Aries positions:', err);
         setError('Failed to load positions');
         // keep previous positions on error
       } finally {

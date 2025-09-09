@@ -73,9 +73,6 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
       cleanAddress = `0x${cleanAddress}`;
     }
     const price = tokenPrices[cleanAddress] || '0';
-    if (cleanAddress.toLowerCase().includes('stapt')) {
-      console.log('[Echelon] getTokenPrice for stAPT:', cleanAddress, '=>', price);
-    }
     return price;
   };
 
@@ -100,17 +97,12 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
 
   // Функция для получения информации о токене наград
   const getRewardTokenInfoHelper = useCallback((tokenSymbol: string) => {
-    console.log('[Echelon] getRewardTokenInfoHelper called for:', tokenSymbol);
-    
     const token = (tokenList as any).data.data.find((token: any) => 
       token.symbol.toLowerCase() === tokenSymbol.toLowerCase() ||
       token.name.toLowerCase().includes(tokenSymbol.toLowerCase())
     );
     
-    console.log('[Echelon] Found token:', token);
-    
     if (!token) {
-      console.log('[Echelon] Token not found for symbol:', tokenSymbol);
       return undefined;
     }
     
@@ -123,16 +115,12 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
       price: null // Цена будет получена динамически
     };
     
-    console.log('[Echelon] Returning token info:', result);
     return result;
   }, []);
 
   // Функция для расчета стоимости наград
   const calculateRewardsValue = useCallback(() => {
-    console.log('[Echelon] calculateRewardsValue called with rewardsData:', rewardsData);
-    
     if (!rewardsData || rewardsData.length === 0) {
-      console.log('[Echelon] No rewards data');
       return 0;
     }
     
@@ -140,27 +128,20 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
     
     rewardsData.forEach((reward) => {
       const tokenInfo = getRewardTokenInfoHelper(reward.token);
-      console.log('[Echelon] Token info for reward:', reward.token, tokenInfo);
       if (!tokenInfo) {
-        console.log('[Echelon] No token info for reward:', reward.token);
         return;
       }
       
       // Получаем цену динамически
       const price = getTokenPrice(tokenInfo.faAddress || tokenInfo.address || '');
       if (!price || price === '0') {
-        console.log('[Echelon] No price for reward:', reward.token);
         return;
       }
       
       const value = reward.amount * parseFloat(price);
       totalValue += value;
-      console.log('[Echelon] Reward calculated:', { token: reward.token, amount: reward.amount, value, totalValue });
     });
     
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[Echelon] Total rewards value:', totalValue, rewardsData);
-    }
     return totalValue;
   }, [rewardsData, getRewardTokenInfoHelper, tokenPrices]);
 
@@ -178,14 +159,11 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
       const data = await response.json();
       
       if (data.success && data.data) {
-        console.log('[Echelon] Rewards data received:', data.data);
         setRewardsData(data.data);
       } else {
-        console.log('[Echelon] No rewards data or success=false:', data);
         setRewardsData([]);
       }
     } catch (error) {
-      console.error('Error fetching Echelon rewards:', error);
       setRewardsData([]);
     }
   }, [walletAddress]);
@@ -217,7 +195,6 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
     });
 
     const arr = Array.from(addresses);
-    console.log('[Echelon] Token addresses for Panora:', arr);
     return arr;
   }, [positions, rewardsData, getRewardTokenInfoHelper]);
 
@@ -229,7 +206,6 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
 
       try {
         const response = await pricesService.getPrices(1, addresses);
-        console.log('[Echelon] Panora API response:', response.data);
         if (response.data) {
           const prices: Record<string, string> = {};
           response.data.forEach((price: TokenPrice) => {
@@ -243,7 +219,7 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
           setTokenPrices(prices);
         }
       } catch (error) {
-        console.error('Error fetching token prices:', error);
+        // Error fetching token prices
       }
     }, 1000); // Дебаунсинг 1 секунда
 
@@ -255,7 +231,6 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
     fetch('/api/protocols/echelon/v2/pools')
       .then(res => res.json())
       .then(data => {
-        console.log('PositionsList - APR data loaded:', data);
         if (data.success && data.data) {
           // Создаем маппинг token -> APR данные
           const apyMapping: Record<string, any> = {};
@@ -270,11 +245,10 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
             };
           });
           setApyData(apyMapping);
-          console.log('PositionsList - APR mapping created:', apyMapping);
         }
       })
               .catch(error => {
-          console.error('PositionsList - APR data load error:', error);
+          // APR data load error
       });
   }, []);
 
@@ -300,20 +274,16 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
         }
         
         const positionsData = await positionsResponse.json();
-        console.log('Echelon API response:', positionsData);
         
         if (positionsData.success && Array.isArray(positionsData.data)) {
-          console.log('Setting positions:', positionsData.data);
           setPositions(positionsData.data);
         } else {
-          console.log('No valid positions data');
           setPositions([]);
         }
         
         // Загружаем награды
         await fetchRewards();
       } catch (err) {
-        console.error('Error loading Echelon data:', err);
         setError('Failed to load Echelon positions');
         // keep previous positions to avoid flicker
       } finally {
@@ -330,19 +300,15 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
           // Сначала пытаемся найти данные в новом APR маппинге
     const poolData = apyData[position.coin];
     if (poolData) {
-              console.log(`Found APR data for ${position.coin}:`, poolData);
       if (position.type === 'supply') {
         const apy = poolData.supplyAPY / 100; // Конвертируем из процентов в десятичную форму
-        console.log(`Supply APR for ${position.coin}: ${apy * 100}%`);
         return apy * 100; // Возвращаем в процентах для отображения
       } else if (position.type === 'borrow') {
         const apy = poolData.borrowAPY / 100;
-        console.log(`Borrow APR for ${position.coin}: ${apy * 100}%`);
         return apy * 100;
       }
     }
     
-            console.log(`No APR data found for ${position.coin}, using fallback`);
     // Fallback на старые данные
     return position.supplyApr || 0;
   };

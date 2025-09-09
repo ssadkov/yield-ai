@@ -73,7 +73,7 @@ export function PositionsList({ address, onPositionsValueChange, mockData, onPos
         }
         
         const data = await response.json();
-        console.log('Joule API response:', data);
+        // console.log('Joule API response:', data);
         
         if (data.userPositions?.[0]?.positions_map?.data) {
           setPositions(data.userPositions[0].positions_map.data);
@@ -81,7 +81,7 @@ export function PositionsList({ address, onPositionsValueChange, mockData, onPos
           setPositions([]);
         }
       } catch (err) {
-        console.error('Error loading Joule positions:', err);
+        // console.error('Error loading Joule positions:', err);
         setError('Failed to load positions');
         // keep previous positions on error
       } finally {
