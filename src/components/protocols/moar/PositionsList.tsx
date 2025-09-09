@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ChevronDown, ExternalLink } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { useCollapsible } from '@/contexts/CollapsibleContext';
+import { ManagePositionsButton } from '../ManagePositionsButton';
+import { getProtocolByName } from '@/lib/protocols/getProtocolsList';
 
 interface PositionsListProps {
   address?: string;
@@ -41,6 +42,7 @@ export function PositionsList({
   const [isLoading, setIsLoading] = useState(false);
   const [totalValue, setTotalValue] = useState(0);
   const { isExpanded, toggleSection } = useCollapsible();
+  const protocol = getProtocolByName("Moar Market");
 
   useEffect(() => {
     if (address) {
@@ -82,9 +84,6 @@ export function PositionsList({
     }
   };
 
-  const handleManageClick = () => {
-    window.open('https://app.moar.market/lend', '_blank');
-  };
 
   return (
     <Card className="w-full">
@@ -124,7 +123,9 @@ export function PositionsList({
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {positions.map((position, index) => {
+                  {positions
+                    .sort((a, b) => parseFloat(b.value) - parseFloat(a.value))
+                    .map((position, index) => {
                     const amount = parseFloat(position.balance) / Math.pow(10, position.assetInfo.decimals);
                     const value = parseFloat(position.value);
                     
@@ -151,14 +152,14 @@ export function PositionsList({
                                 </span>
                               </div>
                               <div className="text-xs text-muted-foreground">
-                                Pool #{position.poolId}
+                                ${(value / amount).toFixed(2)}
                               </div>
                             </div>
                           </div>
                           <div className="text-right">
                             <div className="text-sm font-medium">${value.toFixed(2)}</div>
                             <div className="text-xs text-muted-foreground">
-                              {amount.toFixed(4)} {position.assetInfo.symbol}
+                              {amount.toFixed(4)}
                             </div>
                           </div>
                         </div>
@@ -168,18 +169,8 @@ export function PositionsList({
                 </div>
               )}
               
-              {showManageButton && (
-                <div className="mt-4 pt-3 border-t">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full"
-                    onClick={handleManageClick}
-                  >
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Manage on Moar Market
-                  </Button>
-                </div>
+              {protocol && showManageButton && (
+                <ManagePositionsButton protocol={protocol} />
               )}
             </ScrollArea>
           </CardContent>

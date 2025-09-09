@@ -6,15 +6,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
+import { PanoraPricesService } from '@/lib/services/panora/prices';
 
 export default function TestMoarPage() {
   const { account } = useWallet();
   const [testAddress, setTestAddress] = useState('');
   const [poolsData, setPoolsData] = useState<any>(null);
   const [positionsData, setPositionsData] = useState<any>(null);
+  const [rewardsData, setRewardsData] = useState<any>(null);
   const [isLoadingPools, setIsLoadingPools] = useState(false);
   const [isLoadingPositions, setIsLoadingPositions] = useState(false);
+  const [isLoadingRewards, setIsLoadingRewards] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const pricesService = PanoraPricesService.getInstance();
 
   const address = testAddress || account?.address?.toString() || '';
 
@@ -170,6 +174,144 @@ export default function TestMoarPage() {
     }
   };
 
+  const fetchRewards = async () => {
+    if (!address) {
+      setError('Please enter an address or connect wallet');
+      return;
+    }
+
+    setIsLoadingRewards(true);
+    setError(null);
+    try {
+      console.log('🔍 Fetching rewards for address:', address);
+      
+      // Get Staker resource
+      const resourceResponse = await fetch(`https://fullnode.mainnet.aptoslabs.com/v1/accounts/${address}/resource/0xa3afc59243afb6deeac965d40b25d509bb3aebc12f502b8592c283070abc2e07::farming::Staker`);
+      
+      if (!resourceResponse.ok) {
+        if (resourceResponse.status === 404) {
+          console.log('📊 No Staker resource found for this address');
+          setRewardsData({ message: 'No Staker resource found' });
+          return;
+        }
+        throw new Error(`Failed to fetch Staker resource: ${resourceResponse.status}`);
+      }
+      
+      const stakerResource = await resourceResponse.json();
+      console.log('📊 Staker resource:', stakerResource);
+      
+      const userPools = stakerResource.data.user_pools;
+      if (!userPools || !userPools.entries || userPools.entries.length === 0) {
+        console.log('📊 No user pools found');
+        setRewardsData({ message: 'No user pools found' });
+        return;
+      }
+      
+      console.log('📊 User pools entries:', userPools.entries);
+      
+      const rewards: any[] = [];
+      
+      // Process each user pool
+      for (const poolEntry of userPools.entries) {
+        const farmingIdentifier = poolEntry.value.farming_identifier;
+        const poolRewards = poolEntry.value.rewards;
+        
+        console.log(`📊 Processing pool ${farmingIdentifier} with rewards:`, poolRewards);
+        
+        if (poolRewards && poolRewards.entries) {
+          // Process each reward in the pool
+          for (const rewardEntry of poolRewards.entries) {
+            const rewardId = rewardEntry.key;
+            const rewardData = rewardEntry.value;
+            
+            console.log(`📊 Processing reward ${rewardId}:`, rewardData);
+            
+            try {
+              // Call claimable_reward_amount view function
+              const claimableResponse = await fetch('https://fullnode.mainnet.aptoslabs.com/v1/view', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  function: '0xa3afc59243afb6deeac965d40b25d509bb3aebc12f502b8592c283070abc2e07::farming::claimable_reward_amount',
+                  type_arguments: [],
+                  arguments: [address, rewardId, farmingIdentifier]
+                })
+              });
+              
+              if (claimableResponse.ok) {
+                const claimableAmount = await claimableResponse.json();
+                console.log(`📊 Claimable amount for ${rewardId}:`, claimableAmount);
+                
+                rewards.push({
+                  farming_identifier: farmingIdentifier,
+                  reward_id: rewardId,
+                  reward_amount: rewardData.reward_amount,
+                  claimable_amount: claimableAmount,
+                  last_acc_rewards_per_share: rewardData.last_acc_rewards_per_share
+                });
+              } else {
+                console.warn(`Failed to get claimable amount for ${rewardId}:`, claimableResponse.status);
+              }
+            } catch (err) {
+              console.warn(`Error getting claimable amount for ${rewardId}:`, err);
+            }
+          }
+        }
+      }
+      
+      console.log('📊 Final rewards data:', rewards);
+      
+      // Get APT price for rewards containing APT
+      const aptRewards = rewards.filter((reward: any) => reward.reward_id.includes('APT'));
+      if (aptRewards.length > 0) {
+        try {
+          console.log('💰 Fetching APT price for rewards...');
+          const aptAddress = '0x1::aptos_coin::AptosCoin';
+          const pricesResponse = await pricesService.getPrices(1, [aptAddress]);
+          console.log('💰 Prices response:', pricesResponse);
+          const prices = pricesResponse.data || pricesResponse;
+          const aptPrice = prices.find((p: any) => 
+            p.tokenAddress === aptAddress || p.faAddress === aptAddress
+          );
+          
+          if (aptPrice) {
+            console.log('💰 APT price found:', aptPrice);
+            
+            // Add USD value to APT rewards
+            rewards.forEach((reward: any) => {
+              if (reward.reward_id.includes('APT')) {
+                const amount = parseFloat(reward.claimable_amount) / Math.pow(10, aptPrice.decimals);
+                const usdValue = amount * parseFloat(aptPrice.usdPrice);
+                reward.usd_value = usdValue;
+                reward.token_info = {
+                  symbol: aptPrice.symbol,
+                  decimals: aptPrice.decimals,
+                  price: aptPrice.usdPrice,
+                  amount: amount
+                };
+                console.log(`💰 ${reward.reward_id}: ${amount} ${aptPrice.symbol} = $${usdValue.toFixed(2)}`);
+              }
+            });
+          } else {
+            console.warn('💰 APT price not found');
+          }
+        } catch (err) {
+          console.warn('💰 Error fetching APT price:', err);
+        }
+      }
+      
+      setRewardsData(rewards);
+      
+    } catch (err) {
+      console.error('Error fetching rewards:', err);
+      setError('Failed to fetch rewards');
+    } finally {
+      setIsLoadingRewards(false);
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="text-center">
@@ -208,6 +350,9 @@ export default function TestMoarPage() {
             </Button>
             <Button onClick={testOurAPI} disabled={isLoadingPositions || !address} variant="outline">
               {isLoadingPositions ? 'Loading...' : 'Test Our API'}
+            </Button>
+            <Button onClick={fetchRewards} disabled={isLoadingRewards || !address} variant="secondary">
+              {isLoadingRewards ? 'Loading...' : 'Fetch Rewards'}
             </Button>
           </div>
         </CardContent>
@@ -318,6 +463,84 @@ export default function TestMoarPage() {
         </Card>
       )}
 
+      {/* Rewards Data */}
+      {rewardsData && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Rewards Data</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {rewardsData.message ? (
+                <div className="text-center py-4 text-muted-foreground">
+                  {rewardsData.message}
+                </div>
+              ) : (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Found {Array.isArray(rewardsData) ? rewardsData.length : 'unknown'} rewards
+                  </p>
+                  
+                  {Array.isArray(rewardsData) && rewardsData.map((reward, index) => (
+                    <div key={index} className="border rounded-lg p-4 mb-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-semibold">
+                          {reward.reward_id} - {reward.farming_identifier}
+                        </h3>
+                        <div className="text-sm">
+                          <span className="text-green-600 font-medium">
+                            Claimable: {reward.claimable_amount}
+                          </span>
+                          {reward.usd_value && (
+                            <div className="text-blue-600 font-medium">
+                              Value: ${reward.usd_value.toFixed(2)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <strong>Reward ID:</strong> {reward.reward_id}
+                        </div>
+                        <div>
+                          <strong>Farming ID:</strong> {reward.farming_identifier}
+                        </div>
+                        <div>
+                          <strong>Reward Amount:</strong> {reward.reward_amount}
+                        </div>
+                        <div>
+                          <strong>Claimable Amount:</strong> {reward.claimable_amount}
+                        </div>
+                        <div>
+                          <strong>Last Acc Rewards Per Share:</strong> {reward.last_acc_rewards_per_share}
+                        </div>
+                        {reward.token_info && (
+                          <>
+                            <div>
+                              <strong>Token Symbol:</strong> {reward.token_info.symbol}
+                            </div>
+                            <div>
+                              <strong>Token Decimals:</strong> {reward.token_info.decimals}
+                            </div>
+                            <div>
+                              <strong>Token Price:</strong> ${reward.token_info.price}
+                            </div>
+                            <div>
+                              <strong>Token Amount:</strong> {reward.token_info.amount.toFixed(6)} {reward.token_info.symbol}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Instructions */}
       <Card>
         <CardHeader>
@@ -328,7 +551,8 @@ export default function TestMoarPage() {
             <p>1. <strong>Fetch Pools</strong> - Gets all available lending pools from Moar Market</p>
             <p>2. <strong>Fetch User Positions</strong> - Checks each pool for user positions using the lens function</p>
             <p>3. <strong>Test Our API</strong> - Tests our internal API endpoint</p>
-            <p>4. Compare raw data with our processed data to debug any issues</p>
+            <p>4. <strong>Fetch Rewards</strong> - Gets user rewards from Staker resource and claimable amounts</p>
+            <p>5. Compare raw data with our processed data to debug any issues</p>
           </div>
         </CardContent>
       </Card>
