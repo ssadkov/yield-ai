@@ -431,10 +431,31 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
           {totalRewardsValue > 0 && (
             <div className="flex justify-end mt-2">
               <div className="text-right">
-                <div className="text-sm text-muted-foreground flex items-center gap-1 justify-end">
-                  <span>💰</span>
-                  <span>including rewards ${totalRewardsValue.toFixed(2)}</span>
-                </div>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="text-sm text-muted-foreground flex items-center gap-1 justify-end cursor-help">
+                        <span>💰</span>
+                        <span>including rewards ${totalRewardsValue.toFixed(2)}</span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
+                      <div className="text-xs font-semibold mb-1">Rewards breakdown:</div>
+                      <div className="space-y-2 max-h-60 overflow-y-auto">
+                        {rewardsData.map((reward: any, idx: number) => (
+                          <div key={idx} className="flex items-center gap-2">
+                            {reward.logoUrl && (
+                              <img src={reward.logoUrl} alt={reward.symbol} className="w-3 h-3 rounded-full" />
+                            )}
+                            <span>{reward.symbol}</span>
+                            <span>{reward.amount?.toFixed(6) || '0'}</span>
+                            <span className="text-gray-300">${reward.usdValue?.toFixed(2) || '0.00'}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 {/* Claim All Rewards Button */}
                 <div className="mt-3">
                   <Button
@@ -458,10 +479,31 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
           </div>
           {totalRewardsValue > 0 && (
             <div className="space-y-2">
-              <div className="text-sm text-muted-foreground flex items-center gap-1">
-                <span>💰</span>
-                <span>including rewards ${totalRewardsValue.toFixed(2)}</span>
-              </div>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="text-sm text-muted-foreground flex items-center gap-1 cursor-help">
+                      <span>💰</span>
+                      <span>including rewards ${totalRewardsValue.toFixed(2)}</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
+                    <div className="text-xs font-semibold mb-1">Rewards breakdown:</div>
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {rewardsData.map((reward: any, idx: number) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          {reward.logoUrl && (
+                            <img src={reward.logoUrl} alt={reward.symbol} className="w-3 h-3 rounded-full" />
+                          )}
+                          <span>{reward.symbol}</span>
+                          <span>{reward.amount?.toFixed(6) || '0'}</span>
+                          <span className="text-gray-300">${reward.usdValue?.toFixed(2) || '0.00'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               {/* Claim All Rewards Button for Mobile */}
               <div className="pt-2">
                 <Button
@@ -469,7 +511,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                   disabled={isClaiming}
                   className="w-full bg-green-600 hover:bg-green-700 text-white"
                 >
-                  {isClaiming ? 'Claiming...' : 'Claim All Rewards'}
+                  {isClaiming ? 'Claiming...' : 'Claim'}
                 </Button>
               </div>
             </div>
