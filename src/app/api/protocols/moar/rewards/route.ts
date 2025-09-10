@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PanoraPricesService } from '@/lib/services/panora/prices';
 import tokenList from '@/lib/data/tokenList.json';
 
+const APTOS_API_KEY = process.env.APTOS_API_KEY;
+
 interface RewardItem {
   side: 'supply' | 'borrow';
   poolInner: string;
@@ -30,9 +32,16 @@ interface RewardItem {
 
 async function callView(functionFullname: string, args: any[]): Promise<any> {
   const url = 'https://fullnode.mainnet.aptoslabs.com/v1/view';
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  
+  // Add API key if available
+  if (APTOS_API_KEY) {
+    headers['Authorization'] = `Bearer ${APTOS_API_KEY}`;
+  }
+  
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ function: functionFullname, type_arguments: [], arguments: args })
   });
   if (!res.ok) {
@@ -80,9 +89,17 @@ export async function GET(request: NextRequest) {
     }
 
     console.log('🔍 Fetching Moar Market rewards for address:', address);
+    console.log('🔑 APTOS_API_KEY exists:', !!APTOS_API_KEY);
 
     // Get Staker resource
-    const resourceResponse = await fetch(`https://fullnode.mainnet.aptoslabs.com/v1/accounts/${address}/resource/0xa3afc59243afb6deeac965d40b25d509bb3aebc12f502b8592c283070abc2e07::farming::Staker`);
+    const resourceHeaders: Record<string, string> = {};
+    if (APTOS_API_KEY) {
+      resourceHeaders['Authorization'] = `Bearer ${APTOS_API_KEY}`;
+    }
+    
+    const resourceResponse = await fetch(`https://fullnode.mainnet.aptoslabs.com/v1/accounts/${address}/resource/0xa3afc59243afb6deeac965d40b25d509bb3aebc12f502b8592c283070abc2e07::farming::Staker`, {
+      headers: resourceHeaders
+    });
     
     if (!resourceResponse.ok) {
       if (resourceResponse.status === 404) {

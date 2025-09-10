@@ -1,13 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTokenInfo } from '@/lib/tokens/tokenRegistry';
 
+const APTOS_API_KEY = process.env.APTOS_API_KEY;
+
 async function callView(functionFullname: string, args: any[]): Promise<any> {
   const url = 'https://fullnode.mainnet.aptoslabs.com/v1/view';
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json'
+  };
+  
+  // Add API key if available
+  if (APTOS_API_KEY) {
+    headers['Authorization'] = `Bearer ${APTOS_API_KEY}`;
+  }
+  
   const res = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
+    headers,
     body: JSON.stringify({
       function: functionFullname,
       type_arguments: [],
@@ -85,6 +94,7 @@ export async function GET(request: NextRequest) {
     }
 
     console.log('🔍 Moar Market userPositions API called with address:', address);
+    console.log('🔑 APTOS_API_KEY exists:', !!APTOS_API_KEY);
 
     // Step 1: Get all available pools
     const poolsResponse = await callView('0xa3afc59243afb6deeac965d40b25d509bb3aebc12f502b8592c283070abc2e07::pool::get_all_pools', []);

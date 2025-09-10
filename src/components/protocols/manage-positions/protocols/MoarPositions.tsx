@@ -8,6 +8,7 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import tokenList from "@/lib/data/tokenList.json";
 import { useClaimRewards } from '@/lib/hooks/useClaimRewards';
+import { useToast } from '@/components/ui/use-toast';
 
 interface MoarPositionsProps {
   address?: string;
@@ -29,6 +30,7 @@ interface Position {
 export function MoarPositions({ address, onPositionsValueChange }: MoarPositionsProps) {
   const { account } = useWallet();
   const { claimRewards, isLoading: isClaiming } = useClaimRewards();
+  const { toast } = useToast();
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,13 +60,44 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
         }
       });
 
+      let totalClaimedRewards = 0;
+      let lastTransactionHash = '';
+
       // Claim rewards for each pool
       for (const [farmingIdentifier, rewardIds] of rewardsByPool) {
         console.log(`Claiming rewards for pool ${farmingIdentifier}:`, rewardIds);
-        await claimRewards('moar', [farmingIdentifier], rewardIds);
+        const result = await claimRewards('moar', [farmingIdentifier], rewardIds);
+        
+        // Extract transaction hash if available
+        if (result && result.hash) {
+          lastTransactionHash = result.hash;
+        }
+        
+        totalClaimedRewards += rewardIds.length;
+        
         // Small delay between claims to avoid rate limiting
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
+
+      // Show success notification with explorer link
+      toast({
+        title: "Success!",
+        description: (
+          <div className="space-y-2">
+            <p>Successfully claimed {totalClaimedRewards} rewards from Moar Market</p>
+            {lastTransactionHash && (
+              <a 
+                href={`https://explorer.aptoslabs.com/txn/${lastTransactionHash}?network=mainnet`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-800 underline text-sm"
+              >
+                View transaction on Explorer →
+              </a>
+            )}
+          </div>
+        ),
+      });
 
       // Refresh rewards data after successful claim
       setTimeout(() => {
@@ -72,6 +105,11 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
       }, 2000);
     } catch (error) {
       console.error('Error claiming all rewards:', error);
+      toast({
+        title: "Error",
+        description: "Failed to claim rewards. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -223,7 +261,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
 
   return (
     <div className="space-y-3 sm:space-y-4 text-base">
-      <ScrollArea className="h-[60vh] sm:h-auto">
+      <ScrollArea className="sm:h-auto">
         {sortedPositions.map((position, index) => {
           const tokenInfo = getTokenInfo(position.assetInfo.symbol);
           const value = parseFloat(position.value || "0");
