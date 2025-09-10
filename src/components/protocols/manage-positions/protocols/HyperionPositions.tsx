@@ -839,7 +839,8 @@ export function HyperionPositions() {
               value: totalRewards
             },
             meso: { value: 0, count: 0 },
-            earnium: { value: 0, count: 0 }
+            earnium: { value: 0, count: 0 },
+            moar: { value: 0, count: 0 }
           }
         }}
         positions={positions}
