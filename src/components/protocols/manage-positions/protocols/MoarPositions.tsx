@@ -38,21 +38,40 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
 
   const walletAddress = address || account?.address;
 
-  // Claim individual reward
-  const handleClaimReward = async (reward: any) => {
-    if (!reward.reward_id || !reward.farming_identifier) {
-      console.error('Missing reward_id or farming_identifier');
+
+  // Claim all rewards
+  const handleClaimAllRewards = async () => {
+    if (!rewardsData || rewardsData.length === 0) {
+      console.log('No rewards to claim');
       return;
     }
 
     try {
-      await claimRewards('moar', [reward.farming_identifier], [reward.reward_id]);
+      // Group rewards by farming_identifier to avoid duplicate calls
+      const rewardsByPool = new Map();
+      rewardsData.forEach((reward: any) => {
+        if (reward.farming_identifier && reward.reward_id) {
+          if (!rewardsByPool.has(reward.farming_identifier)) {
+            rewardsByPool.set(reward.farming_identifier, []);
+          }
+          rewardsByPool.get(reward.farming_identifier).push(reward.reward_id);
+        }
+      });
+
+      // Claim rewards for each pool
+      for (const [farmingIdentifier, rewardIds] of rewardsByPool) {
+        console.log(`Claiming rewards for pool ${farmingIdentifier}:`, rewardIds);
+        await claimRewards('moar', [farmingIdentifier], rewardIds);
+        // Small delay between claims to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
       // Refresh rewards data after successful claim
       setTimeout(() => {
         fetchRewards();
       }, 2000);
     } catch (error) {
-      console.error('Error claiming reward:', error);
+      console.error('Error claiming all rewards:', error);
     }
   };
 
@@ -225,9 +244,11 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
           });
           
           // Находим rewards для этой позиции (если есть)
+          // Сопоставляем по poolId с farming_identifier (приводим к строке для сравнения)
           const positionRewards = rewardsData.filter((reward: any) => 
-            reward.farming_identifier && reward.farming_identifier.includes(position.poolId)
+            reward.farming_identifier && reward.farming_identifier === position.poolId.toString()
           );
+          
           
           return (
             <div 
@@ -282,16 +303,16 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                           <TooltipTrigger asChild>
                             <div className="flex items-center justify-between text-xs cursor-help">
                               <div className="flex items-center gap-1">
-                                {reward.token_info?.logoUrl && (
+                                {reward.logoUrl && (
                                   <Image 
-                                    src={reward.token_info.logoUrl} 
-                                    alt={reward.token_info.symbol}
+                                    src={reward.logoUrl} 
+                                    alt={reward.symbol}
                                     width={12}
                                     height={12}
                                     className="object-contain"
                                   />
                                 )}
-                                <span className="text-gray-600">{reward.token_info?.symbol || 'Unknown'}</span>
+                                <span className="text-gray-600">{reward.symbol || 'Unknown'}</span>
                               </div>
                               <div className="text-right">
                                 <div className="font-medium">${reward.usdValue?.toFixed(2) || '0.00'}</div>
@@ -309,21 +330,6 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                     ))}
                   </div>
                   
-                  {/* Individual claim buttons for Desktop */}
-                  <div className="mt-2 pt-2 border-t border-gray-200">
-                    <div className="flex gap-2">
-                      {positionRewards.map((reward: any, rewardIdx: number) => (
-                        <button
-                          key={rewardIdx}
-                          className="px-2 py-1 bg-green-600 text-white rounded text-xs font-semibold disabled:opacity-60 flex-1"
-                          onClick={() => handleClaimReward(reward)}
-                          disabled={isClaiming}
-                        >
-                          {isClaiming ? 'Claiming...' : `Claim ${reward.token_info?.symbol || 'Reward'}`}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
                 </div>
               )}
 
@@ -388,7 +394,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                                       className="object-contain"
                                     />
                                   )}
-                                  <span className="text-gray-600">{reward.token_info?.symbol || 'Unknown'}</span>
+                                  <span className="text-gray-600">{reward.symbol || 'Unknown'}</span>
                                 </div>
                                 <div className="text-right">
                                   <div className="font-medium">${reward.usdValue?.toFixed(2) || '0.00'}</div>
@@ -397,7 +403,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                             </TooltipTrigger>
                             <TooltipContent className="bg-black text-white border-gray-700">
                               <div className="text-xs">
-                                <div className="text-gray-300">{reward.amount?.toFixed(6) || '0'} {reward.token_info?.symbol || 'Unknown'}</div>
+                                <div className="text-gray-300">{reward.amount?.toFixed(6) || '0'} {reward.symbol || 'Unknown'}</div>
                                 <div className="text-gray-300">${reward.usdValue?.toFixed(2) || '0.00'}</div>
                               </div>
                             </TooltipContent>
@@ -406,21 +412,6 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                       ))}
                     </div>
                     
-                    {/* Individual claim buttons for Mobile */}
-                    <div className="mt-2 pt-2 border-t border-gray-200">
-                      <div className="space-y-2">
-                        {positionRewards.map((reward: any, rewardIdx: number) => (
-                          <button
-                            key={rewardIdx}
-                            className="w-full px-3 py-1 bg-green-600 text-white rounded text-sm font-semibold disabled:opacity-60"
-                            onClick={() => handleClaimReward(reward)}
-                            disabled={isClaiming}
-                          >
-                            {isClaiming ? 'Claiming...' : `Claim ${reward.token_info?.symbol || 'Reward'}`}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
                   </div>
                 )}
               </div>
@@ -444,6 +435,16 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                   <span>💰</span>
                   <span>including rewards ${totalRewardsValue.toFixed(2)}</span>
                 </div>
+                {/* Claim All Rewards Button */}
+                <div className="mt-3">
+                  <Button
+                    onClick={handleClaimAllRewards}
+                    disabled={isClaiming}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    {isClaiming ? 'Claiming...' : 'Claim'}
+                  </Button>
+                </div>
               </div>
             </div>
           )}
@@ -460,6 +461,16 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
               <div className="text-sm text-muted-foreground flex items-center gap-1">
                 <span>💰</span>
                 <span>including rewards ${totalRewardsValue.toFixed(2)}</span>
+              </div>
+              {/* Claim All Rewards Button for Mobile */}
+              <div className="pt-2">
+                <Button
+                  onClick={handleClaimAllRewards}
+                  disabled={isClaiming}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white"
+                >
+                  {isClaiming ? 'Claiming...' : 'Claim All Rewards'}
+                </Button>
               </div>
             </div>
           )}

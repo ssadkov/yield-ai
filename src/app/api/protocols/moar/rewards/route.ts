@@ -15,6 +15,17 @@ interface RewardItem {
   logoUrl?: string | null;
   price?: string | null;
   usdValue: number;
+  // Add fields needed for claim functionality
+  farming_identifier: string;
+  reward_id: string;
+  claimable_amount: string;
+  token_info?: {
+    symbol: string;
+    decimals: number;
+    price: string;
+    amount: number;
+    logoUrl?: string;
+  };
 }
 
 async function callView(functionFullname: string, args: any[]): Promise<any> {
@@ -149,7 +160,18 @@ export async function GET(request: NextRequest) {
                 name: tokenInfo.name,
                 logoUrl: tokenInfo.logoUrl,
                 price: null, // Will be filled after getting prices
-                usdValue: 0 // Will be calculated after getting prices
+                usdValue: 0, // Will be calculated after getting prices
+                // Add fields needed for claim functionality
+                farming_identifier: farmingIdentifier,
+                reward_id: rewardId,
+                claimable_amount: claimableAmount,
+                token_info: {
+                  symbol: tokenInfo.symbol,
+                  decimals: tokenInfo.decimals,
+                  price: '0', // Will be updated after getting prices
+                  amount: amount,
+                  logoUrl: tokenInfo.logoUrl
+                }
               });
             }
           } catch (err) {
@@ -181,6 +203,12 @@ export async function GET(request: NextRequest) {
             reward.price = priceData.usdPrice;
             reward.usdValue = reward.amount * parseFloat(priceData.usdPrice);
             totalUsd += reward.usdValue;
+            
+            // Update token_info with price
+            if (reward.token_info) {
+              reward.token_info.price = priceData.usdPrice;
+            }
+            
             console.log(`💰 ${reward.symbol}: ${reward.amount.toFixed(6)} * $${priceData.usdPrice} = $${reward.usdValue.toFixed(2)}`);
           } else {
             console.warn(`💰 No price found for ${reward.symbol} (${reward.tokenAddress})`);
