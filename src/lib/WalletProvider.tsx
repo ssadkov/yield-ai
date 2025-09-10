@@ -19,12 +19,10 @@ export const WalletProvider = ({ children }: PropsWithChildren) => {
   let transactionSubmitter;
   
   if (gasStationService.isAvailable()) {
-    console.log('Gas station initialized globally in WalletProvider');
     // Use gas station as transaction submitter
     const gasStationClient = gasStationService.getGasStationClient();
     if (gasStationClient) {
       transactionSubmitter = gasStationClient;
-      console.log('Using gas station as transaction submitter');
     }
   }
 

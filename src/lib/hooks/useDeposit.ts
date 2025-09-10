@@ -95,7 +95,6 @@ export function useDeposit() {
           try {
             const txResponse = await fetch(`https://fullnode.mainnet.aptoslabs.com/v1/transactions/by_hash/${response.hash}`);
             const txData = await txResponse.json();
-            console.log('Transaction status response:', txData);
             console.log('Transaction success:', txData.success);
             console.log('Transaction vm_status:', txData.vm_status);
             

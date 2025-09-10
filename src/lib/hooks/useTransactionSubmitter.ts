@@ -52,11 +52,9 @@ export function useTransactionSubmitter() {
         },
       });
       
-      console.log('Regular transaction submitted successfully:', response);
       return response;
     } else {
       // User has no APT or it's an APT transaction, use gas station with withFeePayer
-      console.log('Using gas station with withFeePayer (APT balance = 0 or APT transaction)');
       
       const gasStationService = GasStationService.getInstance();
       
@@ -77,7 +75,6 @@ export function useTransactionSubmitter() {
         withFeePayer: true, // Enable gas station
       });
       
-      console.log('Gas station transaction submitted successfully:', response);
       return response;
     }
   }, [wallet]);

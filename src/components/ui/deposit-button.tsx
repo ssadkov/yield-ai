@@ -44,7 +44,6 @@ export function DepositButton({
   balance,
   priceUSD,
 }: DepositButtonProps) {
-  console.log('DepositButton render:', { protocol, tokenIn, balance, priceUSD });
   
   const [isExternalDialogOpen, setIsExternalDialogOpen] = useState(false);
   const [isNativeDialogOpen, setIsNativeDialogOpen] = useState(false);
@@ -64,7 +63,6 @@ export function DepositButton({
               const aptPool = data.pools.find((pool: any) => pool.asset === 'APT');
               if (aptPool && aptPool.apr) {
                 setProtocolAPY(aptPool.apr);
-                console.log('Fetched Amnis APR:', aptPool.apr);
               }
             }
           }
@@ -77,7 +75,6 @@ export function DepositButton({
     } else if (protocol.name === 'Echelon') {
       const fetchEchelonAPY = async () => {
         try {
-          console.log('Fetching Echelon APR for token:', tokenIn?.address);
           const response = await fetch('/api/protocols/echelon/v2/pools');
           if (response.ok) {
             const data = await response.json();
@@ -88,10 +85,7 @@ export function DepositButton({
               );
               if (pool && pool.depositApy) {
                 setProtocolAPY(pool.depositApy);
-                console.log('Fetched Echelon APR:', pool.depositApy, 'for token:', tokenIn?.address);
               } else {
-                console.log('No matching Echelon pool found for token:', tokenIn?.address);
-                console.log('Available pools:', data.data.map((p: any) => ({ token: p.token, asset: p.asset, apr: p.depositApy })));
               }
             }
           }
@@ -104,7 +98,6 @@ export function DepositButton({
     } else if (protocol.name === 'Kofi Finance') {
       const fetchKofiAPY = async () => {
         try {
-          console.log('Fetching Kofi Finance APR...');
           const response = await fetch('/api/protocols/kofi/pools');
           if (response.ok) {
             const data = await response.json();
@@ -115,14 +108,7 @@ export function DepositButton({
               );
               if (stkAPTPool && stkAPTPool.stakingApr) {
                 setProtocolAPY(stkAPTPool.stakingApr);
-                console.log('Fetched Kofi Finance APR:', stkAPTPool.stakingApr);
               } else {
-                console.log('No stkAPT staking pool found in Kofi data');
-                console.log('Available pools:', data.data.map((p: any) => ({ 
-                  asset: p.asset, 
-                  stakingApr: p.stakingApr,
-                  stakingToken: p.stakingToken 
-                })));
               }
             }
           }
@@ -136,28 +122,12 @@ export function DepositButton({
   }, [protocol.name, tokenIn?.address]);
 
   const handleClick = () => {
-    console.log('DepositButton clicked:', {
-      protocol: protocol.name,
-      depositType: protocol.depositType,
-      tokenIn,
-      tokenInAddress: tokenIn?.address,
-      balance,
-      priceUSD,
-      protocolAPY, // Add this to see the current APY value
-      condition: protocol.depositType === 'native' && tokenIn && balance,
-      tokenInExists: !!tokenIn,
-      balanceExists: !!balance,
-      priceUSDExists: !!priceUSD
-    });
     
     if (protocol.depositType === 'external') {
-      console.log('Opening external dialog');
       setIsExternalDialogOpen(true);
     } else if (protocol.depositType === 'native' && tokenIn && balance) {
-      console.log('Opening native dialog');
       setIsNativeDialogOpen(true);
     } else {
-      console.log('No conditions met for opening dialog');
     }
   };
 
@@ -169,7 +139,6 @@ export function DepositButton({
   };
 
   const handleNativeConfirm = (data: { amount: bigint }) => {
-    console.log('Native deposit:', data);
     setIsNativeDialogOpen(false);
   };
 
@@ -212,7 +181,6 @@ export function DepositButton({
             name: protocol.name,
             logo: protocol.logoUrl || '/file.svg', // Add fallback
             apy: (() => {
-              console.log(`DepositModal - APR for ${protocol.name}:`, protocolAPY);
               return protocolAPY;
             })(),
             key: protocol.key

@@ -207,14 +207,6 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
       }
     }
     
-    // Логируем токены при загрузке модала
-    console.log('=== MODAL LOADED - TOKENS IN SELECTORS ===');
-    console.log('Available From Tokens:', availableTokens);
-    console.log('Available To Tokens:', availableToTokens);
-    console.log('All Wallet Tokens:', tokens);
-    console.log('From Token:', fromToken);
-    console.log('To Token:', toToken);
-    console.log('==========================================');
   }, [availableTokens, availableToTokens, fromToken, toToken, tokens]);
 
   const getQuote = async () => {
@@ -512,14 +504,6 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
 
   const swapTokens = () => {
     if (fromToken && toToken) {
-      // Логируем все токены селекторов для анализа
-      console.log('=== TOKENS IN SELECTORS ===');
-      console.log('From Token:', fromToken);
-      console.log('To Token:', toToken);
-      console.log('Available From Tokens:', availableTokens);
-      console.log('Available To Tokens:', availableToTokens);
-      console.log('All Wallet Tokens:', tokens);
-      console.log('==========================');
       
       setFromToken(toToken);
       setToToken(fromToken);

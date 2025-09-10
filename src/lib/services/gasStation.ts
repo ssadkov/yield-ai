@@ -20,7 +20,6 @@ export class GasStationService {
     try {
       // Check if we're on the client side
       if (typeof window === 'undefined') {
-        console.log('Gas station client initialization skipped on server side');
         return;
       }
 
@@ -31,18 +30,12 @@ export class GasStationService {
         return;
       }
 
-      console.log('Initializing gas station client...');
       
       this.gasStationClient = createGasStationClient({
         network: Network.MAINNET,
         apiKey: apiKey,
       });
 
-      console.log('Gas station client initialized successfully');
-      console.log('Gas station client config:', {
-        network: Network.MAINNET,
-        apiKey: apiKey ? `${apiKey.substring(0, 8)}...` : 'undefined'
-      });
     } catch (error) {
       console.error('Failed to initialize gas station client:', error);
       this.gasStationClient = null;

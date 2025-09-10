@@ -67,7 +67,6 @@ export function useWithdraw() {
           try {
             const txResponse = await fetch(`https://fullnode.mainnet.aptoslabs.com/v1/transactions/by_hash/${response.hash}`);
             const txData = await txResponse.json();
-            console.log('Transaction status response:', txData);
             
             if (txData.success && txData.vm_status === "Executed successfully") {
               console.log('Withdraw transaction confirmed successfully');

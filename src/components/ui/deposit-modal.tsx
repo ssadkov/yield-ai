@@ -97,18 +97,6 @@ export function DepositModal({
     decimals: tokenIn.decimals,
   });
 
-  // Debug info
-  useEffect(() => {
-    console.log('Button state:', {
-      isValid,
-      isLoading,
-      hasTokenAddress: !!tokenIn.address,
-      hasProtocolKey: !!protocol.key,
-      amount: amount.toString(),
-      amountString,
-      walletBalance: walletBalance.toString()
-    });
-  }, [isValid, isLoading, tokenIn.address, protocol.key, amount, amountString, walletBalance]);
 
   // Символы для токенов
   const tokenInfo = useMemo(() => 

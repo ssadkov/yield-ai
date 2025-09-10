@@ -208,12 +208,6 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, provider = 'panora'
   }, [isOpen]);
 
   useEffect(() => {
-    console.log('Transaction status effect triggered:', { 
-      status, 
-      hasHash: !!result?.hash, 
-      hasProcessedTransaction,
-      hash: result?.hash 
-    });
     
     if (status === 'success' && result?.hash && !hasProcessedTransaction) {
       // Add retry logic for transaction status check
