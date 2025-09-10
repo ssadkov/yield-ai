@@ -91,7 +91,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   const [selectedFilterProtocols, setSelectedFilterProtocols] = useState<string[]>([]);
   
   const { state, handleDrop, validateDrop } = useDragDrop();
-  const { getClaimableRewardsSummary, fetchRewards, fetchPositions, rewardsLoading } = useWalletStore();
+  const { getClaimableRewardsSummary, fetchRewards, fetchPositions, rewardsLoading, rewards } = useWalletStore();
   const { account } = useWallet();
   const { setActiveTab: setMobileTab } = useMobileManagement();
 
@@ -117,7 +117,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
       }
     };
     loadSummary();
-  }, [account?.address, getClaimableRewardsSummary, rewardsLoading]);
+  }, [account?.address, getClaimableRewardsSummary, rewardsLoading, rewards]);
 
   const getTokenInfo = (asset: string, tokenAddress?: string): Token | undefined => {
     if (tokenAddress) {

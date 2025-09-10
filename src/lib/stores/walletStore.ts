@@ -29,6 +29,7 @@ export interface ClaimableRewardsSummary {
     hyperion: { value: number; count: number };
     meso: { value: number; count: number };
     earnium: { value: number; count: number };
+    moar: { value: number; count: number };
   };
 }
 
@@ -75,6 +76,7 @@ interface WalletState {
   fetchPositions: (address: string, protocols?: string[], forceRefresh?: boolean) => Promise<void>;
   fetchRewards: (address: string, protocols?: string[], forceRefresh?: boolean) => Promise<void>;
   fetchPrices: (tokenAddresses: string[], forceRefresh?: boolean) => Promise<void>;
+  setRewards: (protocol: string, rewards: any[]) => void;
   
   // Getters
   getBalance: () => WalletBalance[];
@@ -842,7 +844,8 @@ export const useWalletStore = create<WalletState>()(
               auro: { value: 0, count: 0 },
               hyperion: { value: 0, count: 0 },
               meso: { value: 0, count: 0 },
-              earnium: { value: 0, count: 0 }
+              earnium: { value: 0, count: 0 },
+              moar: { value: 0, count: 0 }
             }
           };
           
@@ -1271,6 +1274,28 @@ export const useWalletStore = create<WalletState>()(
               });
             }
           });
+
+          // Process Moar rewards
+          const moarRewards = Array.isArray(state.rewards.moar) ? state.rewards.moar : [];
+          console.log('[WalletStore] Processing Moar rewards:', {
+            count: moarRewards.length,
+            sample: moarRewards.slice(0, 2)
+          });
+
+          moarRewards.forEach((reward: any) => {
+            if (reward.usdValue && reward.usdValue > 0) {
+              console.log(`[WalletStore] Processing Moar reward:`, {
+                symbol: reward.symbol,
+                amount: reward.amount,
+                usdValue: reward.usdValue,
+                farming_identifier: reward.farming_identifier,
+                reward_id: reward.reward_id
+              });
+
+              summary.protocols.moar.value += reward.usdValue;
+              summary.protocols.moar.count += 1;
+            }
+          });
           
           // Calculate total value
           summary.totalValue = Object.values(summary.protocols).reduce((sum: number, protocol: any) => sum + protocol.value, 0);
@@ -1295,6 +1320,15 @@ export const useWalletStore = create<WalletState>()(
           });
           
           return total;
+        },
+        
+        setRewards: (protocol: string, rewards: any[]) => {
+          set((state) => ({
+            rewards: {
+              ...state.rewards,
+              [protocol]: rewards
+            }
+          }));
         },
         
         // Utilities

@@ -11,6 +11,7 @@ import { useCollapsible } from '@/contexts/CollapsibleContext';
 import { ManagePositionsButton } from '../ManagePositionsButton';
 import { getProtocolByName } from '@/lib/protocols/getProtocolsList';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { useWalletStore } from '@/lib/stores/walletStore';
 
 interface PositionsListProps {
   address?: string;
@@ -45,6 +46,7 @@ export function PositionsList({
   const [rewardsData, setRewardsData] = useState<any>(null);
   const [totalRewardsValue, setTotalRewardsValue] = useState<number>(0);
   const { isExpanded, toggleSection } = useCollapsible();
+  const { setRewards } = useWalletStore();
   const protocol = getProtocolByName("Moar Market");
 
   useEffect(() => {
@@ -65,15 +67,24 @@ export function PositionsList({
       if (data.success) {
         setRewardsData(data);
         setTotalRewardsValue(data.totalUsd || 0);
+        
+        // Сохраняем rewards в store для общего claim all
+        if (data.data && Array.isArray(data.data)) {
+          console.log('[MoarPositionsList] Saving rewards to store:', data.data);
+          setRewards('moar', data.data);
+        }
+        
         console.log('💰 Rewards loaded:', data);
       } else {
         console.warn('💰 Failed to load rewards:', data.error);
         setRewardsData(null);
+        setRewards('moar', []); // Очищаем store при ошибке
         setTotalRewardsValue(0);
       }
     } catch (error) {
       console.error('💰 Error fetching rewards:', error);
       setRewardsData(null);
+      setRewards('moar', []); // Очищаем store при ошибке
       setTotalRewardsValue(0);
     }
   };

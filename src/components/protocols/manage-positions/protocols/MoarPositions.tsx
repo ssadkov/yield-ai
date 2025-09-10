@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import tokenList from "@/lib/data/tokenList.json";
 import { useClaimRewards } from '@/lib/hooks/useClaimRewards';
 import { useToast } from '@/components/ui/use-toast';
+import { useWalletStore } from '@/lib/stores/walletStore';
 
 interface MoarPositionsProps {
   address?: string;
@@ -31,6 +32,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
   const { account } = useWallet();
   const { claimRewards, isLoading: isClaiming } = useClaimRewards();
   const { toast } = useToast();
+  const { setRewards } = useWalletStore();
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -125,6 +127,10 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
       if (data.success && Array.isArray(data.data)) {
         setRewardsData(data.data);
         
+        // Сохраняем rewards в store для общего claim all
+        console.log('[MoarPositions] Saving rewards to store:', data.data);
+        setRewards('moar', data.data);
+        
         // Вычисляем общую стоимость rewards
         const totalRewards = data.data.reduce((sum: number, reward: any) => {
           return sum + (reward.usdValue || 0);
@@ -133,14 +139,16 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
         setTotalRewardsValue(totalRewards);
       } else {
         setRewardsData([]);
+        setRewards('moar', []); // Очищаем store если нет данных
         setTotalRewardsValue(0);
       }
     } catch (err) {
       console.error('Error fetching Moar rewards:', err);
       setRewardsData([]);
+      setRewards('moar', []); // Очищаем store при ошибке
       setTotalRewardsValue(0);
     }
-  }, [walletAddress]);
+  }, [walletAddress, setRewards]);
 
   // Получаем информацию о токене
   const getTokenInfo = useCallback((symbol: string) => {

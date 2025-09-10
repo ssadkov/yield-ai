@@ -38,12 +38,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { userAddress, rewardName, farmingId } = body;
 
-    if (!userAddress || !rewardName || !farmingId) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'userAddress, rewardName, and farmingId are required' 
-      }, { status: 400 });
-    }
+    // if (!userAddress || !rewardName || !farmingId) {
+    //   return NextResponse.json({ 
+    //     success: false, 
+    //     error: 'userAddress, rewardName, and farmingId are required' 
+    //   }, { status: 400 });
+    // }
 
     if (!APTOS_API_KEY) {
       return NextResponse.json({ 
@@ -60,12 +60,12 @@ export async function POST(request: NextRequest) {
     }
     
     const tokenType = REWARD_TOKEN_TYPES[fullRewardName];
-    if (!tokenType) {
-      return NextResponse.json({ 
-        success: false, 
-        error: `Unknown reward token type for: ${rewardName}` 
-      }, { status: 400 });
-    }
+    // if (!tokenType) {
+    //   return NextResponse.json({ 
+    //     success: false, 
+    //     error: `Unknown reward token type for: ${rewardName}` 
+    //   }, { status: 400 });
+    // }
 
     // Create transaction payload for scripts::claim_reward
     const transactionPayload = {

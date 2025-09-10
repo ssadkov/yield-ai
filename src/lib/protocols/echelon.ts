@@ -112,9 +112,9 @@ export class EchelonProtocol implements BaseProtocol {
     };
 
     const rewardName = TOKEN_TYPE_TO_REWARD_NAME[tokenType];
-    if (!rewardName) {
-      throw new Error(`Unknown token type for Echelon: ${tokenType}`);
-    }
+    // if (!rewardName) {
+      // throw new Error(`Unknown token type for Echelon: ${tokenType}`);
+    // }
 
     // Используем API endpoint для получения правильного payload
     const response = await fetch('/api/protocols/echelon/claim', {

@@ -116,6 +116,10 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
             // Special handling for Earnium - single tx claim_all_rewards
             console.log('[ClaimAll] Using Earnium special handling');
             await handleEarniumClaim();
+          } else if (protocol === 'moar') {
+            // Special handling for Moar - group by farming_identifier
+            console.log('[ClaimAll] Using Moar special handling');
+            await handleMoarClaim();
           } else {
             // Standard claim for other protocols
             console.log('[ClaimAll] Using standard claim for:', protocol);
@@ -237,6 +241,104 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
           View in Explorer
         </ToastAction>
       ),
+    });
+  };
+
+  // Special handling for Moar - group by farming_identifier
+  const handleMoarClaim = async () => {
+    if (!account?.address) {
+      throw new Error('Wallet not connected');
+    }
+
+    console.log('[ClaimAll] Starting Moar claim for address:', account.address);
+
+    // Load Moar rewards to get farming_identifier and reward_id data
+    let moarRewards: any[] = [];
+    try {
+      const response = await fetch(`${getBaseUrl()}/api/protocols/moar/rewards?address=${account.address}`);
+      const data = await response.json();
+      
+      console.log('[ClaimAll] Moar rewards API response:', data);
+      
+      if (data.success && Array.isArray(data.data)) {
+        moarRewards = data.data;
+        console.log('[ClaimAll] Found Moar rewards:', moarRewards);
+      } else {
+        moarRewards = [];
+        console.log('[ClaimAll] No Moar rewards found or invalid response');
+      }
+    } catch (error) {
+      console.error('[ClaimAll] Error fetching Moar rewards:', error);
+      moarRewards = [];
+    }
+
+    if (moarRewards.length === 0) {
+      console.log('[ClaimAll] No Moar rewards to claim');
+      setResults(prev => [...prev, {
+        protocol: 'moar',
+        success: false,
+        error: 'No rewards found'
+      }]);
+      return;
+    }
+
+    // Group rewards by farming_identifier to avoid duplicate calls
+    const rewardsByPool = new Map();
+    moarRewards.forEach((reward: any) => {
+      if (reward.farming_identifier && reward.reward_id) {
+        if (!rewardsByPool.has(reward.farming_identifier)) {
+          rewardsByPool.set(reward.farming_identifier, []);
+        }
+        rewardsByPool.get(reward.farming_identifier).push(reward.reward_id);
+      }
+    });
+
+    console.log('[ClaimAll] Grouped Moar rewards by pool:', Array.from(rewardsByPool.entries()));
+
+    let totalClaimedRewards = 0;
+    let lastTransactionHash = '';
+
+    // Claim rewards for each pool
+    for (const [farmingIdentifier, rewardIds] of rewardsByPool) {
+      console.log(`[ClaimAll] Claiming Moar rewards for pool ${farmingIdentifier}:`, rewardIds);
+      
+      setCurrentStep(`Claiming Moar pool`);
+      
+      try {
+        const result = await claimRewards('moar', [farmingIdentifier], rewardIds);
+        
+        // Extract transaction hash if available
+        if (result && result.hash) {
+          lastTransactionHash = result.hash;
+        }
+        
+        totalClaimedRewards += rewardIds.length;
+        
+        // Small delay between claims to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (error) {
+        console.error(`[ClaimAll] Error claiming Moar pool ${farmingIdentifier}:`, error);
+        throw error;
+      }
+    }
+
+    setResults(prev => [...prev, {
+      protocol: 'moar',
+      success: true,
+      hash: lastTransactionHash
+    }]);
+
+    const moarValue = summary.protocols.moar?.value || 0;
+    setClaimedValue(prev => prev + moarValue);
+
+    toast({
+      title: `Moar rewards claimed!`,
+      description: `Successfully claimed ${totalClaimedRewards} rewards from ${rewardsByPool.size} pools`,
+      action: lastTransactionHash ? (
+        <ToastAction altText="View in Explorer" onClick={() => window.open(`https://explorer.aptoslabs.com/txn/${lastTransactionHash}?network=mainnet`, '_blank')}>
+          View in Explorer
+        </ToastAction>
+      ) : undefined,
     });
   };
 
@@ -634,14 +736,14 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
     }
 
     // Don't add a general result since we're adding individual results above
-    if (totalClaimed === 0) {
-      console.log('[ClaimAll] No rewards claimed, adding error result');
-      setResults(prev => [...prev, {
-        protocol: 'echelon',
-        success: false,
-        error: 'No claimable rewards found'
-      }]);
-    }
+    // if (totalClaimed === 0) {
+    //   console.log('[ClaimAll] No rewards claimed, adding error result');
+    //   setResults(prev => [...prev, {
+    //     protocol: 'echelon',
+    //     success: false,
+    //     error: 'No claimable rewards found'
+    //   }]);
+    // }
   };
 
   const handleClose = () => {
