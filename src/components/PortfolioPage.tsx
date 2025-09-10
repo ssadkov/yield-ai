@@ -24,6 +24,7 @@ import { PositionsList as AuroPositionsList } from "./protocols/auro/PositionsLi
 import { PositionsList as AmnisPositionsList } from "./protocols/amnis/PositionsList";
 import { PositionsList as EarniumPositionsList } from "./protocols/earnium/PositionsList";
 import { PositionsList as AavePositionsList } from "./protocols/aave/PositionsList";
+import { PositionsList as MoarPositionsList } from "./protocols/moar/PositionsList";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAptosAddressResolver } from '@/lib/hooks/useAptosAddressResolver';
@@ -59,6 +60,7 @@ export default function PortfolioPage() {
   const [amnisValue, setAmnisValue] = useState(0);
   const [earniumValue, setEarniumValue] = useState(0);
   const [aaveValue, setAaveValue] = useState(0);
+  const [moarValue, setMoarValue] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [checkingProtocols, setCheckingProtocols] = useState<string[]>([]);
   const [addressInput, setAddressInput] = useState('');
@@ -85,6 +87,7 @@ export default function PortfolioPage() {
     "Amnis Finance",
     "Earnium",
     "Aave",
+    "Moar Market",
   ];
 
   const resetChecking = useCallback(() => {
@@ -199,6 +202,10 @@ export default function PortfolioPage() {
     setAaveValue(value);
   }, []);
 
+  const handleMoarValueChange = useCallback((value: number) => {
+    setMoarValue(value);
+  }, []);
+
   // Считаем сумму по кошельку
   const walletTotal = tokens.reduce((sum, token) => {
     const value = token.value ? parseFloat(token.value) : 0;
@@ -206,7 +213,7 @@ export default function PortfolioPage() {
   }, 0);
 
   // Считаем сумму по всем протоколам
-  const totalProtocolsValue = hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + amnisValue + earniumValue + aaveValue;
+  const totalProtocolsValue = hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + amnisValue + earniumValue + aaveValue + moarValue;
 
   // Итоговая сумма
   const totalAssets = walletTotal + totalProtocolsValue;
@@ -224,6 +231,7 @@ export default function PortfolioPage() {
     { name: 'Amnis Finance', value: amnisValue },
     { name: 'Earnium', value: earniumValue },
     { name: 'Aave', value: aaveValue },
+    { name: 'Moar Market', value: moarValue },
   ];
 
   return (
@@ -422,6 +430,12 @@ export default function PortfolioPage() {
 					          name: 'Aave',
 					          showManageButton: false
 					        },
+                            { 
+					          component: MoarPositionsList, 
+					          value: moarValue, 
+					          name: 'Moar Market',
+					          showManageButton: false
+					        },
                           ]
                           .sort((a, b) => b.value - a.value)
                           .map(({ component: Component, name }) => (
@@ -441,6 +455,7 @@ export default function PortfolioPage() {
                                 name === 'Amnis Finance' ? handleAmnisValueChange :
                                 name === 'Earnium' ? handleEarniumValueChange :
                                 name === 'Aave' ? handleAaveValueChange :
+                                name === 'Moar Market' ? handleMoarValueChange :
                                 undefined
                               }
                               onPositionsCheckComplete={() =>
