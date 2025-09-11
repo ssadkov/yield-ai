@@ -164,8 +164,8 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
             if (t?.logoUrl) headerIcons.push({ logo: t.logoUrl, symbol: t.symbol });
           });
           positionsUSD += poolUserUSD;
-          const pairSymbols = pairSet.map((x) => x.symbol).slice(0, 2);
-          const pairIcons = pairSet.map((x) => x.logo).filter(Boolean).slice(0, 2);
+          const pairSymbols = pairSet.map((x) => x.symbol).slice(0, 3);
+          const pairIcons = pairSet.map((x) => x.logo).filter(Boolean).slice(0, 3);
           enrichedPools.push({ ...p, tokens, poolUserUSD, pairSymbols, pairIcons });
         });
 

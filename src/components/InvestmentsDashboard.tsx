@@ -305,8 +305,21 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   decimals: 8
                 };
                 
+                const tokensInfo = Array.isArray(pool.tokens)
+                  ? pool.tokens.slice(0, 3).map((t: any) => ({
+                      symbol: t?.symbol || 'Unknown',
+                      name: t?.symbol || 'Unknown',
+                      logoUrl: t?.img || undefined,
+                      decimals: 8
+                    }))
+                  : undefined;
+                
+                const assetSymbols = Array.isArray(pool.tokens)
+                  ? pool.tokens.slice(0, 3).map((t: any) => t?.symbol || 'Unknown').join('/')
+                  : `${token1Info.symbol}/${token2Info.symbol}`;
+
                 return {
-                  asset: `${token1Info.symbol}/${token2Info.symbol}`,
+                  asset: assetSymbols,
                   provider: 'Tapp Exchange',
                   totalAPY: totalAPY,
                   depositApy: totalAPY,
@@ -317,6 +330,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   tvlUSD: parseFloat(pool.tvl || "0"),
                   token1Info: token1Info,
                   token2Info: token2Info,
+                  tokensInfo: tokensInfo,
                   poolType: 'DEX',
                   feeTier: parseFloat(pool.fee_tier || "0"),
                   volume7d: parseFloat(pool.volume_7d || "0")
@@ -917,31 +931,31 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                 <TooltipTrigger>
                                   <div className="flex items-center gap-2">
                                     {isDex ? (
-                                      // DEX pool display with two tokens
+                                      // DEX pool display with up to three tokens
                                       <div className="flex items-center gap-2">
                                         <div className="flex">
-                                          {item.token1Info?.logoUrl && (
-                                            <Avatar className="w-6 h-6">
-                                              <img 
-                                                src={item.token1Info.logoUrl} 
-                                                alt={item.token1Info.symbol} 
-                                                className="object-contain" 
-                                              />
+                                          {(item as any).tokensInfo?.slice(0,3)?.map((t: any, idx: number) => (
+                                            <Avatar key={idx} className={`w-6 h-6 ${idx > 0 ? '-ml-2' : ''}`}>
+                                              {t.logoUrl ? (
+                                                <img src={t.logoUrl} alt={t.symbol} className="object-contain" />
+                                              ) : null}
                                             </Avatar>
-                                          )}
-                                          {item.token2Info?.logoUrl && (
-                                            <Avatar className="w-6 h-6 -ml-2">
-                                              <img 
-                                                src={item.token2Info.logoUrl} 
-                                                alt={item.token2Info.symbol} 
-                                                className="object-contain" 
-                                              />
-                                            </Avatar>
+                                          )) || (
+                                            <>
+                                              {item.token1Info?.logoUrl && (
+                                                <Avatar className="w-6 h-6">
+                                                  <img src={item.token1Info.logoUrl} alt={item.token1Info.symbol} className="object-contain" />
+                                                </Avatar>
+                                              )}
+                                              {item.token2Info?.logoUrl && (
+                                                <Avatar className="w-6 h-6 -ml-2">
+                                                  <img src={item.token2Info.logoUrl} alt={item.token2Info.symbol} className="object-contain" />
+                                                </Avatar>
+                                              )}
+                                            </>
                                           )}
                                         </div>
-                                        <span>{item.token1Info?.symbol || '-'}</span>
-                                        <span className="text-gray-400">/</span>
-                                        <span>{item.token2Info?.symbol || '-'}</span>
+                                        <span>{((item as any).tokensInfo?.slice(0,3)?.map((t: any) => t.symbol) || [item.token1Info?.symbol, item.token2Info?.symbol]).filter(Boolean).join(' / ')}</span>
                                       </div>
                                     ) : (
                                       // Lending pool display (existing logic)
@@ -1067,31 +1081,31 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                               <TooltipTrigger>
                                 <div className="flex items-center gap-2">
                                   {isDex ? (
-                                    // DEX pool display with two tokens
+                                    // DEX pool display with up to three tokens
                                     <div className="flex items-center gap-2">
                                       <div className="flex">
-                                        {bestPool.token1Info?.logoUrl && (
-                                          <Avatar className="w-6 h-6">
-                                            <img 
-                                              src={bestPool.token1Info.logoUrl} 
-                                              alt={bestPool.token1Info.symbol} 
-                                              className="object-contain" 
-                                            />
+                                        {(bestPool as any).tokensInfo?.slice(0,3)?.map((t: any, idx: number) => (
+                                          <Avatar key={idx} className={`w-6 h-6 ${idx > 0 ? '-ml-2' : ''}`}>
+                                            {t.logoUrl ? (
+                                              <img src={t.logoUrl} alt={t.symbol} className="object-contain" />
+                                            ) : null}
                                           </Avatar>
-                                        )}
-                                        {bestPool.token2Info?.logoUrl && (
-                                          <Avatar className="w-6 h-6 -ml-2">
-                                            <img 
-                                              src={bestPool.token2Info.logoUrl} 
-                                              alt={bestPool.token2Info.symbol} 
-                                              className="object-contain" 
-                                            />
-                                          </Avatar>
+                                        )) || (
+                                          <>
+                                            {bestPool.token1Info?.logoUrl && (
+                                              <Avatar className="w-6 h-6">
+                                                <img src={bestPool.token1Info.logoUrl} alt={bestPool.token1Info.symbol} className="object-contain" />
+                                              </Avatar>
+                                            )}
+                                            {bestPool.token2Info?.logoUrl && (
+                                              <Avatar className="w-6 h-6 -ml-2">
+                                                <img src={bestPool.token2Info.logoUrl} alt={bestPool.token2Info.symbol} className="object-contain" />
+                                              </Avatar>
+                                            )}
+                                          </>
                                         )}
                                       </div>
-                                      <span>{bestPool.token1Info?.symbol || '-'}</span>
-                                      <span className="text-gray-400">/</span>
-                                      <span>{bestPool.token2Info?.symbol || '-'}</span>
+                                      <span>{((bestPool as any).tokensInfo?.slice(0,3)?.map((t: any) => t.symbol) || [bestPool.token1Info?.symbol, bestPool.token2Info?.symbol]).filter(Boolean).join(' / ')}</span>
                                     </div>
                                   ) : (
                                     // Lending pool display (existing logic)

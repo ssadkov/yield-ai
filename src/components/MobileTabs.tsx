@@ -16,7 +16,7 @@ import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { AptosPortfolioService } from "@/lib/services/aptos/portfolio";
 import { Token } from "@/lib/types/token";
 import { Logo } from "./ui/logo";
-import { AlphaBadge } from "./ui/alpha-badge";
+//import { AlphaBadge } from "./ui/alpha-badge";
 import { CollapsibleProvider } from "@/contexts/CollapsibleContext";
 import { MobileManagementProvider, useMobileManagement } from "@/contexts/MobileManagementContext";
 
@@ -100,14 +100,14 @@ function MobileTabsContent() {
   return (
     <MobileManagementProvider setActiveTab={setTab} scrollToTop={scrollToTop}>
       <CollapsibleProvider>
-        <div className="flex flex-col h-screen max-h-screen">
+        <div className="flex flex-col min-h-screen max-h-screen">
           {/* Header - fixed at top */}
           <div className="flex-shrink-0 p-4 border-b bg-background">
             <div className="flex items-center gap-3">
               <Logo size="md" />
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold">Yield AI</h1>
-                <AlphaBadge />
+                { /*<AlphaBadge />*/ }
               </div>
             </div>
           </div>
@@ -197,7 +197,7 @@ function MobileTabsContent() {
           </div>
           
           {/* Bottom navigation - fixed at bottom */}
-          <div className="flex-shrink-0 flex border-t bg-background">
+          <div className="flex-shrink-0 flex border-t bg-background safe-area-bottom mobile-bottom-nav">
             <button
               className={`flex-1 p-4 text-center transition-colors ${tab === "ideas" ? "text-primary bg-primary/5" : "text-muted-foreground hover:text-foreground"}`}
               onClick={() => setTab("ideas")}

@@ -101,8 +101,8 @@ export function EarniumPositionsManaging() {
         const sym = t?.symbol || b.asset_type; const logo = t?.logoUrl;
         if (sym && !pairSet.find((x) => x.symbol === sym)) pairSet.push({ logo, symbol: sym });
       });
-             const pairSymbols = pairSet.map((x) => x.symbol).slice(0, 2);
-       const pairIcons = pairSet.map((x) => x.logo).filter(Boolean).slice(0, 2);
+             const pairSymbols = pairSet.map((x) => x.symbol).slice(0, 3);
+       const pairIcons = pairSet.map((x) => x.logo).filter(Boolean).slice(0, 3);
        enriched.push({ pairSymbols, pairIcons, poolUserUSD, rewards: p.rewards });
 
       // rewards USD
