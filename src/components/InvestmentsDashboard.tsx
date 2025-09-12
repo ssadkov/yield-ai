@@ -647,13 +647,14 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     .slice(0, 3);
 
   const filteredData = allLoadedData.filter(item => {
+    
     // Фильтруем исключенные токены Echelon
     if (item.protocol === 'Echelon' && EXCLUDED_ECHELON_TOKENS.includes(item.token)) {
       return false;
     }
     
     // Фильтруем по стабильным пулам, если включен чекбокс
-    if (showOnlyStablePools && !isStablePool(item)) {
+    if (showOnlyStablePools && !isStablePool(item) && item.protocol !== 'Tapp Exchange') {
       return false;
     }
     
@@ -661,7 +662,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     const displaySymbol = tokenInfo?.symbol || item.asset;
 	const displayProtocol = item.protocol;
 	
-	return (
+	const result = (
       // Если нет выбранных протоколов ИЛИ протокол элемента есть в выбранных
       (selectedFilterProtocols.length === 0 || 
        selectedFilterProtocols.some(protocol => 
@@ -670,6 +671,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
       // Поиск по символу
       (!searchQuery || displaySymbol.toLowerCase().includes(searchQuery.toLowerCase()))
     );
+    
+    return result;
 	
 	/*
 	return (
@@ -913,8 +916,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                     const logoUrl = tokenInfo?.logoUrl;
                     const protocol = getProtocolByName(item.protocol);
 
-                    // Check if this is a DEX pool with two tokens
-                    const isDex = !!(item.token1Info && item.token2Info);
+                    // Check if this is a DEX pool with two or more tokens
+                    const isDex = !!(item.token1Info && item.token2Info) || !!(item as any).tokensInfo?.length;
 
                     return (
                       <Card 
@@ -1365,21 +1368,24 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                     const tokenInfo = getTokenInfo(item.asset, item.token);
                     const hasTokenInfo = !!tokenInfo;
                     const hasAssetColon = item.asset.includes('::');
-                    const hasDexTokens = !!(item.token1Info && item.token2Info);
+                    const hasDexTokens = !!(item.token1Info && item.token2Info) || !!(item as any).tokensInfo?.length;
+                    
                     
                     // Включаем все пулы: с tokenInfo, с :: в asset, DEX-пулы с token1Info/token2Info, или Echelon пулы
                     return hasAssetColon || hasTokenInfo || hasDexTokens || item.protocol === 'Echelon';
                   })
                   .sort((a, b) => b.totalAPY - a.totalAPY)
                   .map((item, index) => {
+                    
                     const tokenInfo = getTokenInfo(item.asset, item.token);
                     const displaySymbol = tokenInfo?.symbol || item.asset;
                     const logoUrl = tokenInfo?.logoUrl;
                     const protocol = getProtocolByName(item.protocol);
 
-                    // Check if this is a DEX pool with two tokens
-                    const isDex = !!(item.token1Info && item.token2Info);
+                    // Check if this is a DEX pool with two or more tokens
+                    const isDex = !!(item.token1Info && item.token2Info) || !!(item as any).tokensInfo?.length;
 
+                    
                     return (
                       <TableRow 
                         key={index}
@@ -1394,31 +1400,31 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                               <TooltipTrigger asChild>
                                 <div className="flex items-center gap-2">
                                   {isDex ? (
-                                    // DEX pool display with two tokens
+                                    // DEX pool display with up to three tokens
                                     <div className="flex items-center gap-2">
                                       <div className="flex">
-                                        {item.token1Info?.logoUrl && (
-                                          <Avatar className="w-6 h-6">
-                                            <img 
-                                              src={item.token1Info.logoUrl} 
-                                              alt={item.token1Info.symbol} 
-                                              className="object-contain" 
-                                            />
+                                        {(item as any).tokensInfo?.slice(0,3)?.map((t: any, idx: number) => (
+                                          <Avatar key={idx} className={`w-6 h-6 ${idx > 0 ? '-ml-2' : ''}`}>
+                                            {t.logoUrl ? (
+                                              <img src={t.logoUrl} alt={t.symbol} className="object-contain" />
+                                            ) : null}
                                           </Avatar>
-                                        )}
-                                        {item.token2Info?.logoUrl && (
-                                          <Avatar className="w-6 h-6 -ml-2">
-                                            <img 
-                                              src={item.token2Info.logoUrl} 
-                                              alt={item.token2Info.symbol} 
-                                              className="object-contain" 
-                                            />
-                                          </Avatar>
+                                        )) || (
+                                          <>
+                                            {item.token1Info?.logoUrl && (
+                                              <Avatar className="w-6 h-6">
+                                                <img src={item.token1Info.logoUrl} alt={item.token1Info.symbol} className="object-contain" />
+                                              </Avatar>
+                                            )}
+                                            {item.token2Info?.logoUrl && (
+                                              <Avatar className="w-6 h-6 -ml-2">
+                                                <img src={item.token2Info.logoUrl} alt={item.token2Info.symbol} className="object-contain" />
+                                              </Avatar>
+                                            )}
+                                          </>
                                         )}
                                       </div>
-                                      <span>{item.token1Info?.symbol || '-'}</span>
-                                      <span className="text-gray-400">/</span>
-                                      <span>{item.token2Info?.symbol || '-'}</span>
+                                      <span>{((item as any).tokensInfo?.slice(0,3)?.map((t: any) => t.symbol) || [item.token1Info?.symbol, item.token2Info?.symbol]).filter(Boolean).join(' / ')}</span>
                                     </div>
                                   ) : (
                                     // Lending pool display (existing logic)
