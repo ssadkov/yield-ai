@@ -39,9 +39,36 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
   const [totalValue, setTotalValue] = useState<number>(0);
   const [rewardsData, setRewardsData] = useState<any[]>([]);
   const [totalRewardsValue, setTotalRewardsValue] = useState<number>(0);
+  const [poolsAPR, setPoolsAPR] = useState<Record<number, any>>({});
 
   const walletAddress = address || account?.address;
 
+  // Fetch pools APR data
+  const fetchPoolsAPR = useCallback(async () => {
+    try {
+      console.log('🔍 Fetching Moar Market pools APR...');
+      const response = await fetch('/api/protocols/moar/pools');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          const aprMap: Record<number, any> = {};
+          data.data.forEach((pool: any) => {
+            if (pool.poolId !== undefined) {
+              aprMap[pool.poolId] = {
+                totalAPR: (pool.totalAPY || 0) / 10000,
+                interestRateComponent: (pool.interestRateComponent || 0) / 10000,
+                farmingAPY: (pool.farmingAPY || 0) / 10000
+              };
+            }
+          });
+          setPoolsAPR(aprMap);
+          console.log('📊 Loaded APR data for pools:', aprMap);
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to fetch pools APR:', error);
+    }
+  }, []);
 
   // Claim all rewards
   const handleClaimAllRewards = async () => {
@@ -250,7 +277,9 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
     };
 
     fetchData();
-  }, [walletAddress, onPositionsValueChange]);
+    // Also fetch pools APR data
+    fetchPoolsAPR();
+  }, [walletAddress, onPositionsValueChange, fetchPoolsAPR]);
 
   if (loading) {
     return <div className="p-4 text-center text-muted-foreground">Loading Moar Market positions...</div>;
@@ -295,6 +324,10 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
             reward.farming_identifier && reward.farming_identifier === position.poolId.toString()
           );
           
+          // Получаем APR данные для этого пула
+          const poolId = parseInt(position.poolId);
+          const poolAPR = poolsAPR[poolId];
+          
           
           return (
             <div 
@@ -324,6 +357,28 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                       >
                         Supply
                       </Badge>
+                      {poolAPR && poolAPR.totalAPR > 0 && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge 
+                                variant="outline" 
+                                className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs font-normal px-2 py-0.5 h-5 cursor-help"
+                              >
+                                APR: {(poolAPR.totalAPR * 100).toFixed(2)}%
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <div className="space-y-1">
+                                <p className="font-medium">APR Breakdown</p>
+                                <p className="text-xs">Interest Rate: {(poolAPR.interestRateComponent * 100).toFixed(2)}%</p>
+                                <p className="text-xs">Farming APY: {(poolAPR.farmingAPY * 100).toFixed(2)}%</p>
+                                <p className="text-xs font-semibold">Total: {(poolAPR.totalAPR * 100).toFixed(2)}%</p>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
                     </div>
                     <div className="text-base text-muted-foreground mt-0.5">
                       ${tokenPrice.toFixed(2)}
@@ -418,6 +473,28 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                   >
                     Supply
                   </Badge>
+                  {poolAPR && poolAPR.totalAPR > 0 && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge 
+                            variant="outline" 
+                            className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs font-normal px-2 py-1 h-6 cursor-help"
+                          >
+                            APR: {(poolAPR.totalAPR * 100).toFixed(2)}%
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <div className="space-y-1">
+                            <p className="font-medium">APR Breakdown</p>
+                            <p className="text-xs">Interest Rate: {(poolAPR.interestRateComponent * 100).toFixed(2)}%</p>
+                            <p className="text-xs">Farming APY: {(poolAPR.farmingAPY * 100).toFixed(2)}%</p>
+                            <p className="text-xs font-semibold">Total: {(poolAPR.totalAPR * 100).toFixed(2)}%</p>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
                 </div>
                 
                 {/* Rewards section для Mobile */}

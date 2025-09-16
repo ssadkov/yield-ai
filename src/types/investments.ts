@@ -40,6 +40,13 @@ export interface InvestmentData {
   lendingApr?: number;
   stakingAprOnly?: number;
   totalSupplyApr?: number;
+  // Moar Market-specific fields
+  poolId?: number;
+  interestRateComponent?: number;
+  farmingAPY?: number;
+  utilization?: number;
+  totalBorrows?: number;
+  totalDeposits?: number;
 }
 
 export interface InvestmentsResponse {
