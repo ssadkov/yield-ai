@@ -197,6 +197,7 @@ export async function GET() {
           provider: 'Moar Market',
           totalAPY: totalAPR, // Already in percentage (converted from micro-percentages)
           depositApy: totalAPR, // Same as total APY for lending
+          borrowAPY: 0, // Moar Market doesn't have borrow APY for supply side
           token: tokenAddress, // Use the actual underlying asset address
           protocol: 'Moar Market',
           poolType: 'Lending',
