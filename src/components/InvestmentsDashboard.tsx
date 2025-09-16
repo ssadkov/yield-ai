@@ -510,11 +510,11 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
               const pools = data.data || [];
               
               return pools.map((pool: any) => {
-                // API returns percentages, convert to decimal for display
-                const totalAPY = (pool.totalAPY || 0) / 100;
-                const depositApy = (pool.depositApy || 0) / 100;
-                const interestRateComponent = (pool.interestRateComponent || 0) / 100;
-                const farmingAPY = (pool.farmingAPY || 0) / 100;
+                // API returns percentages, use as is for display
+                const totalAPY = pool.totalAPY || 0;
+                const depositApy = pool.depositApy || 0;
+                const interestRateComponent = pool.interestRateComponent || 0;
+                const farmingAPY = pool.farmingAPY || 0;
                 
                 return {
                   asset: pool.asset || 'Unknown',
@@ -1552,6 +1552,19 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                       <div className="flex justify-between">
                                         <span>Rewards APR:</span>
                                         <span className="text-yellow-400">{item.supplyRewardsApr.toFixed(2)}%</span>
+                                      </div>
+                                    )}
+                                    {/* Moar Market specific breakdown */}
+                                    {(typeof item.interestRateComponent === 'number' && item.interestRateComponent > 0) && (
+                                      <div className="flex justify-between">
+                                        <span>Interest Rate:</span>
+                                        <span className="text-green-400">{item.interestRateComponent.toFixed(2)}%</span>
+                                      </div>
+                                    )}
+                                    {(typeof item.farmingAPY === 'number' && item.farmingAPY > 0) && (
+                                      <div className="flex justify-between">
+                                        <span>Farming APY:</span>
+                                        <span className="text-yellow-400">{item.farmingAPY.toFixed(2)}%</span>
                                       </div>
                                     )}
                                     <div className="border-t border-gray-600 pt-1 mt-1">

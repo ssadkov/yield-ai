@@ -55,9 +55,9 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
           data.data.forEach((pool: any) => {
             if (pool.poolId !== undefined) {
               aprMap[pool.poolId] = {
-                totalAPR: (pool.totalAPY || 0) / 10000,
-                interestRateComponent: (pool.interestRateComponent || 0) / 10000,
-                farmingAPY: (pool.farmingAPY || 0) / 10000
+                totalAPR: (pool.totalAPY || 0) / 100,
+                interestRateComponent: (pool.interestRateComponent || 0) / 100,
+                farmingAPY: (pool.farmingAPY || 0) / 100
               };
             }
           });
