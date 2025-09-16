@@ -507,7 +507,9 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
             url: '/api/protocols/moar/pools',
 			logoUrl: '/protocol_ico/moar-market-logo-primary.png',
             transform: (data: any) => {
+              console.log('🔍 Moar Market transform called with data:', data);
               const pools = data.data || [];
+              console.log('📊 Moar Market pools count:', pools.length);
               
               return pools.map((pool: any) => {
                 // API returns percentages, use as is for display
@@ -515,6 +517,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                 const depositApy = pool.depositApy || 0;
                 const interestRateComponent = pool.interestRateComponent || 0;
                 const farmingAPY = pool.farmingAPY || 0;
+                
+                console.log('📈 Moar Market pool:', pool.asset, 'APR:', totalAPY);
                 
                 return {
                   asset: pool.asset || 'Unknown',
@@ -551,6 +555,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
         // Fetch all protocols in parallel
         const fetchPromises = protocolEndpoints.map(async (endpoint) => {
           try {
+            console.log(`🔍 Fetching data for ${endpoint.name} from ${endpoint.url}`);
             
             const response = await fetch(endpoint.url, {
               headers: {
@@ -564,8 +569,9 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
             }
 
             const data = await response.json();
+            console.log(`📊 ${endpoint.name} raw data:`, data);
             const transformedData = endpoint.transform(data);
-            
+            console.log(`📈 ${endpoint.name} transformed data:`, transformedData);
 
             // Update state progressively
             setProtocolsData(prev => ({
@@ -586,6 +592,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
             return { name: endpoint.name, data: transformedData, success: true };
           } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            console.error(`❌ Error fetching ${endpoint.name}:`, error);
             
             setProtocolsError(prev => ({
               ...prev,

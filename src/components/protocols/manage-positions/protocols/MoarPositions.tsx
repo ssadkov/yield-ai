@@ -53,8 +53,12 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
     try {
       console.log('🔍 Fetching Moar Market pools APR...');
       const response = await fetch('/api/protocols/moar/pools');
+      console.log('📊 APR API response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('📊 APR API response data:', data);
+        
         if (data.success && data.data) {
           const aprMap: Record<number, any> = {};
           data.data.forEach((pool: any) => {
@@ -68,10 +72,16 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
           });
           setPoolsAPR(aprMap);
           console.log('📊 Loaded APR data for pools:', aprMap);
+        } else {
+          console.warn('📊 APR API returned no data or success=false:', data);
         }
+      } else {
+        console.error('📊 APR API failed with status:', response.status);
+        const errorText = await response.text();
+        console.error('📊 APR API error response:', errorText);
       }
     } catch (error) {
-      console.warn('Failed to fetch pools APR:', error);
+      console.error('📊 Failed to fetch pools APR:', error);
     }
   }, []);
 
@@ -100,6 +110,13 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
       
       // Вызываем withdraw через useWithdraw hook
       // Для Moar Market: marketAddress = poolId, token = underlying_asset
+      console.log('Calling withdraw with:', {
+        protocol: 'moar',
+        poolId: selectedPosition.poolId,
+        amount: amount.toString(),
+        tokenAddress
+      });
+      
       await withdraw('moar', selectedPosition.poolId, amount, tokenAddress);
       
       // Закрываем модал и обновляем состояние
@@ -115,6 +132,27 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
       
     } catch (error) {
       console.error('Withdraw failed:', error);
+      
+      // Показываем пользователю понятное сообщение об ошибке
+      let errorMessage = 'Withdraw failed. Please try again.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('rate limit') || error.message.includes('Too Many Requests')) {
+          errorMessage = 'Rate limit exceeded. Please wait a moment and try again.';
+        } else if (error.message.includes('insufficient funds')) {
+          errorMessage = 'Insufficient funds for this transaction.';
+        } else if (error.message.includes('JSON')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        } else {
+          errorMessage = `Withdraw failed: ${error.message}`;
+        }
+      }
+      
+      toast({
+        title: "Withdraw Failed",
+        description: errorMessage,
+        variant: "destructive"
+      });
     }
   };
 
@@ -327,16 +365,19 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
     };
 
     fetchData();
-    // Also fetch pools APR data
+  }, [walletAddress, onPositionsValueChange]);
+
+  // Fetch pools APR data separately
+  useEffect(() => {
     fetchPoolsAPR();
-  }, [walletAddress, onPositionsValueChange, fetchPoolsAPR]);
+  }, [fetchPoolsAPR]);
 
   if (loading) {
-    return <div className="p-4 text-center text-muted-foreground">Loading Moar Market positions...</div>;
+    return <div>Loading Moar Market positions...</div>;
   }
 
   if (error) {
-    return <div className="p-4 text-red-500 text-center">Error: {error}</div>;
+    return <div className="text-red-500">{error}</div>;
   }
 
   if (positions.length === 0) {
@@ -407,28 +448,6 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                       >
                         Supply
                       </Badge>
-                      {poolAPR && poolAPR.totalAPR > 0 && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Badge 
-                                variant="outline" 
-                                className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs font-normal px-2 py-0.5 h-5 cursor-help"
-                              >
-                                APR: {(poolAPR.totalAPR * 100).toFixed(2)}%
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <div className="space-y-1">
-                                <p className="font-medium">APR Breakdown</p>
-                                <p className="text-xs">Interest Rate: {(poolAPR.interestRateComponent * 100).toFixed(2)}%</p>
-                                <p className="text-xs">Farming APY: {(poolAPR.farmingAPY * 100).toFixed(2)}%</p>
-                                <p className="text-xs font-semibold">Total: {(poolAPR.totalAPR * 100).toFixed(2)}%</p>
-                              </div>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
                     </div>
                     <div className="text-base text-muted-foreground mt-0.5">
                       ${tokenPrice.toFixed(2)}
@@ -436,7 +455,31 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-lg font-bold">${value.toFixed(2)}</div>
+                  <div className="flex items-center gap-2 mb-1">
+                    {poolAPR && poolAPR.totalAPR > 0 && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge 
+                              variant="outline" 
+                              className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs font-normal px-2 py-0.5 h-5 cursor-help"
+                            >
+                              APR: {(poolAPR.totalAPR * 100).toFixed(2)}%
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <div className="space-y-1">
+                              <p className="font-medium">APR Breakdown</p>
+                              <p className="text-xs">Interest Rate: {(poolAPR.interestRateComponent * 100).toFixed(2)}%</p>
+                              <p className="text-xs">Farming APY: {(poolAPR.farmingAPY * 100).toFixed(2)}%</p>
+                              <p className="text-xs font-semibold">Total: {(poolAPR.totalAPR * 100).toFixed(2)}%</p>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                    <div className="text-lg font-bold">${value.toFixed(2)}</div>
+                  </div>
                   <div className="text-base text-muted-foreground font-semibold">
                     {amount.toFixed(4)}
                   </div>
@@ -444,7 +487,9 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                     <Button
                       onClick={() => handleWithdrawClick(position)}
                       disabled={isWithdrawing}
-                      className="mt-2 bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1 h-7"
+                      size="sm"
+                      variant="outline"
+                      className="mt-2 h-10"
                     >
                       {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
                     </Button>
@@ -517,7 +562,31 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-lg font-bold">${value.toFixed(2)}</div>
+                    <div className="flex items-center gap-2 mb-1">
+                      {poolAPR && poolAPR.totalAPR > 0 && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge 
+                                variant="outline" 
+                                className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs font-normal px-2 py-0.5 h-5 cursor-help"
+                              >
+                                APR: {(poolAPR.totalAPR * 100).toFixed(2)}%
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <div className="space-y-1">
+                                <p className="font-medium">APR Breakdown</p>
+                                <p className="text-xs">Interest Rate: {(poolAPR.interestRateComponent * 100).toFixed(2)}%</p>
+                                <p className="text-xs">Farming APY: {(poolAPR.farmingAPY * 100).toFixed(2)}%</p>
+                                <p className="text-xs font-semibold">Total: {(poolAPR.totalAPR * 100).toFixed(2)}%</p>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                      <div className="text-lg font-bold">${value.toFixed(2)}</div>
+                    </div>
                     <div className="text-sm text-muted-foreground">
                       {amount.toFixed(4)}
                     </div>
@@ -525,7 +594,9 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                       <Button
                         onClick={() => handleWithdrawClick(position)}
                         disabled={isWithdrawing}
-                        className="mt-2 bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1 h-7"
+                        size="sm"
+                        variant="outline"
+                        className="mt-2 h-10"
                       >
                         {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
                       </Button>
@@ -541,28 +612,6 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                   >
                     Supply
                   </Badge>
-                  {poolAPR && poolAPR.totalAPR > 0 && (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Badge 
-                            variant="outline" 
-                            className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs font-normal px-2 py-1 h-6 cursor-help"
-                          >
-                            APR: {(poolAPR.totalAPR * 100).toFixed(2)}%
-                          </Badge>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <div className="space-y-1">
-                            <p className="font-medium">APR Breakdown</p>
-                            <p className="text-xs">Interest Rate: {(poolAPR.interestRateComponent * 100).toFixed(2)}%</p>
-                            <p className="text-xs">Farming APY: {(poolAPR.farmingAPY * 100).toFixed(2)}%</p>
-                            <p className="text-xs font-semibold">Total: {(poolAPR.totalAPR * 100).toFixed(2)}%</p>
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
                 </div>
                 
                 {/* Rewards section для Mobile */}

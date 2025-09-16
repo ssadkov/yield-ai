@@ -102,9 +102,28 @@ export function useWithdraw() {
       return response;
     } catch (error) {
       console.error('Withdraw error:', error);
+      
+      // Обрабатываем различные типы ошибок
+      let errorMessage = 'Failed to withdraw';
+      
+      if (error instanceof Error) {
+        // Если ошибка содержит HTML или не-JSON контент
+        if (error.message.includes('Unexpected token') || error.message.includes('Per anonym')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        } else if (error.message.includes('rate limit') || error.message.includes('Too Many Requests')) {
+          errorMessage = 'Rate limit exceeded. Please wait a moment and try again.';
+        } else if (error.message.includes('insufficient funds')) {
+          errorMessage = 'Insufficient funds for this transaction.';
+        } else {
+          errorMessage = error.message;
+        }
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : 'Failed to withdraw',
+        description: errorMessage,
         variant: "destructive"
       });
       throw error;

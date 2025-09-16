@@ -48,12 +48,23 @@ export async function GET() {
     console.log('🔍 Fetching Moar Market pools with APR calculation...');
     console.log('📊 API called at:', new Date().toISOString());
     
+    // Check if APTOS_API_KEY is available
+    const aptosApiKey = process.env.APTOS_API_KEY;
+    console.log('🔑 APTOS_API_KEY exists:', !!aptosApiKey);
+    
+    // Prepare headers with API key if available
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (aptosApiKey) {
+      headers['Authorization'] = `Bearer ${aptosApiKey}`;
+    }
+    
     // Step 1: Get all available pools
     const poolsResponse = await fetch('https://fullnode.mainnet.aptoslabs.com/v1/view', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({
         function: '0xa3afc59243afb6deeac965d40b25d509bb3aebc12f502b8592c283070abc2e07::pool::get_all_pools',
         type_arguments: [],
@@ -88,9 +99,7 @@ export async function GET() {
         // Get interest rate data
         const interestRateResponse = await fetch('https://fullnode.mainnet.aptoslabs.com/v1/view', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers,
           body: JSON.stringify({
             function: '0xa3afc59243afb6deeac965d40b25d509bb3aebc12f502b8592c283070abc2e07::pool::get_interest_rate',
             type_arguments: [],
@@ -109,9 +118,7 @@ export async function GET() {
         // Get pool totals for utilization calculation
         const totalBorrowsResponse = await fetch('https://fullnode.mainnet.aptoslabs.com/v1/view', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers,
           body: JSON.stringify({
             function: '0xa3afc59243afb6deeac965d40b25d509bb3aebc12f502b8592c283070abc2e07::pool::pool_total_borrows',
             type_arguments: [],
@@ -121,9 +128,7 @@ export async function GET() {
 
         const totalDepositsResponse = await fetch('https://fullnode.mainnet.aptoslabs.com/v1/view', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers,
           body: JSON.stringify({
             function: '0xa3afc59243afb6deeac965d40b25d509bb3aebc12f502b8592c283070abc2e07::pool::pool_total_deposited',
             type_arguments: [],
@@ -152,9 +157,7 @@ export async function GET() {
         try {
           const farmingResponse = await fetch('https://fullnode.mainnet.aptoslabs.com/v1/view', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers,
             body: JSON.stringify({
               function: '0xa3afc59243afb6deeac965d40b25d509bb3aebc12f502b8592c283070abc2e07::pool::get_farming_pool_apy',
               type_arguments: [],
