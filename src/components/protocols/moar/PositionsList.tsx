@@ -16,6 +16,7 @@ import { useWalletStore } from '@/lib/stores/walletStore';
 interface PositionsListProps {
   address?: string;
   onPositionsValueChange?: (value: number) => void;
+  refreshKey?: number;
   onPositionsCheckComplete?: () => void;
   showManageButton?: boolean;
 }
@@ -37,6 +38,7 @@ interface MoarPosition {
 export function PositionsList({ 
   address, 
   onPositionsValueChange, 
+  refreshKey,
   onPositionsCheckComplete,
   showManageButton = true 
 }: PositionsListProps) {
@@ -54,7 +56,7 @@ export function PositionsList({
       fetchPositions();
       fetchRewards();
     }
-  }, [address]);
+  }, [address, refreshKey]);
 
   const fetchRewards = async () => {
     if (!address) return;
