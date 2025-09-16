@@ -71,9 +71,8 @@ interface PositionProps {
 }
 
 export function PositionCard({ position }: PositionProps) {
-  // Получаем информацию о токенах из initialDeposits
-  const token1 = position.initialDeposits[0];
-  const token2 = position.initialDeposits[1];
+  // Получаем информацию о токенах из initialDeposits (до 3 токенов)
+  const tokens = position.initialDeposits.slice(0, 3);
   
   // Считаем общую стоимость позиции
   const totalValue = position.estimatedWithdrawals.reduce((sum, token) => {
@@ -91,12 +90,11 @@ export function PositionCard({ position }: PositionProps) {
         <div className="flex items-center gap-2">
           <div className="flex flex-col items-center">
             <div className="flex">
-              <Avatar className="w-6 h-6">
-                <img src={token1.img} alt={token1.symbol} />
-              </Avatar>
-              <Avatar className="w-6 h-6 -ml-2">
-                <img src={token2.img} alt={token2.symbol} />
-              </Avatar>
+              {tokens.map((token, index) => (
+                <Avatar key={index} className={`w-6 h-6 ${index > 0 ? '-ml-2' : ''}`}>
+                  <img src={token.img} alt={token.symbol} />
+                </Avatar>
+              ))}
             </div>
             <Badge variant="outline" className="mt-1 py-0 h-5 bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs">
               {position.poolType}
@@ -104,7 +102,7 @@ export function PositionCard({ position }: PositionProps) {
           </div>
           <div className="flex flex-col ml-1">
             <div className="text-sm font-medium">
-              {token1.symbol}/{token2.symbol}
+              {tokens.map(token => token.symbol).join(' / ')}
             </div>
           </div>
         </div>

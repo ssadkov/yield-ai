@@ -165,10 +165,11 @@ interface SidebarPositionsListProps {
   onPositionsCheckComplete?: () => void;
 }
 
-export const PositionsList: React.FC<SidebarPositionsListProps> = ({ 
+export const PositionsList: React.FC<SidebarPositionsListProps & { refreshKey?: number }> = ({ 
   address, 
   onPositionsValueChange,
   onPositionsCheckComplete,
+  refreshKey,
 }) => {
   const { account } = useWallet();
   const { isExpanded, toggleSection } = useCollapsible();
@@ -208,7 +209,7 @@ export const PositionsList: React.FC<SidebarPositionsListProps> = ({
   // Fetch data on mount and when address changes
   useEffect(() => {
     fetchPositions();
-  }, [fetchPositions]);
+  }, [fetchPositions, refreshKey]);
 
   // Calculate total value from positions
   const totalValue = positions.reduce((sum, position) => {

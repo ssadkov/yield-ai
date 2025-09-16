@@ -109,15 +109,28 @@ function TappPosition({ position, index }: TappPositionProps) {
         <div className="flex flex-col items-end gap-2 text-sm">
           {rewards.length > 0 && (
             <div className="mt-2 text-right">
-              <div className="text-gray-500 mb-1">🎁 Rewards: ${rewardsValue.toFixed(2)}</div>
-              {rewards.map((reward: any, rewardIndex: number) => (
-                <div key={rewardIndex} className="flex items-center justify-end gap-2">
-                  {reward.img && (
-                    <img src={reward.img} alt={reward.symbol} className="w-4 h-4 rounded-full" />
-                  )}
-                  <span className="font-semibold">{reward.amount.toFixed(6)} {reward.symbol}</span>
-                </div>
-              ))}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="text-gray-500 mb-1 cursor-help">🎁 Rewards: ${rewardsValue.toFixed(2)}</div>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <div className="space-y-1 text-xs max-h-48 overflow-auto">
+                      {rewards.map((reward: any, rewardIndex: number) => (
+                        <div key={rewardIndex} className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            {reward.img && (
+                              <img src={reward.img} alt={reward.symbol} className="w-4 h-4 rounded-full" />
+                            )}
+                            <span>{reward.symbol}</span>
+                          </div>
+                          <span className="font-semibold">{reward.amount.toFixed(6)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           )}
         </div>

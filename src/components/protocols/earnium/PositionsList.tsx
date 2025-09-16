@@ -14,6 +14,7 @@ import { ManagePositionsButton } from "../ManagePositionsButton";
 interface PositionsListProps {
   address?: string;
   onPositionsValueChange?: (value: number) => void;
+  refreshKey?: number;
   onPositionsCheckComplete?: () => void;
   showManageButton?: boolean;
 }
@@ -55,7 +56,7 @@ function normalizePriceMap(list: any[]): Record<string, number> {
   return map;
 }
 
-export function PositionsList({ address, onPositionsValueChange, onPositionsCheckComplete, showManageButton=true }: PositionsListProps) {
+export function PositionsList({ address, onPositionsValueChange, refreshKey, onPositionsCheckComplete, showManageButton=true }: PositionsListProps) {
   const { account } = useWallet();
   const walletAddress = address || account?.address?.toString();
   const protocol = getProtocolByName("Earnium");
@@ -164,8 +165,8 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
             if (t?.logoUrl) headerIcons.push({ logo: t.logoUrl, symbol: t.symbol });
           });
           positionsUSD += poolUserUSD;
-          const pairSymbols = pairSet.map((x) => x.symbol).slice(0, 2);
-          const pairIcons = pairSet.map((x) => x.logo).filter(Boolean).slice(0, 2);
+          const pairSymbols = pairSet.map((x) => x.symbol).slice(0, 3);
+          const pairIcons = pairSet.map((x) => x.logo).filter(Boolean).slice(0, 3);
           enrichedPools.push({ ...p, tokens, poolUserUSD, pairSymbols, pairIcons });
         });
 
@@ -211,7 +212,7 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
       }
     }
     load();
-  }, [walletAddress]);
+  }, [walletAddress, refreshKey]);
 
   if (loading) return null;
   if (error) return null;

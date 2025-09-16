@@ -17,6 +17,7 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/comp
 interface PositionsListProps {
   address?: string;
   onPositionsValueChange?: (value: number) => void;
+  refreshKey?: number;
   onPositionsCheckComplete?: () => void;
   showManageButton?: boolean;
 }
@@ -49,7 +50,7 @@ interface EchelonReward {
   stakeAmount: number;
 }
 
-export function PositionsList({ address, onPositionsValueChange, onPositionsCheckComplete, showManageButton=true }: PositionsListProps) {
+export function PositionsList({ address, onPositionsValueChange, refreshKey, onPositionsCheckComplete, showManageButton=true }: PositionsListProps) {
   const { account } = useWallet();
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(false);
@@ -293,7 +294,7 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
     }, 500); // Дебаунсинг 500мс
 
     return () => clearTimeout(timeoutId);
-  }, [walletAddress, fetchRewards]);
+  }, [walletAddress, refreshKey, fetchRewards]);
 
       // Получить APR для позиции
   const getApyForPosition = (position: Position) => {

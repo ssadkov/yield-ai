@@ -13,6 +13,7 @@ import { useCollapsible } from "@/contexts/CollapsibleContext";
 interface PositionsListProps {
   address?: string;
   onPositionsValueChange?: (value: number) => void;
+  refreshKey?: number;
   onPositionsCheckComplete?: () => void;
   showManageButton?: boolean;
 }
@@ -76,7 +77,7 @@ function getTokenInfo(address: string) {
   );
 }
 
-export function PositionsList({ address, onPositionsValueChange, onPositionsCheckComplete, showManageButton=true }: PositionsListProps) {
+export function PositionsList({ address, onPositionsValueChange, refreshKey, onPositionsCheckComplete, showManageButton=true }: PositionsListProps) {
   const { account } = useWallet();
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(false);
@@ -172,7 +173,7 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
     }
 
     loadPositions();
-  }, [walletAddress]);
+  }, [walletAddress, refreshKey]);
 
   // Вызываем колбэк при изменении общей суммы позиций
   useEffect(() => {

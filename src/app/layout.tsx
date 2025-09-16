@@ -15,6 +15,7 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Yield AI",
   description: "AI-powered yield farming platform",
+  viewport: "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no",
   icons: {
     icon: '/favicon.ico',
     shortcut: '/favicon.ico',

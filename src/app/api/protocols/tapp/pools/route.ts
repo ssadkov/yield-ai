@@ -201,6 +201,23 @@ async function fetchSinglePage(chain: string, page: number, limit: number) {
     });
   }
 
+  // Log pool token counts for debugging
+  const tokenCounts = data.result.data.reduce((acc: any, pool: any) => {
+    const count = pool.tokens?.length || 0;
+    acc[count] = (acc[count] || 0) + 1;
+    return acc;
+  }, {});
+  console.log('Tapp pools by token count:', tokenCounts);
+  
+  // Log pools with 3+ tokens
+  const multiTokenPools = data.result.data.filter((pool: any) => (pool.tokens?.length || 0) >= 3);
+  if (multiTokenPools.length > 0) {
+    console.log('Multi-token pools found:', multiTokenPools.map((p: any) => ({
+      id: p.poolId,
+      symbols: p.tokens?.map((t: any) => t.symbol)
+    })));
+  }
+
   // Transform the data to match our expected format
   const transformedPools = data.result.data.map((pool: any) => {
     return {
