@@ -9,9 +9,11 @@ import { cn } from "@/lib/utils";
 import tokenList from "@/lib/data/tokenList.json";
 import { useClaimRewards } from '@/lib/hooks/useClaimRewards';
 import { useWithdraw } from '@/lib/hooks/useWithdraw';
+import { useDeposit } from '@/lib/hooks/useDeposit';
 import { useToast } from '@/components/ui/use-toast';
 import { useWalletStore } from '@/lib/stores/walletStore';
 import { WithdrawModal } from '@/components/ui/withdraw-modal';
+import { DepositModal } from '@/components/ui/deposit-modal';
 
 interface MoarPositionsProps {
   address?: string;
@@ -34,6 +36,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
   const { account } = useWallet();
   const { claimRewards, isLoading: isClaiming } = useClaimRewards();
   const { withdraw, isLoading: isWithdrawing } = useWithdraw();
+  const { deposit, isLoading: isDepositing } = useDeposit();
   const { toast } = useToast();
   const { setRewards } = useWalletStore();
   const [positions, setPositions] = useState<Position[]>([]);
@@ -45,6 +48,8 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
   const [poolsAPR, setPoolsAPR] = useState<Record<number, any>>({});
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [selectedDepositPosition, setSelectedDepositPosition] = useState<Position | null>(null);
 
   const walletAddress = address || account?.address;
 
@@ -89,6 +94,12 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
   const handleWithdrawClick = (position: Position) => {
     setSelectedPosition(position);
     setShowWithdrawModal(true);
+  };
+
+  // Обработчик открытия модального окна deposit
+  const handleDepositClick = (position: Position) => {
+    setSelectedDepositPosition(position);
+    setShowDepositModal(true);
   };
 
   // Обработчик подтверждения withdraw
@@ -150,6 +161,69 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
       
       toast({
         title: "Withdraw Failed",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Обработчик подтверждения deposit
+  const handleDepositConfirm = async (amount: bigint) => {
+    if (!selectedDepositPosition) return;
+    
+    try {
+      // Получаем token address из underlying_asset
+      let tokenAddress = '';
+      if (selectedDepositPosition.assetInfo.symbol === 'APT') {
+        tokenAddress = '0x1::aptos_coin::AptosCoin';
+      } else if (selectedDepositPosition.assetInfo.symbol === 'USDC') {
+        tokenAddress = '0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b';
+      } else {
+        // Fallback - используем symbol для поиска в tokenList
+        const tokenInfo = getTokenInfo(selectedDepositPosition.assetInfo.symbol);
+        tokenAddress = tokenInfo.address || selectedDepositPosition.assetInfo.symbol;
+      }
+      
+      // Вызываем deposit через useDeposit hook
+      console.log('Calling deposit with:', {
+        protocol: 'moar',
+        token: tokenAddress,
+        amount: amount.toString()
+      });
+      
+      await deposit('moar', tokenAddress, amount);
+      
+      // Закрываем модал и обновляем состояние
+      setShowDepositModal(false);
+      setSelectedDepositPosition(null);
+      
+      // Обновляем позиции после успешного deposit
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('refreshPositions', { 
+          detail: { protocol: 'moar' }
+        }));
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Deposit failed:', error);
+      
+      // Показываем пользователю понятное сообщение об ошибке
+      let errorMessage = 'Deposit failed. Please try again.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('rate limit') || error.message.includes('Too Many Requests')) {
+          errorMessage = 'Rate limit exceeded. Please wait a moment and try again.';
+        } else if (error.message.includes('insufficient funds')) {
+          errorMessage = 'Insufficient funds for this transaction.';
+        } else if (error.message.includes('JSON')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        } else {
+          errorMessage = `Deposit failed: ${error.message}`;
+        }
+      }
+      
+      toast({
+        title: "Deposit Failed",
         description: errorMessage,
         variant: "destructive"
       });
@@ -542,17 +616,28 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                   <div className="text-base text-muted-foreground font-semibold">
                     {amount.toFixed(4)}
                   </div>
-                  {amount > 0 && (
+                  <div className="flex gap-2 mt-2">
                     <Button
-                      onClick={() => handleWithdrawClick(position)}
-                      disabled={isWithdrawing}
+                      onClick={() => handleDepositClick(position)}
+                      disabled={isDepositing}
                       size="sm"
-                      variant="outline"
-                      className="mt-2 h-10"
+                      variant="default"
+                      className="h-10"
                     >
-                      {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
+                      {isDepositing ? 'Depositing...' : 'Deposit'}
                     </Button>
-                  )}
+                    {amount > 0 && (
+                      <Button
+                        onClick={() => handleWithdrawClick(position)}
+                        disabled={isWithdrawing}
+                        size="sm"
+                        variant="outline"
+                        className="h-10"
+                      >
+                        {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
               
@@ -649,17 +734,28 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                     <div className="text-sm text-muted-foreground">
                       {amount.toFixed(4)}
                     </div>
-                    {amount > 0 && (
+                    <div className="flex gap-2 mt-2">
                       <Button
-                        onClick={() => handleWithdrawClick(position)}
-                        disabled={isWithdrawing}
+                        onClick={() => handleDepositClick(position)}
+                        disabled={isDepositing}
                         size="sm"
-                        variant="outline"
-                        className="mt-2 h-10"
+                        variant="default"
+                        className="h-10"
                       >
-                        {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
+                        {isDepositing ? 'Depositing...' : 'Deposit'}
                       </Button>
-                    )}
+                      {amount > 0 && (
+                        <Button
+                          onClick={() => handleWithdrawClick(position)}
+                          disabled={isWithdrawing}
+                          size="sm"
+                          variant="outline"
+                          className="h-10"
+                        >
+                          {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
                 
@@ -839,6 +935,54 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
           }}
           isLoading={isWithdrawing}
           userAddress={walletAddress?.toString()}
+        />
+      )}
+
+      {/* Deposit Modal */}
+      {selectedDepositPosition && (
+        <DepositModal
+          isOpen={showDepositModal}
+          onClose={() => {
+            setShowDepositModal(false);
+            setSelectedDepositPosition(null);
+          }}
+          protocol={{
+            name: "Moar Market",
+            logo: "/protocol_ico/moar-market-logo-primary.png",
+            apy: (() => {
+              const poolAPR = poolsAPR[selectedDepositPosition.poolId];
+              return poolAPR ? poolAPR.totalAPR * 100 : 0;
+            })(),
+            key: "moar" as any
+          }}
+          tokenIn={{
+            symbol: selectedDepositPosition.assetInfo.symbol,
+            logo: selectedDepositPosition.assetInfo.logoUrl,
+            decimals: selectedDepositPosition.assetInfo.decimals,
+            address: (() => {
+              if (selectedDepositPosition.assetInfo.symbol === 'APT') {
+                return '0x1::aptos_coin::AptosCoin';
+              } else if (selectedDepositPosition.assetInfo.symbol === 'USDC') {
+                return '0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b';
+              }
+              return selectedDepositPosition.assetInfo.symbol;
+            })()
+          }}
+          tokenOut={{
+            symbol: selectedDepositPosition.assetInfo.symbol,
+            logo: selectedDepositPosition.assetInfo.logoUrl,
+            decimals: selectedDepositPosition.assetInfo.decimals,
+            address: (() => {
+              if (selectedDepositPosition.assetInfo.symbol === 'APT') {
+                return '0x1::aptos_coin::AptosCoin';
+              } else if (selectedDepositPosition.assetInfo.symbol === 'USDC') {
+                return '0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b';
+              }
+              return selectedDepositPosition.assetInfo.symbol;
+            })()
+          }}
+          onConfirm={handleDepositConfirm}
+          isLoading={isDepositing}
         />
       )}
     </div>
