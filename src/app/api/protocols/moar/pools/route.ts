@@ -46,6 +46,7 @@ interface MoarPoolData {
 export async function GET() {
   try {
     console.log('🔍 Fetching Moar Market pools with APR calculation...');
+    console.log('📊 API called at:', new Date().toISOString());
     
     // Step 1: Get all available pools
     const poolsResponse = await fetch('https://fullnode.mainnet.aptoslabs.com/v1/view', {
@@ -78,8 +79,10 @@ export async function GET() {
     const transformedPools: InvestmentData[] = [];
     
     // Step 2: Calculate APR for each pool
+    console.log(`📊 Starting APR calculation for ${pools.length} pools`);
     for (let poolId = 0; poolId < pools.length; poolId++) {
       try {
+        const pool = pools[poolId];
         console.log(`📈 Calculating APR for pool ${poolId}...`);
         
         // Get interest rate data
@@ -170,24 +173,38 @@ export async function GET() {
         // Calculate total APR
         const totalAPR = interestRateComponent + farmingAPY;
 
-        // Determine pool token
-        const poolToken = poolId === 0 ? 'APT' : poolId === 1 ? 'USDC' : `Token ${poolId}`;
+        // Determine pool token from underlying_asset
+        const underlyingAsset = pool.underlying_asset?.inner;
+        let poolToken = 'Unknown';
+        let tokenAddress = '';
+        
+        if (underlyingAsset === '0xa') {
+          poolToken = 'APT';
+          tokenAddress = '0x1::aptos_coin::AptosCoin';
+        } else if (underlyingAsset === '0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b') {
+          poolToken = 'USDC';
+          tokenAddress = underlyingAsset;
+        } else {
+          poolToken = `Token ${poolId}`;
+          tokenAddress = underlyingAsset || '';
+        }
+        
         const poolName = `${poolToken} Pool`;
 
         // Transform to InvestmentData format
         const poolEntry: InvestmentData = {
           asset: poolToken,
           provider: 'Moar Market',
-          totalAPY: totalAPR * 100, // Convert to percentage
-          depositApy: totalAPR * 100, // Same as total APY for lending
-          token: poolId === 0 ? '0x1::aptos_coin::AptosCoin' : `0x${poolId}::token::Token`, // Placeholder for other tokens
+          totalAPY: totalAPR, // Already in percentage (converted from micro-percentages)
+          depositApy: totalAPR, // Same as total APY for lending
+          token: tokenAddress, // Use the actual underlying asset address
           protocol: 'Moar Market',
           poolType: 'Lending',
           // Moar-specific data
           poolId: poolId,
-          interestRateComponent: interestRateComponent * 100,
-          farmingAPY: farmingAPY * 100,
-          utilization: utilization * 100,
+          interestRateComponent: interestRateComponent, // Already in percentage
+          farmingAPY: farmingAPY, // Already in percentage
+          utilization: utilization * 100, // Keep utilization as percentage
           totalBorrows: Number(totalBorrows),
           totalDeposits: Number(totalDeposits),
           // Additional fields for compatibility
@@ -198,16 +215,19 @@ export async function GET() {
         transformedPools.push(poolEntry);
         
         console.log(`✅ Pool ${poolId} APR calculated:`, {
-          totalAPR: totalAPR * 100,
-          interestRateComponent: interestRateComponent * 100,
-          farmingAPY: farmingAPY * 100
+          totalAPR: totalAPR,
+          interestRateComponent: interestRateComponent,
+          farmingAPY: farmingAPY,
+          poolToken: poolToken
         });
 
       } catch (err) {
-        console.warn(`Error calculating APR for pool ${poolId}:`, err);
+        console.warn(`❌ Error calculating APR for pool ${poolId}:`, err);
         // Continue with other pools instead of failing completely
       }
     }
+    
+    console.log(`📊 Final result: ${transformedPools.length} pools processed successfully`);
 
     // Sort by total APY in descending order
     transformedPools.sort((a, b) => (b.totalAPY || 0) - (a.totalAPY || 0));

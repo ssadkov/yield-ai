@@ -228,7 +228,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
           'Amnis Finance': true,
           'Kofi Finance': true,
           'Echelon': true,
-          'Aave': true
+          'Aave': true,
+          'Moar Market': true
         };
         setProtocolsLoading(initialLoadingState);
         setProtocolsError({});
@@ -496,6 +497,43 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   liquidityRate: pool.liquidityRate,
                   variableBorrowRate: pool.variableBorrowRate,
                   decimals: pool.decimals,
+                  marketAddress: pool.marketAddress || pool.token
+                };
+              });
+            }
+          },
+          {
+            name: 'Moar Market',
+            url: '/api/protocols/moar/pools',
+			logoUrl: '/protocol_ico/moar-market-logo-primary.png',
+            transform: (data: any) => {
+              const pools = data.data || [];
+              
+              return pools.map((pool: any) => {
+                // API returns percentages, convert to decimal for display
+                const totalAPY = (pool.totalAPY || 0) / 100;
+                const depositApy = (pool.depositApy || 0) / 100;
+                const interestRateComponent = (pool.interestRateComponent || 0) / 100;
+                const farmingAPY = (pool.farmingAPY || 0) / 100;
+                
+                return {
+                  asset: pool.asset || 'Unknown',
+                  provider: pool.provider || 'Moar Market',
+                  totalAPY: totalAPY,
+                  depositApy: depositApy,
+                  borrowAPY: pool.borrowAPY || 0,
+                  token: pool.token || '',
+                  protocol: pool.protocol || 'Moar Market',
+                  poolType: pool.poolType || 'Lending',
+                  tvlUSD: pool.tvlUSD || 0,
+                  dailyVolumeUSD: pool.dailyVolumeUSD || 0,
+                  // Moar Market-specific fields
+                  poolId: pool.poolId,
+                  interestRateComponent: interestRateComponent,
+                  farmingAPY: farmingAPY,
+                  utilization: pool.utilization,
+                  totalBorrows: pool.totalBorrows,
+                  totalDeposits: pool.totalDeposits,
                   marketAddress: pool.marketAddress || pool.token
                 };
               });
@@ -1371,8 +1409,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                     const hasDexTokens = !!(item.token1Info && item.token2Info) || !!(item as any).tokensInfo?.length;
                     
                     
-                    // Включаем все пулы: с tokenInfo, с :: в asset, DEX-пулы с token1Info/token2Info, или Echelon пулы
-                    return hasAssetColon || hasTokenInfo || hasDexTokens || item.protocol === 'Echelon';
+                    // Включаем все пулы: с tokenInfo, с :: в asset, DEX-пулы с token1Info/token2Info, Echelon пулы, или Moar Market пулы
+                    return hasAssetColon || hasTokenInfo || hasDexTokens || item.protocol === 'Echelon' || item.protocol === 'Moar Market';
                   })
                   .sort((a, b) => b.totalAPY - a.totalAPY)
                   .map((item, index) => {
