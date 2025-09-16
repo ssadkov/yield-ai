@@ -372,6 +372,65 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
     fetchPoolsAPR();
   }, [fetchPoolsAPR]);
 
+  // Подписка на глобальное событие обновления позиций
+  useEffect(() => {
+    const handleRefresh = (event: CustomEvent) => {
+      console.log('MoarPositions - Received refreshPositions event:', event.detail);
+      
+      if (event.detail?.protocol === 'moar') {
+        console.log('MoarPositions - Protocol matches moar, refreshing data');
+        // Перезагружаем данные
+        const fetchData = async () => {
+          try {
+            setLoading(true);
+            setError(null);
+            
+            const response = await fetch(`/api/protocols/moar/userPositions?address=${walletAddress}`);
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log('Moar Market positions refreshed:', data);
+            
+            if (data.success && data.positions) {
+              setPositions(data.positions);
+              setTotalValue(data.totalValue || 0);
+              setRewardsData(data.rewards || []);
+              setTotalRewardsValue(data.totalRewardsValue || 0);
+              
+              // Обновляем общую стоимость позиций
+              const totalPositions = data.totalValue || 0;
+              const totalRewards = data.totalRewardsValue || 0;
+              onPositionsValueChange?.(totalPositions + totalRewards);
+            } else {
+              setPositions([]);
+              setTotalValue(0);
+              setRewardsData([]);
+              setTotalRewardsValue(0);
+              onPositionsValueChange?.(0);
+            }
+          } catch (err) {
+            console.error('Error refreshing Moar data:', err);
+            setError("Failed to refresh Moar Market data");
+          } finally {
+            setLoading(false);
+          }
+        };
+        
+        fetchData();
+        
+        // Также обновляем APR данные
+        fetchPoolsAPR();
+      }
+    };
+
+    window.addEventListener('refreshPositions', handleRefresh as unknown as EventListener);
+    return () => {
+      window.removeEventListener('refreshPositions', handleRefresh as unknown as EventListener);
+    };
+  }, [walletAddress, onPositionsValueChange]);
+
   if (loading) {
     return <div>Loading Moar Market positions...</div>;
   }
