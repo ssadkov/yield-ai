@@ -23,6 +23,7 @@ function formatCurrency(value: number) {
 function TappPosition({ position, index }: TappPositionProps) {
   const token0 = position.estimatedWithdrawals?.[0];
   const token1 = position.estimatedWithdrawals?.[1];
+  const tokens = (position.estimatedWithdrawals || []).slice(0, 3);
 
   if (!token0 || !token1) {
     return null;
@@ -33,11 +34,24 @@ function TappPosition({ position, index }: TappPositionProps) {
 
   const token0Value = parseFloat(token0.usd || "0");
   const token1Value = parseFloat(token1.usd || "0");
-  const positionValue = token0Value + token1Value;
+
+  // Build unified entries for up to three tokens
+  const tokenEntries = tokens.map((t: any) => ({
+    symbol: t.symbol,
+    amount: parseFloat(t.amount || '0'),
+    value: parseFloat(t.usd || '0'),
+  }));
+
+  // Position value is the sum across all displayed tokens (up to three)
+  const positionValue = tokenEntries.reduce(
+    (sum: number, t: { symbol: string; amount: number; value: number }) => sum + t.value,
+    0
+  );
 
   // Считаем только rewards (стимулы)
   const rewardsValue = (position.estimatedIncentives || []).reduce((sum: number, r: any) => sum + parseFloat(r.usd || "0"), 0);
-  const totalValue = positionValue + rewardsValue;
+  // IMPORTANT: Do NOT add rewards to the displayed total
+  const displayedTotal = positionValue;
 
   const rewards = (position.estimatedIncentives || []).map((r: any) => {
     const amount = parseFloat(r.amount || "0");
@@ -57,13 +71,14 @@ function TappPosition({ position, index }: TappPositionProps) {
     <div key={`${position.positionAddr}-${index}`} className="mt-2 pb-2 border-b last:border-b-0">
 	 <div className="flex flex-wrap justify-between items-center mb-2">
 		<div className="flex items-center gap-2">
-          {token0.img && token1.img && (
+          {tokens.length > 0 && (
             <div className="flex -space-x-2 mr-2">
-              <img src={token0.img} alt={token0.symbol} className="w-8 h-8 rounded-full border-2 border-white object-contain" />
-              <img src={token1.img} alt={token1.symbol} className="w-8 h-8 rounded-full border-2 border-white object-contain" />
+              {tokens.map((t: any, i: number) => (
+                <img key={i} src={t.img} alt={t.symbol} className="w-8 h-8 rounded-full border-2 border-white object-contain" />
+              ))}
             </div>
           )}
-          <span className="text-lg font-semibold">{token0.symbol} / {token1.symbol}</span>
+          <span className="text-lg font-semibold">{tokens.map((t: any) => t.symbol).join(' / ')}</span>
           <span className="px-2 py-1 rounded bg-green-500/10 text-green-600 text-xs font-semibold ml-2">Active</span>
         </div>
         <div className="flex items-centern gap-2">
@@ -84,27 +99,23 @@ function TappPosition({ position, index }: TappPositionProps) {
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          <span className="text-lg font-bold">{formatCurrency(totalValue)}</span>
+          <span className="text-lg font-bold">{formatCurrency(displayedTotal)}</span>
         </div>
       </div>
       <div className="flex flex-wrap justify-between items-start">
-		<div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-          <div>
-            <div className="text-gray-500">{token0.symbol} Amount</div>
-            <div className="font-medium">{token0Amount.toFixed(6)}</div>
-          </div>
-          <div>
-            <div className="text-gray-500">{token1.symbol} Amount</div>
-            <div className="font-medium">{token1Amount.toFixed(6)}</div>
-          </div>
-          <div>
-            <div className="text-gray-500">{token0.symbol} Value</div>
-            <div className="font-medium">{formatCurrency(token0Value)}</div>
-          </div>
-          <div>
-            <div className="text-gray-500">{token1.symbol} Value</div>
-            <div className="font-medium">{formatCurrency(token1Value)}</div>
-          </div>
+		<div className={`grid ${tokens.length === 3 ? 'grid-cols-3' : 'grid-cols-2'} gap-x-6 gap-y-2 text-sm`}>
+          {tokenEntries.map((te: { symbol: string; amount: number; value: number }) => (
+            <div key={`amt-${te.symbol}`}>
+              <div className="text-gray-500">{te.symbol} Amount</div>
+              <div className="font-medium">{te.amount.toFixed(6)}</div>
+            </div>
+          ))}
+          {tokenEntries.map((te: { symbol: string; amount: number; value: number }) => (
+            <div key={`val-${te.symbol}`}>
+              <div className="text-gray-500">{te.symbol} Value</div>
+              <div className="font-medium">{formatCurrency(te.value)}</div>
+            </div>
+          ))}
         </div>
         <div className="flex flex-col items-end gap-2 text-sm">
           {rewards.length > 0 && (
