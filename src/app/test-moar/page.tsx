@@ -16,9 +16,11 @@ export default function TestMoarPage() {
   const [poolsData, setPoolsData] = useState<any>(null);
   const [positionsData, setPositionsData] = useState<any>(null);
   const [rewardsData, setRewardsData] = useState<any>(null);
+  const [aprData, setAprData] = useState<any>(null);
   const [isLoadingPools, setIsLoadingPools] = useState(false);
   const [isLoadingPositions, setIsLoadingPositions] = useState(false);
   const [isLoadingRewards, setIsLoadingRewards] = useState(false);
+  const [isLoadingApr, setIsLoadingApr] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pricesService = PanoraPricesService.getInstance();
 
@@ -332,6 +334,190 @@ export default function TestMoarPage() {
     }
   };
 
+  const calculateAPR = async () => {
+    if (!poolsData || !Array.isArray(poolsData)) {
+      setError('Please fetch pools data first');
+      return;
+    }
+
+    setIsLoadingApr(true);
+    setError(null);
+    try {
+      console.log('🔍 Calculating APR for all pools...');
+      
+      const aprResults: any[] = [];
+      
+      // Calculate APR for each pool
+      for (let poolId = 0; poolId < poolsData.length; poolId++) {
+        try {
+          console.log(`📈 Calculating APR for pool ${poolId}...`);
+          
+          // 1. Get interest rate data
+          const interestRateResponse = await fetch('https://fullnode.mainnet.aptoslabs.com/v1/view', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              function: '0xa3afc59243afb6deeac965d40b25d509bb3aebc12f502b8592c283070abc2e07::pool::get_interest_rate',
+              type_arguments: [],
+              arguments: [poolId.toString()]
+            })
+          });
+
+          if (!interestRateResponse.ok) {
+            console.warn(`Failed to get interest rate for pool ${poolId}:`, interestRateResponse.status);
+            continue;
+          }
+
+          const interestRateData = await interestRateResponse.json();
+          const [interestRate, feeOnInterest] = interestRateData;
+          console.log(`📈 Pool ${poolId} interest rate data:`, { 
+            interestRate, 
+            feeOnInterest,
+            interestRateType: typeof interestRate,
+            feeOnInterestType: typeof feeOnInterest,
+            interestRateValue: Number(interestRate),
+            feeOnInterestValue: Number(feeOnInterest)
+          });
+
+          // 2. Get pool totals for utilization calculation
+          const totalBorrowsResponse = await fetch('https://fullnode.mainnet.aptoslabs.com/v1/view', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              function: '0xa3afc59243afb6deeac965d40b25d509bb3aebc12f502b8592c283070abc2e07::pool::pool_total_borrows',
+              type_arguments: [],
+              arguments: [poolId.toString()]
+            })
+          });
+
+          const totalDepositsResponse = await fetch('https://fullnode.mainnet.aptoslabs.com/v1/view', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              function: '0xa3afc59243afb6deeac965d40b25d509bb3aebc12f502b8592c283070abc2e07::pool::pool_total_deposited',
+              type_arguments: [],
+              arguments: [poolId.toString()]
+            })
+          });
+
+          if (!totalBorrowsResponse.ok || !totalDepositsResponse.ok) {
+            console.warn(`Failed to get pool totals for pool ${poolId}`);
+            continue;
+          }
+
+          const totalBorrows = await totalBorrowsResponse.json();
+          const totalDeposits = await totalDepositsResponse.json();
+          console.log(`📈 Pool ${poolId} totals:`, { totalBorrows, totalDeposits });
+
+          // 3. Calculate utilization
+          const utilization = totalDeposits > 0 ? Number(totalBorrows) / Number(totalDeposits) : 0;
+          
+          // 4. Calculate interest rate component
+          // Both interestRate and feeOnInterest are in micro-percentages (need to divide by 10^6)
+          const interestRateValue = Number(interestRate);
+          const feeOnInterestValue = Number(feeOnInterest);
+          
+          // Convert from micro-percentages to regular percentages and calculate
+          const interestRateComponent = (interestRateValue / 1000000) * utilization * (1 - feeOnInterestValue / 1000000);
+          
+          console.log(`📈 Pool ${poolId} interest rate calculation:`, {
+            raw: { interestRate: interestRateValue, feeOnInterest: feeOnInterestValue },
+            converted: { 
+              interestRate: interestRateValue / 1000000, 
+              feeOnInterest: feeOnInterestValue / 1000000 
+            },
+            utilization: utilization,
+            result: interestRateComponent
+          });
+          
+          // 5. Get farming APY
+          let farmingAPY = 0;
+          try {
+            const farmingResponse = await fetch('https://fullnode.mainnet.aptoslabs.com/v1/view', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                function: '0xa3afc59243afb6deeac965d40b25d509bb3aebc12f502b8592c283070abc2e07::pool::get_farming_pool_apy',
+                type_arguments: [],
+                arguments: [poolId.toString(), 'APT-1']
+              })
+            });
+
+            if (farmingResponse.ok) {
+              const farmingData = await farmingResponse.json();
+              // Convert from micro-percentages to regular percentages
+              farmingAPY = Number(farmingData) / 1000000; // Divide by 10^6
+              console.log(`📈 Pool ${poolId} farming APY (raw):`, farmingData, 'converted:', farmingAPY);
+            }
+          } catch (err) {
+            console.warn(`Failed to get farming APY for pool ${poolId}:`, err);
+          }
+
+          // 6. Calculate total APR
+          const totalAPR = interestRateComponent + farmingAPY;
+
+          const poolInfo = poolsData[poolId];
+          const poolName = poolInfo?.name || `Pool ${poolId}`;
+          const poolToken = poolId === 0 ? 'APT' : poolId === 1 ? 'USDC' : `Token ${poolId}`;
+
+          aprResults.push({
+            poolId,
+            poolName,
+            poolToken,
+            interestRate: Number(interestRate),
+            feeOnInterest: Number(feeOnInterest),
+            totalBorrows: Number(totalBorrows),
+            totalDeposits: Number(totalDeposits),
+            utilization: utilization * 100, // Convert to percentage
+            interestRateComponent: interestRateComponent,
+            farmingAPY: farmingAPY,
+            totalAPR: totalAPR,
+            breakdown: {
+              interestRate: Number(interestRate),
+              utilization: utilization,
+              feeOnInterest: Number(feeOnInterest),
+              interestComponent: interestRateComponent,
+              farmingComponent: farmingAPY,
+              total: totalAPR
+            }
+          });
+
+          console.log(`✅ Pool ${poolId} APR calculated:`, {
+            interestRateComponent,
+            farmingAPY,
+            totalAPR
+          });
+
+        } catch (err) {
+          console.warn(`Error calculating APR for pool ${poolId}:`, err);
+          aprResults.push({
+            poolId,
+            poolName: `Pool ${poolId}`,
+            poolToken: `Token ${poolId}`,
+            error: err instanceof Error ? err.message : 'Unknown error'
+          });
+        }
+      }
+
+      console.log('📊 Final APR results:', aprResults);
+      setAprData(aprResults);
+
+    } catch (err) {
+      console.error('❌ Error calculating APR:', err);
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setIsLoadingApr(false);
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="text-center">
@@ -373,6 +559,9 @@ export default function TestMoarPage() {
             </Button>
             <Button onClick={fetchRewards} disabled={isLoadingRewards || !address} variant="secondary">
               {isLoadingRewards ? 'Loading...' : 'Fetch Rewards'}
+            </Button>
+            <Button onClick={calculateAPR} disabled={isLoadingApr || !poolsData} variant="outline">
+              {isLoadingApr ? 'Calculating...' : 'Calculate APR'}
             </Button>
           </div>
         </CardContent>
@@ -573,6 +762,114 @@ export default function TestMoarPage() {
         </Card>
       )}
 
+      {/* APR Data */}
+      {aprData && (
+        <Card>
+          <CardHeader>
+            <CardTitle>APR Calculation Results</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground mb-4">
+                APR calculated for {Array.isArray(aprData) ? aprData.length : 'unknown'} pools
+              </p>
+              
+              {Array.isArray(aprData) && aprData.map((pool, index) => (
+                <div key={index} className="border rounded-lg p-4 mb-4">
+                  {pool.error ? (
+                    <div className="text-red-600">
+                      <h3 className="font-semibold mb-2">Pool {pool.poolId} - Error</h3>
+                      <p>{pool.error}</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h3 className="font-semibold text-lg">
+                            {pool.poolName} ({pool.poolToken})
+                          </h3>
+                          <p className="text-sm text-muted-foreground">Pool ID: {pool.poolId}</p>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-2xl font-bold text-green-600">
+                            {pool.totalAPR.toFixed(4)}%
+                          </div>
+                          <p className="text-sm text-muted-foreground">Total APR</p>
+                        </div>
+                      </div>
+                      
+                      {/* APR Breakdown */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div className="bg-blue-50 p-3 rounded-lg">
+                          <h4 className="font-medium text-blue-800 mb-2">Interest Rate Component</h4>
+                          <div className="text-2xl font-bold text-blue-600">
+                            {pool.interestRateComponent.toFixed(4)}%
+                          </div>
+                          <div className="text-sm text-blue-600 mt-1">
+                            Formula: ({pool.interestRate}/10⁶) × {pool.utilization.toFixed(4)} × (1 - {pool.feeOnInterest}/10⁶)
+                          </div>
+                        </div>
+                        
+                        <div className="bg-green-50 p-3 rounded-lg">
+                          <h4 className="font-medium text-green-800 mb-2">Farming APY</h4>
+                          <div className="text-2xl font-bold text-green-600">
+                            {pool.farmingAPY.toFixed(4)}%
+                          </div>
+                          <div className="text-sm text-green-600 mt-1">
+                            Reward ID: APT-1
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Detailed Breakdown */}
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <h4 className="font-medium mb-3">Detailed Calculation</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          <div>
+                            <strong>Interest Rate (raw):</strong><br />
+                            {pool.interestRate}
+                          </div>
+                          <div>
+                            <strong>Utilization:</strong><br />
+                            {pool.utilization.toFixed(2)}%
+                          </div>
+                          <div>
+                            <strong>Fee on Interest (raw):</strong><br />
+                            {pool.feeOnInterest}
+                          </div>
+                          <div>
+                            <strong>Total Borrows:</strong><br />
+                            {pool.totalBorrows.toLocaleString()}
+                          </div>
+                          <div>
+                            <strong>Total Deposits:</strong><br />
+                            {pool.totalDeposits.toLocaleString()}
+                          </div>
+                          <div>
+                            <strong>Interest Component:</strong><br />
+                            {pool.interestRateComponent.toFixed(4)}%
+                          </div>
+                          <div>
+                            <strong>Farming Component:</strong><br />
+                            {pool.farmingAPY.toFixed(4)}%
+                          </div>
+                          <div>
+                            <strong>Total APR:</strong><br />
+                            <span className="font-bold text-green-600">
+                              {pool.totalAPR.toFixed(4)}%
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Instructions */}
       <Card>
         <CardHeader>
@@ -584,7 +881,14 @@ export default function TestMoarPage() {
             <p>2. <strong>Fetch User Positions</strong> - Checks each pool for user positions using the lens function</p>
             <p>3. <strong>Test Our API</strong> - Tests our internal API endpoint</p>
             <p>4. <strong>Fetch Rewards</strong> - Gets user rewards from Staker resource and claimable amounts</p>
-            <p>5. Compare raw data with our processed data to debug any issues</p>
+            <p>5. <strong>Calculate APR</strong> - Calculates APR for all pools with detailed breakdown:
+              <ul className="ml-4 mt-1 space-y-1">
+                <li>• Interest Rate Component: interest_rate × utilisation × (1 - fee_on_interest)</li>
+                <li>• Farming APY: get_farming_pool_apy(pool_id, 'APT-1')</li>
+                <li>• Total APR = Interest Rate Component + Farming APY</li>
+              </ul>
+            </p>
+            <p>6. Compare raw data with our processed data to debug any issues</p>
           </div>
         </CardContent>
       </Card>
