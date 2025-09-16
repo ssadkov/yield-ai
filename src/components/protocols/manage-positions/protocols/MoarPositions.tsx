@@ -459,31 +459,59 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
             setLoading(true);
             setError(null);
             
-            const response = await fetch(`/api/protocols/moar/userPositions?address=${walletAddress}`);
-            if (!response.ok) {
-              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
+            // Загружаем позиции и rewards параллельно
+            const [positionsResponse, rewardsResponse] = await Promise.all([
+              fetch(`/api/protocols/moar/userPositions?address=${walletAddress}`),
+              fetch(`/api/protocols/moar/rewards?address=${walletAddress}`)
+            ]);
             
-            const data = await response.json();
-            console.log('Moar Market positions refreshed:', data);
+            const positionsData = await positionsResponse.json();
+            const rewardsData = await rewardsResponse.json();
             
-            if (data.success && data.positions) {
-              setPositions(data.positions);
-              setTotalValue(data.totalValue || 0);
-              setRewardsData(data.rewards || []);
-              setTotalRewardsValue(data.totalRewardsValue || 0);
+            console.log('Moar Market positions refreshed:', positionsData);
+            console.log('Moar Market rewards refreshed:', rewardsData);
+            
+            // Обрабатываем позиции
+            if (positionsData.success && Array.isArray(positionsData.data)) {
+              setPositions(positionsData.data);
               
-              // Обновляем общую стоимость позиций
-              const totalPositions = data.totalValue || 0;
-              const totalRewards = data.totalRewardsValue || 0;
-              onPositionsValueChange?.(totalPositions + totalRewards);
+              // Вычисляем общую стоимость позиций
+              const total = positionsData.data.reduce((sum: number, position: Position) => {
+                return sum + parseFloat(position.value || "0");
+              }, 0);
+              
+              setTotalValue(total);
             } else {
               setPositions([]);
               setTotalValue(0);
+            }
+            
+            // Обрабатываем rewards
+            if (rewardsData.success && Array.isArray(rewardsData.data)) {
+              setRewardsData(rewardsData.data);
+              
+              // Вычисляем общую стоимость rewards
+              const totalRewards = rewardsData.data.reduce((sum: number, reward: any) => {
+                return sum + (reward.usdValue || 0);
+              }, 0);
+              
+              setTotalRewardsValue(totalRewards);
+            } else {
               setRewardsData([]);
               setTotalRewardsValue(0);
-              onPositionsValueChange?.(0);
             }
+            
+            // Обновляем общую стоимость (позиции + rewards)
+            const totalPositions = positionsData.success ? positionsData.data.reduce((sum: number, position: Position) => {
+              return sum + parseFloat(position.value || "0");
+            }, 0) : 0;
+            
+            const totalRewards = rewardsData.success ? rewardsData.data.reduce((sum: number, reward: any) => {
+              return sum + (reward.usdValue || 0);
+            }, 0) : 0;
+            
+            onPositionsValueChange?.(totalPositions + totalRewards);
+            
           } catch (err) {
             console.error('Error refreshing Moar data:', err);
             setError("Failed to refresh Moar Market data");
