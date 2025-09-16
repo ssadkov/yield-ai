@@ -21,10 +21,24 @@ export class MoarMarketProtocol implements BaseProtocol {
     type_arguments: string[];
     arguments: string[];
   }> {
-    // TODO: Implement Moar Market withdraw transaction building
-    // This will be implemented once we have the Moar Market smart contract details
+    // For Moar Market, marketAddress is actually the poolId
+    // token is the underlying asset address
+    // userAddress is the user's wallet address
     
-    throw new Error('Moar Market withdraw not yet implemented');
+    if (!userAddress) {
+      throw new Error('User address is required for Moar Market withdraw');
+    }
+    
+    return {
+      type: 'entry_function_payload',
+      function: '0xa3afc59243afb6deeac965d40b25d509bb3aebc12f502b8592c283070abc2e07::pool::withdraw',
+      type_arguments: [],
+      arguments: [
+        marketAddress, // poolId as string
+        amountOctas.toString(), // amount in raw format
+        userAddress // user wallet address
+      ]
+    };
   }
 
   async buildClaimRewards(positionIds: string[], tokenTypes: string[], userAddress?: string): Promise<{

@@ -8,8 +8,10 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import tokenList from "@/lib/data/tokenList.json";
 import { useClaimRewards } from '@/lib/hooks/useClaimRewards';
+import { useWithdraw } from '@/lib/hooks/useWithdraw';
 import { useToast } from '@/components/ui/use-toast';
 import { useWalletStore } from '@/lib/stores/walletStore';
+import { WithdrawModal } from '@/components/ui/withdraw-modal';
 
 interface MoarPositionsProps {
   address?: string;
@@ -31,6 +33,7 @@ interface Position {
 export function MoarPositions({ address, onPositionsValueChange }: MoarPositionsProps) {
   const { account } = useWallet();
   const { claimRewards, isLoading: isClaiming } = useClaimRewards();
+  const { withdraw, isLoading: isWithdrawing } = useWithdraw();
   const { toast } = useToast();
   const { setRewards } = useWalletStore();
   const [positions, setPositions] = useState<Position[]>([]);
@@ -40,6 +43,8 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
   const [rewardsData, setRewardsData] = useState<any[]>([]);
   const [totalRewardsValue, setTotalRewardsValue] = useState<number>(0);
   const [poolsAPR, setPoolsAPR] = useState<Record<number, any>>({});
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
 
   const walletAddress = address || account?.address;
 
@@ -69,6 +74,49 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
       console.warn('Failed to fetch pools APR:', error);
     }
   }, []);
+
+  // Обработчик открытия модального окна withdraw
+  const handleWithdrawClick = (position: Position) => {
+    setSelectedPosition(position);
+    setShowWithdrawModal(true);
+  };
+
+  // Обработчик подтверждения withdraw
+  const handleWithdrawConfirm = async (amount: bigint) => {
+    if (!selectedPosition) return;
+    
+    try {
+      // Получаем token address из underlying_asset
+      let tokenAddress = '';
+      if (selectedPosition.assetInfo.symbol === 'APT') {
+        tokenAddress = '0x1::aptos_coin::AptosCoin';
+      } else if (selectedPosition.assetInfo.symbol === 'USDC') {
+        tokenAddress = '0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b';
+      } else {
+        // Fallback - используем symbol для поиска в tokenList
+        const tokenInfo = getTokenInfo(selectedPosition.assetInfo.symbol);
+        tokenAddress = tokenInfo.address || selectedPosition.assetInfo.symbol;
+      }
+      
+      // Вызываем withdraw через useWithdraw hook
+      // Для Moar Market: marketAddress = poolId, token = underlying_asset
+      await withdraw('moar', selectedPosition.poolId, amount, tokenAddress);
+      
+      // Закрываем модал и обновляем состояние
+      setShowWithdrawModal(false);
+      setSelectedPosition(null);
+      
+      // Обновляем позиции после успешного withdraw
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('refreshPositions', { 
+          detail: { protocol: 'moar' }
+        }));
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Withdraw failed:', error);
+    }
+  };
 
   // Claim all rewards
   const handleClaimAllRewards = async () => {
@@ -187,14 +235,16 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
       return {
         symbol: symbol,
         logoUrl: '/protocol_ico/default-token.png',
-        decimals: 8
+        decimals: 8,
+        address: symbol // Fallback to symbol if no token found
       };
     }
     
     return {
       symbol: token.symbol,
       logoUrl: token.logoUrl,
-      decimals: token.decimals
+      decimals: token.decimals,
+      address: token.tokenAddress || token.faAddress || symbol
     };
   }, []);
 
@@ -390,6 +440,15 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                   <div className="text-base text-muted-foreground font-semibold">
                     {amount.toFixed(4)}
                   </div>
+                  {amount > 0 && (
+                    <Button
+                      onClick={() => handleWithdrawClick(position)}
+                      disabled={isWithdrawing}
+                      className="mt-2 bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1 h-7"
+                    >
+                      {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
+                    </Button>
+                  )}
                 </div>
               </div>
               
@@ -462,6 +521,15 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                     <div className="text-sm text-muted-foreground">
                       {amount.toFixed(4)}
                     </div>
+                    {amount > 0 && (
+                      <Button
+                        onClick={() => handleWithdrawClick(position)}
+                        disabled={isWithdrawing}
+                        className="mt-2 bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1 h-7"
+                      >
+                        {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
+                      </Button>
+                    )}
                   </div>
                 </div>
                 
@@ -641,6 +709,30 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
           )}
         </div>
       </div>
+      
+      {/* Withdraw Modal */}
+      {selectedPosition && (
+        <WithdrawModal
+          isOpen={showWithdrawModal}
+          onClose={() => {
+            setShowWithdrawModal(false);
+            setSelectedPosition(null);
+          }}
+          onConfirm={handleWithdrawConfirm}
+          position={{
+            coin: selectedPosition.assetInfo.symbol,
+            supply: selectedPosition.balance,
+            market: selectedPosition.poolId
+          }}
+          tokenInfo={{
+            symbol: selectedPosition.assetInfo.symbol,
+            logoUrl: selectedPosition.assetInfo.logoUrl,
+            decimals: selectedPosition.assetInfo.decimals
+          }}
+          isLoading={isWithdrawing}
+          userAddress={walletAddress?.toString()}
+        />
+      )}
     </div>
   );
 }
