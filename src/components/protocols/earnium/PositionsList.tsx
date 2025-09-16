@@ -14,6 +14,7 @@ import { ManagePositionsButton } from "../ManagePositionsButton";
 interface PositionsListProps {
   address?: string;
   onPositionsValueChange?: (value: number) => void;
+  refreshKey?: number;
   onPositionsCheckComplete?: () => void;
   showManageButton?: boolean;
 }
@@ -55,7 +56,7 @@ function normalizePriceMap(list: any[]): Record<string, number> {
   return map;
 }
 
-export function PositionsList({ address, onPositionsValueChange, onPositionsCheckComplete, showManageButton=true }: PositionsListProps) {
+export function PositionsList({ address, onPositionsValueChange, refreshKey, onPositionsCheckComplete, showManageButton=true }: PositionsListProps) {
   const { account } = useWallet();
   const walletAddress = address || account?.address?.toString();
   const protocol = getProtocolByName("Earnium");
@@ -211,7 +212,7 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
       }
     }
     load();
-  }, [walletAddress]);
+  }, [walletAddress, refreshKey]);
 
   if (loading) return null;
   if (error) return null;

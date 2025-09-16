@@ -61,6 +61,7 @@ export default function PortfolioPage() {
   const [aaveValue, setAaveValue] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [checkingProtocols, setCheckingProtocols] = useState<string[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [addressInput, setAddressInput] = useState('');
 
   const params = useParams();
@@ -148,6 +149,7 @@ export default function PortfolioPage() {
     setEarniumValue(0);
     setAaveValue(0);
     resetChecking();
+    setRefreshKey((k) => k + 1);
   }, [loadPortfolio, resetChecking]);
 
   useEffect(() => {
@@ -429,6 +431,7 @@ export default function PortfolioPage() {
                               key={name}
                               address={resolvedAddress ?? ""}
                               walletTokens={tokens}
+                              refreshKey={refreshKey}
 						      showManageButton={false}
                               onPositionsValueChange={
                                 name === 'Hyperion' ? handleHyperionValueChange :

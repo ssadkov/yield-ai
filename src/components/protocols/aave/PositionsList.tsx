@@ -16,6 +16,7 @@ import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/comp
 interface PositionsListProps {
   address?: string;
   onPositionsValueChange?: (value: number) => void;
+  refreshKey?: number;
   onPositionsCheckComplete?: () => void;
   showManageButton?: boolean;
 }
@@ -42,7 +43,7 @@ interface TokenInfo {
   usdPrice: string | null;
 }
 
-export function PositionsList({ address, onPositionsValueChange, onPositionsCheckComplete, showManageButton=true }: PositionsListProps) {
+export function PositionsList({ address, onPositionsValueChange, refreshKey, onPositionsCheckComplete, showManageButton=true }: PositionsListProps) {
   const { account } = useWallet();
   const [positions, setPositions] = useState<AavePosition[]>([]);
   const [loading, setLoading] = useState(false);
@@ -186,7 +187,7 @@ export function PositionsList({ address, onPositionsValueChange, onPositionsChec
     }, 3000); // Увеличиваем дебаунсинг до 3 секунд
 
     return () => clearTimeout(timeoutId);
-  }, [walletAddress]);
+  }, [walletAddress, refreshKey]);
 
 
 

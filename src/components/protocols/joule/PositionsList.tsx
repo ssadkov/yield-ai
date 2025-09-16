@@ -14,11 +14,12 @@ interface PositionsListProps {
   address?: string;
   onPositionsValueChange?: (value: number) => void;
   mockData?: any;
+  refreshKey?: number;
   onPositionsCheckComplete?: () => void;
   showManageButton?: boolean;
 }
 
-export function PositionsList({ address, onPositionsValueChange, mockData, onPositionsCheckComplete, showManageButton=true }: PositionsListProps) {
+export function PositionsList({ address, onPositionsValueChange, mockData, refreshKey, onPositionsCheckComplete, showManageButton=true }: PositionsListProps) {
   const { account } = useWallet();
   const [positions, setPositions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -91,7 +92,7 @@ export function PositionsList({ address, onPositionsValueChange, mockData, onPos
     }
 
     loadPositions();
-  }, [walletAddress, mockData]);
+  }, [walletAddress, mockData, refreshKey]);
 
   if (positions.length === 0) {
     return null;

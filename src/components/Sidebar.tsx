@@ -36,6 +36,7 @@ export default function Sidebar() {
   const [aaveValue, setAaveValue] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [checkingProtocols, setCheckingProtocols] = useState<string[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const allProtocolNames = [
     "Hyperion",
@@ -94,6 +95,7 @@ export default function Sidebar() {
     setEarniumValue(0);
     setAaveValue(0);
     resetChecking();
+    setRefreshKey((k) => k + 1);
   }, [loadPortfolio, resetChecking]);
 
   useEffect(() => {
@@ -219,6 +221,7 @@ export default function Sidebar() {
                     key={name}
                     address={account.address.toString()}
                     walletTokens={tokens} // Передаем токены кошелька для проверки Vault токенов
+                    refreshKey={refreshKey}
                     onPositionsValueChange={
                       name === 'Hyperion' ? handleHyperionValueChange :
                       name === 'Echelon' ? handleEchelonValueChange :

@@ -17,11 +17,12 @@ interface PositionsListProps {
   address?: string;
   onPositionsValueChange?: (value: number) => void;
   walletTokens?: Token[]; // Добавляем токены кошелька
+  refreshKey?: number;
   onPositionsCheckComplete?: () => void;
   showManageButton?: boolean;
 }
 
-export function PositionsList({ address, onPositionsValueChange, walletTokens, onPositionsCheckComplete, showManageButton=true }: PositionsListProps) {
+export function PositionsList({ address, onPositionsValueChange, walletTokens, refreshKey, onPositionsCheckComplete, showManageButton=true }: PositionsListProps) {
 
   const { account } = useWallet();
   const [positions, setPositions] = useState<any[]>([]);
@@ -76,7 +77,7 @@ export function PositionsList({ address, onPositionsValueChange, walletTokens, o
     }
 
     loadPositions();
-  }, [walletAddress]);
+  }, [walletAddress, refreshKey]);
 
   // Считаем общую стоимость всех позиций и наград
   const totalValue = positions.reduce((sum, position) => {
