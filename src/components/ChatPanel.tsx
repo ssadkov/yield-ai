@@ -28,59 +28,37 @@ export default function ChatPanel() {
   return (
     <div className="p-4">
       <h1 className="text-xl font-bold">Tools</h1>
-      <p className="text-sm text-muted-foreground mt-2">
-        Yield AI – All-in-One DeFi Dashboard for Maximizing Yields on Aptos
-      </p>
-      <p className="text-sm text-muted-foreground mt-4">
-        New AI features will be here soon, and for now, we would be happy to get your{' '}
-        <a
-          href="https://forms.gle/NEpu5DjsmhVUprA5A"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline"
+      <div className="mt-4 flex flex-col gap-2 w-full">
+        <Button 
+          variant="outline" 
+          onClick={() => setIsSwapModalOpen(true)}
+          className="flex items-center gap-2 w-full justify-start"
         >
-          feedback
-        </a>
-      </p>
-      <div className="mt-4 flex flex-col items-center gap-4">
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            onClick={() => setIsSwapModalOpen(true)}
-            className="flex items-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-            </svg>
-            Swap
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={() => setIsYieldCalcOpen(true)}
-            className="flex items-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-            </svg>
-            Yield Calculator
-          </Button>
- 
-        </div>
-      </div>
-      <div className="mt-4 flex flex-col items-center gap-4">
-        <div className="flex gap-2">
-
-          <Button 
-            variant="outline" 
-            onClick={handlePortfolioTracker}
-            className="flex items-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            Portfolio Tracker
-          </Button>
-        </div>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+          </svg>
+          Swap
+        </Button>
+        <Button 
+          variant="outline" 
+          onClick={() => setIsYieldCalcOpen(true)}
+          className="flex items-center gap-2 w-full justify-start"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+          </svg>
+          Yield Calculator
+        </Button>
+        <Button 
+          variant="outline" 
+          onClick={handlePortfolioTracker}
+          className="flex items-center gap-2 w-full justify-start"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          Portfolio Tracker
+        </Button>
       </div>
 
       {/* Compact Footer - Mobile only */}

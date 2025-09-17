@@ -168,7 +168,7 @@ export default function Sidebar() {
 
   return (
     <CollapsibleProvider>
-      <div className="hidden md:flex w-[340px] p-4 border-r h-screen flex-col">
+      <div className="hidden md:flex w-[360px] p-4 border-r h-screen flex-col">
         <div className="flex items-center justify-between mb-4 shrink-0">
           <div className="flex items-center gap-2">
             <div className="flex flex-col items-start gap-1">
