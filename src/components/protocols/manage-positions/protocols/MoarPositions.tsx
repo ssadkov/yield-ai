@@ -588,7 +588,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                       variant="default"
                       className="h-10"
                     >
-                      {isDepositing ? 'Depositing...' : 'Deposit'}
+                      Deposit
                     </Button>
                     {amount > 0 && (
                       <Button
