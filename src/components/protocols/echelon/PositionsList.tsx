@@ -414,7 +414,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
               const value = price ? (amount * parseFloat(price)).toFixed(2) : 'N/A';
               const apy = getApyForPosition(position);
               return (
-                <div key={`${position.coin}-${index}`} className={cn('mb-2', isBorrow && 'bg-red-50 rounded')}> 
+                <div key={`${position.coin}-${index}`} className={cn('mb-2', isBorrow && 'bg-error-muted rounded')}> 
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       {tokenInfo?.logoUrl && (
@@ -433,7 +433,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
                           <span className="text-sm font-medium">{tokenInfo?.symbol || position.coin.substring(0, 4).toUpperCase()}</span>
                           <span className={cn(
                             'text-xs font-semibold px-2 py-0.5 rounded',
-                            isBorrow ? 'bg-red-500/10 text-red-600 border border-red-500/20' : 'bg-green-500/10 text-green-600 border border-green-500/20')
+                            isBorrow ? 'bg-error-muted text-error border border-error/20' : 'bg-success-muted text-success border border-success/20')
                           }>
                             {isBorrow ? 'Borrow' : 'Supply'}
                           </span>

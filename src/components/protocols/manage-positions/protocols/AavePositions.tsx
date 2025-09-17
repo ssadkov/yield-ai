@@ -551,8 +551,8 @@ export function AavePositions() {
                   <div className="flex items-center gap-2 mb-1">
                     <Badge variant="outline" className={cn(
                       isBorrow
-                        ? 'bg-red-500/10 text-red-600 border-red-500/20'
-                        : 'bg-green-500/10 text-green-600 border-green-500/20',
+                        ? 'bg-error-muted text-error border-error/20'
+                        : 'bg-success-muted text-success border-success/20',
                       'text-xs font-normal px-2 py-0.5 h-5')}
                     >
                       APR: {apy !== null ? (apy * 100).toFixed(2) + '%' : 'N/A'}

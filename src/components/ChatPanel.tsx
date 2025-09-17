@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SwapModal } from '@/components/ui/swap-modal';
 import { YieldCalculatorModal } from '@/components/ui/yield-calculator-modal';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
 
 export default function ChatPanel() {
@@ -27,7 +28,10 @@ export default function ChatPanel() {
 
   return (
     <div className="p-4">
-      <h1 className="text-xl font-bold">Tools</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold">Tools</h1>
+        <ThemeToggle />
+      </div>
       <div className="mt-4 flex flex-col gap-2 w-full">
         <Button 
           variant="outline" 

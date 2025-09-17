@@ -666,21 +666,21 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 
     // In Pro tab, pools with external deposit (only via link) must remain red
     if (activeTab === 'pro' && protocol && protocol.depositType !== 'native') {
-      return "transition-colors bg-red-50 border-red-200 hover:bg-red-100";
+      return "transition-colors bg-error-muted border-error hover:bg-error-muted/80";
     }
 
     if (validation.isValid) {
       // Direct deposit (same token)
-      return "transition-colors bg-green-50 border-green-200 hover:bg-green-100";
+      return "transition-colors bg-success-muted border-success hover:bg-success-muted/80";
     }
 
     if ((validation as any).requiresSwap) {
       // Requires swap + deposit → highlight in yellow
-      return "transition-colors bg-yellow-50 border-yellow-200 hover:bg-yellow-100";
+      return "transition-colors bg-warning-muted border-warning hover:bg-warning-muted/80";
     }
 
     // Invalid drop
-    return "transition-colors bg-red-50 border-red-200 hover:bg-red-100";
+    return "transition-colors bg-error-muted border-error hover:bg-error-muted/80";
   };
 
   // Combine all loaded protocol data

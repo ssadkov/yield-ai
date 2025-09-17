@@ -683,8 +683,7 @@ export function EchelonPositions() {
                         <div
               key={`${position.coin}-${index}`}
               className={cn(
-                'p-3 sm:p-4 border-b last:border-b-0 transition-colors',
-                isBorrow && 'bg-red-50'
+                'p-3 sm:p-4 border-b last:border-b-0 transition-colors'
               )}
               draggable={false}
             >
@@ -709,8 +708,8 @@ export function EchelonPositions() {
                         variant="outline" 
                         className={cn(
                           isBorrow
-                            ? 'bg-red-500/10 text-red-600 border-red-500/20'
-                            : 'bg-green-500/10 text-green-600 border-green-500/20',
+                            ? 'bg-error-muted text-error border-error/20'
+                            : 'bg-success-muted text-success border-success/20',
                           'text-xs font-normal px-2 py-0.5 h-5'
                         )}
                       >
@@ -1030,7 +1029,7 @@ export function EchelonPositions() {
               </TooltipProvider>
               {rewardsData.length > 0 && (
                 <button
-                  className="px-3 py-1 bg-green-600 text-white rounded text-sm font-semibold disabled:opacity-60 hover:bg-green-700 transition-colors"
+                  className="px-3 py-1 bg-success text-success-foreground rounded text-sm font-semibold disabled:opacity-60 hover:bg-success/90 transition-colors"
                   onClick={() => setShowClaimAllModal(true)}
                   disabled={isClaiming}
                 >
