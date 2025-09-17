@@ -412,8 +412,7 @@ export function AavePositions() {
             <div 
               key={`${position.underlying_asset}-${position.type}-${index}`} 
               className={cn(
-                'p-3 sm:p-4 border-b last:border-b-0 transition-colors',
-                isBorrow && 'bg-red-50'
+                'p-3 sm:p-4 border-b last:border-b-0 transition-colors'
               )}
             >
               {/* Мобильная компоновка - вертикальная */}
@@ -453,8 +452,8 @@ export function AavePositions() {
                     variant="outline" 
                     className={cn(
                       isBorrow
-                        ? 'bg-red-500/10 text-red-600 border-red-500/20'
-                        : 'bg-green-500/10 text-green-600 border-green-500/20',
+                        ? 'bg-error-muted text-error border-error/20'
+                        : 'bg-success-muted text-success border-success/20',
                       'text-xs font-normal px-2 py-1 h-6'
                     )}
                   >
@@ -462,8 +461,8 @@ export function AavePositions() {
                   </Badge>
                   <Badge variant="outline" className={cn(
                     isBorrow
-                      ? 'bg-red-500/10 text-red-600 border-red-500/20'
-                      : 'bg-green-500/10 text-green-600 border-green-500/20',
+                      ? 'bg-error-muted text-error border-error/20'
+                      : 'bg-success-muted text-success border-success/20',
                     'text-xs font-normal px-2 py-1 h-6'
                   )}>
                     APR: {apy !== null ? (apy * 100).toFixed(2) + '%' : 'N/A'}
@@ -526,8 +525,8 @@ export function AavePositions() {
                         variant="outline" 
                         className={cn(
                           isBorrow
-                            ? 'bg-red-500/10 text-red-600 border-red-500/20'
-                            : 'bg-green-500/10 text-green-600 border-green-500/20',
+                            ? 'bg-error-muted text-error border-error/20'
+                            : 'bg-success-muted text-success border-success/20',
                           'text-xs font-normal px-2 py-0.5 h-5'
                         )}
                       >

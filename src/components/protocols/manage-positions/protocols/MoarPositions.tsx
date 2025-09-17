@@ -820,7 +820,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                   <Button
                     onClick={handleClaimAllRewards}
                     disabled={isClaiming}
-                    className="bg-green-600 hover:bg-green-700 text-white"
+                    className="bg-success text-success-foreground hover:bg-success/90"
                   >
                     {isClaiming ? 'Claiming...' : 'Claim'}
                   </Button>
@@ -868,7 +868,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                 <Button
                   onClick={handleClaimAllRewards}
                   disabled={isClaiming}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white"
+                  className="w-full bg-success text-success-foreground hover:bg-success/90"
                 >
                   {isClaiming ? 'Claiming...' : 'Claim'}
                 </Button>

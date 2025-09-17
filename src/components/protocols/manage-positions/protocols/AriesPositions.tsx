@@ -126,10 +126,10 @@ export function AriesPositions() {
                   <div>
                     <div className={cn(
                       "text-sm font-medium",
-                      isBorrow && "text-red-500"
+                      isBorrow && "text-error"
                     )}>{position.assetName}</div>
                     {isBorrow && (
-                      <div className="text-xs px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 border border-red-500/20">
+                      <div className="text-xs px-1.5 py-0.5 rounded bg-error-muted text-error border border-error/20">
                         Borrow
                       </div>
                     )}
