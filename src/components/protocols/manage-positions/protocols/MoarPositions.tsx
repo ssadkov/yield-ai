@@ -978,7 +978,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
             name: "Moar Market",
             logo: "/protocol_ico/moar-market-logo-primary.png",
             apy: (() => {
-              const poolAPR = poolsAPR[selectedDepositPosition.poolId];
+              const poolAPR = poolsAPR[parseInt(selectedDepositPosition.poolId)];
               return poolAPR ? poolAPR.totalAPR * 100 : 0;
             })(),
             key: "moar" as any
