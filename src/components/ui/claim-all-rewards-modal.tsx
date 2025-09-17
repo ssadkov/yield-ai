@@ -771,14 +771,14 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Gift className="h-5 w-5 text-green-600" />
+            <Gift className="h-5 w-5 text-success" />
             Claim All Rewards
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           {/* Summary */}
-          <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="bg-muted p-4 rounded-lg">
             <h4 className="font-medium mb-2">Available Rewards</h4>
             <div className="space-y-2">
               {protocolsWithRewards.map(({ protocol, value, count }) => (
@@ -806,7 +806,7 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
               <Progress value={progress} className="w-full" />
               
               {claimedValue > 0 && (
-                <div className="text-sm text-green-600 font-medium">
+                <div className="text-sm text-success font-medium">
                   Claimed so far: ${claimedValue.toFixed(2)}
                 </div>
               )}
@@ -830,9 +830,9 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
                 {results.map((result, index) => (
                   <div key={index} className="flex items-center gap-2 text-sm">
                     {result.success ? (
-                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <CheckCircle className="h-4 w-4 text-success" />
                     ) : (
-                      <AlertCircle className="h-4 w-4 text-red-600" />
+                      <AlertCircle className="h-4 w-4 text-error" />
                     )}
                     <span className="capitalize">{result.protocol}</span>
                     {result.positionId && (
@@ -840,9 +840,9 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
                     )}
                     {result.success ? (
                       <div className="flex items-center gap-1">
-                        <span className="text-green-600">Success</span>
+                        <span className="text-success">Success</span>
                         {result.value && (
-                          <span className="text-green-600">(${result.value.toFixed(2)})</span>
+                          <span className="text-success">(${result.value.toFixed(2)})</span>
                         )}
                         {result.hash && result.hash.length > 20 && (
                           <span className="text-xs text-muted-foreground font-mono">
@@ -851,7 +851,7 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
                         )}
                       </div>
                     ) : (
-                      <span className="text-red-600">{result.error}</span>
+                      <span className="text-error">{result.error}</span>
                     )}
                   </div>
                 ))}
@@ -871,7 +871,7 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
               <Button 
                 onClick={handleClaimAll}
                 disabled={isClaiming}
-                className="flex-1 bg-green-600 hover:bg-green-700"
+                className="flex-1 bg-success text-success-foreground hover:bg-success/90"
               >
                 {isClaiming ? (
                   <>
