@@ -119,7 +119,7 @@ function MobileTabsContent() {
           </div>
           
           {/* Content area - scrollable */}
-          <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-h-0">
+          <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-h-0 pb-[calc(72px+env(safe-area-inset-bottom))] sm:pb-0">
             <div className={tab === "ideas" ? "block w-full max-w-full" : "hidden w-full max-w-full"}>
               <DashboardPanel />
             </div>
@@ -206,6 +206,8 @@ function MobileTabsContent() {
             <div className={tab === "chat" ? "block" : "hidden"}>
               <ChatPanel />
             </div>
+            {/* Spacer to ensure content never hides under bottom nav */}
+            <div className="h-[calc(72px+env(safe-area-inset-bottom))] sm:h-0" />
           </div>
           
           {/* Bottom navigation - fixed at bottom */}
