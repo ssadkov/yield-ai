@@ -106,8 +106,7 @@ export function AriesPositions() {
             <div 
               key={`${position.assetName}-${index}`} 
               className={cn(
-                "p-4 border-b last:border-b-0",
-                isBorrow && "bg-red-50"
+                "p-4 border-b last:border-b-0"
               )}
             >
               <div className="flex justify-between items-center">
@@ -126,10 +125,10 @@ export function AriesPositions() {
                   <div>
                     <div className={cn(
                       "text-sm font-medium",
-                      isBorrow && "text-red-500"
+                      isBorrow && "text-error"
                     )}>{position.assetName}</div>
                     {isBorrow && (
-                      <div className="text-xs px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 border border-red-500/20">
+                      <div className="text-xs px-1.5 py-0.5 rounded bg-red-500/10 text-red-600 border border-red-500/20">
                         Borrow
                       </div>
                     )}

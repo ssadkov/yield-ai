@@ -7,6 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { isValidAptosAddress, isPotentialDomainName, resolveAddressFromName } from '@/lib/utils/aptosNames';
+import { ThemeProvider } from '@/contexts/ThemeContext';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { Logo } from '@/components/ui/logo';
 
 import { Wallet, Search } from 'lucide-react';
 
@@ -72,19 +75,33 @@ export default function WalletPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-md mx-auto">
-          <Card className="shadow-lg">
-            <CardHeader className="text-center">
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
-                <Wallet className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+    <ThemeProvider>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+        {/* Header */}
+        <div className="flex-shrink-0 p-4 border-b bg-background">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Logo size="md" />
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold">Yield AI</h1>
               </div>
-              <CardTitle className="text-2xl font-bold">Wallet Explorer</CardTitle>
-              <CardDescription>
-                Enter an Aptos wallet address or domain name to view its balance and positions
-              </CardDescription>
-            </CardHeader>
+            </div>
+            <ThemeToggle />
+          </div>
+        </div>
+        
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-md mx-auto">
+            <Card className="shadow-lg">
+              <CardHeader className="text-center">
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
+                  <Wallet className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                </div>
+                <CardTitle className="text-2xl font-bold">Wallet Explorer</CardTitle>
+                <CardDescription>
+                  Enter an Aptos wallet address or domain name to view its balance and positions
+                </CardDescription>
+              </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
@@ -103,7 +120,7 @@ export default function WalletPage() {
                 </div>
 
                 {error && (
-                  <div className="p-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg dark:bg-red-900/20 dark:text-red-400 dark:border-red-800">
+                  <div className="p-4 text-sm text-error bg-error-muted border border-error/20 rounded-lg">
                     {error}
                   </div>
                 )}
@@ -117,7 +134,7 @@ export default function WalletPage() {
                 </Button>
               </form>
 
-                             <div className="mt-6  text-sm text-gray-500 overflow-hidden">
+                             <div className="mt-6  text-sm text-muted-foreground overflow-hidden">
                  <p className="mb-2">Examples:</p>
                  <p>Address: 0x4ade47d86d1013af5a0e38bbbd5d745a72cf4b9fa9759f4a5f7434b15bb1fbd1</p>
                  <p>Domain: defishow.petra.apt</p>
@@ -126,6 +143,6 @@ export default function WalletPage() {
           </Card>
         </div>
       </div>
-    </div>
+    </ThemeProvider>
   );
 } 

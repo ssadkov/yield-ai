@@ -20,6 +20,7 @@ import { Logo } from "./ui/logo";
 //import { AlphaBadge } from "./ui/alpha-badge";
 import { CollapsibleProvider } from "@/contexts/CollapsibleContext";
 import { MobileManagementProvider, useMobileManagement } from "@/contexts/MobileManagementContext";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 function MobileTabsContent() {
   const [tab, setTab] = useState<"ideas" | "assets" | "chat">("assets");
@@ -109,12 +110,15 @@ function MobileTabsContent() {
         <div className="flex flex-col min-h-screen max-h-screen">
           {/* Header - fixed at top */}
           <div className="flex-shrink-0 p-4 border-b bg-background">
-            <div className="flex items-center gap-3">
-              <Logo size="md" />
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold">Yield AI</h1>
-                { /*<AlphaBadge />*/ }
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Logo size="md" />
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl font-bold">Yield AI</h1>
+                  { /*<AlphaBadge />*/ }
+                </div>
               </div>
+              <ThemeToggle />
             </div>
           </div>
           

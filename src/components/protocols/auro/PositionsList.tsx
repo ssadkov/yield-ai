@@ -409,7 +409,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
                   </div>
                   {/* Debt строка — всегда на новой строке, как borrow в Echelon */}
                   {parseFloat(debt) > 0 && (
-                    <div className="flex justify-between items-center mt-2 bg-red-50 rounded">
+                    <div className="flex justify-between items-center mt-2 bg-error-muted rounded">
                       <div className="flex items-center gap-2 min-w-0">
                         {debtLogo && (
                           <div className="w-6 h-6 relative shrink-0">

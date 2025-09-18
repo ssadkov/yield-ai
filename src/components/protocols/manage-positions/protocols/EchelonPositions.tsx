@@ -683,8 +683,7 @@ export function EchelonPositions() {
                         <div
               key={`${position.coin}-${index}`}
               className={cn(
-                'p-3 sm:p-4 border-b last:border-b-0 transition-colors',
-                isBorrow && 'bg-red-50'
+                'p-3 sm:p-4 border-b last:border-b-0 transition-colors'
               )}
               draggable={false}
             >

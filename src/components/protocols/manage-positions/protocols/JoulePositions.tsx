@@ -221,14 +221,14 @@ export function JoulePositions() {
                           <div>
                             <div className="flex items-center gap-2">
                               <span className="text-lg">{tokenInfo?.symbol || borrow.value.coin_name.split('::').pop()}</span>
-                              <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs font-normal px-2 py-0.5 h-5">Borrow</Badge>
+                              <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 text-xs font-normal px-2 py-0.5 h-5">Borrow</Badge>
                             </div>
                             <div className="text-base text-muted-foreground mt-0.5">${tokenInfo?.usdPrice ? parseFloat(tokenInfo.usdPrice).toFixed(2) : 'N/A'}</div>
                           </div>
                         </div>
                         <div className="flex flex-col items-end gap-0.5">
                           <div className="flex items-center gap-2 mb-1">
-                            <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs font-normal px-2 py-0.5 h-5">
+                            <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 text-xs font-normal px-2 py-0.5 h-5">
                               APR: {apy !== null ? (apy).toFixed(2) + '%' : 'N/A'}
                             </Badge>
                             <span className="text-lg font-bold">${value.toFixed(2)}</span>

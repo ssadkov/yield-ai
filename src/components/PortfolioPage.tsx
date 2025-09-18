@@ -28,6 +28,7 @@ import { PositionsList as MoarPositionsList } from "./protocols/moar/PositionsLi
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAptosAddressResolver } from '@/lib/hooks/useAptosAddressResolver';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 //import { styled } from 'styled-components';
 
@@ -238,26 +239,41 @@ export default function PortfolioPage() {
 
   return (
 	<CollapsibleProvider>
-	  <div className="container mx-auto px-4 py-8">
+	  <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+        {/* Header */}
+        <div className="flex-shrink-0 p-4 border-b bg-background">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Logo size="md" />
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold">Yield AI</h1>
+              </div>
+            </div>
+            <ThemeToggle />
+          </div>
+        </div>
+        
+        <div className="container mx-auto px-4 py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="w-full">
 
-	    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="w-full">
-
-	        <div className="max-w-4xl mx-auto space-y-6">
-              
-			  <div className="container mx-auto">
-                <div className="mx-auto">
-                  <div className="flex items-left">
-                    <Button
-                      variant="ghost"
-                      onClick={() => router.push('/')}
-                    >
-                      <ArrowLeft className="h-4 w-4 mr-2" />
-                      Yield AI Dashboard — manage your portfolio
-                    </Button>
+              <div className="max-w-4xl mx-auto space-y-6">
+                
+                <div className="container mx-auto">
+                  <div className="mx-auto">
+                    <div className="flex items-center">
+                      <Button
+                        variant="ghost"
+                        onClick={() => router.push('/')}
+                        className="flex-1 min-w-0"
+                      >
+                        <ArrowLeft className="h-4 w-4 mr-2 flex-shrink-0" />
+                        <span className="hidden sm:inline">Yield AI Dashboard — manage your portfolio</span>
+                        <span className="sm:hidden">Back to Dashboard</span>
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
 
               <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
                 <div className="flex-1 overflow-y-auto m-4">
@@ -495,6 +511,7 @@ export default function PortfolioPage() {
 			
           </div>
           
+        </div>
         </div>
 	  </div>
     </CollapsibleProvider>

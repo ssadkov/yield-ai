@@ -242,7 +242,7 @@ const HyperionPosition = memo(function HyperionPosition({ position, index }: Hyp
               ) : (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 text-xs font-normal px-2 py-0.5 h-5 ml-2 cursor-help">
+                    <Badge variant="outline" className="bg-error-muted text-error border-error/20 text-xs font-normal px-2 py-0.5 h-5 ml-2 cursor-help">
                       Inactive
                     </Badge>
                   </TooltipTrigger>
@@ -335,8 +335,8 @@ const HyperionPosition = memo(function HyperionPosition({ position, index }: Hyp
             <button
               className={`px-3 py-1 rounded text-sm font-semibold disabled:opacity-60 transition-all ${
                 position.isActive 
-                  ? 'bg-red-300 text-red-800 hover:bg-red-400 border border-red-400' 
-                  : 'bg-red-500 text-white hover:bg-red-600 shadow-lg'
+                  ? 'bg-error-muted text-error hover:bg-error-muted/80 border border-error/20' 
+                  : 'bg-error text-error-foreground hover:bg-error/90 shadow-lg'
               }`}
               onClick={handleRemoveLiquidity}
               disabled={isRemoving || !getTokenAddress(position.position.pool.token1Info) || !getTokenAddress(position.position.pool.token2Info)}
@@ -376,7 +376,7 @@ const HyperionPosition = memo(function HyperionPosition({ position, index }: Hyp
                     Active
                   </Badge>
                 ) : (
-                  <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/20 text-xs font-normal px-2 py-0.5 h-5">
+                  <Badge variant="outline" className="bg-error-muted text-error border-error/20 text-xs font-normal px-2 py-0.5 h-5">
                     Inactive
                   </Badge>
                 )}

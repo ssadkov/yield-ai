@@ -135,7 +135,7 @@ export function PositionCard({ position, isManageView = false }: PositionProps) 
                 Active
               </Badge>
             ) : (
-              <Badge variant="outline" className="mt-1 py-0 h-5 bg-red-500/10 text-red-600 border-red-500/20 text-xs">
+              <Badge variant="outline" className="mt-1 py-0 h-5 bg-error-muted text-error border-error/20 text-xs">
                 Inactive
               </Badge>
             )}

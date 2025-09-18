@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SwapModal } from '@/components/ui/swap-modal';
 import { YieldCalculatorModal } from '@/components/ui/yield-calculator-modal';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export default function ChatPanel() {
   const [isSwapModalOpen, setIsSwapModalOpen] = useState(false);
@@ -27,7 +28,12 @@ export default function ChatPanel() {
 
   return (
     <div className="p-4">
-      <h1 className="text-xl font-bold">Tools</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold">Tools</h1>
+        <div className="hidden md:block">
+          <ThemeToggle />
+        </div>
+      </div>
       <div className="mt-4 flex flex-col gap-2 w-full">
         <Button 
           variant="outline" 

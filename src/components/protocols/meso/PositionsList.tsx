@@ -240,10 +240,10 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
                         <div className="flex items-center gap-2">
                           <div className={cn(
                             "text-sm font-medium",
-                            position.type === 'debt' && "text-red-500"
+                            position.type === 'debt' && "text-error"
                           )}>{symbol}</div>
                           {position.type === 'debt' && (
-                            <div className="text-xs px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 border border-red-500/20">
+                            <div className="text-xs px-1.5 py-0.5 rounded bg-red-500/10 text-red-600 border border-red-500/20">
                               Borrow
                             </div>
                           )}

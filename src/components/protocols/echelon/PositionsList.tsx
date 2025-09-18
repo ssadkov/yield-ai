@@ -414,7 +414,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
               const value = price ? (amount * parseFloat(price)).toFixed(2) : 'N/A';
               const apy = getApyForPosition(position);
               return (
-                <div key={`${position.coin}-${index}`} className={cn('mb-2', isBorrow && 'bg-red-50 rounded')}> 
+                <div key={`${position.coin}-${index}`} className={cn('mb-2')}> 
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       {tokenInfo?.logoUrl && (

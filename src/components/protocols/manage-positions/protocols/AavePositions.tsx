@@ -412,8 +412,7 @@ export function AavePositions() {
             <div 
               key={`${position.underlying_asset}-${position.type}-${index}`} 
               className={cn(
-                'p-3 sm:p-4 border-b last:border-b-0 transition-colors',
-                isBorrow && 'bg-red-50'
+                'p-3 sm:p-4 border-b last:border-b-0 transition-colors'
               )}
             >
               {/* Мобильная компоновка - вертикальная */}
