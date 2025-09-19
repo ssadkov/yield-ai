@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
-import { ArrowLeftRight, Loader2, Info, AlertCircle, CheckCircle, XCircle, Copy, ExternalLink, Settings } from 'lucide-react';
+import { ArrowLeftRight, Loader2, Info, AlertCircle, CheckCircle, XCircle, Copy, ExternalLink, Settings, X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -68,6 +68,9 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
   const [quoteDebug, setQuoteDebug] = useState<any>(null);
   const [showSlippage, setShowSlippage] = useState(false);
   
+  // Local optimistic balances override for UI after successful swap
+  const [balancesOverride, setBalancesOverride] = useState<Record<string, number>>({});
+  
   // Состояние для отслеживания изменений данных
   const [lastQuoteData, setLastQuoteData] = useState({
     fromToken: null as Token | null,
@@ -81,6 +84,24 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
   const [toToken, setToToken] = useState<Token | null>(null);
   const [amount, setAmount] = useState<string>('');
   const [slippage, setSlippage] = useState<number>(0.5);
+
+  // USD amount calculated from input amount and fromToken.usdPrice
+  const usdAmount = useMemo(() => {
+    const price = Number(fromToken?.usdPrice || 0);
+    const qty = Number(amount || 0);
+    if (!isFinite(price) || !isFinite(qty)) return 0;
+    return qty * price;
+  }, [amount, fromToken?.usdPrice]);
+
+  // If a quote is available, prefer USD value from quote; otherwise fallback to usdAmount
+  const quotedUsdAmount = useMemo(() => {
+    const q = (quoteDebug as any)?.quotes?.[0];
+    if (q?.fromTokenAmountUSD) return Number(q.fromTokenAmountUSD);
+    if (swapQuote?.estimatedFromAmount && fromToken?.usdPrice) {
+      return Number(swapQuote.estimatedFromAmount) * Number(fromToken.usdPrice);
+    }
+    return null;
+  }, [quoteDebug, swapQuote, fromToken?.usdPrice]);
 
   // Get Panora fee from configuration
   const panoraFee = useMemo(() => {
@@ -385,6 +406,25 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
             amount: '',
             slippage: 0.5
           });
+
+          // Optimistically update UI balances and clear amount
+          try {
+            const fromKey = (fromToken.faAddress || fromToken.tokenAddress || '').toLowerCase();
+            const toKey = (toToken.faAddress || toToken.tokenAddress || '').toLowerCase();
+
+            const currentFrom = getTokenBalance(fromToken).balance;
+            const currentTo = getTokenBalance(toToken).balance;
+
+            const spent = Number(amount || '0');
+            const received = Number(quoteDebug?.quotes?.[0]?.toTokenAmount || swapQuote.amount || '0');
+
+            const next: Record<string, number> = { ...balancesOverride };
+            if (fromKey) next[fromKey] = Math.max(0, (currentFrom - spent));
+            if (toKey) next[toKey] = Math.max(0, (currentTo + received));
+            setBalancesOverride(next);
+
+            setAmount('');
+          } catch {}
         } catch (walletError: any) {
           let errorMessage = 'Failed to sign transaction';
           if (walletError.message) {
@@ -473,15 +513,18 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
   const getTokenBalance = (token: Token) => {
     const balance = findTokenBalance(tokens, token);
     const humanBalance = Number(balance) / Math.pow(10, token.decimals);
-    return { balance: humanBalance };
+
+    const key = (token.faAddress || token.tokenAddress || '').toLowerCase();
+    const override = key ? balancesOverride[key] : undefined;
+    const effective = typeof override === 'number' ? override : humanBalance;
+
+    return { balance: effective };
   };
 
   const getHumanAmount = (raw: string | undefined, decimals: number | undefined) => {
     if (!raw || !decimals) return 0;
     return Number(raw) / Math.pow(10, decimals);
   };
-
-
 
   const formatHash = (hash: string) => {
     if (hash.length <= 12) return hash;
@@ -531,30 +574,73 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto p-6 rounded-2xl w-[calc(100vw-2rem)] sm:w-auto">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto p-6 rounded-2xl w-[calc(100vw-2rem)] sm:w-auto [&>button:last-child]:hidden">
         <DialogHeader>
-          <div className="flex items-center gap-2">
-            <Image 
-              src="/logo.png" 
-              alt="Panora" 
-              width={24} 
-              height={24} 
-              className="rounded-full"
-            />
-            <DialogTitle>Gasless Swap Tokens</DialogTitle>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Image 
+                src="/logo.png" 
+                alt="Panora" 
+                width={24} 
+                height={24} 
+                className="rounded-full"
+              />
+              <DialogTitle>Gasless Swap Tokens</DialogTitle>
+            </div>
+            <div className="flex flex-col items-end gap-2">
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={onClose}
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowSlippage(!showSlippage)}
+                  className="h-8 w-8 p-0"
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           </div>
-          <div className="flex items-center justify-between">
-            <DialogDescription>
+          <div className="flex items-center">
+            <div className="flex-1 min-w-0 pr-2">
+              <DialogDescription>
               Swap tokens using Panora DEX aggregator with gasless transactions
-            </DialogDescription>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowSlippage(!showSlippage)}
-              className="h-8 w-8 p-0"
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
+              </DialogDescription>
+            </div>
+            {showSlippage && (
+              <div className="shrink-0 ml-10 w-18 sm:w-18">
+                <Label className="text-xs">Slippage</Label>
+                <Select value={slippage.toString()} onValueChange={(value) => {
+                  setSlippage(Number(value));
+                  setSwapResult(null);
+                  setSwapQuote(null);
+                  setQuoteDebug(null);
+                  setLastQuoteData({
+                    fromToken: null,
+                    toToken: null,
+                    amount: '',
+                    slippage: 0.5
+                  });
+                }}>
+                  <SelectTrigger className="h-8">
+                    <SelectValue className="text-xs">{slippage}%</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent className="w-[--radix-select-trigger-width] min-w-0">
+                    <SelectItem value="0.5">0.5%</SelectItem>
+                    <SelectItem value="1.0">1.0%</SelectItem>
+                    <SelectItem value="2.0">2.0%</SelectItem>
+                    <SelectItem value="5.0">5.0%</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
         </DialogHeader>
 
@@ -606,7 +692,21 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                 <SelectContent>
                   <div className="p-2">
                     <div className="text-sm font-medium mb-2">Your Tokens</div>
-                    {availableTokens.map((token) => {
+                    {[...availableTokens]
+                      .sort((a, b) => {
+                        const selectedFa = (fromToken?.faAddress || fromToken?.tokenAddress || '').toLowerCase();
+                        const aId = (a.tokenInfo?.faAddress || a.tokenInfo?.tokenAddress || '').toLowerCase();
+                        const bId = (b.tokenInfo?.faAddress || b.tokenInfo?.tokenAddress || '').toLowerCase();
+                        if (aId === selectedFa) return -1;
+                        if (bId === selectedFa) return 1;
+                        const ap = Number(a.tokenInfo?.usdPrice || 0);
+                        const bp = Number(b.tokenInfo?.usdPrice || 0);
+                        if (!isFinite(ap) && !isFinite(bp)) return 0;
+                        if (!isFinite(ap)) return 1;
+                        if (!isFinite(bp)) return -1;
+                        return bp - ap;
+                      })
+                      .map((token) => {
                       const tokenInfo = token.tokenInfo;
                       if (!tokenInfo) return null;
                       const balance = getTokenBalance(tokenInfo);
@@ -624,11 +724,13 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                                 height={16}
                                 className="rounded-full"
                               />
-                              <span className="text-sm">{tokenInfo.symbol} </span>
+                              <span className="text-sm">{tokenInfo.symbol}&nbsp;</span>
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              {formatNumber(balance.balance)} {tokenInfo.symbol}
-                              {/* Убираем отображение цены */}
+                              {formatNumber(balance.balance)}
+                              {tokenInfo.usdPrice && Math.abs(balance.balance) >= 0.001 &&  (
+                                <span> (${(balance.balance * Number(tokenInfo.usdPrice)).toFixed(2)})</span>
+                              )}
                             </div>
                           </div>
                         </SelectItem>
@@ -637,18 +739,32 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                   </div>
                 </SelectContent>
               </Select>
-              
-                             {fromToken && (
-                  <div className="text-xs text-muted-foreground">
-                    Balance: {formatNumber(getTokenBalance(fromToken).balance)} {fromToken.symbol}
-                    {/* Убираем отображение USD стоимости */}
-                  </div>
-                )}
+			  
+		
+			  {fromToken && (
+			    <div className="text-xs text-muted-foreground">
+				  Balance: {formatNumber(getTokenBalance(fromToken).balance)} {fromToken.symbol}
+				  {/* Убираем отображение USD стоимости */}
+			    </div>
+			  )}
+
+			  {fromToken && fromToken.usdPrice && (
+			    <div className="text-xs text-muted-foreground">
+				  ${ (getTokenBalance(fromToken).balance * Number(fromToken.usdPrice)).toFixed(2) }
+			    </div>
+			  )}
             </div>
 
             {/* Amount Input */}
             <div className="space-y-1">
-              <Label className="text-xs">Amount</Label>
+              <Label className="text-xs">Amount
+			    {fromToken && amount ? (
+				  <span className="text-muted-foreground">${((!swapQuote || hasDataChanged()) ? usdAmount : (quotedUsdAmount ?? usdAmount)).toFixed(2)}</span>
+			    ) : (
+				  <span></span>
+			    )}
+			  </Label>  
+				  
               <div className="space-y-1">
                   <Input
                     type="number"
@@ -673,8 +789,19 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                   {/* Убираем отображение USD стоимости */}
                 </div>
               {fromToken && (
-                <div className="flex gap-1">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
                   <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => {
+                      const balance = getTokenBalance(fromToken);
+                      setAmount((balance.balance * 0.25).toString());
+                    }}
+                    className="h-6 text-xs px-2"
+                  >
+                    25%
+                  </Button>
+				  <Button 
                     variant="outline" 
                     size="sm" 
                     onClick={() => {
@@ -683,7 +810,7 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                     }}
                     className="h-6 text-xs px-2"
                   >
-                    Half
+                    50%
                   </Button>
                   <Button 
                     variant="outline" 
@@ -696,6 +823,7 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                   >
                     Max
                   </Button>
+
                 </div>
               )}
             </div>
@@ -779,11 +907,16 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                                       height={16}
                                       className="rounded-full"
                                     />
-                                    <span className="text-sm">{tokenInfo.symbol} </span>
+                                    <span className="text-sm">{tokenInfo.symbol}&nbsp;</span>
                                   </div>
                                   <div className="text-xs text-muted-foreground">
-                                    {formatNumber(balance.balance)} {tokenInfo.symbol}
-                                    {/* Убираем отображение цены */}
+                                    {formatNumber(balance.balance)}
+									
+									{ /*
+                                    {tokenInfo.usdPrice && Math.abs(parseFloat(balance.balance)) >= 0.001 &&  (
+                                      <span> (${(balance.balance * Number(balance.balance)).toFixed(2)})</span>
+                                    )}
+									*/ }
                                   </div>
                                 </div>
                               </SelectItem>
@@ -838,35 +971,7 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
             </div>
           </div>
 
-          {/* Slippage Settings - Only shown when settings are opened */}
-          {showSlippage && (
-            <div className="space-y-1">
-              <Label className="text-xs">Slippage</Label>
-              <Select value={slippage.toString()} onValueChange={(value) => {
-                setSlippage(Number(value));
-                setSwapResult(null); // Clear swap result when changing slippage
-                // Сбрасываем quote при изменении slippage
-                setSwapQuote(null);
-                setQuoteDebug(null);
-                setLastQuoteData({
-                  fromToken: null,
-                  toToken: null,
-                  amount: '',
-                  slippage: 0.5
-                });
-              }}>
-                <SelectTrigger className="h-9">
-                  <SelectValue className="text-sm">{slippage}%</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0.5">0.5%</SelectItem>
-                  <SelectItem value="1.0">1.0%</SelectItem>
-                  <SelectItem value="2.0">2.0%</SelectItem>
-                  <SelectItem value="5.0">5.0%</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          
 
           {/* Quote Results - Simplified */}
           {swapQuote && (
@@ -929,8 +1034,8 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                     
                     {swapResult.receivedAmount && (
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Received:</span>
-                        <span className="font-medium">
+                        <span className="font-bold text-lg">Received:</span>
+                        <span className="font-bold text-lg">
                           {formatNumber(swapResult.receivedAmount)} {swapResult.receivedSymbol}
                         </span>
                       </div>
@@ -938,14 +1043,14 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                   </div>
                 </div>
               ) : (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                  <div className="flex items-center gap-2 text-red-600">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2 text-yellow-600">
                     <XCircle className="h-4 w-4" />
-                    <span className="font-medium text-sm">Swap failed</span>
+                    <span className="font-medium text-sm">Swap cancelled</span>
                   </div>
                   
                   {swapResult.error && (
-                    <div className="text-sm text-red-700 mt-2">{swapResult.error}</div>
+                    <div className="text-sm text-yellow-700 mt-2">User rejected swap{/*swapResult.error*/}</div>
                   )}
                 </div>
               )}
