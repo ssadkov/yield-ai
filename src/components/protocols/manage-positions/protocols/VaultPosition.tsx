@@ -42,7 +42,7 @@ const VaultPosition = memo(function VaultPosition({ vaultToken, vaultData, index
               {token1?.symbol || 'Unknown'} / {token2?.symbol || 'Unknown'}
             </span>
             <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/20 text-xs font-normal px-2 py-0.5 h-5 ml-2">
-              VAULT
+             GOBLIN VAULT
             </Badge>
           </div>
         </div>
@@ -80,7 +80,7 @@ const VaultPosition = memo(function VaultPosition({ vaultToken, vaultData, index
               </span>
               <div className="flex items-center gap-2 mt-1">
                 <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/20 text-xs font-normal px-2 py-0.5 h-5">
-                  VAULT
+                  GOBLIN VAULT
                 </Badge>
               </div>
             </div>

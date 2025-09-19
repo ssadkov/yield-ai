@@ -191,7 +191,7 @@ export function PositionsList({ address, onPositionsValueChange, walletTokens, r
             {/* Vault токены как подраздел */}
             {vaultTokens.length > 0 && (
               <div className="mt-4 pt-4">
-                <h4 className="text-sm font-medium mb-2 text-muted-foreground">Vault Positions</h4>
+                <h4 className="text-sm font-medium mb-2 text-muted-foreground">Goblin Vaults Positions</h4>
                 <VaultTokensDisplay 
                   vaultTokens={vaultTokens} 
                   walletAddress={walletAddress}
