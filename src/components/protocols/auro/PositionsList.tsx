@@ -22,6 +22,7 @@ interface PositionsListProps {
 }
 
 export function PositionsList({ address, onPositionsValueChange, refreshKey, onPositionsCheckComplete, showManageButton=true }: PositionsListProps) {
+  console.log('Auro Finance - PositionsList component loaded with address:', address);
   const { account } = useWallet();
   const [positions, setPositions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -34,6 +35,19 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
 
   const walletAddress = address || account?.address;
   const protocol = getProtocolByName("Auro Finance");
+
+  // Функция для безопасного вычисления значений (заменяет NaN на 0)
+  const safeCalculateValue = (amount: string | number, price: string | number): number => {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+    
+    if (isNaN(numAmount) || isNaN(numPrice)) {
+      return 0;
+    }
+    
+    const result = numAmount * numPrice;
+    return isNaN(result) ? 0 : result;
+  };
 
   // Получаем цену токена из кэша
   const getTokenPrice = useCallback((tokenAddress: string): string => {
@@ -94,7 +108,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
         return;
       }
       const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
-      const value = amount * parseFloat(tokenInfo.price);
+      const value = safeCalculateValue(amount, tokenInfo.price);
       totalValue += value;
       collateralSum += value;
     });
@@ -109,7 +123,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
         return;
       }
       const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
-      const value = amount * parseFloat(tokenInfo.price);
+      const value = safeCalculateValue(amount, tokenInfo.price);
       totalValue += value;
       borrowSum += value;
     });
@@ -133,7 +147,9 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
     
     try {
       // Сначала загружаем данные о пулах
+      console.log('Auro Finance - Fetching pools from PositionsList');
       const poolsResponse = await fetch(`/api/protocols/auro/pools`);
+      console.log('Auro Finance - Pools response status:', poolsResponse.status);
       if (!poolsResponse.ok) {
         throw new Error(`Pools API returned status ${poolsResponse.status}`);
       }
@@ -171,7 +187,9 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
 
   // Объединенный useEffect для загрузки позиций и наград
   useEffect(() => {
+    console.log('Auro Finance - useEffect triggered, walletAddress:', walletAddress);
     if (!walletAddress) {
+      console.log('Auro Finance - No wallet address, skipping load');
       setPositions((prev) => prev);
       setRewardsData((prev: any) => prev);
       setTotalRewardsValue((prev: number) => prev);
@@ -180,18 +198,23 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
     }
 
     const loadData = async () => {
+      console.log('Auro Finance - Starting loadData for address:', walletAddress);
       setLoading(true);
       setError(null);
       
       try {
         // Загружаем позиции
+        console.log('Auro Finance - Fetching userPositions for address:', walletAddress);
         const positionsResponse = await fetch(`/api/protocols/auro/userPositions?address=${walletAddress}`);
+        console.log('Auro Finance - userPositions response status:', positionsResponse.status);
         if (!positionsResponse.ok) {
           throw new Error(`Positions API returned status ${positionsResponse.status}`);
         }
         
         const positionsData = await positionsResponse.json();
+        console.log('Auro Finance - userPositions data:', positionsData);
         const positionsArray = Array.isArray(positionsData.positionInfo) ? positionsData.positionInfo : [];
+        console.log('Auro Finance - positions array length:', positionsArray.length);
         setPositions(positionsArray);
         
         // Загружаем награды только если есть позиции
@@ -211,6 +234,11 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
     };
 
     loadData();
+  }, [walletAddress, refreshKey, fetchRewards]);
+
+  // Логируем изменения зависимостей
+  useEffect(() => {
+    console.log('Auro Finance - Dependencies changed:', { walletAddress, refreshKey, fetchRewards: !!fetchRewards });
   }, [walletAddress, refreshKey, fetchRewards]);
 
   // Получаем цены токенов через Panora API
@@ -305,27 +333,30 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
   const sortedPositions = [...positions].sort((a, b) => {
     const collateralPriceA = a.collateralTokenAddress ? parseFloat(getTokenPrice(a.collateralTokenAddress)) : 0;
     const collateralPriceB = b.collateralTokenAddress ? parseFloat(getTokenPrice(b.collateralTokenAddress)) : 0;
-    const valueA = parseFloat(a.collateralAmount) * collateralPriceA;
-    const valueB = parseFloat(b.collateralAmount) * collateralPriceB;
+    const valueA = safeCalculateValue(a.collateralAmount, collateralPriceA);
+    const valueB = safeCalculateValue(b.collateralAmount, collateralPriceB);
     return valueB - valueA;
   });
 
   // Сумма активов (Collateral - Debt + Rewards) - включая награды
   const totalValue = useCallback(() => {
-    return sortedPositions.reduce((sum, pos) => {
+    const result = sortedPositions.reduce((sum, pos) => {
       // Сумма по collateral позициям
       const collateralPrice = pos.collateralTokenAddress ? parseFloat(getTokenPrice(pos.collateralTokenAddress)) : 0;
-      const collateralValue = parseFloat(pos.collateralAmount) * collateralPrice;
+      const collateralValue = safeCalculateValue(pos.collateralAmount, collateralPrice);
       
       // Сумма по debt позициям (вычитаем)
       const debtPrice = parseFloat(getTokenPrice("0x534e4c3dc0f038dab1a8259e89301c4da58779a5d482fb354a41c08147e6b9ec")); // USDA
-      const debtValue = parseFloat(pos.debtAmount) * debtPrice;
+      const debtValue = safeCalculateValue(pos.debtAmount, debtPrice);
       
       // Добавляем награды для этой позиции
       const positionRewards = calculateRewardsValue(pos.address);
       
       return sum + collateralValue - debtValue + positionRewards;
     }, 0);
+    
+    // Дополнительная защита от NaN
+    return isNaN(result) ? 0 : result;
   }, [sortedPositions, calculateRewardsValue, getTokenPrice]);
 
   // useEffect для передачи суммы наверх
@@ -378,7 +409,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
               const debtSymbol = pos.debtSymbol;
               const debtLogo = pos.debtTokenInfo?.logoUrl;
               const debtPrice = parseFloat(getTokenPrice("0x534e4c3dc0f038dab1a8259e89301c4da58779a5d482fb354a41c08147e6b9ec")).toFixed(2); // USDA
-              const value = pos.collateralTokenAddress ? (parseFloat(collateral) * parseFloat(getTokenPrice(pos.collateralTokenAddress))).toFixed(2) : 'N/A';
+              const value = pos.collateralTokenAddress ? safeCalculateValue(collateral, getTokenPrice(pos.collateralTokenAddress)).toFixed(2) : '0.00';
               return (
                 <div key={pos.address || idx} className="mb-2">
                   {/* Collateral строка */}
@@ -456,7 +487,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
                           const tokenInfo = getRewardTokenInfoHelper(reward.key);
                           if (!tokenInfo) return null;
                           const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
-                          const value = tokenInfo.price ? (amount * parseFloat(tokenInfo.price)).toFixed(2) : 'N/A';
+                          const value = tokenInfo.price ? safeCalculateValue(amount, tokenInfo.price).toFixed(2) : '0.00';
                           return (
                             <div key={`collateral-${positionAddress}-${i}`} className="flex items-center gap-2">
                               {tokenInfo.icon_uri && (
@@ -473,7 +504,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
                           const tokenInfo = getRewardTokenInfoHelper(reward.key);
                           if (!tokenInfo) return null;
                           const amount = parseFloat(reward.value) / Math.pow(10, tokenInfo.decimals || 8);
-                          const value = tokenInfo.price ? (amount * parseFloat(tokenInfo.price)).toFixed(2) : 'N/A';
+                          const value = tokenInfo.price ? safeCalculateValue(amount, tokenInfo.price).toFixed(2) : '0.00';
                           return (
                             <div key={`borrow-${positionAddress}-${i}`} className="flex items-center gap-2">
                               {tokenInfo.icon_uri && (

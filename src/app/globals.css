@@ -143,6 +143,14 @@
   * {
     @apply border-border outline-ring/50;
   }
+  
+  /* Убираем обводку у элементов чарта */
+  .recharts-sector,
+  .recharts-layer,
+  .recharts-pie-sector {
+    outline: none !important;
+    outline-color: transparent !important;
+  }
   body {
     @apply bg-background text-foreground;
   }
