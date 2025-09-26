@@ -33,8 +33,6 @@ async function getCollateralToken(poolAddress: string): Promise<string | null> {
       arguments: [poolAddress]
     };
 
-    console.log('Getting collateral token for pool:', poolAddress);
-    
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
@@ -55,7 +53,7 @@ async function getCollateralToken(poolAddress: string): Promise<string | null> {
 
     const data = await response.json();
     const tokenAddress = data[0];
-    console.log('Collateral token for pool', poolAddress, ':', tokenAddress);
+
     return tokenAddress;
   } catch (error) {
     console.error('Error getting collateral token for pool:', poolAddress, error);
@@ -64,19 +62,16 @@ async function getCollateralToken(poolAddress: string): Promise<string | null> {
 }
 
 export async function GET(request: NextRequest) {
+
   try {
     // Auro API route started
     const { searchParams } = new URL(request.url);
     const address = searchParams.get('address');
 
-    
-
     if (!address) {
       
       return NextResponse.json({ error: 'Address parameter is required' }, { status: 400 });
     }
-
-    
 
     // Get collection address using direct HTTP request to fullnode
     const viewPayload = {
@@ -84,8 +79,6 @@ export async function GET(request: NextRequest) {
       type_arguments: [],
       arguments: []
     };
-
-    
 
     const viewHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -100,8 +93,6 @@ export async function GET(request: NextRequest) {
       body: JSON.stringify(viewPayload)
     });
 
-    // console.log('View function response status:', response.status);
-
     if (!response.ok) {
       const errorText = await response.text();
       console.error('View function error:', response.status, errorText);
@@ -109,14 +100,11 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json();
-    // console.log('View function response data:', data);
 
     const collectionAddress = data[0];
-    //console.log('Collection address:', collectionAddress);
-    
+
     // Стандартизируем адрес коллекции
     const standardizedAddress = normalizeCollectionId(collectionAddress);
-    // console.log('Standardized address:', standardizedAddress);
 
     // Новый GraphQL-запрос для поиска позиций по collection_id
     const query = `
@@ -180,6 +168,7 @@ export async function GET(request: NextRequest) {
     let rawPositionInfo = null;
     let positionInfo: any[] = [];
     if (positions.length > 0) {
+
       const positionAddresses = positions.map((p: any) => p.storage_id);
 
       type PositionInfo = {
@@ -192,6 +181,7 @@ export async function GET(request: NextRequest) {
       };
 
       try {
+
         // Теперь вызываем основную функцию через fetch
         const payloadPositionInfo = {
           function: `${AURO_ROUTER_ADDRESS}::auro_view::multiple_position_info`,
@@ -199,17 +189,14 @@ export async function GET(request: NextRequest) {
           arguments: [positionAddresses.map((addr: string) => ({ inner: addr }))]
         };
 
-        
-        
         const viewResponse = await fetch('https://fullnode.mainnet.aptoslabs.com/v1/view', {
           method: 'POST',
           headers: viewHeaders,
           body: JSON.stringify(payloadPositionInfo)
         });
-        
+ 
         if (viewResponse.ok) {
           const positionInfoResult = await viewResponse.json();
-          // console.log("View function response:", positionInfoResult);
           
           if (positionInfoResult && Array.isArray(positionInfoResult) && positionInfoResult.length > 0) {
             const positionsData = positionInfoResult[0] as PositionInfo[];
@@ -256,11 +243,22 @@ export async function GET(request: NextRequest) {
           rawPositionInfo = positionInfoResult;
         } else {
           const errorText = await viewResponse.text();
-          console.error("View function error:", viewResponse.status, errorText);
-          rawPositionInfo = { error: `View function error: ${viewResponse.status} - ${errorText}` };
+//console.error("Auro Finance - userPositions: View function error:", viewResponse.status, errorText);
+          
+          // Если ошибка связана с устаревшими ценами, возвращаем базовую информацию о позициях
+          if (viewResponse.status === 400 && errorText.includes("stale")) {
+            positionInfo = positions.map((pos: any) => ({
+              storage_id: pos.storage_id,
+              amount: pos.amount,
+              token_name: pos.current_token_data?.token_name || 'Unknown',
+              collection_name: pos.current_token_data?.current_collection?.collection_name || 'Unknown',
+              error: 'Price data unavailable (stale oracle)'
+            }));
+          } else {
+            rawPositionInfo = { error: `View function error: ${viewResponse.status} - ${errorText}` };
+          }
         }
       } catch (error) {
-        console.error("Error calling view function:", error);
         rawPositionInfo = { error: error instanceof Error ? error.message : "Unknown error" };
       }
     }
@@ -274,8 +272,6 @@ export async function GET(request: NextRequest) {
       rawPositionInfo,
       message: "Collection address and user positions retrieved successfully"
     };
-
-    
 
     return NextResponse.json(result);
 

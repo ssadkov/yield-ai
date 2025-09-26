@@ -1,5 +1,5 @@
-import React from 'react';
-import { Pie, PieChart, ResponsiveContainer, Tooltip, Cell } from "recharts"
+import React, { useState, useEffect } from 'react';
+import { Pie, PieChart, Tooltip, Cell } from "recharts"
 import {
   Card,
   CardContent,
@@ -18,6 +18,21 @@ const defaultColors = [
   "#2f4bd6", "#2a43c0", "#243aa8", "#1f3292", "#1a2a7b",
 ]
 
+// Фиксированные цвета для протоколов
+const protocolColors: Record<string, string> = {
+  "Hyperion": "#ce688c",
+  "Echelon": "#77fbfd", 
+  "Aries": "#000000",
+  "Joule": "#f06500",
+  "Tapp Exchange": "#a367e7",
+  "Meso Finance": "#675bd8",
+  "Auro Finance": "#016d4e",
+  "Amnis Finance": "#2069fa",
+  "Earnium": "#023697",
+  "Aave": "#5998bb",
+  "Moar Market": "#00ff7c",
+}
+
 // Кастомный Tooltip компонент
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
@@ -31,54 +46,93 @@ const CustomTooltip = ({ active, payload }: any) => {
 }
 
 export function PortfolioChart({ data }: { data: SectorDatum[] }) {
-  const chartData = (data || []).filter((d) => d && d.value > 0)
-  const sum = chartData.reduce((acc, d) => acc + d.value, 0)
+  const [isDesktop, setIsDesktop] = useState(false);
   
-  // Группируем протоколы менее 5% в "Other"
-  const threshold = 0.05 // 5%
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+    
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
+  const allData = (data || []).filter((d) => d && d.value > 0)
+  const sum = allData.reduce((acc, d) => acc + d.value, 0)
   
-  // Wallet всегда отображается отдельно
-  //const walletData = chartData.filter(d => d.name.toLowerCase() === 'wallet')
-  //const protocolData = chartData.filter(d => d.name.toLowerCase() !== 'wallet')
-  const protocolData = chartData.filter(d => d.name.toLowerCase())
-  
-  const mainProtocols = protocolData.filter(d => (d.value / sum) >= threshold)
-  const smallProtocols = protocolData.filter(d => (d.value / sum) < threshold)
-  
-  //let finalData = [...walletData, ...mainProtocols]
-  let finalData = [...mainProtocols]
-  if (smallProtocols.length > 0) {
-    const otherValue = smallProtocols.reduce((acc, d) => acc + d.value, 0)
-    if (otherValue > 0) {
-      finalData.push({ name: "Other", value: otherValue })
-    }
-  }
-  return (
-   
-        <div className="mx-auto aspect-square w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Tooltip content={<CustomTooltip />} />
-              <Pie 
-                data={finalData} 
-                dataKey="value" 
-                nameKey="name"
-                cx="50%" 
-                cy="50%"
-                outerRadius={80}
-                label={({ name, percent }) => `${name}: ${percent ? Math.round(percent * 100) : 0}%`}
-                labelLine={ true }
-                isAnimationActive={ false }
-              >
-              
-                {finalData.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={defaultColors[index % defaultColors.length]} />
-                ))}
-              
-              </Pie>
-            </PieChart>
-          </ResponsiveContainer>
+  // Фильтруем по процентам (скрываем менее 1%)
+  const chartData = allData.filter((d) => {
+    const percent = sum > 0 ? (d.value / sum) * 100 : 0
+    return percent >= 1
+  })
+
+  // Если нет данных, не рендерим чарт
+  if (chartData.length === 0) {
+    return (
+      <div className="flex flex-col lg:flex-row items-center gap-4">
+        <div className="w-64 h-64 lg:w-96 lg:h-96 flex items-center justify-center text-muted-foreground">
+          No data available
         </div>
-     
+      </div>
+    )
+  }
+
+  // Определяем размер чарта в зависимости от экрана
+  const chartSize = isDesktop ? 384 : 256;
+
+  return (
+    <div className="flex flex-col lg:flex-row items-center gap-4">
+      <div className="w-64 h-64 lg:w-96 lg:h-96 focus:outline-none" style={{ minWidth: '200px', minHeight: '200px' }}>
+        <PieChart 
+          width={chartSize} 
+          height={chartSize}
+        >
+          <Tooltip content={<CustomTooltip />} />
+          <Pie 
+            data={chartData} 
+            dataKey="value" 
+            nameKey="name"
+            cx="50%" 
+            cy="50%"
+            outerRadius="80%"
+            stroke="none"
+            strokeWidth={0}
+            strokeOpacity={0}
+            isAnimationActive={ false }
+          >
+            {chartData.map((item, index) => {
+              const color = protocolColors[item.name] || defaultColors[index % defaultColors.length];
+              return <Cell key={`cell-${index}`} fill={color} />;
+            })}
+          </Pie>
+        </PieChart>
+      </div>
+      
+
+      {/* Десктопная версия - вертикальная легенда справа от чарта */}
+      <div className="hidden lg:flex flex-col justify-center gap-2 min-w-[200px]">
+        {chartData
+          .map((item, index) => ({
+            ...item,
+            originalIndex: index,
+            percent: sum > 0 ? (item.value / sum) * 100 : 0
+          }))
+          .sort((a, b) => b.value - a.value)
+          .map((item) => (
+            <div key={item.name} className="flex items-center gap-2">
+              <div 
+                className="w-3 h-3 rounded-full flex-shrink-0" 
+                style={{ backgroundColor: protocolColors[item.name] || defaultColors[item.originalIndex % defaultColors.length] }}
+              />
+              <span className="text-sm font-medium">{item.name}</span>
+              <span className="text-sm text-muted-foreground ml-auto">
+                {Math.round(item.percent)}%
+              </span>
+            </div>
+          ))}
+      </div>
+    </div>
   )
 }

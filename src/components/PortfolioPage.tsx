@@ -259,7 +259,7 @@ export default function PortfolioPage() {
                 </div>
               </div>
 
-              <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+              <div className="min-h-screen to-slate-100 dark:from-slate-900 dark:to-slate-800">
                 <div className="flex-1 overflow-y-auto m-4">
                   {resolvedAddress ? ( 
                     <>
@@ -487,7 +487,7 @@ export default function PortfolioPage() {
           <div className="w-full">
             
 			<div className="hidden lg:block mb-4 mt-17">
-			  <div className="h-58 flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded p-20">
+			  <div className="h-[500px] flex items-center justify-center to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded p-8">
 				<PortfolioChart data={chartSectors} />
 		      </div>
 			
