@@ -107,8 +107,12 @@ export function WithdrawModal({
 
   // Получаем Available Balance из position (userPositions API)
   // position.supply содержит значение в формате octas (наименьшие единицы токена)
-  const availableBalance = BigInt(Math.floor(parseFloat(position.supply)));
-  const availableBalanceFormatted = Number(availableBalance) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
+  const availableBalance = typeof position.supply === 'string' 
+    ? BigInt(position.supply)
+    : BigInt(Math.floor(Number(position.supply)));
+  const availableBalanceFormatted = tokenInfo?.decimals 
+    ? Number(availableBalance) / (10 ** tokenInfo.decimals)
+    : Number(availableBalance) / 1e8;
 
   console.log('WithdrawModal - Raw data:', {
     positionSupply: position.supply,
@@ -132,7 +136,9 @@ export function WithdrawModal({
     withdrawAmountValid: withdrawAmount > 0
   });
 
-  const withdrawAmountFormatted = Number(withdrawAmount) / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
+  const withdrawAmountFormatted = tokenInfo?.decimals 
+    ? Number(withdrawAmount) / (10 ** tokenInfo.decimals)
+    : Number(withdrawAmount) / 1e8;
 
   // Получаем USD стоимость количества для вывода
   const withdrawValueUSD = tokenInfo?.usdPrice 

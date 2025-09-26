@@ -67,9 +67,30 @@ export class EchelonProtocol implements BaseProtocol {
     const tokenInfo = await getTokenInfo(token);
     console.log('Token info:', tokenInfo);
 
-    const functionName = tokenInfo.isFungible 
-      ? "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::withdraw_fa"
-      : "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::withdraw";
+    // Check if this is 100% withdraw by analyzing amount
+    // Since withdraw amount comes directly from slider, check if it matches full available
+    const isFullyWithdraw = await this.isFullWithdraw(marketAddress, amountOctas, userAddress);
+    
+    let functionName: string;
+    let argumentsToPass: any[];
+
+    if (isFullyWithdraw) {
+      // Use withdraw_all functions for 100% withdraw (no amount needed)
+      functionName = tokenInfo.isFungible 
+        ? "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::withdraw_all_fa"
+        : "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::withdraw_all";
+      
+      argumentsToPass = [marketAddress]; // For withdraw_all functions, just pass marketAddress directly as string
+      console.log('Using withdraw_all functions for 100% withdraw:', functionName);
+    } else {
+      // Use regular withdraw functions for partial withdraw (specify amount)
+      functionName = tokenInfo.isFungible 
+        ? "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::withdraw_fa"
+        : "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba::scripts::withdraw";
+      
+      argumentsToPass = [marketAddress, amountOctas.toString()];
+      console.log('Using regular withdraw functions for partial withdraw:', functionName);
+    }
 
     // For non-fungible tokens, use the full token type instead of faAddress
     const typeArgument = tokenInfo.isFungible ? [] : [tokenInfo.tokenAddress || token];
@@ -78,8 +99,46 @@ export class EchelonProtocol implements BaseProtocol {
       type: "entry_function_payload" as const,
       function: functionName,
       type_arguments: typeArgument,
-      arguments: [marketAddress, amountOctas.toString()]
+      arguments: argumentsToPass
     };
+  }
+
+  /**
+   * Helper method to determine if this is a full withdraw by checking:
+   * 1. If amountOctas equals user's total available balance in market 
+   * 2. Account for small rounding differences that can occur in calculations
+   */
+  private async isFullWithdraw(marketAddress: string, amountOctas: bigint, userAddress?: string): Promise<boolean> {
+    if (!userAddress) return false;
+    
+    try {
+      // Get user's position from the API to check total available
+      const response = await fetch(`/api/protocols/echelon/userPositions?address=${userAddress}`);
+      const positions = await response.json();
+      
+      if (positions.success && positions.data) {
+        const userPosition = positions.data.find((pos: any) => pos.market === marketAddress && pos.type === 'supply');
+        if (userPosition) {
+          const userTotalBalance = BigInt(userPosition.amount || 0); // raw balance in octas
+          // Check if amount equals total balance (allow small rounding difference)
+          const diff = amountOctas > userTotalBalance ? amountOctas - userTotalBalance : userTotalBalance - amountOctas;
+          const isFullWithdrawResult = diff <= BigInt(1000); // Allow up to 1000 octas difference for rounding
+          
+          console.log('Full withdraw check:', {
+            amountOctas: amountOctas.toString(),
+            userTotalBalance: userTotalBalance.toString(),
+            diff: diff.toString(),
+            isFullWithdraw: isFullWithdrawResult
+          });
+          
+          return isFullWithdrawResult;
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to check full withdraw status:', error);
+    }
+    
+    return false;
   }
 
   async buildClaimRewards(positionIds: string[], tokenTypes: string[], userAddress?: string) {
