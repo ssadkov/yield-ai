@@ -75,7 +75,12 @@ export async function GET(request: NextRequest) {
       }
 
       // Extract reward tokens information
-      const rewardTokens = [];
+      const rewardTokens: Array<{
+        tokenAddress: string;
+        apr: number;
+        amount: number;
+        source: string;
+      }> = [];
       
       // Main pool incentive rewards
       if (pool.incentiveApr?.info && Array.isArray(pool.incentiveApr.info)) {

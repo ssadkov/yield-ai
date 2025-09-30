@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import tokenList from "@/lib/data/tokenList.json";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
 
 function findToken(address: string) {
   const addr = address?.toLowerCase();
@@ -45,12 +46,25 @@ export function EarniumPositionsManaging() {
   const [pools, setPools] = useState<any[]>([]);
   const [rewardsUSD, setRewardsUSD] = useState(0);
   const [claiming, setClaiming] = useState(false);
+  const [poolsData, setPoolsData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
     if (!account?.address) return;
-    const resp = await fetch(`/api/protocols/earnium/rewards?address=${account.address}`);
-    const json = await resp.json();
-    const data: any[] = Array.isArray(json.data) ? json.data : [];
+    
+    try {
+      setLoading(true);
+      
+      // Загружаем данные о наградах
+      const resp = await fetch(`/api/protocols/earnium/rewards?address=${account.address}`);
+      const json = await resp.json();
+      const data: any[] = Array.isArray(json.data) ? json.data : [];
+      
+      // Загружаем данные о пулах с APR
+      const poolsResp = await fetch('/api/protocols/earnium/pools');
+      const poolsJson = await poolsResp.json();
+      const poolsData: any[] = Array.isArray(poolsJson.data) ? poolsJson.data : [];
+      setPoolsData(poolsData);
 
     const stakedPools = data.filter((p) => { try { return BigInt(p?.stakedRaw ?? '0') > BigInt(0); } catch { return false; } });
     const poolsWithBalances: any[] = [];
@@ -116,6 +130,12 @@ export function EarniumPositionsManaging() {
     });
     setPools(enriched);
     setRewardsUSD(totalRewards);
+    
+    } catch (error) {
+      console.error('Error loading Earnium data:', error);
+    } finally {
+      setLoading(false);
+    }
   }, [account?.address]);
 
   useEffect(() => { load(); }, [load]);
@@ -154,24 +174,47 @@ export function EarniumPositionsManaging() {
     }
   };
 
+  if (loading) {
+    return <div className="text-center py-4">Loading Earnium positions...</div>;
+  }
+
   if (!account?.address || (pools.length === 0 && rewardsUSD === 0)) return null;
 
   return (
     <div className="w-full mb-6 py-2">
       <div className="space-y-4">
-        {pools.map((p, i) => (
-          <div key={i} className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-                             <div className="flex -space-x-2">
-                 {(p.pairIcons || []).map((logo: string, idx: number) => (
-                   <Image key={idx} src={logo} alt={p.pairSymbols?.[idx] || 'token'} width={30} height={30} className="rounded ring-1 ring-background object-contain" />
-                 ))}
-               </div>
-               <div className="text-lg font-medium">{(p.pairSymbols || []).join(' / ') || 'Pool'}</div>
+        {pools.map((p, i) => {
+          // Находим соответствующий пул с APR
+          const poolInfo = poolsData.find(pool => {
+            const poolSymbols = pool.asset?.split('/') || [];
+            const positionSymbols = p.pairSymbols || [];
+            return poolSymbols.length === positionSymbols.length && 
+                   poolSymbols.every((symbol: string) => positionSymbols.includes(symbol));
+          });
+          
+          const apr = poolInfo?.totalAPY || 0;
+          
+          return (
+            <div key={i} className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex -space-x-2">
+                  {(p.pairIcons || []).map((logo: string, idx: number) => (
+                    <Image key={idx} src={logo} alt={p.pairSymbols?.[idx] || 'token'} width={30} height={30} className="rounded ring-1 ring-background object-contain" />
+                  ))}
+                </div>
+                <div className="text-lg font-medium">{(p.pairSymbols || []).join(' / ') || 'Pool'}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                {apr > 0 && (
+                  <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs font-normal px-2 py-0.5 h-5">
+                    APR: {apr.toFixed(2)}%
+                  </Badge>
+                )}
+                <div className="text-lg font-bold">${(p.poolUserUSD || 0).toFixed(2)}</div>
+              </div>
             </div>
-            <div className="text-lg font-bold">${(p.poolUserUSD || 0).toFixed(2)}</div>
-          </div>
-        ))}
+          );
+        })}
 
 
       </div>

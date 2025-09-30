@@ -1639,7 +1639,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                       </div>
                                     )}
                                     {/* Earnium DEX specific breakdown */}
-                                    {item.aprBreakdown && (
+                                    {item.aprBreakdown && item.aprBreakdown.breakdown && (
                                       <>
                                         {(typeof item.aprBreakdown.breakdown.tradingFees === 'number' && item.aprBreakdown.breakdown.tradingFees > 0) && (
                                           <div className="flex justify-between">

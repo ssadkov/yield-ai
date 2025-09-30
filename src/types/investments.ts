@@ -47,6 +47,23 @@ export interface InvestmentData {
   utilization?: number;
   totalBorrows?: number;
   totalDeposits?: number;
+  // APR breakdown for detailed information
+  aprBreakdown?: {
+    baseFeeApr?: number;
+    incentiveApr?: number;
+    totalApr?: number;
+    breakdown?: {
+      tradingFees?: number;
+      rewards?: number;
+      subPoolRewards?: number;
+    };
+    rewardTokens?: Array<{
+      tokenAddress: string;
+      apr: number;
+      amount: number;
+      source: string;
+    }>;
+  };
 }
 
 export interface InvestmentsResponse {
