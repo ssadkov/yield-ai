@@ -1447,13 +1447,13 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 				</TableHead>
                   <TableHead>
                     <Tooltip>
-                      <TooltipTrigger>Supply</TooltipTrigger>
+                      <TooltipTrigger>Supply APR</TooltipTrigger>
                       <TooltipContent>APR - Annual % yield from supply</TooltipContent>
                     </Tooltip>
                   </TableHead>
                   <TableHead>
                     <Tooltip>
-                      <TooltipTrigger>Borrow</TooltipTrigger>
+                      <TooltipTrigger>Borrow APR</TooltipTrigger>
                       <TooltipContent>APR - Annual % cost or reward from borrowing</TooltipContent>
                     </Tooltip>
                   </TableHead>
