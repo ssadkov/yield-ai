@@ -229,7 +229,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
           'Kofi Finance': true,
           'Echelon': true,
           'Aave': true,
-          'Moar Market': true
+          'Moar Market': true,
+          'Earnium': true
         };
         setProtocolsLoading(initialLoadingState);
         setProtocolsError({});
@@ -539,6 +540,59 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   totalBorrows: pool.totalBorrows,
                   totalDeposits: pool.totalDeposits,
                   marketAddress: pool.marketAddress || pool.token
+                };
+              });
+            }
+          },
+          {
+            name: 'Earnium',
+            url: '/api/protocols/earnium/pools',
+			logoUrl: '/protocol_ico/earnium.png',
+            transform: (data: any) => {
+              console.log('🔍 Earnium transform called with data:', data);
+              const pools = data.data || [];
+              console.log('📊 Earnium pools count:', pools.length);
+              
+              return pools.map((pool: any) => {
+                console.log('📈 Earnium pool:', pool.asset, 'APR:', pool.totalAPY);
+                
+                // Create token info objects for DEX display
+                const token1Info = {
+                  symbol: pool.token0?.symbol || 'Unknown',
+                  name: pool.token0?.name || 'Unknown',
+                  logoUrl: pool.token0?.icon_uri || undefined,
+                  decimals: pool.token0?.decimals || 8
+                };
+                
+                const token2Info = {
+                  symbol: pool.token1?.symbol || 'Unknown',
+                  name: pool.token1?.name || 'Unknown',
+                  logoUrl: pool.token1?.icon_uri || undefined,
+                  decimals: pool.token1?.decimals || 8
+                };
+                
+                return {
+                  asset: pool.asset || 'Unknown',
+                  provider: 'Earnium',
+                  totalAPY: pool.totalAPY || 0,
+                  depositApy: pool.depositApy || 0,
+                  borrowAPY: 0, // DEX pools don't have borrowing
+                  token: pool.token || '',
+                  protocol: 'Earnium',
+                  poolType: pool.poolType || 'DEX', // 'Stable' or 'Volatile'
+                  tvlUSD: pool.tvlUSD || 0,
+                  dailyVolumeUSD: pool.dailyVolumeUSD || 0,
+                  // DEX-specific fields for logo display
+                  token1Info: token1Info,
+                  token2Info: token2Info,
+                  feeTier: pool.feeTier,
+                  // APR breakdown for tooltip
+                  aprBreakdown: pool.aprBreakdown,
+                  // Additional Earnium-specific data
+                  poolId: pool.poolId,
+                  symbol: pool.symbol,
+                  bestSubPool: pool.bestSubPool,
+                  subPools: pool.subPools
                 };
               });
             }
@@ -1509,6 +1563,16 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                       {item.tvlUSD && (
                                         <p className="text-xs">TVL: ${item.tvlUSD.toLocaleString()}</p>
                                       )}
+                                      {item.aprBreakdown?.rewardTokens && item.aprBreakdown.rewardTokens.length > 0 && (
+                                        <div className="mt-2">
+                                          <p className="text-xs font-semibold">Reward Tokens:</p>
+                                          {item.aprBreakdown.rewardTokens.slice(0, 3).map((reward: any, idx: number) => (
+                                            <p key={idx} className="text-xs">
+                                              {reward.tokenAddress?.slice(0, 6)}...{reward.tokenAddress?.slice(-4)}: {reward.apr.toFixed(2)}%
+                                            </p>
+                                          ))}
+                                        </div>
+                                      )}
                                     </>
                                   ) : (
                                     // Lending tooltip content (existing logic)
@@ -1573,6 +1637,29 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                         <span>Farming APY:</span>
                                         <span className="text-yellow-400">{item.farmingAPY.toFixed(2)}%</span>
                                       </div>
+                                    )}
+                                    {/* Earnium DEX specific breakdown */}
+                                    {item.aprBreakdown && (
+                                      <>
+                                        {(typeof item.aprBreakdown.breakdown.tradingFees === 'number' && item.aprBreakdown.breakdown.tradingFees > 0) && (
+                                          <div className="flex justify-between">
+                                            <span>Trading Fees:</span>
+                                            <span className="text-green-400">{item.aprBreakdown.breakdown.tradingFees.toFixed(2)}%</span>
+                                          </div>
+                                        )}
+                                        {(typeof item.aprBreakdown.breakdown.rewards === 'number' && item.aprBreakdown.breakdown.rewards > 0) && (
+                                          <div className="flex justify-between">
+                                            <span>Rewards:</span>
+                                            <span className="text-yellow-400">{item.aprBreakdown.breakdown.rewards.toFixed(2)}%</span>
+                                          </div>
+                                        )}
+                                        {(typeof item.aprBreakdown.breakdown.subPoolRewards === 'number' && item.aprBreakdown.breakdown.subPoolRewards > 0) && (
+                                          <div className="flex justify-between">
+                                            <span>SubPool Rewards:</span>
+                                            <span className="text-blue-400">{item.aprBreakdown.breakdown.subPoolRewards.toFixed(2)}%</span>
+                                          </div>
+                                        )}
+                                      </>
                                     )}
                                     <div className="border-t border-gray-600 pt-1 mt-1">
                                       <div className="flex justify-between font-semibold">
