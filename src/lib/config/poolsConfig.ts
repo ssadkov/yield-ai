@@ -305,6 +305,35 @@ export const poolSources: PoolSource[] = [
         };
       });
     }
+  },
+  // Earnium pools API
+  {
+    name: 'Earnium Pools API',
+    url: '/api/protocols/earnium/pools',
+    enabled: true,
+    transform: (data: any) => {
+      // Transform Earnium pools data to InvestmentData format
+      const pools = data.data || [];
+      
+      return pools.map((pool: any) => {
+        return {
+          asset: pool.asset || 'Unknown',
+          provider: pool.provider || 'Earnium',
+          totalAPY: pool.totalAPY || 0,
+          depositApy: pool.depositApy || 0,
+          borrowAPY: pool.borrowAPY || 0,
+          token: pool.token || '',
+          protocol: pool.protocol || 'Earnium',
+          poolType: pool.poolType || 'Staking',
+          tvlUSD: pool.tvlUSD || 0,
+          dailyVolumeUSD: pool.dailyVolumeUSD || 0,
+          // Additional Earnium-specific data
+          poolId: pool.poolId,
+          poolAddress: pool.poolAddress,
+          description: pool.description
+        };
+      });
+    }
   }
 ];
 

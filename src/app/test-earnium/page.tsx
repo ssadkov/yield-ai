@@ -17,6 +17,10 @@ export default function TestEarniumPage() {
   const [claiming, setClaiming] = useState(false);
   const [poolBalances, setPoolBalances] = useState<Record<number, any[]>>({});
   const [balancesLoading, setBalancesLoading] = useState<Record<number, boolean>>({});
+  const [pools, setPools] = useState<any[]>([]);
+  const [poolsLoading, setPoolsLoading] = useState(false);
+  const [poolsError, setPoolsError] = useState<string | null>(null);
+  const [poolsMeta, setPoolsMeta] = useState<any>(null);
 
   const loadPositions = async () => {
     if (!account?.address) return;
@@ -75,6 +79,23 @@ export default function TestEarniumPage() {
     }
   };
 
+  const loadPools = async () => {
+    setPoolsLoading(true);
+    setPoolsError(null);
+    try {
+      const response = await fetch('/api/protocols/earnium/pools');
+      if (!response.ok) throw new Error(`API returned ${response.status}`);
+      const data = await response.json();
+      setPools(data.data || []);
+      setPoolsMeta(data.meta || null);
+    } catch (e: any) {
+      setPoolsError(e?.message || 'Failed to load pools');
+      setPools([]);
+    } finally {
+      setPoolsLoading(false);
+    }
+  };
+
   const hasClaimableRewards = Array.isArray(rewards) && rewards.some((pool: any) =>
     Array.isArray(pool.rewards) && pool.rewards.some((r: any) => Number(r.amountRaw || 0) > 0)
   );
@@ -117,6 +138,154 @@ export default function TestEarniumPage() {
       </div>
 
       {/* Positions block removed as requested */}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Pools</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Button onClick={loadPools} disabled={poolsLoading}>
+                {poolsLoading ? 'Loading...' : 'Load Pools'}
+              </Button>
+            </div>
+            {poolsMeta && (
+              <div className="text-sm text-muted-foreground">
+                <div>Loaded: {poolsMeta.totalPools} pools from {poolsMeta.pagesFetched} pages</div>
+                {poolsMeta.totalLoaded && poolsMeta.totalLoaded > poolsMeta.totalPools && (
+                  <div className="text-orange-600">
+                    Filtered: {poolsMeta.totalLoaded - poolsMeta.totalPools} pools removed ({poolsMeta.volumeFilter})
+                  </div>
+                )}
+                {poolsMeta.totalAvailable && poolsMeta.totalAvailable > poolsMeta.totalLoaded && (
+                  <div className="text-blue-600">
+                    Total available: {poolsMeta.totalAvailable} pools
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          {poolsError && <div className="text-sm text-red-600 mb-3">{poolsError}</div>}
+          {Array.isArray(pools) && pools.length > 0 ? (
+            <div className="space-y-4">
+              {pools.map((pool: any) => (
+                <div key={pool.poolId} className="border rounded p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="font-semibold text-lg">{pool.name}</div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-green-600">{pool.totalAPY}%</div>
+                      <div className="text-sm text-muted-foreground">APY</div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm mb-3">
+                    <div>
+                      <span className="text-muted-foreground">Asset:</span>{' '}
+                      <span className="font-medium">{pool.asset}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Protocol:</span>{' '}
+                      <span className="font-medium">{pool.protocol}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Pool Type:</span>{' '}
+                      <span className="font-medium">{pool.poolType}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">TVL:</span>{' '}
+                      <span className="font-medium">${pool.tvlUSD?.toLocaleString() || '0'}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Daily Volume:</span>{' '}
+                      <span className="font-medium">${pool.dailyVolumeUSD?.toLocaleString() || '0'}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Fee Tier:</span>{' '}
+                      <span className="font-medium">{pool.feeTier ? (pool.feeTier / 10000).toFixed(2) + '%' : 'N/A'}</span>
+                    </div>
+                  </div>
+                  {pool.description && (
+                    <div className="text-sm text-muted-foreground mb-2">{pool.description}</div>
+                  )}
+                  {pool.token0 && pool.token1 && (
+                    <div className="text-xs text-muted-foreground mb-2">
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-1">
+                          {pool.token0.icon_uri && (
+                            <img src={pool.token0.icon_uri} alt={pool.token0.symbol} width={16} height={16} className="rounded" />
+                          )}
+                          <span>{pool.token0.symbol}</span>
+                          <span className="text-gray-400">({pool.token0.price ? `$${pool.token0.price.toFixed(4)}` : 'No price'})</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {pool.token1.icon_uri && (
+                            <img src={pool.token1.icon_uri} alt={pool.token1.symbol} width={16} height={16} className="rounded" />
+                          )}
+                          <span>{pool.token1.symbol}</span>
+                          <span className="text-gray-400">({pool.token1.price ? `$${pool.token1.price.toFixed(4)}` : 'No price'})</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {pool.aprBreakdown && (
+                    <div className="mt-3 p-3 bg-gray-50 rounded text-xs">
+                      <div className="font-semibold mb-2">APR Breakdown:</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <span className="text-muted-foreground">Trading Fees:</span>{' '}
+                          <span className="font-medium">{pool.aprBreakdown.breakdown.tradingFees.toFixed(2)}%</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Rewards:</span>{' '}
+                          <span className="font-medium">{pool.aprBreakdown.breakdown.rewards.toFixed(2)}%</span>
+                        </div>
+                        {pool.aprBreakdown.breakdown.subPoolRewards > 0 && (
+                          <div className="col-span-2">
+                            <span className="text-muted-foreground">SubPool Rewards:</span>{' '}
+                            <span className="font-medium">{pool.aprBreakdown.breakdown.subPoolRewards.toFixed(2)}%</span>
+                          </div>
+                        )}
+                        <div className="col-span-2 pt-1 border-t">
+                          <span className="text-muted-foreground">Total APR:</span>{' '}
+                          <span className="font-bold text-green-600">{pool.aprBreakdown.totalApr.toFixed(2)}%</span>
+                        </div>
+                      </div>
+                      {pool.aprBreakdown.rewardTokens && pool.aprBreakdown.rewardTokens.length > 0 && (
+                        <div className="mt-2 pt-2 border-t">
+                          <div className="font-semibold mb-1">Reward Tokens:</div>
+                          <div className="space-y-1">
+                            {pool.aprBreakdown.rewardTokens.map((reward: any, idx: number) => (
+                              <div key={idx} className="flex items-center justify-between text-xs">
+                                <div className="flex items-center gap-1">
+                                  <span className="font-mono text-gray-600">
+                                    {reward.tokenAddress.slice(0, 6)}...{reward.tokenAddress.slice(-4)}
+                                  </span>
+                                  <span className="text-gray-500">({reward.source})</span>
+                                </div>
+                                <div className="text-right">
+                                  <span className="font-medium">{reward.apr.toFixed(2)}%</span>
+                                  {reward.amount > 0 && (
+                                    <span className="text-gray-500 ml-1">({reward.amount.toFixed(2)} tokens)</span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div className="text-xs text-muted-foreground mt-2">
+                    Pool Address: <span className="font-mono">{pool.token}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground">No pools data</div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
