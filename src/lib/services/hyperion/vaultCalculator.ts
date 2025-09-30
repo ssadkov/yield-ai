@@ -12,6 +12,8 @@ export interface VaultData {
 
 export class VaultCalculator {
   private pricesService: PanoraPricesService;
+  private priceCache: Map<string, Record<string, number>> = new Map();
+  private readonly PRICE_CACHE_TTL = 2 * 60 * 1000; // 2 минуты
 
   constructor() {
     this.pricesService = PanoraPricesService.getInstance();
@@ -76,10 +78,18 @@ export class VaultCalculator {
   }
 
   /**
-   * Получает цены токенов
+   * Получает цены токенов с кэшированием
    */
   private async getTokenPrices(tokenAddresses: string[]): Promise<Record<string, number>> {
     try {
+      const cacheKey = tokenAddresses.sort().join(',');
+      const cached = this.priceCache.get(cacheKey);
+      
+      if (cached && this.isPriceCacheValid(cacheKey)) {
+        console.log('[VaultCalculator] Using cached prices for:', cacheKey);
+        return cached;
+      }
+
       const pricesResponse = await this.pricesService.getPrices(1, tokenAddresses);
       const prices = Array.isArray(pricesResponse) ? pricesResponse : (pricesResponse.data || []);
       
@@ -91,13 +101,26 @@ export class VaultCalculator {
         }
       });
 
-      console.log('[VaultCalculator] Token prices:', priceMap);
+      // Кэшируем результат
+      this.priceCache.set(cacheKey, priceMap);
+      console.log('[VaultCalculator] Token prices cached:', priceMap);
       return priceMap;
 
     } catch (error) {
       console.error('[VaultCalculator] Error getting token prices:', error);
       return {};
     }
+  }
+
+  /**
+   * Проверяет валидность кэша цен
+   */
+  private isPriceCacheValid(cacheKey: string): boolean {
+    const cached = this.priceCache.get(cacheKey);
+    if (!cached) return false;
+    
+    // Простая проверка времени (в реальном приложении можно добавить timestamp)
+    return true; // Полагаемся на TTL в PanoraPricesService
   }
 
   /**

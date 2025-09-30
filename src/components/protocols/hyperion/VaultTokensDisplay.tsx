@@ -24,10 +24,13 @@ export function VaultTokensDisplay({ vaultTokens, walletAddress, onVaultDataChan
         return;
       }
 
-      try {
+      // Не показываем loading если у нас уже есть данные
+      if (vaultData.length === 0) {
         setLoading(true);
-        setError(null);
+      }
+      setError(null);
 
+      try {
         const calculator = new VaultCalculator();
         const vaultTokenAddresses = vaultTokens.map(token => token.address);
         
@@ -42,8 +45,11 @@ export function VaultTokensDisplay({ vaultTokens, walletAddress, onVaultDataChan
       } catch (err) {
         // console.error('[VaultTokensDisplay] Error loading vault data:', err);
         setError('Failed to load vault data');
-        setVaultData([]);
-        onVaultDataChange?.([]);
+        // Не сбрасываем данные при ошибке, если они уже есть
+        if (vaultData.length === 0) {
+          setVaultData([]);
+          onVaultDataChange?.([]);
+        }
       } finally {
         setLoading(false);
       }
@@ -56,7 +62,7 @@ export function VaultTokensDisplay({ vaultTokens, walletAddress, onVaultDataChan
     return null;
   }
 
-  if (loading) {
+  if (loading && vaultData.length === 0) {
     return (
       <div className="space-y-2">
         {vaultTokens.map((token, index) => {
@@ -137,17 +143,19 @@ export function VaultTokensDisplay({ vaultTokens, walletAddress, onVaultDataChan
           // Ищем данные для этого Vault токена
           const vaultInfo = vaultData.find(data => data.vaultTokenAddress === token.address);
           const value = vaultInfo ? vaultInfo.totalValueUSD : 0;
+          const isLoading = loading && !vaultInfo;
           
           return {
             token,
             index,
             token1,
             token2,
-            value
+            value,
+            isLoading
           };
         })
         .sort((a, b) => b.value - a.value) // Сортировка от большего к меньшему
-        .map(({ token, index, token1, token2, value }) => (
+        .map(({ token, index, token1, token2, value, isLoading }) => (
           <div key={`${token.address}-${index}`} className="flex items-center justify-between py-1">
             <div className="flex items-center gap-2">
               {token1 && token2 && (
@@ -165,7 +173,11 @@ export function VaultTokensDisplay({ vaultTokens, walletAddress, onVaultDataChan
               </div>
             </div>
             <div className="text-sm font-medium">
-              ${value.toFixed(2)}
+              {isLoading ? (
+                <span className="text-muted-foreground">Loading...</span>
+              ) : (
+                `$${value.toFixed(2)}`
+              )}
             </div>
           </div>
         ))}

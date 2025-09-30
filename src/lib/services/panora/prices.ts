@@ -8,7 +8,7 @@ interface CachedPrices {
 export class PanoraPricesService {
   private static instance: PanoraPricesService;
   private cache: Map<string, CachedPrices> = new Map();
-  private readonly CACHE_TTL = 60 * 1000; // 1 минута
+  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 минут
 
   private constructor() {}
 
