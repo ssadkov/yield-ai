@@ -1697,6 +1697,10 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                       window.open(`https://hyperion.xyz/pool/${item.token}`, '_blank');
                                     } else if (item.protocol === 'Tapp Exchange') {
                                       window.open(`https://tapp.exchange/pool`, '_blank');
+                                    } else if (item.protocol === 'Earnium') {
+                                      // Используем адрес пула из API для формирования ссылки
+                                      const poolAddress = item.token || item.poolId;
+                                      window.open(`https://app.earnium.io/explore/pool/${poolAddress}`, '_blank');
                                     }
                                   }}
                                   className="w-full"

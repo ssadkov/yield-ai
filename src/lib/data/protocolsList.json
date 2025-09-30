@@ -127,7 +127,8 @@
     "logoUrl": "/protocol_ico/earnium.png",
     "description": "Earnium is a decentralized exchange (DEX) built on the Aptos blockchain, designed to become the go-to trading hub for the next billion-dollar daily trading volume on Aptos.",
     "depositType": "external",
-    "isDepositEnabled": false,
+    "depositUrl": "https://app.earnium.io/explore/pool",
+    "isDepositEnabled": true,
     "managedType": "native"
   },
   {
