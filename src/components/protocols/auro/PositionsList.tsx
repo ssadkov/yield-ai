@@ -22,7 +22,6 @@ interface PositionsListProps {
 }
 
 export function PositionsList({ address, onPositionsValueChange, refreshKey, onPositionsCheckComplete, showManageButton=true }: PositionsListProps) {
-  console.log('Auro Finance - PositionsList component loaded with address:', address);
   const { account } = useWallet();
   const [positions, setPositions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);

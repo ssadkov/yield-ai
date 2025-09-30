@@ -68,19 +68,44 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
   const [pools, setPools] = useState<any[]>([]);
   const [icons, setIcons] = useState<{ logo: string; symbol: string }[]>([]);
   const [rewardsSummary, setRewardsSummary] = useState<{ totalUSD: number; items: { symbol: string; amount: number; usd: number }[] }>({ totalUSD: 0, items: [] });
+  const [internalRefreshKey, setInternalRefreshKey] = useState(0);
+  const [lastLoadTime, setLastLoadTime] = useState(0);
+
+  // Отладка изменений totalValue
+  useEffect(() => {
+    console.log('🔍 Earnium totalValue changed:', totalValue, 'pools:', pools.length);
+  }, [totalValue, pools.length]);
 
   useEffect(() => {
     async function load() {
+      const now = Date.now();
+      console.log('🔍 Earnium useEffect triggered:', { walletAddress, refreshKey, internalRefreshKey, timeSinceLastLoad: now - lastLoadTime });
+      
+      // Защита от слишком частых перезагрузок (менее 2 секунд)
+      if (now - lastLoadTime < 2000 && lastLoadTime > 0) {
+        console.log('🔍 Earnium: skipping load - too soon after last load');
+        return;
+      }
+      
       if (!walletAddress) {
+        console.log('🔍 Earnium: no wallet address, skipping load');
         onPositionsCheckComplete?.();
         return;
       }
+      
+      setLastLoadTime(now);
       try {
         setLoading(true);
         setError(null);
         const resp = await fetch(`/api/protocols/earnium/rewards?address=${walletAddress}`);
         const json = await resp.json();
         const data: any[] = Array.isArray(json.data) ? json.data : [];
+        
+        console.log('🔍 Earnium rewards API response:', { 
+          success: json.success, 
+          dataLength: data.length,
+          firstPool: data[0] ? { poolId: data[0].poolId, stakedRaw: data[0].stakedRaw } : null
+        });
 
         // Collect pools with stake (strict)
         const stakedPools = data.filter((p) => {
@@ -129,9 +154,24 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
         const priceAddrs = Array.from(addrSet);
         let priceMap: Record<string, number> = {};
         if (priceAddrs.length > 0) {
-          const pricesRes = await fetch(`/api/panora/tokenPrices?chainId=1&tokenAddress=${encodeURIComponent(priceAddrs.join(','))}`);
-          const pricesJson = await pricesRes.json();
-          priceMap = normalizePriceMap(pricesJson?.data || []);
+          try {
+            const pricesRes = await fetch(`/api/panora/tokenPrices?chainId=1&tokenAddress=${encodeURIComponent(priceAddrs.join(','))}`);
+            const pricesJson = await pricesRes.json();
+            priceMap = normalizePriceMap(pricesJson?.data || []);
+            console.log('🔍 Earnium price map loaded:', { 
+              priceMapKeys: Object.keys(priceMap).length,
+              priceMapValues: Object.values(priceMap).slice(0, 3),
+              panoraResponse: pricesJson?.data?.length || 0
+            });
+          } catch (e) {
+            console.warn('⚠️ Failed to load prices for Earnium, using fallback prices');
+            // Fallback prices for common tokens
+            priceMap = {
+              '0x1::aptos_coin::aptoscoin': 1.0, // APT
+              '0x357b0b74bc833e95a115ad22604854d6b0fca151cecd94111770e5d6ffc9dc2b': 1.0, // USDT
+              '0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b': 1.0, // USDC
+            };
+          }
         }
 
         // Compute USD totals
@@ -191,6 +231,26 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
         });
 
         const total = positionsUSD + rewardsUSD;
+        console.log('🔍 Earnium totals:', { 
+          positionsUSD, 
+          rewardsUSD, 
+          total, 
+          poolsCount: enrichedPools.length,
+          stakedPoolsCount: stakedPools.length,
+          poolsWithBalancesCount: poolsWithBalances.length,
+          priceMapKeys: Object.keys(priceMap).length
+        });
+        
+        // Детальная отладка для каждого пула
+        enrichedPools.forEach((pool, idx) => {
+          console.log(`🔍 Earnium pool ${idx}:`, {
+            poolId: pool.poolId,
+            poolUserUSD: pool.poolUserUSD,
+            tokensCount: pool.tokens?.length || 0,
+            rewardsCount: pool.rewards?.length || 0
+          });
+        });
+        
         setTotalValue(total);
         onPositionsValueChange?.(total);
         setPools(enrichedPools);
@@ -212,11 +272,73 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
       }
     }
     load();
-  }, [walletAddress, refreshKey]);
+  }, [walletAddress, refreshKey, internalRefreshKey]);
 
-  if (loading) return null;
-  if (error) return null;
-  if (totalValue <= 0) return null;
+  // Подписка на глобальное событие обновления позиций
+  useEffect(() => {
+    const handleRefresh = (event: CustomEvent) => {
+      console.log('🔍 Earnium - Received refreshPositions event:', event.detail);
+      
+      if (event.detail?.protocol === 'earnium') {
+        console.log('🔍 Earnium - Protocol matches earnium, refreshing data');
+        // Перезагружаем данные
+        if (walletAddress) {
+          console.log('🔍 Earnium - Triggering internal refresh for wallet:', walletAddress);
+          setInternalRefreshKey(prev => {
+            console.log('🔍 Earnium - Internal refresh key changed from', prev, 'to', prev + 1);
+            return prev + 1;
+          });
+        }
+      } else {
+        console.log('🔍 Earnium - Received refresh event for different protocol:', event.detail?.protocol);
+      }
+    };
+
+    window.addEventListener('refreshPositions', handleRefresh as unknown as EventListener);
+    return () => {
+      window.removeEventListener('refreshPositions', handleRefresh as unknown as EventListener);
+    };
+  }, [walletAddress]);
+
+  if (loading) {
+    console.log('🔍 Earnium loading...');
+    return null;
+  }
+  if (error) {
+    console.log('🔍 Earnium error:', error);
+    return null;
+  }
+  if (totalValue <= 0) {
+    console.log('🔍 Earnium totalValue <= 0:', totalValue, 'pools:', pools.length, 'loading:', loading);
+    // Не скрываем компонент если он загружается или есть пулы
+    if (loading || pools.length > 0) {
+      console.log('🔍 Earnium: keeping component visible during load or with pools');
+      return (
+        <Card className="w-full h-full flex flex-col">
+          <CardHeader className="py-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {protocol && (
+                  <div className="w-5 h-5 relative">
+                    <Image 
+                      src={protocol.logoUrl} 
+                      alt={protocol.name}
+                      width={20}
+                      height={20}
+                      className="object-contain"
+                    />
+                  </div>
+                )}
+                <CardTitle className="text-lg">Earnium</CardTitle>
+              </div>
+              <div className="text-lg">Loading...</div>
+            </div>
+          </CardHeader>
+        </Card>
+      );
+    }
+    return null;
+  }
 
   return (
     <Card className="w-full h-full flex flex-col">

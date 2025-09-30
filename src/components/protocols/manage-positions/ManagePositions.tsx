@@ -52,6 +52,9 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
       } else if (protocol.name.toLowerCase().includes('moar')) {
         apiPath = 'moar';
         endpoint = 'userPositions';
+      } else if (protocol.name.toLowerCase().includes('earnium')) {
+        apiPath = 'earnium';
+        endpoint = 'userPositions';
       }
       
       const response = await fetch(`/api/protocols/${apiPath}/${endpoint}?address=${account.address}`);
@@ -181,7 +184,7 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-7 text-gray-400 text-xs bg-background text-foreground border-border hover:bg-accent hover:text-accent-foreground"
+                        className="h-7 text-xs bg-background text-foreground border-border hover:bg-accent hover:text-accent-foreground"
                         onClick={() => window.open(protocol.url, '_blank')}
                       >
                         Visit Protocol

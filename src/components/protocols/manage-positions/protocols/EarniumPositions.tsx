@@ -120,6 +120,24 @@ export function EarniumPositionsManaging() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Подписка на глобальное событие обновления позиций
+  useEffect(() => {
+    const handleRefresh = (event: CustomEvent) => {
+      console.log('🔍 EarniumPositionsManaging - Received refreshPositions event:', event.detail);
+      
+      if (event.detail?.protocol === 'earnium') {
+        console.log('🔍 EarniumPositionsManaging - Protocol matches earnium, refreshing data');
+        // Перезагружаем данные
+        load();
+      }
+    };
+
+    window.addEventListener('refreshPositions', handleRefresh as unknown as EventListener);
+    return () => {
+      window.removeEventListener('refreshPositions', handleRefresh as unknown as EventListener);
+    };
+  }, [load]);
+
   const claimAll = async () => {
     if (!signAndSubmitTransaction) return;
     try {
