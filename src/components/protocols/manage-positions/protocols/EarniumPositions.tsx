@@ -184,7 +184,9 @@ export function EarniumPositionsManaging() {
     <TooltipProvider>
       <div className="w-full mb-6 py-2">
         <div className="space-y-4">
-          {pools.map((p, i) => {
+          {pools
+            .sort((a, b) => (b.poolUserUSD || 0) - (a.poolUserUSD || 0)) // Sort by USD value (highest first)
+            .map((p, i) => {
             // Находим соответствующий пул с APR
             const poolInfo = poolsData.find(pool => {
               const poolSymbols = pool.asset?.split('/') || [];
@@ -204,8 +206,15 @@ export function EarniumPositionsManaging() {
                     ))}
                   </div>
                   <div className="flex items-center gap-2">
-                    <Image src="/icon-crown.webp" alt="Premium Pool" width={16} height={16} className="object-contain" />
                     <div className="text-lg font-medium">{(p.pairSymbols || []).join(' / ') || 'Pool'}</div>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Image src="/icon-crown.webp" alt="Premium Pool" width={16} height={16} className="object-contain cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="bg-black text-white border-gray-700">
+                        <div className="text-xs">Premium Pool</div>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

@@ -375,7 +375,9 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
         <CardContent className="flex-1 overflow-y-auto px-3 pt-0">
           <ScrollArea className="h-full">
             {/* Пулы: токены и сумма по пулу (доля пользователя) */}
-            {pools.map((p, idx) => (
+            {pools
+              .sort((a, b) => (b.poolUserUSD || 0) - (a.poolUserUSD || 0)) // Sort by USD value (highest first)
+              .map((p, idx) => (
               <div key={idx} className="mb-2">
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2">
@@ -384,7 +386,19 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
                         <Image key={i} src={logo} alt={p.pairSymbols?.[i] || 'token'} width={18} height={18} className="rounded ring-1 ring-background object-contain" />
                       ))}
                     </div>
-                    <div className="font-medium">{(p.pairSymbols || []).join(' / ') || `Pool #${p.pool}`}</div>
+                    <div className="flex items-center gap-1">
+                      <div className="font-medium">{(p.pairSymbols || []).join(' / ') || `Pool #${p.pool}`}</div>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Image src="/icon-crown.webp" alt="Premium Pool" width={12} height={12} className="object-contain cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-black text-white border-gray-700">
+                            <div className="text-xs">Premium Pool</div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
                   </div>
                   <div className="font-medium">${(p.poolUserUSD || 0).toFixed(2)}</div>
                 </div>
