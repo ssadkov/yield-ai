@@ -167,13 +167,34 @@ export function EarniumPositionsManaging() {
                    <Image key={idx} src={logo} alt={p.pairSymbols?.[idx] || 'token'} width={30} height={30} className="rounded ring-1 ring-background object-contain" />
                  ))}
                </div>
-               <div className="text-lg font-medium">{(p.pairSymbols || []).join(' / ') || 'Pool'}</div>
+               <div className="flex items-center gap-2">
+                 <Image src="/icon-crown.webp" alt="Premium Pool" width={16} height={16} className="object-contain" />
+                 <div className="text-lg font-medium">{(p.pairSymbols || []).join(' / ') || 'Pool'}</div>
+               </div>
             </div>
             <div className="text-lg font-bold">${(p.poolUserUSD || 0).toFixed(2)}</div>
           </div>
         ))}
 
 
+      </div>
+
+      {/* Premium pools info message */}
+      <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="flex items-start gap-2">
+          <span className="text-blue-600 text-lg">ℹ️</span>
+          <div className="text-sm text-blue-800">
+            In this version of Yield AI, only premium pools are displayed. You can view other pool types in{' '}
+            <a 
+              href="https://app.earnium.io?ref=OXQxIs" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-800 underline font-medium"
+            >
+              Earnium
+            </a>
+          </div>
+        </div>
       </div>
 
       {/* Desktop layout - Total Assets */}
