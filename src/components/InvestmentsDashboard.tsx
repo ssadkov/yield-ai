@@ -556,18 +556,35 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
               return pools.map((pool: any) => {
                 console.log('📈 Earnium pool:', pool.asset, 'APR:', pool.totalAPY);
                 
+                // Helper function to find token by address in tokenList.json
+                const findTokenByAddress = (address: string) => {
+                  if (!address) return null;
+                  const tokens = require('@/lib/data/tokenList.json').data?.data || [];
+                  const found = tokens.find((t: any) => {
+                    const fa = t.faAddress ? t.faAddress.toLowerCase() : null;
+                    const coin = t.tokenAddress ? t.tokenAddress.toLowerCase() : null;
+                    const addr = address.toLowerCase();
+                    return fa === addr || coin === addr;
+                  });
+                  return found;
+                };
+
                 // Create token info objects for DEX display
+                // Try to find token by address first, then fallback to Earnium data
+                const token0FromList = pool.token0?.address ? findTokenByAddress(pool.token0.address) : null;
+                const token1FromList = pool.token1?.address ? findTokenByAddress(pool.token1.address) : null;
+                
                 const token1Info = {
                   symbol: pool.token0?.symbol || 'Unknown',
                   name: pool.token0?.name || 'Unknown',
-                  logoUrl: pool.token0?.icon_uri || undefined,
+                  logoUrl: token0FromList?.logoUrl || pool.token0?.icon_uri || undefined,
                   decimals: pool.token0?.decimals || 8
                 };
                 
                 const token2Info = {
                   symbol: pool.token1?.symbol || 'Unknown',
                   name: pool.token1?.name || 'Unknown',
-                  logoUrl: pool.token1?.icon_uri || undefined,
+                  logoUrl: token1FromList?.logoUrl || pool.token1?.icon_uri || undefined,
                   decimals: pool.token1?.decimals || 8
                 };
                 
@@ -1447,13 +1464,13 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 				</TableHead>
                   <TableHead>
                     <Tooltip>
-                      <TooltipTrigger>Supply</TooltipTrigger>
+                      <TooltipTrigger>Supply APR</TooltipTrigger>
                       <TooltipContent>APR - Annual % yield from supply</TooltipContent>
                     </Tooltip>
                   </TableHead>
                   <TableHead>
                     <Tooltip>
-                      <TooltipTrigger>Borrow</TooltipTrigger>
+                      <TooltipTrigger>Borrow APR</TooltipTrigger>
                       <TooltipContent>APR - Annual % cost or reward from borrowing</TooltipContent>
                     </Tooltip>
                   </TableHead>
@@ -1639,7 +1656,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                       </div>
                                     )}
                                     {/* Earnium DEX specific breakdown */}
-                                    {item.aprBreakdown && (
+                                    {item.aprBreakdown && item.aprBreakdown.breakdown && (
                                       <>
                                         {(typeof item.aprBreakdown.breakdown.tradingFees === 'number' && item.aprBreakdown.breakdown.tradingFees > 0) && (
                                           <div className="flex justify-between">

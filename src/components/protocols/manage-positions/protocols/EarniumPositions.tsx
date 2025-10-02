@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import tokenList from "@/lib/data/tokenList.json";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
 
 function findToken(address: string) {
   const addr = address?.toLowerCase();
@@ -45,12 +46,25 @@ export function EarniumPositionsManaging() {
   const [pools, setPools] = useState<any[]>([]);
   const [rewardsUSD, setRewardsUSD] = useState(0);
   const [claiming, setClaiming] = useState(false);
+  const [poolsData, setPoolsData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
     if (!account?.address) return;
-    const resp = await fetch(`/api/protocols/earnium/rewards?address=${account.address}`);
-    const json = await resp.json();
-    const data: any[] = Array.isArray(json.data) ? json.data : [];
+    
+    try {
+      setLoading(true);
+      
+      // Загружаем данные о наградах
+      const resp = await fetch(`/api/protocols/earnium/rewards?address=${account.address}`);
+      const json = await resp.json();
+      const data: any[] = Array.isArray(json.data) ? json.data : [];
+      
+      // Загружаем данные о пулах с APR
+      const poolsResp = await fetch('/api/protocols/earnium/pools');
+      const poolsJson = await poolsResp.json();
+      const poolsData: any[] = Array.isArray(poolsJson.data) ? poolsJson.data : [];
+      setPoolsData(poolsData);
 
     const stakedPools = data.filter((p) => { try { return BigInt(p?.stakedRaw ?? '0') > BigInt(0); } catch { return false; } });
     const poolsWithBalances: any[] = [];
@@ -116,6 +130,12 @@ export function EarniumPositionsManaging() {
     });
     setPools(enriched);
     setRewardsUSD(totalRewards);
+    
+    } catch (error) {
+      console.error('Error loading Earnium data:', error);
+    } finally {
+      setLoading(false);
+    }
   }, [account?.address]);
 
   useEffect(() => { load(); }, [load]);
@@ -154,27 +174,88 @@ export function EarniumPositionsManaging() {
     }
   };
 
+  if (loading) {
+    return <div className="text-center py-4">Loading Earnium positions...</div>;
+  }
+
   if (!account?.address || (pools.length === 0 && rewardsUSD === 0)) return null;
 
   return (
-    <div className="w-full mb-6 py-2">
-      <div className="space-y-4">
-        {pools.map((p, i) => (
-          <div key={i} className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-                             <div className="flex -space-x-2">
-                 {(p.pairIcons || []).map((logo: string, idx: number) => (
-                   <Image key={idx} src={logo} alt={p.pairSymbols?.[idx] || 'token'} width={30} height={30} className="rounded ring-1 ring-background object-contain" />
-                 ))}
-               </div>
-               <div className="flex items-center gap-2">
-                 <Image src="/icon-crown.webp" alt="Premium Pool" width={16} height={16} className="object-contain" />
-                 <div className="text-lg font-medium">{(p.pairSymbols || []).join(' / ') || 'Pool'}</div>
-               </div>
-            </div>
-            <div className="text-lg font-bold">${(p.poolUserUSD || 0).toFixed(2)}</div>
-          </div>
-        ))}
+    <TooltipProvider>
+      <div className="w-full mb-6 py-2">
+        <div className="space-y-4">
+          {pools.map((p, i) => {
+            // Находим соответствующий пул с APR
+            const poolInfo = poolsData.find(pool => {
+              const poolSymbols = pool.asset?.split('/') || [];
+              const positionSymbols = p.pairSymbols || [];
+              return poolSymbols.length === positionSymbols.length && 
+                     poolSymbols.every((symbol: string) => positionSymbols.includes(symbol));
+            });
+            
+            const apr = poolInfo?.totalAPY || 0;
+            
+            return (
+              <div key={i} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex -space-x-2">
+                    {(p.pairIcons || []).map((logo: string, idx: number) => (
+                      <Image key={idx} src={logo} alt={p.pairSymbols?.[idx] || 'token'} width={30} height={30} className="rounded ring-1 ring-background object-contain" />
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Image src="/icon-crown.webp" alt="Premium Pool" width={16} height={16} className="object-contain" />
+                    <div className="text-lg font-medium">{(p.pairSymbols || []).join(' / ') || 'Pool'}</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {apr > 0 && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs font-normal px-2 py-0.5 h-5 cursor-help">
+                          APR: {apr.toFixed(2)}%
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
+                        <div className="space-y-1">
+                          <div className="text-xs font-semibold mb-1">APR Breakdown:</div>
+                          {poolInfo?.aprBreakdown?.breakdown && (
+                            <>
+                              {(typeof poolInfo.aprBreakdown.breakdown.tradingFees === 'number' && poolInfo.aprBreakdown.breakdown.tradingFees > 0) && (
+                                <div className="flex justify-between">
+                                  <span className="text-xs">Trading Fees:</span>
+                                  <span className="text-xs text-green-400">{poolInfo.aprBreakdown.breakdown.tradingFees.toFixed(2)}%</span>
+                                </div>
+                              )}
+                              {(typeof poolInfo.aprBreakdown.breakdown.rewards === 'number' && poolInfo.aprBreakdown.breakdown.rewards > 0) && (
+                                <div className="flex justify-between">
+                                  <span className="text-xs">Rewards:</span>
+                                  <span className="text-xs text-yellow-400">{poolInfo.aprBreakdown.breakdown.rewards.toFixed(2)}%</span>
+                                </div>
+                              )}
+                              {(typeof poolInfo.aprBreakdown.breakdown.subPoolRewards === 'number' && poolInfo.aprBreakdown.breakdown.subPoolRewards > 0) && (
+                                <div className="flex justify-between">
+                                  <span className="text-xs">SubPool Rewards:</span>
+                                  <span className="text-xs text-blue-400">{poolInfo.aprBreakdown.breakdown.subPoolRewards.toFixed(2)}%</span>
+                                </div>
+                              )}
+                            </>
+                          )}
+                          <div className="border-t border-gray-600 pt-1 mt-1">
+                            <div className="flex justify-between font-semibold">
+                              <span className="text-xs">Total:</span>
+                              <span className="text-xs text-white">{apr.toFixed(2)}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                  <div className="text-lg font-bold">${(p.poolUserUSD || 0).toFixed(2)}</div>
+                </div>
+              </div>
+            );
+          })}
 
 
       </div>
@@ -201,7 +282,7 @@ export function EarniumPositionsManaging() {
       <div className="hidden md:flex items-center justify-between pt-6 pb-6">
         <span className="text-xl">Total assets in Earnium:</span>
         <div className="text-right">
-          <span className="text-xl text-primary font-bold">${pools.reduce((sum, p) => sum + (p.poolUserUSD || 0), 0).toFixed(2)}</span>
+          <span className="text-xl text-primary font-bold">${(pools.reduce((sum, p) => sum + (p.poolUserUSD || 0), 0) + rewardsUSD).toFixed(2)}</span>
           {rewardsUSD > 0 && (
             <div className="text-sm text-muted-foreground mt-1 flex flex-col items-end gap-1">
               <TooltipProvider>
@@ -245,7 +326,7 @@ export function EarniumPositionsManaging() {
       <div className="md:hidden pt-6 pb-6 space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-lg">Total assets in Earnium:</span>
-          <span className="text-lg text-primary font-bold">${pools.reduce((sum, p) => sum + (p.poolUserUSD || 0), 0).toFixed(2)}</span>
+          <span className="text-lg text-primary font-bold">${(pools.reduce((sum, p) => sum + (p.poolUserUSD || 0), 0) + rewardsUSD).toFixed(2)}</span>
         </div>
         {rewardsUSD > 0 && (
           <div className="space-y-2">
@@ -281,7 +362,8 @@ export function EarniumPositionsManaging() {
             </div>
           </div>
         )}
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }
 

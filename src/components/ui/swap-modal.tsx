@@ -590,20 +590,20 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
             <div className="flex flex-col items-end gap-2">
               <div className="flex items-center gap-2">
                 <Button
-                  onClick={onClose}
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 p-0"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-                <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setShowSlippage(!showSlippage)}
                   className="h-8 w-8 p-0"
                 >
                   <Settings className="h-4 w-4" />
+                </Button>
+                <Button
+                  onClick={onClose}
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 p-0"
+                >
+                  <X className="h-4 w-4" />
                 </Button>
               </div>
             </div>
