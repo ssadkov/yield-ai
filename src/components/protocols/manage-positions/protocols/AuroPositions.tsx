@@ -11,6 +11,7 @@ import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import { useClaimRewards } from '@/lib/hooks/useClaimRewards';
 import { PanoraPricesService } from "@/lib/services/panora/prices";
 import { TokenPrice } from "@/lib/types/panora";
+import { createDualAddressPriceMap } from "@/lib/utils/addressNormalization";
 import tokenList from "@/lib/data/tokenList.json";
 
 interface AuroPositionsProps {
@@ -231,18 +232,12 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
       try {
         const response = await pricesService.getPrices(1, addressesArray);
         if (response.data) {
-          const prices: Record<string, string> = {};
-          response.data.forEach((price: TokenPrice) => {
-            if (price.tokenAddress) {
-              prices[price.tokenAddress] = price.usdPrice;
-            }
-            if (price.faAddress) {
-              prices[price.faAddress] = price.usdPrice;
-            }
-          });
+          // Use utility function to create price map with both address versions
+          const prices = createDualAddressPriceMap(response.data);
           setTokenPrices(prices);
         }
       } catch (error) {
+        console.error('Failed to fetch token prices:', error);
       }
     };
 

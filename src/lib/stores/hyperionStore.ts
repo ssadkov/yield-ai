@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
+import { normalizeAddress, findTokenByAddress } from '@/lib/utils/addressNormalization';
 
 // Types for Hyperion data
 export interface HyperionPosition {
@@ -288,12 +289,17 @@ export const useHyperionStore = create<HyperionState>()(
                 const priceData = await pricesService.getPrices(1, [cleanAddress]);
                 
                 if (priceData && priceData.data && Array.isArray(priceData.data)) {
-                  const token = priceData.data.find((t: any) => 
-                    t.tokenAddress === cleanAddress || t.faAddress === cleanAddress
-                  );
+                  // Use utility function to find token by address (handles normalization)
+                  const token = findTokenByAddress(priceData.data, cleanAddress);
                   
                   if (token && token.usdPrice) {
+                    // Save price under original address
                     prices[address] = token.usdPrice;
+                    // Also save under normalized version
+                    const normalizedAddress = normalizeAddress(address);
+                    if (normalizedAddress !== address) {
+                      prices[normalizedAddress] = token.usdPrice;
+                    }
                     console.log('[HyperionStore] Added price for', address, ':', token.usdPrice);
                   }
                 }

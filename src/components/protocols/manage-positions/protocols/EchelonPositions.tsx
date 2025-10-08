@@ -21,6 +21,7 @@ import { useClaimRewards } from "@/lib/hooks/useClaimRewards";
 import { ClaimAllRewardsEchelonModal } from "@/components/ui/claim-all-rewards-echelon-modal";
 import { DepositModal } from "@/components/ui/deposit-modal";
 import { ProtocolKey } from "@/lib/transactions/types";
+import { createDualAddressPriceMap } from "@/lib/utils/addressNormalization";
 
 interface Position {
   coin: string;
@@ -319,18 +320,14 @@ export function EchelonPositions() {
         const response = await pricesService.getPrices(1, addresses);
         
         if (response.data) {
-          const prices: Record<string, string> = {};
-          response.data.forEach((price: TokenPrice) => {
-            if (price.tokenAddress) {
-              prices[price.tokenAddress] = price.usdPrice;
-            }
-            if (price.faAddress) {
-              prices[price.faAddress] = price.usdPrice;
-            }
-          });
+          // Use utility function to create price map with both address versions
+          const prices = createDualAddressPriceMap(response.data);
+          
+          console.log('Token prices saved:', Object.keys(prices).length, 'entries');
           setTokenPrices(prices);
         }
       } catch (error) {
+        console.error('Failed to fetch token prices:', error);
       }
     }, 1000); // Дебаунсинг 1 секунда
 

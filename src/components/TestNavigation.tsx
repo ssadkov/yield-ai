@@ -52,6 +52,14 @@ const testPages = [
     color: 'bg-cyan-500'
   },
   {
+    name: 'Test Panora Prices',
+    description: 'Test Panora API price fetching with address normalization',
+    path: '/test-panora-prices',
+    icon: Coins,
+    badge: 'Debug',
+    color: 'bg-amber-500'
+  },
+  {
     name: 'Test Hyperion',
     description: 'Test Hyperion pools integration',
     path: '/test-hyperion',

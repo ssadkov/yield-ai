@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
+import { createDualAddressPriceMap } from '@/lib/utils/addressNormalization';
 
 // Types for Auro data
 export interface AuroPosition {
@@ -333,18 +334,10 @@ export const useAuroStore = create<AuroState>()(
             console.log('[AuroStore] Tokens array to process:', tokensArray);
             
             if (tokensArray.length > 0) {
-              tokensArray.forEach((token: any) => {
-                console.log('[AuroStore] Processing token:', token);
-                
-                // Try different address fields
-                const address = token.tokenAddress || token.faAddress;
-                const price = token.usdPrice;
-                
-                if (address && price) {
-                  prices[address] = price;
-                  console.log('[AuroStore] Added price for', address, ':', price);
-                }
-              });
+              // Use utility function to create price map with both address versions
+              const newPrices = createDualAddressPriceMap(tokensArray);
+              Object.assign(prices, newPrices);
+              console.log('[AuroStore] Added prices for', Object.keys(newPrices).length / 2, 'tokens');
             }
             
             console.log('[AuroStore] Final prices object:', prices);
