@@ -13,6 +13,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { PanoraPricesService } from "@/lib/services/panora/prices";
 import { TokenPrice } from "@/lib/types/panora";
 import { createDualAddressPriceMap } from "@/lib/utils/addressNormalization";
+import { formatNumber, formatCurrency } from "@/lib/utils/numberFormat";
 import { useWithdraw } from "@/lib/hooks/useWithdraw";
 import { WithdrawModal } from "@/components/ui/withdraw-modal";
 import { useDeposit } from "@/lib/hooks/useDeposit";
@@ -600,7 +601,7 @@ export function AavePositions() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pt-4 sm:pt-6 pb-4 sm:pb-6 gap-2">
         <span className="text-lg sm:text-xl">Total assets in Aave:</span>
         <div className="text-right">
-          <span className="text-lg sm:text-xl text-primary font-bold">${totalValue.toFixed(2)}</span>
+          <span className="text-lg sm:text-xl text-primary font-bold">{formatCurrency(totalValue, 2)}</span>
         </div>
       </div>
 

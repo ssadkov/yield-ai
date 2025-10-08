@@ -2,6 +2,7 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { formatNumber, formatCurrency } from "@/lib/utils/numberFormat";
 
 interface AavePositionProps {
   position: {
@@ -28,7 +29,7 @@ export function PositionCard({ position }: AavePositionProps) {
   const balance = isSupply ? position.deposit_amount.toString() : position.borrow_amount.toString();
   const value = isSupply ? position.deposit_value_usd.toString() : position.borrow_value_usd.toString();
   
-  const formattedBalance = parseFloat(balance).toFixed(4);
+  const formattedBalance = formatNumber(parseFloat(balance), 4);
   const numericValue = parseFloat(value);
   
   return (
@@ -58,7 +59,7 @@ export function PositionCard({ position }: AavePositionProps) {
           </div>
         </div>
         <div className="text-right flex flex-col">
-          <div className="text-base font-medium">${numericValue.toFixed(2)}</div>
+          <div className="text-base font-medium">{formatCurrency(numericValue, 2)}</div>
         </div>
       </CardHeader>
     </Card>

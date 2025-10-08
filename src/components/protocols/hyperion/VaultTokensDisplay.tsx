@@ -3,6 +3,7 @@ import { Token } from '@/lib/types/token';
 import { getVaultTokenSymbol, getVaultTokenMapping } from '@/lib/services/hyperion/vaultTokens';
 import { VaultCalculator, VaultData } from '@/lib/services/hyperion/vaultCalculator';
 import { Avatar } from '@/components/ui/avatar';
+import { formatCurrency } from '@/lib/utils/numberFormat';
 
 interface VaultTokensDisplayProps {
   vaultTokens: Token[];
@@ -176,7 +177,7 @@ export function VaultTokensDisplay({ vaultTokens, walletAddress, onVaultDataChan
               {isLoading ? (
                 <span className="text-muted-foreground">Loading...</span>
               ) : (
-                `$${value.toFixed(2)}`
+                formatCurrency(value, 2)
               )}
             </div>
           </div>

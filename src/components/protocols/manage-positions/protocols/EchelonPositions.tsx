@@ -23,6 +23,7 @@ import { DepositModal } from "@/components/ui/deposit-modal";
 import { ProtocolKey } from "@/lib/transactions/types";
 import { createDualAddressPriceMap } from "@/lib/utils/addressNormalization";
 import { TokenInfoService } from "@/lib/services/tokenInfoService";
+import { formatNumber, formatCurrency } from "@/lib/utils/numberFormat";
 
 interface Position {
   coin: string;
@@ -321,7 +322,7 @@ export function EchelonPositions() {
       try {
         // First try Panora API
         const response = await pricesService.getPrices(1, addresses);
-        let prices = {};
+        let prices: Record<string, string> = {};
         if (response.data) {
           prices = createDualAddressPriceMap(response.data);
           console.log('Token prices saved from Panora:', Object.keys(prices).length, 'entries');
@@ -833,7 +834,7 @@ export function EchelonPositions() {
           const rawAmount = typeof position.amount === 'number' ? position.amount : parseFloat(position.amount);
           const amount = !isNaN(rawAmount) && tokenInfo?.decimals ? rawAmount / 10 ** tokenInfo.decimals : 0;
           const price = getTokenPrice(position.coin);
-          const value = price ? (amount * parseFloat(price)).toFixed(2) : 'N/A';
+          const value = price ? formatCurrency(amount * parseFloat(price), 2) : 'N/A';
           const apy = getApyForPosition(position);
           const isBorrow = position.type === 'borrow';
           
@@ -875,7 +876,7 @@ export function EchelonPositions() {
                       </Badge>
                     </div>
                     <div className="text-base text-muted-foreground mt-0.5">
-                      ${price ? parseFloat(price).toFixed(2) : 'N/A'}
+                      {price ? formatCurrency(parseFloat(price), 2) : 'N/A'}
                     </div>
                   </div>
                 </div>
@@ -892,7 +893,7 @@ export function EchelonPositions() {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span className="cursor-help">
-                                APR: {(apy * 100).toFixed(2)}%
+                                APR: {formatNumber(apy * 100, 2)}%
                               </span>
                             </TooltipTrigger>
                             <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
@@ -901,25 +902,25 @@ export function EchelonPositions() {
                                 {!isBorrow && apyData[position.coin]?.lendingApr > 0 && (
                                   <div className="flex justify-between">
                                     <span>Lending APR:</span>
-                                    <span className="text-green-400">{apyData[position.coin].lendingApr.toFixed(2)}%</span>
+                                    <span className="text-green-400">{formatNumber(apyData[position.coin].lendingApr, 2)}%</span>
                                   </div>
                                 )}
                                 {!isBorrow && apyData[position.coin]?.stakingAprOnly > 0 && (
                                   <div className="flex justify-between">
                                     <span>Staking APR:</span>
-                                    <span className="text-blue-400">{apyData[position.coin].stakingAprOnly.toFixed(2)}%</span>
+                                    <span className="text-blue-400">{formatNumber(apyData[position.coin].stakingAprOnly, 2)}%</span>
                                   </div>
                                 )}
                                 {!isBorrow && apyData[position.coin]?.supplyRewardsApr > 0 && (
                                   <div className="flex justify-between">
                                     <span>Rewards APR:</span>
-                                    <span className="text-yellow-400">{apyData[position.coin].supplyRewardsApr.toFixed(2)}%</span>
+                                    <span className="text-yellow-400">{formatNumber(apyData[position.coin].supplyRewardsApr, 2)}%</span>
                                   </div>
                                 )}
                                 <div className="border-t border-gray-600 pt-1 mt-1">
                                   <div className="flex justify-between font-semibold">
                                     <span>Total:</span>
-                                    <span className="text-white">{(apy * 100).toFixed(2)}%</span>
+                                    <span className="text-white">{formatNumber(apy * 100, 2)}%</span>
                                   </div>
                                 </div>
                                 {/* LTV Information */}
@@ -929,24 +930,24 @@ export function EchelonPositions() {
                                     <div className="space-y-1">
                                       <div className="flex justify-between">
                                         <span>LTV:</span>
-                                        <span className="text-cyan-400">{(apyData[position.coin].ltv * 100).toFixed(0)}%</span>
+                                        <span className="text-cyan-400">{formatNumber(apyData[position.coin].ltv * 100, 0)}%</span>
                                       </div>
                                       {apyData[position.coin].lt && apyData[position.coin].lt > 0 && (
                                         <div className="flex justify-between">
                                           <span>Liquidation Threshold:</span>
-                                          <span className="text-orange-400">{(apyData[position.coin].lt * 100).toFixed(0)}%</span>
+                                          <span className="text-orange-400">{formatNumber(apyData[position.coin].lt * 100, 0)}%</span>
                                         </div>
                                       )}
                                       {apyData[position.coin].emodeLtv && apyData[position.coin].emodeLtv > 0 && (
                                         <div className="flex justify-between">
                                           <span>E-Mode LTV:</span>
-                                          <span className="text-purple-400">{(apyData[position.coin].emodeLtv * 100).toFixed(0)}%</span>
+                                          <span className="text-purple-400">{formatNumber(apyData[position.coin].emodeLtv * 100, 0)}%</span>
                                         </div>
                                       )}
                                       {apyData[position.coin].emodeLt && apyData[position.coin].emodeLt > 0 && (
                                         <div className="flex justify-between">
                                           <span>E-Mode LT:</span>
-                                          <span className="text-pink-400">{(apyData[position.coin].emodeLt * 100).toFixed(0)}%</span>
+                                          <span className="text-pink-400">{formatNumber(apyData[position.coin].emodeLt * 100, 0)}%</span>
                                         </div>
                                       )}
                                     </div>
@@ -960,9 +961,9 @@ export function EchelonPositions() {
                         'APR: N/A'
                       )}
                     </Badge>
-                    <div className="text-lg font-bold">${value}</div>
+                    <div className="text-lg font-bold">{value}</div>
                   </div>
-                  <div className="text-base text-muted-foreground font-semibold">{amount.toFixed(4)}</div>
+                  <div className="text-base text-muted-foreground font-semibold">{formatNumber(amount, 4)}</div>
                   <div className="flex flex-col gap-1 mt-2">
                     {!isBorrow && (
                       <div className="flex gap-2">
@@ -1025,13 +1026,13 @@ export function EchelonPositions() {
                         </Badge>
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        ${price ? parseFloat(price).toFixed(2) : 'N/A'}
+                        {price ? formatCurrency(parseFloat(price), 2) : 'N/A'}
                       </div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-lg font-bold">${value}</div>
-                    <div className="text-sm text-muted-foreground">{amount.toFixed(4)}</div>
+                    <div className="text-lg font-bold">{value}</div>
+                    <div className="text-sm text-muted-foreground">{formatNumber(amount, 4)}</div>
                   </div>
                 </div>
 
@@ -1048,7 +1049,7 @@ export function EchelonPositions() {
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <span className="cursor-help">
-                              APR: {(apy * 100).toFixed(2)}%
+                              APR: {formatNumber(apy * 100, 2)}%
                             </span>
                           </TooltipTrigger>
                           <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
@@ -1057,25 +1058,25 @@ export function EchelonPositions() {
                               {!isBorrow && apyData[position.coin]?.lendingApr > 0 && (
                                 <div className="flex justify-between">
                                   <span>Lending APR:</span>
-                                  <span className="text-green-400">{apyData[position.coin].lendingApr.toFixed(2)}%</span>
+                                  <span className="text-green-400">{formatNumber(apyData[position.coin].lendingApr, 2)}%</span>
                                 </div>
                               )}
                               {!isBorrow && apyData[position.coin]?.stakingAprOnly > 0 && (
                                 <div className="flex justify-between">
                                   <span>Staking APR:</span>
-                                  <span className="text-blue-400">{apyData[position.coin].stakingAprOnly.toFixed(2)}%</span>
+                                  <span className="text-blue-400">{formatNumber(apyData[position.coin].stakingAprOnly, 2)}%</span>
                                 </div>
                               )}
                               {!isBorrow && apyData[position.coin]?.supplyRewardsApr > 0 && (
                                 <div className="flex justify-between">
                                   <span>Rewards APR:</span>
-                                  <span className="text-yellow-400">{apyData[position.coin].supplyRewardsApr.toFixed(2)}%</span>
+                                  <span className="text-yellow-400">{formatNumber(apyData[position.coin].supplyRewardsApr, 2)}%</span>
                                 </div>
                               )}
                               <div className="border-t border-gray-600 pt-1 mt-1">
                                 <div className="flex justify-between font-semibold">
                                   <span>Total:</span>
-                                  <span className="text-white">{(apy * 100).toFixed(2)}%</span>
+                                  <span className="text-white">{formatNumber(apy * 100, 2)}%</span>
                                 </div>
                               </div>
                               {/* LTV Information */}
@@ -1085,24 +1086,24 @@ export function EchelonPositions() {
                                   <div className="space-y-1">
                                     <div className="flex justify-between">
                                       <span>LTV:</span>
-                                      <span className="text-cyan-400">{(apyData[position.coin].ltv * 100).toFixed(0)}%</span>
+                                      <span className="text-cyan-400">{formatNumber(apyData[position.coin].ltv * 100, 0)}%</span>
                                     </div>
                                     {apyData[position.coin].lt && apyData[position.coin].lt > 0 && (
                                       <div className="flex justify-between">
                                         <span>Liquidation Threshold:</span>
-                                        <span className="text-orange-400">{(apyData[position.coin].lt * 100).toFixed(0)}%</span>
+                                        <span className="text-orange-400">{formatNumber(apyData[position.coin].lt * 100, 0)}%</span>
                                       </div>
                                     )}
                                     {apyData[position.coin].emodeLtv && apyData[position.coin].emodeLtv > 0 && (
                                       <div className="flex justify-between">
                                         <span>E-Mode LTV:</span>
-                                        <span className="text-purple-400">{(apyData[position.coin].emodeLtv * 100).toFixed(0)}%</span>
+                                        <span className="text-purple-400">{formatNumber(apyData[position.coin].emodeLtv * 100, 0)}%</span>
                                       </div>
                                     )}
                                     {apyData[position.coin].emodeLt && apyData[position.coin].emodeLt > 0 && (
                                       <div className="flex justify-between">
                                         <span>E-Mode LT:</span>
-                                        <span className="text-pink-400">{(apyData[position.coin].emodeLt * 100).toFixed(0)}%</span>
+                                        <span className="text-pink-400">{formatNumber(apyData[position.coin].emodeLt * 100, 0)}%</span>
                                       </div>
                                     )}
                                   </div>
@@ -1152,14 +1153,14 @@ export function EchelonPositions() {
       <div className="flex items-center justify-between pt-6 pb-6">
         <span className="text-xl">Total assets in Echelon:</span>
         <div className="text-right">
-          <span className="text-xl text-primary font-bold">${totalValue.toFixed(2)}</span>
+          <span className="text-xl text-primary font-bold">{formatCurrency(totalValue, 2)}</span>
           {calculateRewardsValue() > 0 && (
             <div className="flex flex-col items-end gap-1">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div className="text-sm text-muted-foreground cursor-help">
-                     💰 including rewards ${calculateRewardsValue().toFixed(2)}
+                     💰 including rewards {formatCurrency(calculateRewardsValue(), 2)}
                     </div>
                   </TooltipTrigger>
                   <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
@@ -1169,15 +1170,15 @@ export function EchelonPositions() {
                         const tokenInfo = getRewardTokenInfoHelper(reward.token);
                         if (!tokenInfo) return null;
                         const price = getTokenPrice(tokenInfo.faAddress || tokenInfo.address || '');
-                        const value = price && price !== '0' ? (reward.amount * parseFloat(price)).toFixed(2) : 'N/A';
+                        const value = price && price !== '0' ? formatCurrency(reward.amount * parseFloat(price), 2) : 'N/A';
                         return (
                           <div key={idx} className="flex items-center gap-2">
                             {tokenInfo.icon_uri && (
                               <img src={tokenInfo.icon_uri} alt={tokenInfo.symbol} className="w-3 h-3 rounded-full" />
                             )}
                             <span>{tokenInfo.symbol}</span>
-                            <span>{reward.amount.toFixed(6)}</span>
-                            <span className="text-gray-300">${value}</span>
+                            <span>{formatNumber(reward.amount, 6)}</span>
+                            <span className="text-gray-300">{value}</span>
                           </div>
                         );
                       })}
@@ -1211,15 +1212,15 @@ export function EchelonPositions() {
               <div className="flex items-center gap-3">
                 <div className="text-center">
                   <div className={`text-2xl font-bold ${getHealthFactorColor(healthData.healthFactor)}`}>
-                    {healthData.healthFactor.toFixed(2)}
+                    {formatNumber(healthData.healthFactor, 2)}
                   </div>
                   <div className={`text-sm font-medium ${getHealthFactorColor(healthData.healthFactor)}`}>
                     {getHealthFactorStatus(healthData.healthFactor)}
                   </div>
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  <div>Collateral: ${healthData.accountMargin.toFixed(2)}</div>
-                  <div>Liabilities: ${healthData.totalLiabilities.toFixed(2)}</div>
+                  <div>Collateral: {formatCurrency(healthData.accountMargin, 2)}</div>
+                  <div>Liabilities: {formatCurrency(healthData.totalLiabilities, 2)}</div>
                 </div>
               </div>
             </div>

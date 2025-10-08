@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDragDrop } from "@/contexts/DragDropContext";
 import { DragData } from "@/types/dragDrop";
+import { formatNumber, formatCurrency } from "@/lib/utils/numberFormat";
 
 interface PortfolioCardProps {
   totalValue: string;
@@ -85,7 +86,7 @@ export function PortfolioCard({ totalValue, tokens, onRefresh, isRefreshing }: P
     <div>
       <div className="flex items-center justify-between mb-2">
         <span className="text-lg font-medium">Assets</span>
-        <span className="text-lg font-medium">${displayTotalValue.toFixed(2)}</span>
+        <span className="text-lg font-medium">{formatCurrency(displayTotalValue, 2)}</span>
       </div>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center space-x-2">
@@ -137,7 +138,7 @@ export function PortfolioCard({ totalValue, tokens, onRefresh, isRefreshing }: P
               Wallet
             </CardTitle>
             <div className="flex items-center gap-2">
-              <span className="text-lg">${walletTotal.toFixed(2)}</span>
+              <span className="text-lg">{formatCurrency(walletTotal, 2)}</span>
               <ChevronDown className={cn(
                 "h-5 w-5 transition-transform",
                 isExpanded('wallet') ? "transform rotate-0" : "transform -rotate-90"

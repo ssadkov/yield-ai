@@ -8,6 +8,7 @@ import { Loader2 } from "lucide-react";
 import { sdk } from "@/lib/hyperion";
 import { useToast } from "@/components/ui/use-toast";
 import { ToastAction } from "@/components/ui/toast";
+import { formatCurrency } from "@/lib/utils/numberFormat";
 
 interface PositionProps {
   position: {
@@ -147,7 +148,7 @@ export function PositionCard({ position, isManageView = false }: PositionProps) 
           </div>
         </div>
         <div className="flex flex-col items-end gap-2">
-          <div className="text-base font-medium">${parseFloat(position.value).toFixed(2)}</div>
+          <div className="text-base font-medium">{formatCurrency(parseFloat(position.value), 2)}</div>
         </div>
       </CardHeader>    
     </Card>

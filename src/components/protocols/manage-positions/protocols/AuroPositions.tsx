@@ -12,6 +12,7 @@ import { useClaimRewards } from '@/lib/hooks/useClaimRewards';
 import { PanoraPricesService } from "@/lib/services/panora/prices";
 import { TokenPrice } from "@/lib/types/panora";
 import { createDualAddressPriceMap } from "@/lib/utils/addressNormalization";
+import { formatNumber, formatCurrency } from "@/lib/utils/numberFormat";
 import tokenList from "@/lib/data/tokenList.json";
 
 interface AuroPositionsProps {
@@ -1000,12 +1001,12 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
       <div className="hidden md:flex items-center justify-between pt-6 pb-6">
         <span className="text-xl">Total assets in Auro Finance:</span>
         <div className="text-right">
-          <span className="text-xl text-primary font-bold">${totalValue.toFixed(2)}</span>
+          <span className="text-xl text-primary font-bold">{formatCurrency(totalValue, 2)}</span>
           {totalRewardsValue > 0 && (
             <div className="text-sm text-muted-foreground mt-1 flex flex-col items-end gap-1">
               <div className="flex items-center gap-1">
                 <span>💰</span>
-                <span>including rewards ${totalRewardsValue.toFixed(2)}</span>
+                <span>including rewards {formatCurrency(totalRewardsValue, 2)}</span>
               </div>
               {totalClaimableRewards > 0 && (
                 <button
@@ -1025,13 +1026,13 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
       <div className="md:hidden pt-6 pb-6 space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-lg">Total assets in Auro Finance:</span>
-          <span className="text-lg text-primary font-bold">${totalValue.toFixed(2)}</span>
+          <span className="text-lg text-primary font-bold">{formatCurrency(totalValue, 2)}</span>
         </div>
         {totalRewardsValue > 0 && (
           <div className="space-y-2">
             <div className="text-sm text-muted-foreground flex items-center gap-1">
               <span>💰</span>
-              <span>including rewards ${totalRewardsValue.toFixed(2)}</span>
+              <span>including rewards {formatCurrency(totalRewardsValue, 2)}</span>
             </div>
             {totalClaimableRewards > 0 && (
               <button

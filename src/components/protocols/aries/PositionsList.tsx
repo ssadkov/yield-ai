@@ -9,6 +9,7 @@ import Image from "next/image";
 import tokenList from "@/lib/data/tokenList.json";
 import { ManagePositionsButton } from "../ManagePositionsButton";
 import { useCollapsible } from "@/contexts/CollapsibleContext";
+import { formatNumber, formatCurrency } from "@/lib/utils/numberFormat";
 
 interface PositionsListProps {
   address?: string;
@@ -220,7 +221,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
             <CardTitle className="text-lg">Aries</CardTitle>
           </div>
           <div className="flex items-center gap-2">
-            <div className="text-lg">${totalValue.toFixed(2)}</div>
+            <div className="text-lg">{formatCurrency(totalValue, 2)}</div>
             <ChevronDown className={cn(
               "h-5 w-5 transition-transform",
               isExpanded('aries') ? "transform rotate-0" : "transform -rotate-90"
@@ -268,18 +269,18 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
                         "text-xs",
                         isBorrow ? "text-red-400" : "text-muted-foreground"
                       )}>
-                        ${parseFloat(position.assetInfo.price).toFixed(2)}
+                        {formatCurrency(parseFloat(position.assetInfo.price), 2)}
                       </div>
                     </div>
                     <div className="text-right">
                       <div className={cn(
                         "text-sm font-medium",
                         isBorrow && "text-red-500"
-                      )}>${value.toFixed(2)}</div>
+                      )}>{formatCurrency(value, 2)}</div>
                       <div className={cn(
                         "text-xs",
                         isBorrow ? "text-red-400" : "text-muted-foreground"
-                      )}>{amount.toFixed(4)}</div>
+                      )}>{formatNumber(amount, 4)}</div>
                     </div>
                   </div>
                 </div>

@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect, useMemo } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { formatNumber, formatCurrency } from "@/lib/utils/numberFormat";
 
 interface TokenItemProps {
   token: Token;
@@ -16,9 +17,9 @@ interface TokenItemProps {
 export function TokenItem({ token, stakingAprs = {} }: TokenItemProps) {
   const { startDrag, endDrag, state } = useDragDrop();
   
-  const formattedAmount = (parseFloat(token.amount) / Math.pow(10, token.decimals)).toFixed(3);
-  const formattedValue = token.value ? `$${parseFloat(token.value).toFixed(2)}` : 'N/A';
-  const formattedPrice = token.price ? `$${parseFloat(token.price).toFixed(2)}` : 'N/A';
+  const formattedAmount = formatNumber(parseFloat(token.amount) / Math.pow(10, token.decimals), 3);
+  const formattedValue = token.value ? formatCurrency(parseFloat(token.value), 2) : 'N/A';
+  const formattedPrice = token.price ? formatCurrency(parseFloat(token.price), 2) : 'N/A';
   const symbol = token.symbol || token.name || 'Unknown';
 
   // Resolve staking APR for this token (Echelon-sourced)
@@ -129,7 +130,7 @@ export function TokenItem({ token, stakingAprs = {} }: TokenItemProps) {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Badge variant="secondary" className="text-xs px-1 py-0 h-4 text-green-600 bg-green-100 border-green-200 cursor-help">
-                      {stakingAprPct.toFixed(2)}%
+                      {formatNumber(stakingAprPct, 2)}%
                     </Badge>
                   </TooltipTrigger>
                   <TooltipContent>

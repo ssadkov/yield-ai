@@ -8,6 +8,7 @@ import { ChevronDown } from "lucide-react";
 import { ManagePositionsButton } from "../ManagePositionsButton";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import { useCollapsible } from "@/contexts/CollapsibleContext";
+import { formatNumber, formatCurrency } from "@/lib/utils/numberFormat";
 import tokenList from "@/lib/data/tokenList.json";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { PanoraPricesService } from "@/lib/services/panora/prices";
@@ -393,7 +394,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
             <CardTitle className="text-lg">Auro Finance</CardTitle>
           </div>
           <div className="flex items-center gap-2">
-            <div className="text-lg">${totalValue().toFixed(2)}</div>
+            <div className="text-lg">{formatCurrency(totalValue(), 2)}</div>
             <ChevronDown className={cn(
               "h-5 w-5 transition-transform",
               isExpanded('auro') ? "transform rotate-0" : "transform -rotate-90"

@@ -9,6 +9,7 @@ import Image from "next/image";
 import tokenList from "@/lib/data/tokenList.json";
 import { ManagePositionsButton } from "../ManagePositionsButton";
 import { useCollapsible } from "@/contexts/CollapsibleContext";
+import { formatNumber, formatCurrency } from "@/lib/utils/numberFormat";
 import { PanoraPricesService } from "@/lib/services/panora/prices";
 import { TokenPrice } from "@/lib/types/panora";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -68,7 +69,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
     }
     const price = tokenPrices[cleanAddress] || '0';
     // Округляем цену до 2 знаков после запятой
-    const roundedPrice = parseFloat(price).toFixed(2);
+    const roundedPrice = formatCurrency(parseFloat(price), 2);
     return roundedPrice;
   };
 
@@ -231,7 +232,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
             <CardTitle className="text-lg">Aave</CardTitle>
           </div>
           <div className="flex items-center gap-2">
-            <div className="text-lg">${totalValue.toFixed(2)}</div>
+            <div className="text-lg">{formatCurrency(totalValue, 2)}</div>
             <ChevronDown className={cn(
               "h-5 w-5 transition-transform",
               isExpanded('aave') ? "transform rotate-0" : "transform -rotate-90"
@@ -284,9 +285,9 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
                            </div>
                          </div>
                          <div className="text-right">
-                           <div className="text-sm font-medium">${position.deposit_value_usd.toFixed(2)}</div>
+                           <div className="text-sm font-medium">{formatCurrency(position.deposit_value_usd, 2)}</div>
                            <div className="text-xs text-muted-foreground">
-                             {position.deposit_amount.toFixed(4)}
+                             {formatNumber(position.deposit_amount, 4)}
                            </div>
                          </div>
                       </div>
@@ -322,9 +323,9 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
                            </div>
                          </div>
                          <div className="text-right">
-                           <div className="text-sm font-medium">${position.borrow_value_usd.toFixed(2)}</div>
+                           <div className="text-sm font-medium">{formatCurrency(position.borrow_value_usd, 2)}</div>
                            <div className="text-xs text-muted-foreground">
-                             {position.borrow_amount.toFixed(4)}
+                             {formatNumber(position.borrow_amount, 4)}
                            </div>
                          </div>
                       </div>

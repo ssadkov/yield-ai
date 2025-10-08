@@ -15,6 +15,7 @@ import { TokenPrice } from "@/lib/types/panora";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { createDualAddressPriceMap } from "@/lib/utils/addressNormalization";
 import { TokenInfoService } from "@/lib/services/tokenInfoService";
+import { formatNumber } from "@/lib/utils/numberFormat";
 
 interface PositionsListProps {
   address?: string;
@@ -65,6 +66,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
   const pricesService = PanoraPricesService.getInstance();
 
   const walletAddress = address || account?.address?.toString();
+
   const protocol = getProtocolByName("Echelon");
 
   // Получаем цену токена из кэша
@@ -554,7 +556,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
             <CardTitle className="text-lg">Echelon</CardTitle>
           </div>
           <div className="flex items-center gap-2">
-            <div className="text-lg">${totalValue.toFixed(2)}</div>
+            <div className="text-lg">${formatNumber(totalValue, 2)}</div>
             <ChevronDown className={cn(
               "h-5 w-5 transition-transform",
               isExpanded('echelon') ? "transform rotate-0" : "transform -rotate-90"
@@ -572,7 +574,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
               const rawAmount = isBorrow ? (position.borrow ?? position.amount ?? 0) : (position.supply ?? position.amount ?? 0);
               const amount = rawAmount / (tokenInfo?.decimals ? 10 ** tokenInfo.decimals : 1e8);
               const price = getTokenPrice(position.coin);
-              const value = price ? (amount * parseFloat(price)).toFixed(2) : 'N/A';
+              const value = price ? formatNumber(amount * parseFloat(price), 2) : 'N/A';
               const apy = getApyForPosition(position);
               return (
                 <div key={`${position.coin}-${index}`} className={cn('mb-2', isBorrow && 'bg-error-muted rounded')}> 
@@ -600,13 +602,13 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
                           </span>
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          ${price ? parseFloat(price).toFixed(2) : 'N/A'}
+                          ${price ? formatNumber(parseFloat(price), 2) : 'N/A'}
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="text-sm font-medium">${value}</div>
-                      <div className="text-xs text-muted-foreground">{amount.toFixed(4)}</div>
+                      <div className="text-xs text-muted-foreground">{formatNumber(amount, 4)}</div>
                       
                     </div>
                   </div>
@@ -621,7 +623,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
                   <TooltipTrigger asChild>
                     <div className="flex items-center justify-between pt-2 border-t border-gray-200 cursor-help">
                       <span className="text-sm text-muted-foreground">💰 Total rewards:</span>
-                      <span className="text-sm font-medium">${calculateRewardsValue().toFixed(2)}</span>
+                      <span className="text-sm font-medium">${formatNumber(calculateRewardsValue(), 2)}</span>
                     </div>
                   </TooltipTrigger>
                   <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
@@ -631,14 +633,14 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
                          const tokenInfo = getRewardTokenInfoHelper(reward.token);
                          if (!tokenInfo) return null;
                          const price = getTokenPrice(tokenInfo.faAddress || tokenInfo.address || '');
-                         const value = price && price !== '0' ? (reward.amount * parseFloat(price)).toFixed(2) : 'N/A';
+                         const value = price && price !== '0' ? formatNumber(reward.amount * parseFloat(price), 2) : 'N/A';
                          return (
                            <div key={idx} className="flex items-center gap-2">
                              {tokenInfo.icon_uri && (
                                <img src={tokenInfo.icon_uri} alt={tokenInfo.symbol} className="w-3 h-3 rounded-full" />
                              )}
                              <span>{tokenInfo.symbol}</span>
-                             <span>{reward.amount.toFixed(6)}</span>
+                             <span>{formatNumber(reward.amount, 6)}</span>
                              <span className="text-gray-300">${value}</span>
                            </div>
                          );

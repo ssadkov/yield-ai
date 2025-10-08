@@ -12,6 +12,7 @@ import { useCollapsible } from "@/contexts/CollapsibleContext";
 import { Token } from "@/lib/types/token";
 import { filterHyperionVaultTokens } from "@/lib/services/hyperion/vaultTokens";
 import { VaultTokensDisplay } from "./VaultTokensDisplay";
+import { formatNumber, formatCurrency } from "@/lib/utils/numberFormat";
 
 interface PositionsListProps {
   address?: string;
@@ -171,7 +172,7 @@ export function PositionsList({ address, onPositionsValueChange, walletTokens, r
             <CardTitle className="text-lg">Hyperion</CardTitle>
           </div>
           <div className="flex items-center gap-2">
-            <div className="text-lg">${totalHyperionValue.toFixed(2)}</div>
+            <div className="text-lg">{formatCurrency(totalHyperionValue, 2)}</div>
             <ChevronDown className={cn(
               "h-5 w-5 transition-transform",
               isExpanded('hyperion') ? "transform rotate-0" : "transform -rotate-90"
@@ -210,7 +211,7 @@ export function PositionsList({ address, onPositionsValueChange, walletTokens, r
                 </div>
                 <div className="flex-2 items-right">
                   <div className="text-sm font-medium text-right">
-                    ${totalRewardsValue.toFixed(2)}
+                    {formatCurrency(totalRewardsValue, 2)}
                   </div>
                 </div>
               </div>
