@@ -142,7 +142,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
       const symbol2 = item.token2Info.symbol.toLowerCase();
       
       // Проверяем стабильные токены
-      const stableTokens = ['usdt', 'usdc', 'dai', 'busd', 'tusd', 'gusd', 'frax'];
+      const stableTokens = ['usdt', 'usdc', 'dai', 'busd', 'tusd', 'gusd', 'frax', 'usd1', 'usda'];
       const isStable1 = stableTokens.some(token => symbol1.includes(token));
       const isStable2 = stableTokens.some(token => symbol2.includes(token));
       
@@ -151,10 +151,19 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
         return true;
       }
       
-      // Ищем совпадающие символы (минимум 3 символа подряд) для других случаев
+      // Ищем совпадающие символы (минимум 3 символа подряд) для связанных токенов
+      // Например: kAPT/APT, thAPT/APT, TruAPT/APT
       for (let i = 0; i <= symbol1.length - 3; i++) {
         const substring = symbol1.substring(i, i + 3);
         if (symbol2.includes(substring)) {
+          return true;
+        }
+      }
+      
+      // Также проверяем в обратном направлении
+      for (let i = 0; i <= symbol2.length - 3; i++) {
+        const substring = symbol2.substring(i, i + 3);
+        if (symbol1.includes(substring)) {
           return true;
         }
       }
@@ -770,7 +779,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     }
     
     // Фильтруем по стабильным пулам, если включен чекбокс
-    if (showOnlyStablePools && !isStablePool(item) && item.protocol !== 'Tapp Exchange') {
+    if (showOnlyStablePools && !isStablePool(item)) {
       return false;
     }
     
