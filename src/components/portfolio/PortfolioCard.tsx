@@ -150,9 +150,21 @@ export function PortfolioCard({ totalValue, tokens, onRefresh, isRefreshing }: P
           <CardContent className="flex-1 overflow-y-auto px-3 pt-0">
             <ScrollArea className="h-full">
               <TokenList tokens={filteredTokens} />
-              {hiddenCount > 0 && (
-                <div className="text-xs text-muted-foreground py-1 text-right">
+              {hiddenCount > 0 ? (
+                <div 
+                  className="text-xs text-muted-foreground py-1 text-right cursor-pointer hover:text-foreground transition-colors"
+                  onClick={() => setHideSmallAssets(false)}
+                  title="Click to show hidden assets"
+                >
                   {hiddenCount} assets hidden
+                </div>
+              ) : !hideSmallAssets && tokens.length > 0 && (
+                <div 
+                  className="text-xs text-muted-foreground py-1 text-right cursor-pointer hover:text-foreground transition-colors"
+                  onClick={() => setHideSmallAssets(true)}
+                  title="Click to hide small assets"
+                >
+                  Hide assets {'<'}1$
                 </div>
               )}
             </ScrollArea>

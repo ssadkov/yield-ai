@@ -1,0 +1,46 @@
+[1mdiff --git a/src/lib/services/aptos/portfolio.ts b/src/lib/services/aptos/portfolio.ts[m
+[1mindex 4b15918..556fd12 100644[m
+[1m--- a/src/lib/services/aptos/portfolio.ts[m
+[1m+++ b/src/lib/services/aptos/portfolio.ts[m
+[36m@@ -24,11 +24,11 @@[m [mexport class AptosPortfolioService {[m
+ [m
+   async getPortfolio(address: string): Promise<{ tokens: PortfolioToken[] }> {[m
+     try {[m
+[31m-      console.log('Getting portfolio for address:', address);[m
+[32m+[m[32m      console.log('[AptosPortfolioService] 🔄 Getting portfolio for address:', address);[m
+       [m
+       // Получаем балансы из кошелька[m
+       const walletData = await this.walletService.getBalances(address);[m
+[31m-      console.log('Wallet data:', walletData);[m
+[32m+[m[32m      console.log('[AptosPortfolioService] 💰 Wallet balances fetched:', walletData.balances.length, 'tokens');[m
+       const balances = walletData.balances;[m
+ [m
+       if (!balances.length) {[m
+[36m@@ -38,12 +38,14 @@[m [mexport class AptosPortfolioService {[m
+ [m
+       // Собираем адреса токенов[m
+       const tokenAddresses = balances.map((balance: FungibleAssetBalance) => balance.asset_type);[m
+[31m-      console.log('Token addresses:', tokenAddresses);[m
+[32m+[m[32m      console.log('[AptosPortfolioService] 📋 Fetching prices for', tokenAddresses.length, 'tokens');[m
+ [m
+       // Получаем цены для всех токенов одним запросом[m
+       const pricesResponse = await this.pricesService.getPrices(1, tokenAddresses);[m
+[31m-      console.log('Prices response:', pricesResponse);[m
+[31m-      const prices = pricesResponse.data;[m
+[32m+[m[32m      console.log('[AptosPortfolioService] 💵 Prices fetched, response type:', Array.isArray(pricesResponse) ? 'Array' : 'Object');[m
+[32m+[m[32m      // Handle both array and object with data property[m
+[32m+[m[32m      const prices = Array.isArray(pricesResponse) ? pricesResponse : (pricesResponse.data || []);[m
+[32m+[m[32m      console.log('[AptosPortfolioService] 💵 Processed prices count:', prices.length);[m
+ [m
+       // Объединяем данные[m
+       const tokens: PortfolioToken[] = balances.map((balance: FungibleAssetBalance) => {[m
+[36m@@ -88,7 +90,8 @@[m [mexport class AptosPortfolioService {[m
+         return valueB - valueA;[m
+       });[m
+ [m
+[31m-      console.log('Final sorted tokens:', tokens);[m
+[32m+[m[32m      console.log('[AptosPortfolioService] ✅ Portfolio ready:', tokens.length, 'tokens, total value:',[m[41m [m
+[32m+[m[32m        tokens.reduce((sum, t) => sum + (parseFloat(t.value || '0')), 0).toFixed(2), 'USD');[m
+       return { tokens };[m
+     } catch (error) {[m
+       console.error('Error in getPortfolio:', error);[m
