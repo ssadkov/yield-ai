@@ -263,7 +263,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
       try {
         // First try Panora API
         const response = await pricesService.getPrices(1, addresses);
-        let prices = {};
+        let prices: Record<string, string> = {};
         if (response.data) {
           prices = createDualAddressPriceMap(response.data);
           setTokenPrices(prices);
