@@ -63,7 +63,7 @@ export function DepositModal({
   tokenOut,
   priceUSD,
 }: DepositModalProps) {
-  const { tokens } = useWalletData();
+  const { balance } = useWalletData();
   const [isLoading, setIsLoading] = useState(false);
   const { deposit } = useDeposit();
   const [isYieldExpanded, setIsYieldExpanded] = useState(false);
@@ -89,9 +89,17 @@ export function DepositModal({
   };
   
   // Находим текущий токен в кошельке по адресу
-  const currentToken = tokens.find(t => {
-    const tokenInfo = getTokenInfo(t.address);
-    return tokenInfo && (tokenInfo.tokenAddress === tokenIn.address || tokenInfo.faAddress === tokenIn.address);
+  const currentToken = balance.find(t => {
+    // Normalize addresses for comparison
+    const normalizeAddress = (addr: string) => {
+      if (!addr || !addr.startsWith('0x')) return addr;
+      return '0x' + addr.slice(2).replace(/^0+/, '') || '0x0';
+    };
+    
+    const normalizedTokenInAddress = normalizeAddress(tokenIn.address);
+    const normalizedBalanceAddress = normalizeAddress(t.asset_type);
+    
+    return normalizedBalanceAddress === normalizedTokenInAddress;
   });
   
   // Используем реальный баланс из кошелька
