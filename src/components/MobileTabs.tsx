@@ -191,6 +191,7 @@ function MobileTabsContent() {
                           key={name}
                           address={account.address.toString()}
                           onPositionsValueChange={handler}
+                          walletTokens={tokens}
                         />
                       ))}
                   </>
