@@ -177,9 +177,23 @@ export function DragDropProvider({ children }: { children: ReactNode }) {
   };
 
   const getTokenInfo = (address: string) => {
-    return (tokenList.data.data as any[]).find(token => 
-      token.tokenAddress === address || token.faAddress === address
-    );
+    const normalizeAddress = (addr: string | null | undefined): string => {
+      if (!addr) return '';
+      if (!addr.startsWith('0x')) return addr.toLowerCase();
+      const normalized = '0x' + addr.slice(2).replace(/^0+/, '');
+      return (normalized === '0x' ? '0x0' : normalized).toLowerCase();
+    };
+    
+    const normalizedAddress = normalizeAddress(address);
+    if (!normalizedAddress) return undefined;
+    
+    return (tokenList.data.data as any[]).find(token => {
+      const normalizedTokenAddress = normalizeAddress(token.tokenAddress);
+      const normalizedFaAddress = normalizeAddress(token.faAddress);
+      
+      return (normalizedTokenAddress && normalizedTokenAddress === normalizedAddress) || 
+             (normalizedFaAddress && normalizedFaAddress === normalizedAddress);
+    });
   };
 
   const handleDrop = (dragData: DragData, dropTarget: InvestmentData | 'wallet') => {

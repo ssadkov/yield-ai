@@ -64,8 +64,9 @@ export function DepositModal({
   priceUSD,
 }: DepositModalProps) {
   const { balance } = useWalletData();
+  const { tokens } = useWalletData();
   const [isLoading, setIsLoading] = useState(false);
-  const { deposit } = useDeposit();
+  const { deposit, isLoading: isDepositLoading } = useDeposit();
   const [isYieldExpanded, setIsYieldExpanded] = useState(false);
   const [isSwapModalOpen, setIsSwapModalOpen] = useState(false);
 
@@ -89,7 +90,10 @@ export function DepositModal({
   };
   
   // Находим текущий токен в кошельке по адресу
-  const currentToken = balance.find(t => {
+  const currentToken = tokens?.find(t => {
+    const tokenInfo = getTokenInfo(t.address);
+    if (!tokenInfo) return false;
+    
     // Normalize addresses for comparison
     const normalizeAddress = (addr: string) => {
       if (!addr || !addr.startsWith('0x')) return addr;
@@ -97,9 +101,11 @@ export function DepositModal({
     };
     
     const normalizedTokenInAddress = normalizeAddress(tokenIn.address);
-    const normalizedBalanceAddress = normalizeAddress(t.asset_type);
+    const normalizedTokenInfoAddress = normalizeAddress(tokenInfo.tokenAddress || '');
+    const normalizedFaAddress = normalizeAddress(tokenInfo.faAddress || '');
     
-    return normalizedBalanceAddress === normalizedTokenInAddress;
+    return normalizedTokenInfoAddress === normalizedTokenInAddress || 
+           normalizedFaAddress === normalizedTokenInAddress;
   });
   
   // Используем реальный баланс из кошелька
@@ -153,7 +159,10 @@ export function DepositModal({
   }, [isOpen, currentToken, setMax]);
 
   const handleDeposit = async () => {
+    if (isLoading || isDepositLoading) return; // Prevent double-clicking
+    
     try {
+      setIsLoading(true);
       console.log('Starting deposit with:', {
         protocolKey: protocol.key,
         tokenAddress: tokenIn.address,
@@ -169,6 +178,8 @@ export function DepositModal({
       onClose();
     } catch (error) {
       console.error('Deposit error:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -311,9 +322,9 @@ export function DepositModal({
             </Button>
             <Button
               onClick={handleDeposit}
-              disabled={!isValid || isLoading || !tokenIn.address || !protocol.key || amount === BigInt(0)}
+              disabled={!isValid || isLoading || isDepositLoading || !tokenIn.address || !protocol.key || amount === BigInt(0)}
             >
-              {isLoading ? (
+              {(isLoading || isDepositLoading) ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Processing...

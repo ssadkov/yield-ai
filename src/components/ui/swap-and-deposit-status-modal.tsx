@@ -244,6 +244,7 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, provider = 'panora'
             }
             
             const events = data.events || [];
+            console.log('All events found:', events.map(e => ({ type: e.type, data: e.data })));
 
             // 1) Для Panora сначала ищем PanoraSwapSummaryEvent
             let amount = null as string | null;
@@ -253,18 +254,21 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, provider = 'panora'
               if (summaryEvent && summaryEvent.data) {
                 const ev = summaryEvent.data;
                 const evUser = (ev.user_address || '').toLowerCase?.();
-                const evInput = (ev.input_token_address || '').toLowerCase?.();
-                const evOutput = (ev.output_token_address || '').toLowerCase?.();
                 const wantUser = (userAddress || '').toLowerCase?.();
-                const wantInput = (fromToken.address || '').toLowerCase?.();
-                const wantOutput = (toToken.address || '').toLowerCase?.();
 
-                // Сверяем адреса пользователя и токенов, чтобы не спутать с другими внутренними событиями
+                // Проверяем только адрес пользователя, чтобы не спутать с другими внутренними событиями
                 const matchesUser = evUser && wantUser && evUser === wantUser;
-                const matchesInOut = !!evInput && !!evOutput && (!!wantInput ? evInput === wantInput : true) && (!!wantOutput ? evOutput === wantOutput : true);
-                if (matchesUser && matchesInOut) {
+                
+                console.log('Panora event validation:', {
+                  evUser, wantUser, matchesUser,
+                  evInput: ev.input_token_address,
+                  evOutput: ev.output_token_address
+                });
+                
+                if (matchesUser) {
                   amount = ev.output_token_amount;
                   tokenAddress = ev.output_token_address;
+                  console.log('Found matching Panora event:', { amount, tokenAddress });
                 }
               }
             }
@@ -275,6 +279,7 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, provider = 'panora'
               if (swapEvent && swapEvent.data) {
                 amount = swapEvent.data.amount_out;
                 tokenAddress = swapEvent.data.to_token?.inner;
+                console.log('Found SwapEventV3:', { amount, tokenAddress });
               }
             }
 
@@ -284,15 +289,38 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, provider = 'panora'
               if (depositEvent) {
                 amount = depositEvent.data.amount;
                 tokenAddress = depositEvent.data.store;
+                console.log('Found Deposit event:', { amount, tokenAddress });
               }
             }
+            // If we didn't find a token address from events, use the toToken address from props
+            if (!tokenAddress && toToken.address) {
+              tokenAddress = toToken.address;
+              console.log('Using toToken address from props:', tokenAddress);
+            }
+            
             if (amount && tokenAddress && !hasProcessedTransaction) {
               console.log('Starting deposit process:', { amount, tokenAddress, protocol: protocol.key });
               // 3. Ищем метаданные токена
               let symbol = null;
               let decimals = 8;
               const tokensArr = Array.isArray((tokenList as any).data?.data) ? (tokenList as any).data.data : (tokenList as any);
-              const tokenMeta = tokensArr.find((t: any) => t.faAddress === tokenAddress || t.address === tokenAddress);
+              
+              // Normalize addresses for comparison
+              const normalizeAddress = (addr: string | null | undefined): string => {
+                if (!addr) return '';
+                if (!addr.startsWith('0x')) return addr.toLowerCase();
+                const normalized = '0x' + addr.slice(2).replace(/^0+/, '');
+                return (normalized === '0x' ? '0x0' : normalized).toLowerCase();
+              };
+              
+              const normalizedTokenAddress = normalizeAddress(tokenAddress);
+              const tokenMeta = tokensArr.find((t: any) => {
+                const normalizedFaAddress = normalizeAddress(t.faAddress);
+                const normalizedTokenListAddress = normalizeAddress(t.tokenAddress);
+                
+                return (normalizedFaAddress && normalizedFaAddress === normalizedTokenAddress) || 
+                       (normalizedTokenListAddress && normalizedTokenListAddress === normalizedTokenAddress);
+              });
               if (tokenMeta) {
                 symbol = tokenMeta.symbol;
                 decimals = tokenMeta.decimals;
@@ -315,9 +343,13 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, provider = 'panora'
               setDepositError(null);
               try {
                 // protocol и token берём из пропсов, amount — из свапа
+                // Normalize token address before passing to deposit
+                const normalizedTokenAddress = normalizeAddress(tokenAddress);
+                console.log('Depositing with normalized token address:', normalizedTokenAddress);
+                
                 const depositRes = await deposit(
                   protocol.key as ProtocolKey,
-                  tokenAddress,
+                  normalizedTokenAddress,
                   BigInt(amount)
                 );
                 setDepositResult(depositRes);
@@ -364,7 +396,24 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, provider = 'panora'
   // Получение логотипа токена по адресу
   const getTokenLogo = (address: string): string => {
     const tokensArr = Array.isArray((tokenList as any).data?.data) ? (tokenList as any).data.data : (tokenList as any);
-    const tokenMeta = tokensArr.find((t: any) => t.faAddress === address || t.address === address);
+    
+    // Normalize addresses for comparison
+    const normalizeAddress = (addr: string | null | undefined): string => {
+      if (!addr) return '';
+      if (!addr.startsWith('0x')) return addr.toLowerCase();
+      const normalized = '0x' + addr.slice(2).replace(/^0+/, '');
+      return (normalized === '0x' ? '0x0' : normalized).toLowerCase();
+    };
+    
+    const normalizedAddress = normalizeAddress(address);
+    const tokenMeta = tokensArr.find((t: any) => {
+      const normalizedFaAddress = normalizeAddress(t.faAddress);
+      const normalizedTokenListAddress = normalizeAddress(t.tokenAddress);
+      
+      return (normalizedFaAddress && normalizedFaAddress === normalizedAddress) || 
+             (normalizedTokenListAddress && normalizedTokenListAddress === normalizedAddress);
+    });
+    
     return tokenMeta?.logoUrl && tokenMeta.logoUrl !== '' ? tokenMeta.logoUrl : '/file.svg';
   };
 

@@ -66,7 +66,7 @@ export function SwapAndDepositModal({
   priceUSD,
 }: SwapAndDepositModalProps) {
   const { tokens, address: userAddress } = useWalletData();
-  const { deposit } = useDeposit();
+  const { deposit, isLoading: isDepositLoading } = useDeposit();
   const [isLoading, setIsLoading] = useState(false);
   const [isYieldExpanded, setIsYieldExpanded] = useState(false);
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
@@ -76,28 +76,38 @@ export function SwapAndDepositModal({
 
   // Получаем информацию о токене из списка токенов
   const getTokenInfo = (address: string): Token | undefined => {
-    const norm = address.toLowerCase();
-    return (tokenList.data.data as Token[]).find(token =>
-      (token.tokenAddress?.toLowerCase?.() === norm) ||
-      (token.faAddress?.toLowerCase?.() === norm)
-    );
+    const normalizedAddress = normalizeAddress(address);
+    if (!normalizedAddress) return undefined;
+    
+    return (tokenList.data.data as Token[]).find(token => {
+      const normalizedTokenAddress = normalizeAddress(token.tokenAddress);
+      const normalizedFaAddress = normalizeAddress(token.faAddress);
+      
+      return (normalizedTokenAddress && normalizedTokenAddress === normalizedAddress) || 
+             (normalizedFaAddress && normalizedFaAddress === normalizedAddress);
+    });
   };
 
-  function normalizeAddress(address?: string) {
-    return (address || '').toLowerCase();
+  function normalizeAddress(address?: string | null): string {
+    if (!address) return '';
+    if (!address.startsWith('0x')) return address.toLowerCase();
+    const normalized = '0x' + address.slice(2).replace(/^0+/, '');
+    return (normalized === '0x' ? '0x0' : normalized).toLowerCase();
   }
 
   function findTokenBalance(tokens: any[], token: Token): string {
     const tokenAddresses = [
-      token.tokenAddress ?? undefined,
-      token.faAddress ?? undefined,
-    ].filter(Boolean).map(normalizeAddress);
+      token.tokenAddress,
+      token.faAddress,
+    ].filter(Boolean).map(normalizeAddress).filter(addr => addr !== '');
 
-    const found = tokens.find(
-      t =>
-        tokenAddresses.includes(normalizeAddress(t.address)) ||
-        tokenAddresses.includes(normalizeAddress(t.faAddress))
-    );
+    const found = tokens.find(t => {
+      const normalizedTAddress = normalizeAddress(t.address);
+      const normalizedTFaAddress = normalizeAddress(t.faAddress);
+      
+      return (normalizedTAddress && tokenAddresses.includes(normalizedTAddress)) ||
+             (normalizedTFaAddress && tokenAddresses.includes(normalizedTFaAddress));
+    });
 
     return found?.amount || '0';
   }
@@ -168,9 +178,18 @@ export function SwapAndDepositModal({
   }, [protocol.apy, amountString, selectedToken?.usdPrice]);
 
   const handleSwapAndDeposit = async () => {
-    setIsStatusModalOpen(true);
-    // TODO: implement swap and deposit logic
-    // onClose();
+    if (isLoading || isDepositLoading) return; // Prevent double-clicking
+    
+    try {
+      setIsLoading(true);
+      setIsStatusModalOpen(true);
+      // TODO: implement swap and deposit logic
+      // onClose();
+    } catch (error) {
+      console.error('Swap and deposit error:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -329,9 +348,9 @@ export function SwapAndDepositModal({
               </Button>
               <Button
                 onClick={handleSwapAndDeposit}
-                disabled={!isValid || isLoading || !selectedToken}
+                disabled={!isValid || isLoading || isDepositLoading || !selectedToken}
               >
-                {isLoading ? (
+                {(isLoading || isDepositLoading) ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Processing...
@@ -390,12 +409,12 @@ export function SwapAndDepositModal({
         amount={amountString}
         fromToken={{
           symbol: selectedToken?.symbol || '',
-          address: selectedToken?.faAddress || '',
+          address: selectedToken?.faAddress || selectedToken?.tokenAddress || '',
           decimals: selectedToken?.decimals ?? 6,
         }}
         toToken={{
           symbol: tokenIn.symbol,
-          address: getTokenInfo(tokenIn.address)?.faAddress || '',
+          address: getTokenInfo(tokenIn.address)?.faAddress || getTokenInfo(tokenIn.address)?.tokenAddress || '',
         }}
         protocol={{
           name: protocol.name,
