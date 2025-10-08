@@ -65,7 +65,7 @@ export function SwapAndDepositModal({
   amount,
   priceUSD,
 }: SwapAndDepositModalProps) {
-  const { tokens, address: userAddress } = useWalletData();
+  const { tokens, address: userAddress, refreshPortfolio } = useWalletData();
   const { deposit, isLoading: isDepositLoading } = useDeposit();
   const [isLoading, setIsLoading] = useState(false);
   const [isYieldExpanded, setIsYieldExpanded] = useState(false);
@@ -131,6 +131,14 @@ export function SwapAndDepositModal({
       )
       .sort((a, b) => b.value - a.value);
   }, [tokens, tokenIn.address]);
+
+  // Refresh portfolio data when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      console.log('[SwapAndDepositModal] Refreshing portfolio data on modal open');
+      refreshPortfolio();
+    }
+  }, [isOpen, refreshPortfolio]);
 
   // Устанавливаем перетаскиваемый токен по умолчанию
   useEffect(() => {

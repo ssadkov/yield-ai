@@ -63,7 +63,7 @@ export function DepositModal({
   tokenOut,
   priceUSD,
 }: DepositModalProps) {
-  const { tokens } = useWalletData();
+  const { tokens, refreshPortfolio } = useWalletData();
   const [isLoading, setIsLoading] = useState(false);
   const { deposit, isLoading: isDepositLoading } = useDeposit();
   const [isYieldExpanded, setIsYieldExpanded] = useState(false);
@@ -156,6 +156,14 @@ export function DepositModal({
       setMax();
     }
   }, [isOpen, currentToken, setMax]);
+
+  // Refresh portfolio data when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      console.log('[DepositModal] Refreshing portfolio data on modal open');
+      refreshPortfolio();
+    }
+  }, [isOpen, refreshPortfolio]);
 
   const handleDeposit = async () => {
     if (isLoading || isDepositLoading) return; // Prevent double-clicking

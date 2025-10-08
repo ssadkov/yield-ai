@@ -52,7 +52,7 @@ interface SwapModalProps {
 }
 
 export function SwapModal({ isOpen, onClose }: SwapModalProps) {
-  const { tokens, address: userAddress } = useWalletData();
+  const { tokens, address: userAddress, refreshPortfolio } = useWalletData();
   const { submitTransaction, isConnected } = useTransactionSubmitter();
   
   // Убираем fetchPrices - используем готовые цены из tokens
@@ -220,6 +220,14 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
 
     return found?.amount || '0';
   }
+
+  // Refresh portfolio data when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      console.log('[SwapModal] Refreshing portfolio data on modal open');
+      refreshPortfolio();
+    }
+  }, [isOpen, refreshPortfolio]);
 
   // Set default tokens on load
   useEffect(() => {

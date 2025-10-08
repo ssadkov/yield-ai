@@ -24,11 +24,11 @@ export class AptosPortfolioService {
 
   async getPortfolio(address: string): Promise<{ tokens: PortfolioToken[] }> {
     try {
-      console.log('Getting portfolio for address:', address);
+      console.log('[AptosPortfolioService] 🔄 Getting portfolio for address:', address);
       
       // Получаем балансы из кошелька
       const walletData = await this.walletService.getBalances(address);
-      console.log('Wallet data:', walletData);
+      console.log('[AptosPortfolioService] 💰 Wallet balances fetched:', walletData.balances.length, 'tokens');
       const balances = walletData.balances;
 
       if (!balances.length) {
@@ -38,12 +38,14 @@ export class AptosPortfolioService {
 
       // Собираем адреса токенов
       const tokenAddresses = balances.map((balance: FungibleAssetBalance) => balance.asset_type);
-      console.log('Token addresses:', tokenAddresses);
+      console.log('[AptosPortfolioService] 📋 Fetching prices for', tokenAddresses.length, 'tokens');
 
       // Получаем цены для всех токенов одним запросом
       const pricesResponse = await this.pricesService.getPrices(1, tokenAddresses);
-      console.log('Prices response:', pricesResponse);
-      const prices = pricesResponse.data;
+      console.log('[AptosPortfolioService] 💵 Prices fetched, response type:', Array.isArray(pricesResponse) ? 'Array' : 'Object');
+      // Handle both array and object with data property
+      const prices = Array.isArray(pricesResponse) ? pricesResponse : (pricesResponse.data || []);
+      console.log('[AptosPortfolioService] 💵 Processed prices count:', prices.length);
 
       // Объединяем данные
       const tokens: PortfolioToken[] = balances.map((balance: FungibleAssetBalance) => {
@@ -88,7 +90,8 @@ export class AptosPortfolioService {
         return valueB - valueA;
       });
 
-      console.log('Final sorted tokens:', tokens);
+      console.log('[AptosPortfolioService] ✅ Portfolio ready:', tokens.length, 'tokens, total value:', 
+        tokens.reduce((sum, t) => sum + (parseFloat(t.value || '0')), 0).toFixed(2), 'USD');
       return { tokens };
     } catch (error) {
       console.error('Error in getPortfolio:', error);

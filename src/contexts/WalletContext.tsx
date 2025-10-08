@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, ReactNode, useEffect, useState } from 'react';
+import { createContext, useContext, ReactNode, useEffect, useState, useCallback } from 'react';
 import { useWallet as useAptosWallet } from "@aptos-labs/wallet-adapter-react";
 import { AptosPortfolioService } from '@/lib/services/aptos/portfolio';
 
@@ -17,45 +17,51 @@ interface PortfolioToken {
 interface WalletContextType {
   address?: string;
   tokens: PortfolioToken[];
+  refreshPortfolio: () => Promise<void>;
+  isRefreshing: boolean;
 }
 
 const WalletDataContext = createContext<WalletContextType | undefined>(undefined);
 
 export function WalletDataProvider({ children }: { children: ReactNode }) {
   const { account, connected } = useAptosWallet();
-  const [walletData, setWalletData] = useState<WalletContextType>({
-    address: undefined,
-    tokens: [],
-  });
+  const [tokens, setTokens] = useState<PortfolioToken[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  useEffect(() => {
-    if (connected && account) {
-      const fetchWalletData = async () => {
-        try {
-          const portfolioService = new AptosPortfolioService();
-          const { tokens } = await portfolioService.getPortfolio(account.address.toString());
+  const fetchWalletData = useCallback(async () => {
+    if (!connected || !account) {
+      setTokens([]);
+      return;
+    }
 
-          setWalletData({
-            address: account.address.toString(),
-            tokens
-          });
-        } catch (error) {
-          console.error('Error fetching wallet data:', error);
-          setWalletData({
-            address: account.address.toString(),
-            tokens: []
-          });
-        }
-      };
-
-      fetchWalletData();
-    } else {
-      setWalletData({
-        address: undefined,
-        tokens: []
-      });
+    try {
+      setIsRefreshing(true);
+      const portfolioService = new AptosPortfolioService();
+      const { tokens: fetchedTokens } = await portfolioService.getPortfolio(account.address.toString());
+      setTokens(fetchedTokens);
+    } catch (error) {
+      console.error('Error fetching wallet data:', error);
+      setTokens([]);
+    } finally {
+      setIsRefreshing(false);
     }
   }, [connected, account]);
+
+  const refreshPortfolio = useCallback(async () => {
+    console.log('[WalletContext] Manual refresh triggered');
+    await fetchWalletData();
+  }, [fetchWalletData]);
+
+  useEffect(() => {
+    fetchWalletData();
+  }, [fetchWalletData]);
+
+  const walletData: WalletContextType = {
+    address: account?.address.toString(),
+    tokens,
+    refreshPortfolio,
+    isRefreshing,
+  };
 
   return (
     <WalletDataContext.Provider value={walletData}>
