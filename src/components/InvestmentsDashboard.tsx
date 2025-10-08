@@ -121,9 +121,21 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 
   const getTokenInfo = (asset: string, tokenAddress?: string): Token | undefined => {
     if (tokenAddress) {
-      return (tokenList.data.data as Token[]).find(token => 
-        token.tokenAddress === tokenAddress || token.faAddress === tokenAddress
-      );
+      // Normalize addresses by removing leading zeros after 0x
+      const normalizeAddress = (addr: string) => {
+        if (!addr || !addr.startsWith('0x')) return addr;
+        return '0x' + addr.slice(2).replace(/^0+/, '') || '0x0';
+      };
+      
+      const normalizedTokenAddress = normalizeAddress(tokenAddress);
+      
+      return (tokenList.data.data as Token[]).find(token => {
+        const normalizedTokenListAddress = normalizeAddress(token.tokenAddress || '');
+        const normalizedFaAddress = normalizeAddress(token.faAddress || '');
+        
+        return normalizedTokenListAddress === normalizedTokenAddress || 
+               normalizedFaAddress === normalizedTokenAddress;
+      });
     }
     return undefined;
   };
@@ -1501,7 +1513,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   })
                   .sort((a, b) => b.totalAPY - a.totalAPY)
                   .map((item, index) => {
-                    
                     const tokenInfo = getTokenInfo(item.asset, item.token);
                     const displaySymbol = tokenInfo?.symbol || item.asset;
                     const logoUrl = tokenInfo?.logoUrl;
