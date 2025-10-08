@@ -1,5 +1,7 @@
 import { AptosWalletService } from './aptos/wallet';
 import { PanoraPricesService } from './panora/prices';
+import { TokenInfoService } from './tokenInfoService';
+import { normalizeAddress, createDualAddressPriceMap } from '../utils/addressNormalization';
 
 interface TokenBalance {
   address: string;
@@ -70,7 +72,7 @@ export async function getWalletBalance(address: string): Promise<WalletData> {
     const balanceData = await walletService.getBalances(address);
 
     // Get token prices from Panora API using the same service as Sidebar
-    let prices: any[] = [];
+    let pricesMap: Record<string, any> = {};
     try {
       console.log('💰 Fetching token prices from Panora...');
       const pricesService = PanoraPricesService.getInstance();
@@ -80,7 +82,10 @@ export async function getWalletBalance(address: string): Promise<WalletData> {
 
       const pricesResponse = await pricesService.getPrices(1, tokenAddresses);
       // PanoraPricesService возвращает массив напрямую, а не объект с data
-      prices = Array.isArray(pricesResponse) ? pricesResponse : (pricesResponse.data || []);
+      const prices = Array.isArray(pricesResponse) ? pricesResponse : (pricesResponse.data || []);
+      
+      // Create dual address price map for proper lookups
+      pricesMap = createDualAddressPriceMap(prices);
 
     } catch (error) {
       console.warn('⚠️ Failed to fetch token prices:', error);
@@ -89,15 +94,16 @@ export async function getWalletBalance(address: string): Promise<WalletData> {
     let totalValueUSD = 0;
     const tokens: TokenBalance[] = [];
 
+    // Initialize TokenInfoService for fallback lookups
+    const tokenInfoService = TokenInfoService.getInstance();
+    
     for (const balance of balanceData.balances || []) {
       const assetType: string = balance.asset_type;
       const amount: string = balance.amount;
+      const normalizedAsset = normalizeAddress(assetType);
 
-      // Find price from Panora API response (точно как в AptosPortfolioService)
-      const priceData = prices.find((p: any) => 
-        p.tokenAddress === assetType || 
-        p.faAddress === assetType
-      );
+      // Find price from Panora API response using dual address map
+      const priceData = pricesMap[normalizedAsset] || pricesMap[assetType];
 
       if (priceData) {
         // Use price data from Panora (точно как в AptosPortfolioService)
@@ -117,20 +123,64 @@ export async function getWalletBalance(address: string): Promise<WalletData> {
         
         totalValueUSD += valueUSD;
       } else {
-        // Fallback for unknown tokens (точно как в AptosPortfolioService)
-        const symbol = assetType.includes('::') 
-          ? assetType.split('::').pop()?.replace('>', '') || assetType
-          : assetType;
+        // Try fallback to protocol APIs for unknown tokens (LP tokens, new tokens, etc.)
+        console.log('🔍 Token not in Panora, trying protocol APIs:', assetType);
         
-        tokens.push({
-          address: assetType,
-          symbol,
-          name: symbol,
-          balance: amount, // Оставляем как есть, без конвертации
-          decimals: 8, // дефолтное значение
-          priceUSD: 0,
-          valueUSD: 0
-        });
+        try {
+          const tokenInfo = await tokenInfoService.getTokenInfo(assetType);
+          
+          if (tokenInfo && tokenInfo.price) {
+            // Token found in protocol API with price
+            const balanceNumber = parseFloat(amount) / Math.pow(10, tokenInfo.decimals);
+            const priceUSD = tokenInfo.price;
+            const valueUSD = balanceNumber * priceUSD;
+
+            tokens.push({
+              address: assetType,
+              symbol: tokenInfo.symbol,
+              name: tokenInfo.name,
+              balance: balanceNumber.toString(),
+              decimals: tokenInfo.decimals,
+              priceUSD: priceUSD,
+              valueUSD: valueUSD
+            });
+            
+            totalValueUSD += valueUSD;
+            console.log('✅ Found via protocol API:', tokenInfo.symbol, 'from', tokenInfo.source);
+          } else {
+            // Token not found anywhere or no price available
+            const symbol = assetType.includes('::') 
+              ? assetType.split('::').pop()?.replace('>', '') || assetType
+              : assetType;
+            
+            tokens.push({
+              address: assetType,
+              symbol: tokenInfo?.symbol || symbol,
+              name: tokenInfo?.name || symbol,
+              balance: amount, // Raw amount without conversion
+              decimals: tokenInfo?.decimals || 8,
+              priceUSD: 0,
+              valueUSD: 0
+            });
+            console.log('⚠️ Token info found but no price:', tokenInfo?.symbol);
+          }
+        } catch (error) {
+          // Final fallback for completely unknown tokens
+          console.warn('⚠️ Failed to get token info from any source:', error);
+          const symbol = assetType.includes('::') 
+            ? assetType.split('::').pop()?.replace('>', '') || assetType
+            : assetType;
+          
+          tokens.push({
+            address: assetType,
+            symbol,
+            name: symbol,
+            balance: amount,
+            decimals: 8,
+            priceUSD: 0,
+            valueUSD: 0
+          });
+        }
       }
     }
     

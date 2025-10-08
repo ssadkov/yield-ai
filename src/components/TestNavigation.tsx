@@ -60,6 +60,22 @@ const testPages = [
     color: 'bg-amber-500'
   },
   {
+    name: 'Test Token Lookup',
+    description: 'Test universal token lookup with protocol API fallbacks (Echelon, Panora)',
+    path: '/test-token-lookup',
+    icon: Coins,
+    badge: 'New',
+    color: 'bg-green-500'
+  },
+  {
+    name: 'Test Echelon Positions',
+    description: 'Test how EchelonPositions component loads token info with fallback',
+    path: '/test-echelon-positions',
+    icon: Coins,
+    badge: 'New',
+    color: 'bg-blue-500'
+  },
+  {
     name: 'Test Hyperion',
     description: 'Test Hyperion pools integration',
     path: '/test-hyperion',

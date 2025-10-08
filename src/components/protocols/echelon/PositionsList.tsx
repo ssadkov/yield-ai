@@ -14,6 +14,7 @@ import { PanoraPricesService } from "@/lib/services/panora/prices";
 import { TokenPrice } from "@/lib/types/panora";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { createDualAddressPriceMap } from "@/lib/utils/addressNormalization";
+import { TokenInfoService } from "@/lib/services/tokenInfoService";
 
 interface PositionsListProps {
   address?: string;
@@ -59,6 +60,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
   const [tokenPrices, setTokenPrices] = useState<Record<string, string>>({});
   const [rewardsData, setRewardsData] = useState<EchelonReward[]>([]);
   const [apyData, setApyData] = useState<Record<string, any>>({});
+  const [fallbackTokenInfo, setFallbackTokenInfo] = useState<Record<string, TokenInfo>>({});
   const { isExpanded, toggleSection } = useCollapsible();
   const pricesService = PanoraPricesService.getInstance();
 
@@ -104,6 +106,19 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
     
     const normalizedCoinAddress = normalizeAddress(coinAddress);
     
+    // First, check fallback token info (from protocol APIs)
+    if (fallbackTokenInfo[normalizedCoinAddress] || fallbackTokenInfo[coinAddress]) {
+      const fallbackInfo = fallbackTokenInfo[normalizedCoinAddress] || fallbackTokenInfo[coinAddress];
+      return {
+        symbol: fallbackInfo.symbol,
+        name: fallbackInfo.name,
+        logoUrl: fallbackInfo.logoUrl || null,
+        decimals: fallbackInfo.decimals,
+        usdPrice: null // Цена будет получена динамически
+      };
+    }
+    
+    // Then check tokenList
     const token = tokenList.data.data.find((t) => {
       const normalizedFaAddress = normalizeAddress(t.faAddress || '');
       const normalizedTokenAddress = normalizeAddress(t.tokenAddress || '');
@@ -236,7 +251,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
     return arr;
   }, [positions, rewardsData, getRewardTokenInfoHelper]);
 
-  // Получаем цены токенов через Panora API с дебаунсингом
+  // Получаем цены токенов через Panora API с fallback к Echelon API
   useEffect(() => {
     const timeoutId = setTimeout(async () => {
       const addresses = getAllTokenAddresses();
@@ -244,11 +259,52 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
       if (addresses.length === 0 || !walletAddress || walletAddress.length < 10) return;
 
       try {
+        // First try Panora API
         const response = await pricesService.getPrices(1, addresses);
+        let prices = {};
         if (response.data) {
-          // Use utility function to create price map with both address versions
-          const prices = createDualAddressPriceMap(response.data);
+          prices = createDualAddressPriceMap(response.data);
           setTokenPrices(prices);
+        }
+
+        // Check for missing prices and try Echelon API fallback
+        const missingPrices: string[] = [];
+        addresses.forEach(addr => {
+          const normalizedAddr = addr.replace(/^0+/, '0x') || '0x0';
+          if (!prices[addr] && !prices[normalizedAddr]) {
+            missingPrices.push(addr);
+          }
+        });
+
+        if (missingPrices.length > 0) {
+          console.log('[EchelonPositionsList] Missing prices for tokens, trying Echelon API:', missingPrices);
+          
+          // Try to get prices from Echelon API for missing tokens
+          const service = TokenInfoService.getInstance();
+          const fallbackPrices: Record<string, string> = {};
+          
+          await Promise.all(
+            missingPrices.map(async (addr) => {
+              try {
+                const info = await service.getTokenInfo(addr);
+                if (info && info.price) {
+                  fallbackPrices[addr] = info.price.toString();
+                  const normalizedAddr = addr.replace(/^0+/, '0x') || '0x0';
+                  fallbackPrices[normalizedAddr] = info.price.toString();
+                  console.log('[EchelonPositionsList] Got price from Echelon:', info.symbol, info.price);
+                }
+              } catch (error) {
+                console.warn('[EchelonPositionsList] Failed to get price for', addr, error);
+              }
+            })
+          );
+
+          if (Object.keys(fallbackPrices).length > 0) {
+            setTokenPrices(prev => ({
+              ...prev,
+              ...fallbackPrices
+            }));
+          }
         }
       } catch (error) {
         console.error('Failed to fetch token prices:', error);
@@ -326,6 +382,80 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
 
     return () => clearTimeout(timeoutId);
   }, [walletAddress, refreshKey, fetchRewards]);
+
+  // Load token info for unknown tokens using fallback APIs
+  useEffect(() => {
+    const loadUnknownTokens = async () => {
+      if (positions.length === 0) return;
+      
+      const normalizeAddress = (addr: string) => {
+        if (!addr || !addr.startsWith('0x')) return addr;
+        return '0x' + addr.slice(2).replace(/^0+/, '') || '0x0';
+      };
+      
+      // Find tokens not in tokenList
+      const unknownTokens: string[] = [];
+      positions.forEach(position => {
+        const normalizedAddr = normalizeAddress(position.coin);
+        
+        // Skip if already in fallback cache
+        if (fallbackTokenInfo[normalizedAddr] || fallbackTokenInfo[position.coin]) {
+          return;
+        }
+        
+        // Check if in tokenList
+        const inTokenList = tokenList.data.data.find((t) => {
+          const normalizedFaAddress = normalizeAddress(t.faAddress || '');
+          const normalizedTokenAddress = normalizeAddress(t.tokenAddress || '');
+          return normalizedFaAddress === normalizedAddr || normalizedTokenAddress === normalizedAddr;
+        });
+        
+        if (!inTokenList) {
+          unknownTokens.push(position.coin);
+        }
+      });
+      
+      if (unknownTokens.length === 0) return;
+      
+      console.log('[EchelonPositionsList] Loading info for unknown tokens:', unknownTokens);
+      
+      // Load token info from protocol APIs
+      const service = TokenInfoService.getInstance();
+      const newTokenInfo: Record<string, TokenInfo> = {};
+      
+      await Promise.all(
+        unknownTokens.map(async (tokenAddr) => {
+          try {
+            const info = await service.getTokenInfo(tokenAddr);
+            if (info) {
+              const normalizedAddr = normalizeAddress(tokenAddr);
+              const tokenInfo: TokenInfo = {
+                symbol: info.symbol,
+                name: info.name,
+                logoUrl: info.logoUrl,
+                decimals: info.decimals,
+                usdPrice: null
+              };
+              newTokenInfo[normalizedAddr] = tokenInfo;
+              newTokenInfo[tokenAddr] = tokenInfo; // Also store under original address
+              console.log('[EchelonPositionsList] Loaded token info:', info.symbol, 'from', info.source);
+            }
+          } catch (error) {
+            console.warn('[EchelonPositionsList] Failed to load token info for', tokenAddr, error);
+          }
+        })
+      );
+      
+      if (Object.keys(newTokenInfo).length > 0) {
+        setFallbackTokenInfo(prev => ({
+          ...prev,
+          ...newTokenInfo
+        }));
+      }
+    };
+    
+    loadUnknownTokens();
+  }, [positions]);
 
       // Получить APR для позиции
   const getApyForPosition = (position: Position) => {
