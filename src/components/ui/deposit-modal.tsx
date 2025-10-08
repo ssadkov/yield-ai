@@ -63,7 +63,6 @@ export function DepositModal({
   tokenOut,
   priceUSD,
 }: DepositModalProps) {
-  const { balance } = useWalletData();
   const { tokens } = useWalletData();
   const [isLoading, setIsLoading] = useState(false);
   const { deposit, isLoading: isDepositLoading } = useDeposit();
