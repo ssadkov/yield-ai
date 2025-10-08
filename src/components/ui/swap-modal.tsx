@@ -185,11 +185,21 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
   };
 
   function getTokenInfo(address: string): Token | undefined {
-    const norm = address.toLowerCase();
-    return (tokenList.data.data as Token[]).find(token =>
-      (token.tokenAddress?.toLowerCase?.() === norm) ||
-      (token.faAddress?.toLowerCase?.() === norm)
-    );
+    // Normalize addresses by removing leading zeros after 0x
+    const normalizeAddress = (addr: string) => {
+      if (!addr || !addr.startsWith('0x')) return addr;
+      return '0x' + addr.slice(2).replace(/^0+/, '') || '0x0';
+    };
+    
+    const normalizedAddress = normalizeAddress(address);
+    
+    return (tokenList.data.data as Token[]).find(token => {
+      const normalizedTokenAddress = normalizeAddress(token.tokenAddress || '');
+      const normalizedFaAddress = normalizeAddress(token.faAddress || '');
+      
+      return normalizedTokenAddress === normalizedAddress || 
+             normalizedFaAddress === normalizedAddress;
+    });
   }
 
   function normalizeAddress(address?: string) {

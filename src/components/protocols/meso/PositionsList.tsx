@@ -72,9 +72,21 @@ function formatTokenAmount(amount: string, decimals: number): string {
 
 // Функция для получения информации о токене (без цены)
 function getTokenInfo(tokenAddress: string) {
-  const token = (tokenList as { data: { data: Array<{ tokenAddress?: string; faAddress?: string; symbol?: string; name?: string; logoUrl?: string; decimals?: number }> } }).data.data.find((t) =>
-    t.tokenAddress === tokenAddress || t.faAddress === tokenAddress
-  );
+  // Normalize addresses by removing leading zeros after 0x
+  const normalizeAddress = (addr: string) => {
+    if (!addr || !addr.startsWith('0x')) return addr;
+    return '0x' + addr.slice(2).replace(/^0+/, '') || '0x0';
+  };
+  
+  const normalizedTokenAddress = normalizeAddress(tokenAddress);
+  
+  const token = (tokenList as { data: { data: Array<{ tokenAddress?: string; faAddress?: string; symbol?: string; name?: string; logoUrl?: string; decimals?: number }> } }).data.data.find((t) => {
+    const normalizedTokenListAddress = normalizeAddress(t.tokenAddress || '');
+    const normalizedFaAddress = normalizeAddress(t.faAddress || '');
+    
+    return normalizedTokenListAddress === normalizedTokenAddress || 
+           normalizedFaAddress === normalizedTokenAddress;
+  });
   
   if (token) {
     return {

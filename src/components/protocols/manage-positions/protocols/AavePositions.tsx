@@ -76,9 +76,21 @@ export function AavePositions() {
 
   // Функция для получения информации о токене
   const getTokenInfo = (coinAddress: string): TokenInfo | undefined => {
-    const token = (tokenList as any).data.data.find(
-      (t: any) => t.faAddress === coinAddress || t.tokenAddress === coinAddress
-    );
+    // Normalize addresses by removing leading zeros after 0x
+    const normalizeAddress = (addr: string) => {
+      if (!addr || !addr.startsWith('0x')) return addr;
+      return '0x' + addr.slice(2).replace(/^0+/, '') || '0x0';
+    };
+    
+    const normalizedCoinAddress = normalizeAddress(coinAddress);
+    
+    const token = (tokenList as any).data.data.find((t: any) => {
+      const normalizedFaAddress = normalizeAddress(t.faAddress || '');
+      const normalizedTokenAddress = normalizeAddress(t.tokenAddress || '');
+      
+      return normalizedFaAddress === normalizedCoinAddress || 
+             normalizedTokenAddress === normalizedCoinAddress;
+    });
     
     if (!token) return undefined;
     

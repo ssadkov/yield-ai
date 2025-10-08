@@ -79,9 +79,21 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
 
   // Функция для поиска информации о токене (без цены)
   const getTokenInfo = (coinAddress: string): TokenInfo | null => {
-    const token = tokenList.data.data.find(
-      (t) => t.faAddress === coinAddress || t.tokenAddress === coinAddress
-    );
+    // Normalize addresses by removing leading zeros after 0x
+    const normalizeAddress = (addr: string) => {
+      if (!addr || !addr.startsWith('0x')) return addr;
+      return '0x' + addr.slice(2).replace(/^0+/, '') || '0x0';
+    };
+    
+    const normalizedCoinAddress = normalizeAddress(coinAddress);
+    
+    const token = tokenList.data.data.find((t) => {
+      const normalizedFaAddress = normalizeAddress(t.faAddress || '');
+      const normalizedTokenAddress = normalizeAddress(t.tokenAddress || '');
+      
+      return normalizedFaAddress === normalizedCoinAddress || 
+             normalizedTokenAddress === normalizedCoinAddress;
+    });
     
     if (token) {
       return {

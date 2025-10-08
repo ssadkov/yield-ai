@@ -66,10 +66,21 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
     const cleanAddress = tokenAddress.startsWith('@') ? tokenAddress.slice(1) : tokenAddress;
     const fullAddress = cleanAddress.startsWith('0x') ? cleanAddress : `0x${cleanAddress}`;
     
-    const token = (tokenList as any).data.data.find((token: any) => 
-      token.tokenAddress === fullAddress || 
-      token.faAddress === fullAddress
-    );
+    // Normalize addresses by removing leading zeros after 0x
+    const normalizeAddress = (addr: string) => {
+      if (!addr || !addr.startsWith('0x')) return addr;
+      return '0x' + addr.slice(2).replace(/^0+/, '') || '0x0';
+    };
+    
+    const normalizedFullAddress = normalizeAddress(fullAddress);
+    
+    const token = (tokenList as any).data.data.find((token: any) => {
+      const normalizedTokenAddress = normalizeAddress(token.tokenAddress || '');
+      const normalizedFaAddress = normalizeAddress(token.faAddress || '');
+      
+      return normalizedTokenAddress === normalizedFullAddress || 
+             normalizedFaAddress === normalizedFullAddress;
+    });
     
     if (!token) {
       return undefined;

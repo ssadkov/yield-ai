@@ -71,10 +71,23 @@ interface AriesResponse {
 function getTokenInfo(address: string) {
   // Если адрес содержит ::, берем последнюю часть
   const symbol = address.includes('::') ? address.split('::').pop() : address;
-  return tokenList.data.data.find((token: any) => 
-    token.symbol === symbol || 
-    token.tokenAddress === address
-  );
+  
+  // Normalize addresses by removing leading zeros after 0x
+  const normalizeAddress = (addr: string) => {
+    if (!addr || !addr.startsWith('0x')) return addr;
+    return '0x' + addr.slice(2).replace(/^0+/, '') || '0x0';
+  };
+  
+  const normalizedAddress = normalizeAddress(address);
+  
+  return tokenList.data.data.find((token: any) => {
+    const normalizedTokenAddress = normalizeAddress(token.tokenAddress || '');
+    const normalizedFaAddress = normalizeAddress(token.faAddress || '');
+    
+    return token.symbol === symbol || 
+           normalizedTokenAddress === normalizedAddress ||
+           normalizedFaAddress === normalizedAddress;
+  });
 }
 
 export function PositionsList({ address, onPositionsValueChange, refreshKey, onPositionsCheckComplete, showManageButton=true }: PositionsListProps) {

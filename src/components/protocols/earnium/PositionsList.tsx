@@ -22,16 +22,27 @@ interface PositionsListProps {
 type RewardsEntry = { tokenKey: string; amountRaw: string };
 
 function findToken(address: string) {
-  const addr = address?.toLowerCase();
+  // Normalize addresses by removing leading zeros after 0x
+  const normalizeAddress = (addr: string) => {
+    if (!addr || !addr.startsWith('0x')) return addr;
+    return '0x' + addr.slice(2).replace(/^0+/, '') || '0x0';
+  };
+  
+  const normalizedAddress = normalizeAddress(address);
   const tokens = (tokenList as any).data?.data || [];
+  
   const found = tokens.find((t: any) => {
-    const fa = t.faAddress ? t.faAddress.toLowerCase() : null;
-    const coin = t.tokenAddress ? t.tokenAddress.toLowerCase() : null;
-    return fa === addr || coin === addr;
+    const normalizedFaAddress = normalizeAddress(t.faAddress || '');
+    const normalizedTokenAddress = normalizeAddress(t.tokenAddress || '');
+    
+    return normalizedFaAddress === normalizedAddress || 
+           normalizedTokenAddress === normalizedAddress;
   });
+  
   if (found) return found;
+  
   // Hardcoded fallback for USE token (as in test-earnium)
-  if (addr === '0xcd94610565e131c1d8507ed46fccc6d0b64304fc2946fbfceb4420922d7d8b24') {
+  if (normalizedAddress === '0xcd94610565e131c1d8507ed46fccc6d0b64304fc2946fbfceb4420922d7d8b24') {
     return {
       symbol: 'USE',
       name: 'USE Token',
