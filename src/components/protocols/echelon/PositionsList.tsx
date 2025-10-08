@@ -73,7 +73,23 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
     if (!cleanAddress.startsWith('0x')) {
       cleanAddress = `0x${cleanAddress}`;
     }
-    const price = tokenPrices[cleanAddress] || '0';
+    
+    // Normalize address by removing leading zeros after 0x
+    const normalizeAddress = (addr: string) => {
+      if (!addr || !addr.startsWith('0x')) return addr;
+      return '0x' + addr.slice(2).replace(/^0+/, '') || '0x0';
+    };
+    
+    const normalizedAddress = normalizeAddress(cleanAddress);
+    
+    // Try both original and normalized addresses
+    const price = tokenPrices[cleanAddress] || tokenPrices[normalizedAddress] || '0';
+    console.log('getTokenPrice for', coinAddress, ':', {
+      cleanAddress,
+      normalizedAddress,
+      foundPrice: price,
+      availablePrices: Object.keys(tokenPrices).slice(0, 5)
+    });
     return price;
   };
 
@@ -185,6 +201,12 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
   const getAllTokenAddresses = useCallback(() => {
     const addresses = new Set<string>();
     
+    // Normalize address function
+    const normalizeAddress = (addr: string) => {
+      if (!addr || !addr.startsWith('0x')) return addr;
+      return '0x' + addr.slice(2).replace(/^0+/, '') || '0x0';
+    };
+    
     positions.forEach(position => {
       let cleanAddress = position.coin;
       if (cleanAddress.startsWith('@')) {
@@ -193,17 +215,19 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
       if (!cleanAddress.startsWith('0x')) {
         cleanAddress = `0x${cleanAddress}`;
       }
-      addresses.add(cleanAddress);
+      
+      // Add only normalized address (like Wallet does)
+      addresses.add(normalizeAddress(cleanAddress));
     });
 
     // Добавляем адреса токенов наград
     rewardsData.forEach((reward) => {
       const tokenInfo = getRewardTokenInfoHelper(reward.token);
       if (tokenInfo?.faAddress) {
-        addresses.add(tokenInfo.faAddress);
+        addresses.add(normalizeAddress(tokenInfo.faAddress));
       }
       if (tokenInfo?.address) {
-        addresses.add(tokenInfo.address);
+        addresses.add(normalizeAddress(tokenInfo.address));
       }
     });
 
@@ -215,6 +239,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
   useEffect(() => {
     const timeoutId = setTimeout(async () => {
       const addresses = getAllTokenAddresses();
+      console.log('Requesting prices for addresses:', addresses);
       if (addresses.length === 0 || !walletAddress || walletAddress.length < 10) return;
 
       try {

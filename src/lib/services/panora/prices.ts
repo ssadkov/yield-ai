@@ -54,6 +54,7 @@ export class PanoraPricesService {
       }
 
       const data = await response.json();
+      console.log('Panora API response:', data);
       
       // Cache result
       this.cache.set(cacheKey, {
