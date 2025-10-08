@@ -115,7 +115,7 @@ export function areAddressesEqual(addr1: string, addr2: string): boolean {
  * const found = findTokenByAddress(tokens, "0x5fabd...");
  * // Returns the token even though search address has no leading zero
  */
-export function findTokenByAddress<T extends { tokenAddress?: string | null; faAddress?: string | null }>(
+export function findTokenByAddress<T extends { tokenAddress?: string | null; faAddress?: string | null; usdPrice?: string }>(
   tokens: T[],
   searchAddress: string
 ): T | undefined {
