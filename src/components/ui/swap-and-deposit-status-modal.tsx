@@ -244,7 +244,7 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, provider = 'panora'
             }
             
             const events = data.events || [];
-            console.log('All events found:', events.map(e => ({ type: e.type, data: e.data })));
+            console.log('All events found:', events.map((e: any) => ({ type: e.type, data: e.data })));
 
             // 1) Для Panora сначала ищем PanoraSwapSummaryEvent
             let amount = null as string | null;
