@@ -735,17 +735,18 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                     <div className="text-sm font-medium mb-2">Your Tokens</div>
                     {[...availableTokens]
                       .sort((a, b) => {
-                        const selectedFa = (fromToken?.faAddress || fromToken?.tokenAddress || '').toLowerCase();
-                        const aId = (a.tokenInfo?.faAddress || a.tokenInfo?.tokenAddress || '').toLowerCase();
-                        const bId = (b.tokenInfo?.faAddress || b.tokenInfo?.tokenAddress || '').toLowerCase();
-                        if (aId === selectedFa) return -1;
-                        if (bId === selectedFa) return 1;
-                        const ap = Number(a.tokenInfo?.usdPrice || 0);
-                        const bp = Number(b.tokenInfo?.usdPrice || 0);
-                        if (!isFinite(ap) && !isFinite(bp)) return 0;
-                        if (!isFinite(ap)) return 1;
-                        if (!isFinite(bp)) return -1;
-                        return bp - ap;
+                        // Sort by total value USD (balance × price) instead of price per token
+                        // Convert raw amount to human-readable format using decimals
+                        const aBalance = Number(a.amount || 0) / Math.pow(10, a.tokenInfo?.decimals || 8);
+                        const bBalance = Number(b.amount || 0) / Math.pow(10, b.tokenInfo?.decimals || 8);
+                        const aPrice = Number(a.tokenInfo?.usdPrice || 0);
+                        const bPrice = Number(b.tokenInfo?.usdPrice || 0);
+                        const aValueUSD = aBalance * aPrice;
+                        const bValueUSD = bBalance * bPrice;
+                        if (!isFinite(aValueUSD) && !isFinite(bValueUSD)) return 0;
+                        if (!isFinite(aValueUSD)) return 1;
+                        if (!isFinite(bValueUSD)) return -1;
+                        return bValueUSD - aValueUSD;
                       })
                       .map((token) => {
                       const tokenInfo = token.tokenInfo;
