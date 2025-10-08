@@ -231,6 +231,36 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
     
   }, [availableTokens, availableToTokens, fromToken, toToken, tokens]);
 
+  // Auto-fetch quote: Debounced for amount changes (600ms delay)
+  useEffect(() => {
+    // Validate all required fields
+    if (!fromToken || !toToken || !amount || parseFloat(amount) <= 0 || !userAddress) {
+      return;
+    }
+
+    // Debounce: wait 600ms after user stops typing
+    const timer = setTimeout(() => {
+      getQuote();
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [amount]); // Only trigger on amount change
+
+  // Auto-fetch quote: Fast reaction for token changes (100ms delay)
+  useEffect(() => {
+    // Validate all required fields
+    if (!fromToken || !toToken || !amount || parseFloat(amount) <= 0 || !userAddress) {
+      return;
+    }
+
+    // Small delay to avoid aggressive requests
+    const timer = setTimeout(() => {
+      getQuote();
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [fromToken, toToken, slippage]); // Trigger on token or slippage change
+
   const getQuote = async () => {
     if (!fromToken || !toToken || !amount || parseFloat(amount) <= 0 || !userAddress) {
       setError('Please select tokens, enter amount, and connect wallet');
@@ -1083,6 +1113,14 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
               )}
             </Button>
           </div>
+
+          {/* Auto-update hint */}
+          {!loading && !swapQuote && fromToken && toToken && amount && parseFloat(amount) > 0 && (
+            <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              <span>Quote will update automatically...</span>
+            </div>
+          )}
 
           {/* Fee Information */}
           <div className="text-xs text-muted-foreground text-center">
