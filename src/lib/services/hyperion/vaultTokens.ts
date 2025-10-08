@@ -4,7 +4,8 @@ import { Token } from '@/lib/types/token';
 const HYPERION_VAULT_TOKENS: Record<string, string> = {
   '0x7a6ef286a6d3f482dcb56d683678dadc7a18be133bf5f01626d5164a52e68eeb': 'Vault-APT-USDt',
   '0xab8fdae5dd99a4379362c01218cd7aef40758cd8111d11853ce6efd2f82b7cad': 'Vault-USDt-USDC',
-  '0x77d56ce63cf4d8c36a60a8a8f29e11ebbf7a1c0e22d6cd069d7f2e950d2fd0bd': 'Vault-APT-USDC'
+  '0x77d56ce63cf4d8c36a60a8a8f29e11ebbf7a1c0e22d6cd069d7f2e950d2fd0bd': 'Vault-APT-USDC',
+  '0x41cfdef11efd671cbcffa66f57716ee5698308b233359481d52d6dac34b42af2': 'Vault-APT-kAPT'
 };
 
 // Маппинг Vault токенов к их базовым токенам и decimals
@@ -36,6 +37,13 @@ const VAULT_TOKEN_MAPPING: Record<string, {
     tokens: [
       { address: '0x1::aptos_coin::AptosCoin', symbol: 'APT', decimals: 8, logoUrl: 'https://assets.panora.exchange/tokens/aptos/APT.svg' },
       { address: '0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b', symbol: 'USDC', decimals: 6, logoUrl: 'https://assets.panora.exchange/tokens/aptos/USDC.svg' }
+    ]
+  },
+  '0x41cfdef11efd671cbcffa66f57716ee5698308b233359481d52d6dac34b42af2': {
+    symbol: 'Vault-APT-kAPT',
+    tokens: [
+      { address: '0x1::aptos_coin::AptosCoin', symbol: 'APT', decimals: 8, logoUrl: 'https://assets.panora.exchange/tokens/aptos/APT.svg' },
+      { address: '0x821c94e69bc7ca058c913b7b5e6b0a5c9fd1523d58723a966fb8c1f5ea888105', symbol: 'kAPT', decimals: 8, logoUrl: 'https://assets.panora.exchange/tokens/aptos/kAPT.png' }
     ]
   }
 };
