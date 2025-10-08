@@ -36,7 +36,17 @@ function normalizeTokenAddress(address: string): string {
   }
   
   // Добавляем префикс 0x если его нет
-  return cleanAddress.startsWith('0x') ? cleanAddress : `0x${cleanAddress}`;
+  if (!cleanAddress.startsWith('0x')) {
+    cleanAddress = `0x${cleanAddress}`;
+  }
+  
+  // Нормализуем адрес, убирая ведущие нули после 0x
+  if (cleanAddress.startsWith('0x')) {
+    const normalized = '0x' + cleanAddress.slice(2).replace(/^0+/, '') || '0x0';
+    return normalized;
+  }
+  
+  return cleanAddress;
 }
 
 export async function getTokenInfo(token: string): Promise<Token> {
