@@ -918,13 +918,21 @@ export function HyperionPositions() {
               const vaultMapping = getVaultTokenMapping(selectedVaultToken.address);
               const token1 = vaultMapping?.tokens[0];
               const token2 = vaultMapping?.tokens[1];
-              return `${token1?.symbol || 'Unknown'}/${token2?.symbol || 'Unknown'}`;
+              return `Goblin ${token1?.symbol || 'Unknown'}/${token2?.symbol || 'Unknown'}`;
             })(),
             logoUrl: (() => {
               const vaultMapping = getVaultTokenMapping(selectedVaultToken.address);
               return vaultMapping?.tokens[0]?.logoUrl;
             })(),
-            decimals: 8
+            decimals: 8,
+            usdPrice: (() => {
+              // Рассчитываем USD цену за 1 vault token
+              const vaultAmount = parseFloat(selectedVaultToken.amount || "0");
+              if (vaultAmount === 0) return "0";
+              const usdValue = selectedVaultData.totalValueUSD;
+              const pricePerToken = usdValue / (vaultAmount / Math.pow(10, 8));
+              return pricePerToken.toString();
+            })()
           }}
           isLoading={isWithdrawing}
           userAddress={account?.address?.toString()}
