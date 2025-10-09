@@ -9,14 +9,17 @@ import { sdk } from "@/lib/hyperion";
 import { getRemoveLiquidityPayload } from "@/lib/services/protocols/hyperion/pools";
 import { ConfirmRemoveModal } from "@/components/ui/confirm-remove-modal";
 import { ClaimAllRewardsModal } from "@/components/ui/claim-all-rewards-modal";
+import { WithdrawModal } from "@/components/ui/withdraw-modal";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Info } from "lucide-react";
-import { filterHyperionVaultTokens } from '@/lib/services/hyperion/vaultTokens';
+import { filterHyperionVaultTokens, getVaultTokenMapping } from '@/lib/services/hyperion/vaultTokens';
 import { VaultCalculator, VaultData } from '@/lib/services/hyperion/vaultCalculator';
 import { VaultPosition } from "./VaultPosition";
 import { Token } from '@/lib/types/token';
 import { AptosPortfolioService } from '@/lib/services/aptos/portfolio';
+import { useWithdraw } from "@/lib/hooks/useWithdraw";
+import { ProtocolKey } from "@/lib/transactions/types";
 
 interface HyperionPositionProps {
   position: any;
@@ -541,6 +544,10 @@ export function HyperionPositions() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showClaimAllModal, setShowClaimAllModal] = useState(false);
+  const [showVaultWithdrawModal, setShowVaultWithdrawModal] = useState(false);
+  const [selectedVaultToken, setSelectedVaultToken] = useState<Token | null>(null);
+  const [selectedVaultData, setSelectedVaultData] = useState<VaultData | null>(null);
+  const { withdraw, isLoading: isWithdrawing } = useWithdraw();
 
   const loadPositions = async () => {
     console.log('[HyperionPositions] loadPositions called');
@@ -717,6 +724,50 @@ export function HyperionPositions() {
     totalValue
   });
 
+  // Handler для открытия модала Vault Withdraw
+  const handleVaultWithdraw = (vaultToken: Token, vaultDataItem: VaultData) => {
+    console.log('[HyperionPositions] Opening Vault Withdraw modal:', { vaultToken, vaultDataItem });
+    setSelectedVaultToken(vaultToken);
+    setSelectedVaultData(vaultDataItem);
+    setShowVaultWithdrawModal(true);
+  };
+
+  // Handler для подтверждения Vault Withdraw
+  const handleVaultWithdrawConfirm = async (amount: bigint) => {
+    if (!selectedVaultToken || !account?.address) {
+      console.error('[HyperionPositions] Missing data for vault withdraw');
+      return;
+    }
+
+    try {
+      console.log('[HyperionPositions] Executing Vault Withdraw:', {
+        vaultTokenAddress: selectedVaultToken.address,
+        amount: amount.toString(),
+        walletAddress: account.address.toString()
+      });
+
+      await withdraw(
+        'hyperion' as ProtocolKey,
+        selectedVaultToken.address, // marketAddress (vault token address / poolId)
+        amount, // amount of vault tokens to withdraw
+        selectedVaultToken.address // token address
+      );
+
+      // Закрываем модал и сбрасываем выбранные данные
+      setShowVaultWithdrawModal(false);
+      setSelectedVaultToken(null);
+      setSelectedVaultData(null);
+
+      // Обновляем позиции после успешного withdraw
+      setTimeout(() => {
+        memoizedLoadPositions();
+      }, 2000);
+    } catch (error) {
+      console.error('[HyperionPositions] Vault Withdraw error:', error);
+      // Ошибка уже обработана в useWithdraw hook
+    }
+  };
+
   return (
     <div className="w-full mb-6 py-2">
       <div className="space-y-4 text-base">
@@ -767,6 +818,7 @@ export function HyperionPositions() {
                   vaultToken={vaultToken}
                   vaultData={item.data}
                   index={item.index}
+                  onWithdraw={() => handleVaultWithdraw(vaultToken, item.data)}
                 />
               );
             }
@@ -845,6 +897,39 @@ export function HyperionPositions() {
         }}
         positions={positions}
       />
+
+      {/* Модальное окно для Vault Withdraw */}
+      {selectedVaultToken && selectedVaultData && (
+        <WithdrawModal
+          isOpen={showVaultWithdrawModal}
+          onClose={() => {
+            setShowVaultWithdrawModal(false);
+            setSelectedVaultToken(null);
+            setSelectedVaultData(null);
+          }}
+          onConfirm={handleVaultWithdrawConfirm}
+          position={{
+            coin: selectedVaultToken.address,
+            supply: selectedVaultToken.amount || "0",
+            market: selectedVaultToken.address
+          }}
+          tokenInfo={{
+            symbol: (() => {
+              const vaultMapping = getVaultTokenMapping(selectedVaultToken.address);
+              const token1 = vaultMapping?.tokens[0];
+              const token2 = vaultMapping?.tokens[1];
+              return `${token1?.symbol || 'Unknown'}/${token2?.symbol || 'Unknown'}`;
+            })(),
+            logoUrl: (() => {
+              const vaultMapping = getVaultTokenMapping(selectedVaultToken.address);
+              return vaultMapping?.tokens[0]?.logoUrl;
+            })(),
+            decimals: 8
+          }}
+          isLoading={isWithdrawing}
+          userAddress={account?.address?.toString()}
+        />
+      )}
     </div>
   );
 } 

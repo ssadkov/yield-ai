@@ -13,6 +13,22 @@ export class HyperionProtocol implements BaseProtocol {
     };
   }
 
+  async buildWithdraw(marketAddress: string, amountOctas: bigint, token: string, userAddress?: string) {
+    console.log('Building Hyperion Goblin Vault withdraw for:', { marketAddress, amountOctas, token, userAddress });
+
+    // For Goblin Vaults: marketAddress is the vault token address (poolId)
+    // amountOctas is the amount of vault tokens to withdraw
+    return {
+      type: "entry_function_payload" as const,
+      function: "0x19bcbcf8e688fd5ddf52725807bc8bf455a76d4b5a6021cfdc4b5b2652e5cd55::vaults::remove_as_pair",
+      type_arguments: [], // Empty type arguments for remove_as_pair
+      arguments: [
+        marketAddress, // poolId (vault token address)
+        amountOctas.toString() // amount of vault tokens to withdraw
+      ]
+    };
+  }
+
   async buildClaimRewards(positionIds: string[], _tokenTypes: string[]): Promise<{
     type: 'entry_function_payload';
     function: string;

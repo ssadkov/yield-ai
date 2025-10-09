@@ -2,6 +2,7 @@
 
 import { memo } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { getVaultTokenMapping } from "@/lib/services/hyperion/vaultTokens";
 import { VaultData } from "@/lib/services/hyperion/vaultCalculator";
 
@@ -9,9 +10,10 @@ interface VaultPositionProps {
   vaultToken: any;
   vaultData: VaultData;
   index: number;
+  onWithdraw?: () => void;
 }
 
-const VaultPosition = memo(function VaultPosition({ vaultToken, vaultData, index }: VaultPositionProps) {
+const VaultPosition = memo(function VaultPosition({ vaultToken, vaultData, index, onWithdraw }: VaultPositionProps) {
   const vaultMapping = getVaultTokenMapping(vaultToken.address);
   const token1 = vaultMapping?.tokens[0];
   const token2 = vaultMapping?.tokens[1];
@@ -52,6 +54,17 @@ const VaultPosition = memo(function VaultPosition({ vaultToken, vaultData, index
           <div className="flex items-center gap-2">
             <span className="text-lg font-bold">${value.toFixed(2)}</span>
           </div>
+          {/* Кнопка Withdraw */}
+          {onWithdraw && (
+            <Button
+              onClick={onWithdraw}
+              variant="outline"
+              size="sm"
+              className="mt-1"
+            >
+              Withdraw
+            </Button>
+          )}
         </div>
       </div>
 
@@ -89,6 +102,18 @@ const VaultPosition = memo(function VaultPosition({ vaultToken, vaultData, index
             <span className="text-lg font-bold">${value.toFixed(2)}</span>
           </div>
         </div>
+        
+        {/* Кнопка Withdraw для мобильной версии */}
+        {onWithdraw && (
+          <Button
+            onClick={onWithdraw}
+            variant="outline"
+            size="sm"
+            className="w-full mt-2"
+          >
+            Withdraw
+          </Button>
+        )}
       </div>
     </div>
   );
