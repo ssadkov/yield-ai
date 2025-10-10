@@ -54,9 +54,22 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json();
-    // console.log('Aptos API response:', data);
-
+    
     const balances = data.data?.current_fungible_asset_balances || [];
+    
+    // Log tokens with invalid amounts for debugging
+    const invalidBalances = balances.filter((b: any) => {
+      const amount = b.amount;
+      return !amount || amount === '' || amount === 'undefined' || amount === 'null' || isNaN(parseFloat(amount));
+    });
+    
+    if (invalidBalances.length > 0) {
+      console.warn('⚠️ Found tokens with invalid amounts from Aptos GraphQL:', invalidBalances.length);
+      invalidBalances.forEach((b: any) => {
+        console.warn('  - Token:', b.asset_type, 'Amount:', b.amount);
+      });
+    }
+    
     const result = { balances };
 
     return NextResponse.json(createSuccessResponse(result));

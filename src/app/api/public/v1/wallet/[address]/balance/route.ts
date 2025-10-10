@@ -66,16 +66,31 @@ export async function GET(
     // Ensure sorting and total sum
     const tokensSorted = (result.tokens || []).slice().sort((a, b) => (b.valueUSD || 0) - (a.valueUSD || 0));
 
-    // Map to external schema
-    const tokens = tokensSorted.map((t) => ({
-      tokenAddress: t.address,
-      symbol: t.symbol,
-      name: t.name,
-      decimals: t.decimals,
-      amount: t.balance,
-      priceUSD: t.priceUSD,
-      valueUSD: t.valueUSD,
-    }));
+    // Map to external schema and filter out invalid tokens
+    const tokens = tokensSorted
+      .filter((t) => {
+        // Filter out tokens with invalid balance
+        if (!t.balance || t.balance === 'NaN' || t.balance === 'undefined' || t.balance === 'null') {
+          return false;
+        }
+        
+        // Check if balance is actually a number
+        const balanceNum = parseFloat(t.balance);
+        if (isNaN(balanceNum)) {
+          return false;
+        }
+        
+        return true;
+      })
+      .map((t) => ({
+        tokenAddress: t.address,
+        symbol: t.symbol,
+        name: t.name,
+        decimals: t.decimals,
+        amount: t.balance,
+        priceUSD: t.priceUSD,
+        valueUSD: t.valueUSD,
+      }));
 
     const payload = {
       address: norm.clean,

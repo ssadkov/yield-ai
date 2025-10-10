@@ -68,7 +68,13 @@ export class TokenInfoService {
 
     // Fetch from API
     try {
-      const response = await fetch(`/api/tokens/info?address=${encodeURIComponent(address)}`);
+      // Determine base URL (server-side needs full URL)
+      const baseUrl = typeof window === 'undefined' 
+        ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000')
+        : '';
+      const apiUrl = `${baseUrl}/api/tokens/info?address=${encodeURIComponent(address)}`;
+      
+      const response = await fetch(apiUrl);
       
       if (response.ok) {
         const result = await response.json();
