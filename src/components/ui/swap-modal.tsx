@@ -31,6 +31,11 @@ import { getProtocolsList } from '@/lib/protocols/getProtocolsList';
 // Убираем useWalletStore - используем готовые цены из tokens
 // import { useWalletStore } from '@/lib/stores/walletStore';
 
+// Extended token type with actual price from wallet
+interface TokenWithActualPrice extends Token {
+  actualPrice?: string | null;
+}
+
 interface SwapQuote {
   amount: string;
   path: string[];
@@ -73,35 +78,35 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
   
   // Состояние для отслеживания изменений данных
   const [lastQuoteData, setLastQuoteData] = useState({
-    fromToken: null as Token | null,
-    toToken: null as Token | null,
+    fromToken: null as TokenWithActualPrice | null,
+    toToken: null as TokenWithActualPrice | null,
     amount: '',
     slippage: 0.5
   });
   
   // Token selection
-  const [fromToken, setFromToken] = useState<Token | null>(null);
-  const [toToken, setToToken] = useState<Token | null>(null);
+  const [fromToken, setFromToken] = useState<TokenWithActualPrice | null>(null);
+  const [toToken, setToToken] = useState<TokenWithActualPrice | null>(null);
   const [amount, setAmount] = useState<string>('');
   const [slippage, setSlippage] = useState<number>(0.5);
 
-  // USD amount calculated from input amount and fromToken.usdPrice
+  // USD amount calculated from input amount and fromToken actual price from wallet
   const usdAmount = useMemo(() => {
-    const price = Number(fromToken?.usdPrice || 0);
+    const price = Number((fromToken as any)?.actualPrice || 0);
     const qty = Number(amount || 0);
     if (!isFinite(price) || !isFinite(qty)) return 0;
     return qty * price;
-  }, [amount, fromToken?.usdPrice]);
+  }, [amount, fromToken]);
 
   // If a quote is available, prefer USD value from quote; otherwise fallback to usdAmount
   const quotedUsdAmount = useMemo(() => {
     const q = (quoteDebug as any)?.quotes?.[0];
     if (q?.fromTokenAmountUSD) return Number(q.fromTokenAmountUSD);
-    if (swapQuote?.estimatedFromAmount && fromToken?.usdPrice) {
-      return Number(swapQuote.estimatedFromAmount) * Number(fromToken.usdPrice);
+    if (swapQuote?.estimatedFromAmount && (fromToken as any)?.actualPrice) {
+      return Number(swapQuote.estimatedFromAmount) * Number((fromToken as any).actualPrice);
     }
     return null;
-  }, [quoteDebug, swapQuote, fromToken?.usdPrice]);
+  }, [quoteDebug, swapQuote, fromToken]);
 
   // Get Panora fee from configuration
   const panoraFee = useMemo(() => {
@@ -116,9 +121,12 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
     return tokens
       .map(t => {
         const tokenInfo = getTokenInfo(t.address);
+        // Use actual price from wallet only (no fallback to static prices)
+        const actualPrice = t.price;
         return {
           ...t,
-          tokenInfo
+          tokenInfo,
+          actualPrice
         };
       })
       .filter(token => token.tokenInfo)
@@ -131,9 +139,12 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
     const userTokens = tokens
       .map(t => {
         const tokenInfo = getTokenInfo(t.address);
+        // Use actual price from wallet only (no fallback to static prices)
+        const actualPrice = t.price;
         return {
           ...t,
-          tokenInfo
+          tokenInfo,
+          actualPrice
         };
       })
       .filter(token => 
@@ -162,7 +173,8 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
         decimals: token.decimals,
         amount: '0',
         price: null as string | null,
-        tokenInfo: token
+        tokenInfo: token,
+        actualPrice: null // No price for tokens not in wallet
       }));
 
     // 3) Merge with deduplication by token address
@@ -180,7 +192,7 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
   }, [tokens, fromToken]);
 
   // Type guard to check if token has tokenInfo property
-  const hasTokenInfo = (token: any): token is { tokenInfo: Token; value: number; address: string; name: string; symbol: string; decimals: number; amount: string; price: string | null } => {
+  const hasTokenInfo = (token: any): token is { tokenInfo: Token; value: number; address: string; name: string; symbol: string; decimals: number; amount: string; price: string | null; actualPrice?: string | null } => {
     return 'tokenInfo' in token && token.tokenInfo !== undefined;
   };
 
@@ -234,16 +246,20 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
     if (availableTokens.length > 0 && !fromToken) {
       const firstToken = availableTokens[0];
       const token = getTokenInfo(firstToken.address);
-      if (token) setFromToken(token);
+      if (token) {
+        // Attach actual price from wallet
+        setFromToken({ ...token, actualPrice: firstToken.actualPrice });
+      }
     }
     
     if (availableToTokens.length > 0 && !toToken) {
       // Select second token from the list (next available)
       const secondToken = availableToTokens[1] || availableToTokens[0];
       if (hasTokenInfo(secondToken)) {
-        setToToken(secondToken.tokenInfo);
+        // Attach actual price from wallet
+        setToToken({ ...secondToken.tokenInfo, actualPrice: secondToken.actualPrice });
       } else {
-        setToToken(secondToken as Token);
+        setToToken({ ...(secondToken as Token), actualPrice: secondToken.actualPrice });
       }
     }
     
@@ -703,8 +719,12 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                 value={fromToken?.faAddress || fromToken?.tokenAddress || ''}
                 onValueChange={(value) => {
                   const token = getTokenInfo(value);
+                  // Find actual price from wallet
+                  const walletToken = availableTokens.find(t => 
+                    (t.tokenInfo?.faAddress || t.tokenInfo?.tokenAddress) === value
+                  );
                   if (token) {
-                    setFromToken(token);
+                    setFromToken({ ...token, actualPrice: walletToken?.actualPrice });
                     // Сбрасываем quote при смене токена
                     setSwapQuote(null);
                     setQuoteDebug(null);
@@ -747,8 +767,8 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                         // Convert raw amount to human-readable format using decimals
                         const aBalance = Number(a.amount || 0) / Math.pow(10, a.tokenInfo?.decimals || 8);
                         const bBalance = Number(b.amount || 0) / Math.pow(10, b.tokenInfo?.decimals || 8);
-                        const aPrice = Number(a.tokenInfo?.usdPrice || 0);
-                        const bPrice = Number(b.tokenInfo?.usdPrice || 0);
+                        const aPrice = Number(a.actualPrice || 0);
+                        const bPrice = Number(b.actualPrice || 0);
                         const aValueUSD = aBalance * aPrice;
                         const bValueUSD = bBalance * bPrice;
                         if (!isFinite(aValueUSD) && !isFinite(bValueUSD)) return 0;
@@ -778,8 +798,8 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                             </div>
                             <div className="text-xs text-muted-foreground">
                               {formatNumber(balance.balance)}
-                              {tokenInfo.usdPrice && Math.abs(balance.balance) >= 0.001 &&  (
-                                <span> (${(balance.balance * Number(tokenInfo.usdPrice)).toFixed(2)})</span>
+                              {token.actualPrice && Math.abs(balance.balance) >= 0.001 &&  (
+                                <span> (${(balance.balance * Number(token.actualPrice)).toFixed(2)})</span>
                               )}
                             </div>
                           </div>
@@ -794,13 +814,12 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
 			  {fromToken && (
 			    <div className="text-xs text-muted-foreground">
 				  Balance: {formatNumber(getTokenBalance(fromToken).balance)} {fromToken.symbol}
-				  {/* Убираем отображение USD стоимости */}
 			    </div>
 			  )}
 
-			  {fromToken && fromToken.usdPrice && (
+			  {fromToken && (fromToken as any).actualPrice && (
 			    <div className="text-xs text-muted-foreground">
-				  ${ (getTokenBalance(fromToken).balance * Number(fromToken.usdPrice)).toFixed(2) }
+				  ${ (getTokenBalance(fromToken).balance * Number((fromToken as any).actualPrice)).toFixed(2) }
 			    </div>
 			  )}
             </div>
@@ -899,8 +918,12 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
                   value={toToken?.faAddress || toToken?.tokenAddress || ''}
                   onValueChange={(value) => {
                     const token = getTokenInfo(value);
+                    // Find actual price from wallet
+                    const walletToken = availableToTokens.find(t => 
+                      (t.tokenInfo?.faAddress || t.tokenInfo?.tokenAddress) === value
+                    );
                     if (token) {
-                      setToToken(token);
+                      setToToken({ ...token, actualPrice: walletToken?.actualPrice });
                       // Сбрасываем quote при смене токена
                       setSwapQuote(null);
                       setQuoteDebug(null);
