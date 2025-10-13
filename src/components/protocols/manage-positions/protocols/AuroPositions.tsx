@@ -157,28 +157,89 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
   // Обработчик события refreshPositions
   useEffect(() => {
     const handleRefreshPositions = (event: any) => {
-      const { protocol } = event.detail;
+      const { protocol, data } = event.detail;
+      console.log('AuroPositions received refreshPositions event:', { protocol, eventDetail: event.detail });
+      
       if (protocol === 'auro' || !protocol) {
         console.log('Refreshing Auro positions due to refreshPositions event');
-        // Перезагружаем позиции
-        if (walletAddress) {
-          setLoading(true);
-          fetch(`/api/protocols/auro/userPositions?address=${walletAddress}`)
-            .then(res => res.json())
-            .then(data => {
-              setPositions(Array.isArray(data.positionInfo) ? data.positionInfo : []);
-            })
-            .catch(err => {
-              console.error('Failed to refresh Auro positions:', err);
-            })
-            .finally(() => setLoading(false));
+        
+        // Если есть данные в событии, используем их (как в других протоколах)
+        if (data && Array.isArray(data)) {
+          console.log('Using data from refreshPositions event:', data);
+          setPositions(data);
+          
+          // Обновляем цены для новых позиций
+          if (data.length > 0) {
+            const addresses = new Set<string>();
+            data.forEach((position: any) => {
+              if (position.collateralTokenAddress) {
+                addresses.add(position.collateralTokenAddress);
+              }
+              // Добавляем USDA для долга
+              addresses.add("0x534e4c3dc0f038dab1a8259e89301c4da58779a5d482fb354a41c08147e6b9ec");
+            });
+            
+            // Обновляем цены
+            const priceMap = createDualAddressPriceMap();
+            pricesService.getPrices(Array.from(addresses), priceMap)
+              .then(prices => {
+                setTokenPrices(prices);
+                console.log('Prices updated after refresh from event data:', prices);
+              })
+              .catch(err => {
+                console.error('Failed to update prices after refresh from event data:', err);
+              });
+          }
+        } else {
+          // Если данных нет, загружаем позиции заново из API
+          console.log('No event data, fetching from API');
+          if (walletAddress) {
+            setLoading(true);
+            setError(null);
+            
+            fetch(`/api/protocols/auro/userPositions?address=${walletAddress}`)
+              .then(res => res.json())
+              .then(data => {
+                const newPositions = Array.isArray(data.positionInfo) ? data.positionInfo : [];
+                setPositions(newPositions);
+                console.log('Auro positions refreshed from API:', newPositions);
+                
+                // Также обновляем цены после обновления позиций
+                if (newPositions.length > 0) {
+                  const addresses = new Set<string>();
+                  newPositions.forEach(position => {
+                    if (position.collateralTokenAddress) {
+                      addresses.add(position.collateralTokenAddress);
+                    }
+                    // Добавляем USDA для долга
+                    addresses.add("0x534e4c3dc0f038dab1a8259e89301c4da58779a5d482fb354a41c08147e6b9ec");
+                  });
+                  
+                  // Обновляем цены
+                  const priceMap = createDualAddressPriceMap();
+                  pricesService.getPrices(Array.from(addresses), priceMap)
+                    .then(prices => {
+                      setTokenPrices(prices);
+                      console.log('Prices updated after refresh from API:', prices);
+                    })
+                    .catch(err => {
+                      console.error('Failed to update prices after refresh from API:', err);
+                    });
+                }
+              })
+              .catch(err => {
+                console.error('Failed to refresh Auro positions from API:', err);
+                setError("Failed to refresh Auro Finance positions");
+              })
+              .finally(() => setLoading(false));
+          }
         }
       }
     };
 
     window.addEventListener('refreshPositions', handleRefreshPositions);
     return () => window.removeEventListener('refreshPositions', handleRefreshPositions);
-  }, [walletAddress]);
+  }, [walletAddress, pricesService]);
 
   // useEffect для загрузки данных пулов
   useEffect(() => {
