@@ -17,6 +17,13 @@ import { formatNumber, formatCurrency } from "@/lib/utils/numberFormat";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { ChevronDown, Loader2 } from "lucide-react";
+import { useAmountInput } from "@/hooks/useAmountInput";
+import { calcYield } from "@/lib/utils/calcYield";
+import { useWalletData } from '@/contexts/WalletContext';
+import { Token } from '@/lib/types/panora';
 import tokenList from "@/lib/data/tokenList.json";
 
 interface AuroPositionsProps {
@@ -37,12 +44,54 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
   const [selectedDepositPosition, setSelectedDepositPosition] = useState<any>(null);
   const [depositAmount, setDepositAmount] = useState<string>('');
   const [isDepositing, setIsDepositing] = useState(false);
+  const [isYieldExpanded, setIsYieldExpanded] = useState(false);
   const { claimRewards, isLoading: isClaiming } = useClaimRewards();
   const { deposit } = useDeposit();
+  const { tokens, refreshPortfolio } = useWalletData();
   const pricesService = PanoraPricesService.getInstance();
 
   const walletAddress = address || account?.address;
   const protocol = getProtocolByName("Auro Finance");
+
+  // Получаем информацию о токене из списка токенов
+  const getTokenInfo = (address: string): Token | undefined => {
+    // Normalize addresses by removing leading zeros after 0x
+    const normalizeAddress = (addr: string) => {
+      if (!addr || !addr.startsWith('0x')) return addr;
+      return '0x' + addr.slice(2).replace(/^0+/, '') || '0x0';
+    };
+    
+    const normalizedAddress = normalizeAddress(address);
+    
+    return (tokenList.data.data as Token[]).find(token => {
+      const normalizedTokenAddress = normalizeAddress(token.tokenAddress || '');
+      const normalizedFaAddress = normalizeAddress(token.faAddress || '');
+      
+      return normalizedTokenAddress === normalizedAddress || 
+             normalizedFaAddress === normalizedAddress;
+    });
+  };
+
+  // Находим текущий токен в кошельке по адресу
+  const getCurrentToken = (tokenAddress: string) => {
+    return tokens?.find(t => {
+      const tokenInfo = getTokenInfo(t.address);
+      if (!tokenInfo) return false;
+      
+      // Normalize addresses for comparison
+      const normalizeAddress = (addr: string) => {
+        if (!addr || !addr.startsWith('0x')) return addr;
+        return '0x' + addr.slice(2).replace(/^0+/, '') || '0x0';
+      };
+      
+      const normalizedTokenAddress = normalizeAddress(tokenAddress);
+      const normalizedTokenInfoAddress = normalizeAddress(tokenInfo.tokenAddress || '');
+      const normalizedFaAddress = normalizeAddress(tokenInfo.faAddress || '');
+      
+      return normalizedTokenInfoAddress === normalizedTokenAddress || 
+             normalizedFaAddress === normalizedTokenAddress;
+    });
+  };
 
   // Получаем цену токена из кэша
   const getTokenPrice = useCallback((tokenAddress: string): string => {
@@ -1142,97 +1191,278 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
       </div>
 
       {/* Custom Auro Deposit Modal */}
-      {selectedDepositPosition && (
-        <Dialog open={showDepositModal} onOpenChange={() => {
-          setShowDepositModal(false);
-          setSelectedDepositPosition(null);
-        }}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Deposit to Auro Finance</DialogTitle>
-              <DialogDescription>
-                Add liquidity to your {selectedDepositPosition.collateralSymbol} position
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              {/* Token Info */}
-              <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
-                <Image
-                  src={selectedDepositPosition.collateralTokenInfo?.logoUrl || '/file.svg'}
-                  alt={selectedDepositPosition.collateralSymbol}
-                  width={32}
-                  height={32}
-                  className="rounded-full"
-                />
-                <div>
-                  <div className="font-medium">{selectedDepositPosition.collateralSymbol}</div>
-                  <div className="text-sm text-muted-foreground">
-                    Price: ${parseFloat(getTokenPrice(selectedDepositPosition.collateralTokenAddress)).toFixed(2)}
-                  </div>
-                </div>
-                <div className="ml-auto text-right">
-                  <div className="font-medium">
-                    APR: {(() => {
-                      const poolAPRData = getCollateralAPRData(selectedDepositPosition.poolAddress);
-                      return poolAPRData.totalApr.toFixed(2);
-                    })()}%
-                  </div>
-                </div>
-              </div>
-
-              {/* Amount Input */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Amount to deposit</label>
-                <Input
-                  type="number"
-                  placeholder="0.0"
-                  value={depositAmount}
-                  onChange={(e) => setDepositAmount(e.target.value)}
-                  className="text-lg"
-                />
-                <div className="text-sm text-muted-foreground">
-                  Balance: TODO: Get from wallet
-                </div>
-              </div>
-
-              {/* Estimated Yield */}
-              {depositAmount && parseFloat(depositAmount) > 0 && (
-                <div className="p-3 bg-muted rounded-lg">
-                  <div className="text-sm text-muted-foreground">Estimated daily yield</div>
-                  <div className="text-lg font-medium">
-                    ${(parseFloat(depositAmount) * parseFloat(getTokenPrice(selectedDepositPosition.collateralTokenAddress)) * (() => {
-                      const poolAPRData = getCollateralAPRData(selectedDepositPosition.poolAddress);
-                      return poolAPRData.totalApr / 365;
-                    })()).toFixed(2)}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => {
-                setShowDepositModal(false);
-                setSelectedDepositPosition(null);
-              }}>
-                Cancel
-              </Button>
-              <Button
-                onClick={() => {
-                  if (depositAmount && parseFloat(depositAmount) > 0) {
-                    const amountInOctas = BigInt(parseFloat(depositAmount) * Math.pow(10, selectedDepositPosition.collateralTokenInfo?.decimals || 8));
-                    handleDepositConfirm(amountInOctas);
-                  }
-                }}
-                disabled={isDepositing || !depositAmount || parseFloat(depositAmount) <= 0}
-              >
-                {isDepositing ? 'Depositing...' : 'Deposit'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+        {selectedDepositPosition && (
+          <AuroDepositModal
+            isOpen={showDepositModal}
+            onClose={() => {
+              setShowDepositModal(false);
+              setSelectedDepositPosition(null);
+            }}
+            position={selectedDepositPosition}
+            onDeposit={handleDepositConfirm}
+            isDepositing={isDepositing}
+            getTokenPrice={getTokenPrice}
+            getCollateralAPRData={getCollateralAPRData}
+          />
+        )}
 
     </div>
+  );
+}
+
+// Auro Deposit Modal Component - максимально похожий на оригинальный DepositModal
+interface AuroDepositModalProps {
+  isOpen: boolean;
+  onClose(): void;
+  position: any;
+  onDeposit: (amount: bigint) => Promise<void>;
+  isDepositing: boolean;
+  getTokenPrice: (tokenAddress: string) => string;
+  getCollateralAPRData: (poolAddress: string) => any;
+}
+
+function AuroDepositModal({
+  isOpen,
+  onClose,
+  position,
+  onDeposit,
+  isDepositing,
+  getTokenPrice,
+  getCollateralAPRData,
+}: AuroDepositModalProps) {
+  const { tokens, refreshPortfolio } = useWalletData();
+  const [isYieldExpanded, setIsYieldExpanded] = useState(false);
+
+  // Получаем информацию о токене из списка токенов
+  const getTokenInfo = (address: string): Token | undefined => {
+    const normalizeAddress = (addr: string) => {
+      if (!addr || !addr.startsWith('0x')) return addr;
+      return '0x' + addr.slice(2).replace(/^0+/, '') || '0x0';
+    };
+    
+    const normalizedAddress = normalizeAddress(address);
+    
+    return (tokenList.data.data as Token[]).find(token => {
+      const normalizedTokenAddress = normalizeAddress(token.tokenAddress || '');
+      const normalizedFaAddress = normalizeAddress(token.faAddress || '');
+      
+      return normalizedTokenAddress === normalizedAddress || 
+             normalizedFaAddress === normalizedAddress;
+    });
+  };
+
+  // Находим текущий токен в кошельке по адресу
+  const currentToken = tokens?.find(t => {
+    const tokenInfo = getTokenInfo(t.address);
+    if (!tokenInfo) return false;
+    
+    const normalizeAddress = (addr: string) => {
+      if (!addr || !addr.startsWith('0x')) return addr;
+      return '0x' + addr.slice(2).replace(/^0+/, '') || '0x0';
+    };
+    
+    const normalizedPositionTokenAddress = normalizeAddress(position.collateralTokenAddress);
+    const normalizedTokenInfoAddress = normalizeAddress(tokenInfo.tokenAddress || '');
+    const normalizedFaAddress = normalizeAddress(tokenInfo.faAddress || '');
+    
+    return normalizedTokenInfoAddress === normalizedPositionTokenAddress || 
+           normalizedFaAddress === normalizedPositionTokenAddress;
+  });
+
+  // Используем реальный баланс из кошелька
+  const walletBalance = currentToken ? BigInt(currentToken.amount) : BigInt(0);
+  
+  const {
+    amount,
+    amountString,
+    setAmountFromString,
+    setHalf,
+    setMax,
+    isValid,
+  } = useAmountInput({
+    balance: walletBalance,
+    decimals: position.collateralTokenInfo?.decimals || 8,
+  });
+
+  // Символы для токенов
+  const tokenInfo = getTokenInfo(position.collateralTokenAddress);
+  const displaySymbol = tokenInfo?.symbol || position.collateralSymbol;
+  
+  // Доходность
+  const poolAPRData = getCollateralAPRData(position.poolAddress);
+  const yieldResult = calcYield(poolAPRData.totalApr, amount, position.collateralTokenInfo?.decimals || 8);
+
+  // Устанавливаем максимальное значение при открытии модального окна
+  useEffect(() => {
+    if (isOpen && currentToken) {
+      setMax();
+    }
+  }, [isOpen, currentToken, setMax]);
+
+  // Refresh portfolio data when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      console.log('[AuroDepositModal] Refreshing portfolio data on modal open');
+      refreshPortfolio();
+    }
+  }, [isOpen, refreshPortfolio]);
+
+  const handleDeposit = async () => {
+    if (isDepositing) return;
+    
+    try {
+      await onDeposit(amount);
+      onClose();
+    } catch (error) {
+      console.error('Deposit error:', error);
+    }
+  };
+
+  const priceUSD = parseFloat(getTokenPrice(position.collateralTokenAddress));
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[425px] p-6 rounded-2xl">
+        <DialogHeader>
+          <div className="flex items-center gap-2">
+            <Image
+              src="/protocols/auro.svg"
+              alt="Auro Finance"
+              width={24}
+              height={24}
+              className="rounded-full"
+            />
+            <DialogTitle>Deposit to Auro Finance</DialogTitle>
+          </div>
+          <DialogDescription>
+            Add liquidity to your {displaySymbol} position
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex items-center justify-center gap-2 py-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 relative">
+              <Image
+                src={position.collateralTokenInfo?.logoUrl || '/file.svg'}
+                alt={displaySymbol}
+                width={32}
+                height={32}
+                className="object-contain"
+              />
+            </div>
+            <span>{displaySymbol}</span>
+          </div>
+          <span>→</span>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 relative">
+              <Image
+                src={position.collateralTokenInfo?.logoUrl || '/file.svg'}
+                alt={displaySymbol}
+                width={32}
+                height={32}
+                className="object-contain"
+              />
+            </div>
+            <span>{displaySymbol}</span>
+          </div>
+        </div>
+
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="amount" className="text-right">
+              Amount
+            </Label>
+            <div className="col-span-3 flex items-center gap-2">
+              <Input
+                id="amount"
+                type="number"
+                value={amountString}
+                onChange={(e) => setAmountFromString(e.target.value)}
+                className={`flex-1 ${amount > walletBalance ? 'text-red-500' : ''}`}
+                placeholder="0.00"
+              />
+              <div className="flex items-center gap-1">
+                <Image
+                  src={position.collateralTokenInfo?.logoUrl || '/file.svg'}
+                  alt={position.collateralSymbol}
+                  width={16}
+                  height={16}
+                  className="rounded-full"
+                />
+                <span className="text-sm">{displaySymbol}</span>
+                {amountString && (
+                  <span className={`text-sm ml-2 ${amount > walletBalance ? 'text-red-500' : 'text-muted-foreground'}`}>
+                    ≈ ${(parseFloat(amountString) * priceUSD).toFixed(2)}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {amount > walletBalance && (
+            <div className="flex items-center justify-between text-sm text-red-500 mt-1">
+              <span>
+                Amount exceeds wallet balance of {displaySymbol}. Please reduce the amount.
+              </span>
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={setHalf}>
+              Half
+            </Button>
+            <Button variant="outline" size="sm" onClick={setMax}>
+              Max
+            </Button>
+          </div>
+
+          <div
+            className="flex items-center justify-between cursor-pointer"
+            onClick={() => setIsYieldExpanded(!isYieldExpanded)}
+          >
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-muted-foreground">
+                APR {poolAPRData.totalApr.toFixed(2)}%
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xl font-bold">
+                  ≈ ${yieldResult.daily.toFixed(2)}
+                </span>
+                <span className="text-sm text-muted-foreground">/day</span>
+                <ChevronDown className="h-3 w-3 text-muted-foreground ml-1" />
+              </div>
+            </div>
+          </div>
+          {isYieldExpanded && (
+            <div className="space-y-1 text-sm text-muted-foreground">
+              <div>≈ ${yieldResult.weekly.toFixed(2)} /week</div>
+              <div>≈ ${yieldResult.monthly.toFixed(2)} /month</div>
+              <div>≈ ${yieldResult.yearly.toFixed(2)} /year</div>
+            </div>
+          )}
+        </div>
+
+        <Separator />
+
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeposit}
+            disabled={!isValid || isDepositing || amount === BigInt(0)}
+          >
+            {isDepositing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              "Deposit"
+            )}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 } 
