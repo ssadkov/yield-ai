@@ -39,4 +39,13 @@ export class AuroProtocol implements BaseProtocol {
       arguments: [positionIds, []], // tuple
     };
   }
+
+  async buildDepositToPosition(positionAddress: string, amountOctas: bigint) {
+    return {
+      type: "entry_function_payload" as const,
+      function: "0xd039ef33e378c10544491855a2ef99cd77bf1a610fd52cc43117cd96e1c73465::auro_router::deposit_entry",
+      type_arguments: [],
+      arguments: [positionAddress, amountOctas.toString()]
+    };
+  }
 } 

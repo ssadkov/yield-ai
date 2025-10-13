@@ -9,10 +9,14 @@ import { cn } from "@/lib/utils";
 import { ManagePositionsButton } from "../../ManagePositionsButton";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import { useClaimRewards } from '@/lib/hooks/useClaimRewards';
+import { useDeposit } from '@/lib/hooks/useDeposit';
 import { PanoraPricesService } from "@/lib/services/panora/prices";
 import { TokenPrice } from "@/lib/types/panora";
 import { createDualAddressPriceMap } from "@/lib/utils/addressNormalization";
 import { formatNumber, formatCurrency } from "@/lib/utils/numberFormat";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import tokenList from "@/lib/data/tokenList.json";
 
 interface AuroPositionsProps {
@@ -21,7 +25,7 @@ interface AuroPositionsProps {
 }
 
 export function AuroPositions({ address, onPositionsValueChange }: AuroPositionsProps) {
-  const { account } = useWallet();
+  const { account, signAndSubmitTransaction } = useWallet();
   const [positions, setPositions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +33,12 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
   const [poolsData, setPoolsData] = useState<any[]>([]);
   const [rewardsData, setRewardsData] = useState<{ [positionAddress: string]: { collateral: any[], borrow: any[] } }>({});
   const [tokenPrices, setTokenPrices] = useState<Record<string, string>>({});
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [selectedDepositPosition, setSelectedDepositPosition] = useState<any>(null);
+  const [depositAmount, setDepositAmount] = useState<string>('');
+  const [isDepositing, setIsDepositing] = useState(false);
   const { claimRewards, isLoading: isClaiming } = useClaimRewards();
+  const { deposit } = useDeposit();
   const pricesService = PanoraPricesService.getInstance();
 
   const walletAddress = address || account?.address;
@@ -432,6 +441,71 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
   
   if (!positions || positions.length === 0) return null;
 
+  // Deposit handlers
+  const handleDepositClick = (position: any) => {
+    setSelectedDepositPosition(position);
+    setShowDepositModal(true);
+  };
+
+  const handleDepositConfirm = async (amount: bigint) => {
+    if (!selectedDepositPosition) return;
+    
+    try {
+      setIsDepositing(true);
+      
+      // Get position address (not pool address) for deposit_entry
+      const positionAddress = selectedDepositPosition.address;
+      
+      console.log('Auro Deposit Debug Info:', {
+        selectedDepositPosition,
+        positionAddress,
+        poolAddress: selectedDepositPosition.poolAddress,
+        amount: amount.toString(),
+        collateralTokenAddress: selectedDepositPosition.collateralTokenAddress,
+        collateralSymbol: selectedDepositPosition.collateralSymbol
+      });
+      
+      // For Auro Finance, we need to use the special deposit_entry function
+      // Import AuroProtocol and use buildDepositToPosition method
+      const { AuroProtocol } = await import('@/lib/protocols/auro');
+      const auroProtocol = new AuroProtocol();
+      
+      // Build the transaction payload using buildDepositToPosition
+      // Use position address (not pool address) for deposit_entry
+      console.log('Using position address:', positionAddress);
+      const payload = await auroProtocol.buildDepositToPosition(positionAddress, amount);
+      
+      console.log('Generated payload:', payload);
+      
+      if (!account || !signAndSubmitTransaction) {
+        throw new Error('Wallet not connected');
+      }
+      
+      const result = await signAndSubmitTransaction({
+        data: {
+          function: payload.function,
+          typeArguments: payload.type_arguments,
+          functionArguments: payload.arguments
+        },
+        options: {
+          maxGasAmount: 20000,
+        },
+      });
+      
+      console.log('Auro deposit transaction result:', result);
+      
+      // Close modal and update state
+      setShowDepositModal(false);
+      setSelectedDepositPosition(null);
+      setDepositAmount('');
+      
+    } catch (error) {
+      console.error('Deposit failed:', error);
+    } finally {
+      setIsDepositing(false);
+    }
+  };
+
   return (
     <div className="space-y-4 text-base">
       <ScrollArea>
@@ -656,6 +730,17 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                       )}
                     </div>
                   )}
+                  
+                  {/* Deposit button for collateral positions */}
+                  <div className="mt-2 pt-2 border-t border-gray-200">
+                    <button
+                      className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-semibold disabled:opacity-60 hover:bg-blue-700"
+                      onClick={() => handleDepositClick(pos)}
+                      disabled={isDepositing}
+                    >
+                      {isDepositing ? 'Depositing...' : 'Deposit'}
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -763,6 +848,15 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                     </div>
                   </div>
                 )}
+                
+                {/* Deposit button for mobile */}
+                <button
+                  className="w-full py-2 bg-blue-600 text-white rounded text-sm font-semibold disabled:opacity-60 hover:bg-blue-700"
+                  onClick={() => handleDepositClick(pos)}
+                  disabled={isDepositing}
+                >
+                  {isDepositing ? 'Depositing...' : 'Deposit'}
+                </button>
               </div>
 
               {/* Desktop layout - Debt позиция */}
@@ -1047,7 +1141,97 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
         )}
       </div>
 
+      {/* Custom Auro Deposit Modal */}
+      {selectedDepositPosition && (
+        <Dialog open={showDepositModal} onOpenChange={() => {
+          setShowDepositModal(false);
+          setSelectedDepositPosition(null);
+        }}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Deposit to Auro Finance</DialogTitle>
+              <DialogDescription>
+                Add liquidity to your {selectedDepositPosition.collateralSymbol} position
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              {/* Token Info */}
+              <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                <Image
+                  src={selectedDepositPosition.collateralTokenInfo?.logoUrl || '/file.svg'}
+                  alt={selectedDepositPosition.collateralSymbol}
+                  width={32}
+                  height={32}
+                  className="rounded-full"
+                />
+                <div>
+                  <div className="font-medium">{selectedDepositPosition.collateralSymbol}</div>
+                  <div className="text-sm text-muted-foreground">
+                    Price: ${parseFloat(getTokenPrice(selectedDepositPosition.collateralTokenAddress)).toFixed(2)}
+                  </div>
+                </div>
+                <div className="ml-auto text-right">
+                  <div className="font-medium">
+                    APR: {(() => {
+                      const poolAPRData = getCollateralAPRData(selectedDepositPosition.poolAddress);
+                      return poolAPRData.totalApr.toFixed(2);
+                    })()}%
+                  </div>
+                </div>
+              </div>
 
+              {/* Amount Input */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Amount to deposit</label>
+                <Input
+                  type="number"
+                  placeholder="0.0"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(e.target.value)}
+                  className="text-lg"
+                />
+                <div className="text-sm text-muted-foreground">
+                  Balance: TODO: Get from wallet
+                </div>
+              </div>
+
+              {/* Estimated Yield */}
+              {depositAmount && parseFloat(depositAmount) > 0 && (
+                <div className="p-3 bg-muted rounded-lg">
+                  <div className="text-sm text-muted-foreground">Estimated daily yield</div>
+                  <div className="text-lg font-medium">
+                    ${(parseFloat(depositAmount) * parseFloat(getTokenPrice(selectedDepositPosition.collateralTokenAddress)) * (() => {
+                      const poolAPRData = getCollateralAPRData(selectedDepositPosition.poolAddress);
+                      return poolAPRData.totalApr / 365;
+                    })()).toFixed(2)}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => {
+                setShowDepositModal(false);
+                setSelectedDepositPosition(null);
+              }}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (depositAmount && parseFloat(depositAmount) > 0) {
+                    const amountInOctas = BigInt(parseFloat(depositAmount) * Math.pow(10, selectedDepositPosition.collateralTokenInfo?.decimals || 8));
+                    handleDepositConfirm(amountInOctas);
+                  }
+                }}
+                disabled={isDepositing || !depositAmount || parseFloat(depositAmount) <= 0}
+              >
+                {isDepositing ? 'Depositing...' : 'Deposit'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
     </div>
   );

@@ -70,6 +70,19 @@ export async function executeDeposit(
     return payload;
   }
 
+  // Special handling for Auro Finance - need pool address for deposit to position
+  if (protocol.name === 'Auro Finance') {
+    console.log('Using custom Auro deposit logic for token:', token);
+    
+    // For Auro Finance, we need to get the pool address from the context
+    // Since we don't have it here, we'll use a fallback approach
+    // The actual pool address should be passed from the UI component
+    
+    // For now, we'll use the standard buildDeposit method
+    // In the future, we might need to extend this to support poolAddress parameter
+    console.log('Using standard Auro buildDeposit method');
+  }
+
   // Standard protocol handling
   const payload = await protocol.buildDeposit(amount, token, wallet.account?.address?.toString());
   console.log('Generated payload:', payload);
