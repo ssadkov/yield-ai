@@ -24,6 +24,7 @@ import { useAmountInput } from "@/hooks/useAmountInput";
 import { calcYield } from "@/lib/utils/calcYield";
 import { useWalletData } from '@/contexts/WalletContext';
 import { Token } from '@/lib/types/panora';
+import { showTransactionSuccessToast } from '@/components/ui/transaction-toast';
 import tokenList from "@/lib/data/tokenList.json";
 
 interface AuroPositionsProps {
@@ -151,6 +152,32 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
         setPositions([]);
       })
       .finally(() => setLoading(false));
+  }, [walletAddress]);
+
+  // Обработчик события refreshPositions
+  useEffect(() => {
+    const handleRefreshPositions = (event: any) => {
+      const { protocol } = event.detail;
+      if (protocol === 'auro' || !protocol) {
+        console.log('Refreshing Auro positions due to refreshPositions event');
+        // Перезагружаем позиции
+        if (walletAddress) {
+          setLoading(true);
+          fetch(`/api/protocols/auro/userPositions?address=${walletAddress}`)
+            .then(res => res.json())
+            .then(data => {
+              setPositions(Array.isArray(data.positionInfo) ? data.positionInfo : []);
+            })
+            .catch(err => {
+              console.error('Failed to refresh Auro positions:', err);
+            })
+            .finally(() => setLoading(false));
+        }
+      }
+    };
+
+    window.addEventListener('refreshPositions', handleRefreshPositions);
+    return () => window.removeEventListener('refreshPositions', handleRefreshPositions);
   }, [walletAddress]);
 
   // useEffect для загрузки данных пулов
@@ -542,8 +569,58 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
       });
       
       console.log('Auro deposit transaction result:', result);
+
+      if (result.hash) {
+        console.log('Checking transaction status for hash:', result.hash);
+        const maxAttempts = 10;
+        const delay = 2000;
+        
+        for (let i = 0; i < maxAttempts; i++) {
+          console.log(`Checking transaction status attempt ${i + 1}/${maxAttempts}`);
+          try {
+            const txResponse = await fetch(`https://fullnode.mainnet.aptoslabs.com/v1/transactions/by_hash/${result.hash}`);
+            const txData = await txResponse.json();
+            console.log('Transaction success:', txData.success);
+            console.log('Transaction vm_status:', txData.vm_status);
+            
+            if (txData.success && txData.vm_status === "Executed successfully") {
+              console.log('Transaction confirmed successfully, showing toast...');
+              showTransactionSuccessToast({ 
+                hash: result.hash, 
+                title: "Auro Finance deposit successful!" 
+              });
+              console.log('Toast should be shown now');
+              
+              // Close modal and update state
+              setShowDepositModal(false);
+              setSelectedDepositPosition(null);
+              setDepositAmount('');
+              
+              // Refresh positions after successful deposit
+              setTimeout(() => {
+                window.dispatchEvent(new CustomEvent('refreshPositions', { 
+                  detail: { protocol: 'auro' }
+                }));
+              }, 2000);
+              
+              return result;
+            } else if (txData.vm_status) {
+              console.error('Transaction failed with status:', txData.vm_status);
+              throw new Error(`Transaction failed: ${txData.vm_status}`);
+            }
+          } catch (error) {
+            console.error(`Attempt ${i + 1} failed:`, error);
+          }
+          
+          console.log(`Waiting ${delay}ms before next attempt...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+        
+        console.error('Transaction status check timeout');
+        throw new Error('Transaction status check timeout');
+      }
       
-      // Close modal and update state
+      // Close modal and update state (fallback if no hash)
       setShowDepositModal(false);
       setSelectedDepositPosition(null);
       setDepositAmount('');
