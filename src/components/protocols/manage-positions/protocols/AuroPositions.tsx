@@ -180,11 +180,11 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
             });
             
             // Обновляем цены
-            const priceMap = createDualAddressPriceMap();
-            pricesService.getPrices(Array.from(addresses), priceMap)
-              .then(prices => {
-                setTokenPrices(prices);
-                console.log('Prices updated after refresh from event data:', prices);
+            pricesService.getPrices(1, Array.from(addresses))
+              .then(response => {
+                const priceMap = response.data ? createDualAddressPriceMap(response.data) : {};
+                setTokenPrices(priceMap);
+                console.log('Prices updated after refresh from event data:', priceMap);
               })
               .catch(err => {
                 console.error('Failed to update prices after refresh from event data:', err);
@@ -207,7 +207,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                 // Также обновляем цены после обновления позиций
                 if (newPositions.length > 0) {
                   const addresses = new Set<string>();
-                  newPositions.forEach(position => {
+                  newPositions.forEach((position: any) => {
                     if (position.collateralTokenAddress) {
                       addresses.add(position.collateralTokenAddress);
                     }
@@ -216,11 +216,11 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                   });
                   
                   // Обновляем цены
-                  const priceMap = createDualAddressPriceMap();
-                  pricesService.getPrices(Array.from(addresses), priceMap)
-                    .then(prices => {
-                      setTokenPrices(prices);
-                      console.log('Prices updated after refresh from API:', prices);
+                  pricesService.getPrices(1, Array.from(addresses))
+                    .then(response => {
+                      const priceMap = response.data ? createDualAddressPriceMap(response.data) : {};
+                      setTokenPrices(priceMap);
+                      console.log('Prices updated after refresh from API:', priceMap);
                     })
                     .catch(err => {
                       console.error('Failed to update prices after refresh from API:', err);
@@ -584,7 +584,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
     setShowDepositModal(true);
   };
 
-  const handleDepositConfirm = async (amount: bigint) => {
+  const handleDepositConfirm = async (amount: bigint): Promise<void> => {
     if (!selectedDepositPosition) return;
     
     try {
@@ -621,7 +621,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
       
       const result = await signAndSubmitTransaction({
         data: {
-          function: payload.function,
+          function: payload.function as `${string}::${string}::${string}`,
           typeArguments: payload.type_arguments,
           functionArguments: payload.arguments
         },
@@ -664,8 +664,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                   detail: { protocol: 'auro' }
                 }));
               }, 2000);
-              
-              return result;
+              return;
             } else if (txData.vm_status) {
               console.error('Transaction failed with status:', txData.vm_status);
               throw new Error(`Transaction failed: ${txData.vm_status}`);
