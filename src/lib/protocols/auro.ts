@@ -40,11 +40,15 @@ export class AuroProtocol implements BaseProtocol {
     };
   }
 
-  async buildDepositToPosition(positionAddress: string, amountOctas: bigint) {
+  async buildDepositToPosition(positionAddress: string, amountOctas: bigint, tokenType?: string) {
+    // Определяем функцию на основе типа токена
+    const isCustomToken = tokenType && tokenType.includes('::');
+    const functionName = isCustomToken ? 'deposit_coin_entry' : 'deposit_entry';
+    
     return {
       type: "entry_function_payload" as const,
-      function: "0xd039ef33e378c10544491855a2ef99cd77bf1a610fd52cc43117cd96e1c73465::auro_router::deposit_entry",
-      type_arguments: [],
+      function: `0xd039ef33e378c10544491855a2ef99cd77bf1a610fd52cc43117cd96e1c73465::auro_router::${functionName}`,
+      type_arguments: isCustomToken ? [tokenType] : [], // type_arguments только для кастомных токенов
       arguments: [positionAddress, amountOctas.toString()]
     };
   }

@@ -610,7 +610,8 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
       // Build the transaction payload using buildDepositToPosition
       // Use position address (not pool address) for deposit_entry
       console.log('Using position address:', positionAddress);
-      const payload = await auroProtocol.buildDepositToPosition(positionAddress, amount);
+      console.log('Using token type:', selectedDepositPosition.collateralTokenAddress);
+      const payload = await auroProtocol.buildDepositToPosition(positionAddress, amount, selectedDepositPosition.collateralTokenAddress);
       
       console.log('Generated payload:', payload);
       
