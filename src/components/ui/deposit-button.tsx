@@ -200,7 +200,11 @@ export function DepositButton({
             address: tokenIn.address
           }}
           priceUSD={priceUSD || 0}
-          poolAddress={poolAddress}
+          poolAddress={(() => {
+            console.log('🔍 DEPOSIT BUTTON DEBUG - poolAddress received:', poolAddress);
+            console.log('🔍 DEPOSIT BUTTON DEBUG - protocol:', protocol.name);
+            return poolAddress;
+          })()}
         />
       )}
     </>

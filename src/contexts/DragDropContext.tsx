@@ -101,7 +101,17 @@ export function DragDropProvider({ children }: { children: ReactNode }) {
       const isCompatible = dropTarget.token === dragData.address || 
                           dropTarget.asset.toLowerCase() === dragData.symbol.toLowerCase();
       
+      console.log('DragDropContext: Validating token compatibility:', {
+        dropTargetToken: dropTarget.token,
+        dragDataAddress: dragData.address,
+        dropTargetAsset: dropTarget.asset,
+        dragDataSymbol: dragData.symbol,
+        isCompatible,
+        protocol: dropTarget.protocol
+      });
+      
       if (!isCompatible) {
+        console.log('DragDropContext: Token not compatible, requires swap');
         return {
           isValid: false,
           reason: 'Token is not compatible with this pool',
@@ -197,7 +207,15 @@ export function DragDropProvider({ children }: { children: ReactNode }) {
   };
 
   const handleDrop = (dragData: DragData, dropTarget: InvestmentData | 'wallet') => {
+    console.log('DragDropContext: handleDrop called with:', {
+      dragData,
+      dropTarget,
+      dragDataType: dragData.type,
+      dropTargetType: typeof dropTarget
+    });
+    
     const validation = validateDrop(dragData, dropTarget);
+    console.log('DragDropContext: Validation result:', validation);
     
     if (validation.isValid && dragData.type === 'token' && dropTarget !== 'wallet') {
       const protocol = getProtocolByName(dropTarget.protocol);
@@ -212,6 +230,68 @@ export function DragDropProvider({ children }: { children: ReactNode }) {
         }
         
         // Открываем модальное окно депозита
+        // Для Auro Finance всегда используем poolAddress из originalPool
+        let poolAddress = dropTarget.originalPool?.poolAddress;
+        
+        // Fallback для Auro Finance - если poolAddress нет в originalPool, попробуем другие поля
+        if (protocol.name === 'Auro Finance' && !poolAddress) {
+          console.log('DragDropContext: poolAddress not found for Auro Finance, trying fallbacks...');
+          
+          if (dropTarget.originalPool) {
+            console.log('Available keys in originalPool:', Object.keys(dropTarget.originalPool));
+            
+            // Попробуем разные возможные поля
+            poolAddress = dropTarget.originalPool.address || 
+                         dropTarget.originalPool.poolAddress || 
+                         dropTarget.originalPool.id ||
+                         dropTarget.originalPool.pool?.address ||
+                         dropTarget.originalPool.pool?.poolAddress;
+          }
+          
+          // Если все еще нет poolAddress, НЕ используем token как fallback для Auro Finance
+          if (!poolAddress) {
+            console.log('DragDropContext: No poolAddress found in originalPool for Auro Finance');
+          }
+        } else if (protocol.name === 'Auro Finance') {
+          // Для Auro Finance НЕ используем token как poolAddress - это неправильно
+          console.log('DragDropContext: No originalPool for Auro Finance - cannot proceed without proper poolAddress');
+        }
+        
+        console.log('DragDropContext: Creating modal data for', protocol.name, {
+          dropTarget,
+          originalPool: dropTarget.originalPool,
+          poolAddress,
+          token: dropTarget.token,
+          originalPoolKeys: dropTarget.originalPool ? Object.keys(dropTarget.originalPool) : 'no originalPool',
+          originalPoolFull: dropTarget.originalPool
+        });
+        
+        // Дополнительное логирование для Auro Finance
+        if (protocol.name === 'Auro Finance') {
+          console.log('🔍 AURO DEBUG - Full dropTarget:', JSON.stringify(dropTarget, null, 2));
+          console.log('🔍 AURO DEBUG - originalPool keys:', dropTarget.originalPool ? Object.keys(dropTarget.originalPool) : 'NO ORIGINAL POOL');
+          console.log('🔍 AURO DEBUG - poolAddress value:', poolAddress);
+          console.log('🔍 AURO DEBUG - poolAddress type:', typeof poolAddress);
+          
+          // Покажем все возможные поля, которые могут содержать poolAddress
+          if (dropTarget.originalPool) {
+            console.log('🔍 AURO DEBUG - Searching for pool address in originalPool:');
+            console.log('  - originalPool.address:', dropTarget.originalPool.address);
+            console.log('  - originalPool.poolAddress:', dropTarget.originalPool.poolAddress);
+            console.log('  - originalPool.id:', dropTarget.originalPool.id);
+            console.log('  - originalPool.pool?.address:', dropTarget.originalPool.pool?.address);
+            console.log('  - originalPool.pool?.poolAddress:', dropTarget.originalPool.pool?.poolAddress);
+            console.log('  - originalPool.poolAddress:', dropTarget.originalPool.poolAddress);
+            console.log('  - originalPool.address:', dropTarget.originalPool.address);
+            
+            // Покажем все ключи и их значения
+            console.log('🔍 AURO DEBUG - All originalPool keys and values:');
+            Object.keys(dropTarget.originalPool).forEach(key => {
+              console.log(`  - ${key}:`, dropTarget.originalPool[key]);
+            });
+          }
+        }
+        
         const modalData = {
           protocol: {
             name: protocol.name,
@@ -231,7 +311,8 @@ export function DragDropProvider({ children }: { children: ReactNode }) {
             decimals: tokenInfo?.decimals || 8,
             address: dropTarget.token
           },
-          priceUSD: parseFloat(dragData.price) || 0
+          priceUSD: parseFloat(dragData.price) || 0,
+          poolAddress: poolAddress // Add poolAddress for Auro Finance
         };
         
         setDepositModalData(modalData);
@@ -272,7 +353,8 @@ export function DragDropProvider({ children }: { children: ReactNode }) {
             decimals: dragData.decimals,
             address: dragData.address
           },
-          priceUSD: parseFloat(dragData.price) || 0
+          priceUSD: parseFloat(dragData.price) || 0,
+          poolAddress: dropTarget.originalPool?.poolAddress // Add poolAddress for Auro Finance
         };
         
         setDepositModalData(modalData);
@@ -393,6 +475,7 @@ export function DragDropProvider({ children }: { children: ReactNode }) {
             tokenIn={depositModalData.tokenIn}
             tokenOut={depositModalData.tokenOut}
             priceUSD={depositModalData.priceUSD}
+            poolAddress={depositModalData.poolAddress}
           />
           
           <SwapAndDepositModal
@@ -403,6 +486,7 @@ export function DragDropProvider({ children }: { children: ReactNode }) {
             tokenOut={depositModalData.tokenOut}
             amount={BigInt(depositModalData.tokenOut.amount || 0)}
             priceUSD={depositModalData.priceUSD}
+            poolAddress={depositModalData.poolAddress}
           />
         </>
       )}

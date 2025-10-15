@@ -184,7 +184,14 @@ export function DepositModal({
 
       // Special handling for Auro Finance new position creation
       if (protocol.key === 'auro' && poolAddress) {
-        console.log('Creating new Auro Finance position with poolAddress:', poolAddress);
+        console.log('DepositModal: Creating new Auro Finance position with poolAddress:', poolAddress);
+        console.log('DepositModal: Full modal props:', { protocol, tokenIn, tokenOut, poolAddress });
+        console.log('DepositModal: poolAddress validation:', {
+          poolAddress,
+          poolAddressType: typeof poolAddress,
+          poolAddressLength: poolAddress?.length,
+          isPoolAddressValid: poolAddress && poolAddress.length > 10
+        });
         
         const { AuroProtocol } = await import('@/lib/protocols/auro');
         const auroProtocol = new AuroProtocol();
@@ -265,8 +272,18 @@ export function DepositModal({
           console.error('Transaction status check timeout');
           throw new Error('Transaction status check timeout');
         }
+      } else if (protocol.key === 'auro' && !poolAddress) {
+        console.error('DepositModal: Auro Finance requires poolAddress but it is missing:', {
+          protocol: protocol.key,
+          poolAddress,
+          tokenIn,
+          tokenOut,
+          allProps: { protocol, tokenIn, tokenOut, priceUSD, poolAddress }
+        });
+        throw new Error('Auro Finance requires pool address for deposit');
       } else {
         // Existing deposit logic for other protocols
+        console.log('DepositModal: Using standard deposit logic for protocol:', protocol.key);
         await deposit(
           protocol.key,
           tokenIn.address,

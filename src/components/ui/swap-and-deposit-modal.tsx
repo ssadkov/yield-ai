@@ -178,6 +178,16 @@ export function SwapAndDepositModal({
     decimals: selectedToken?.decimals || 18,
   });
 
+  // Debug logging for button state
+  console.log('🔍 SWAP MODAL DEBUG - Button state:', {
+    isValid,
+    isLoading,
+    isDepositLoading,
+    selectedToken: selectedToken?.symbol,
+    amount: amountString,
+    balance: selectedToken ? findTokenBalance(tokens, selectedToken) : 'N/A'
+  });
+
   // Yield is calculated from USD value of the entered amount to reflect real deposit value
   const yieldResult = useMemo(() => {
     const tokenPriceUsd = selectedToken ? Number(selectedToken.usdPrice) || 0 : 0;
