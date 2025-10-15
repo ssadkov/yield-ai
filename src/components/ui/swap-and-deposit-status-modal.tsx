@@ -7,6 +7,7 @@ import { HyperionSwapService } from '@/lib/services/protocols/hyperion/swap';
 import tokenList from '@/lib/data/tokenList.json';
 import { useDeposit } from '@/lib/hooks/useDeposit';
 import { ProtocolKey } from '@/lib/transactions/types';
+import { showTransactionSuccessToast } from "@/components/ui/transaction-toast";
 import Image from 'next/image';
 
 interface SwapAndDepositStatusModalProps {
@@ -33,11 +34,12 @@ interface SwapAndDepositStatusModalProps {
     logo?: string;
   };
   userAddress: string;
+  poolAddress?: string; // Add this for Auro Finance
 }
 
 type Status = 'idle' | 'loading' | 'success' | 'error';
 
-export function SwapAndDepositStatusModal({ isOpen, onClose, provider = 'panora', amount, fromToken, toToken, protocol, userAddress }: SwapAndDepositStatusModalProps) {
+export function SwapAndDepositStatusModal({ isOpen, onClose, provider = 'panora', amount, fromToken, toToken, protocol, userAddress, poolAddress }: SwapAndDepositStatusModalProps) {
   const [status, setStatus] = useState<Status>('idle');
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -342,18 +344,105 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, provider = 'panora'
               setDepositResult(null);
               setDepositError(null);
               try {
-                // protocol и token берём из пропсов, amount — из свапа
                 // Normalize token address before passing to deposit
                 const normalizedTokenAddress = normalizeAddress(tokenAddress);
                 console.log('Depositing with normalized token address:', normalizedTokenAddress);
                 
-                const depositRes = await deposit(
-                  protocol.key as ProtocolKey,
-                  normalizedTokenAddress,
-                  BigInt(amount)
-                );
-                setDepositResult(depositRes);
-                setDepositStatus('success');
+                // Special handling for Auro Finance new position creation
+                if (protocol.key === 'auro' && poolAddress) {
+                  console.log('Creating new Auro Finance position via swap and deposit with poolAddress:', poolAddress);
+                  
+                  const { AuroProtocol } = await import('@/lib/protocols/auro');
+                  const auroProtocol = new AuroProtocol();
+                  
+                  // Build transaction payload
+                  const payload = await auroProtocol.buildCreatePosition(
+                    poolAddress,
+                    BigInt(amount),
+                    normalizedTokenAddress
+                  );
+                  
+                  console.log('Generated Auro create position payload:', payload);
+                  
+                  // Submit transaction
+                  if (!wallet.signAndSubmitTransaction) {
+                    throw new Error('Wallet not connected');
+                  }
+                  
+                  const depositRes = await wallet.signAndSubmitTransaction({
+                    data: {
+                      function: payload.function as `${string}::${string}::${string}`,
+                      typeArguments: payload.type_arguments,
+                      functionArguments: payload.arguments
+                    },
+                    options: {
+                      maxGasAmount: 20000,
+                    },
+                  });
+                  
+                  console.log('Auro create position transaction result:', depositRes);
+                  
+                  // Check transaction status
+                  if (depositRes.hash) {
+                    const maxAttempts = 10;
+                    const delay = 2000;
+                    
+                    for (let i = 0; i < maxAttempts; i++) {
+                      console.log(`Checking deposit transaction status attempt ${i + 1}/${maxAttempts}`);
+                      try {
+                        const txResponse = await fetch(
+                          `https://fullnode.mainnet.aptoslabs.com/v1/transactions/by_hash/${depositRes.hash}`
+                        );
+                        const txData = await txResponse.json();
+                        
+                        console.log('Deposit transaction success:', txData.success);
+                        console.log('Deposit transaction vm_status:', txData.vm_status);
+                        
+                        if (txData.success && txData.vm_status === "Executed successfully") {
+                          console.log('Deposit transaction confirmed successfully, showing toast...');
+                          showTransactionSuccessToast({ 
+                            hash: depositRes.hash, 
+                            title: "Auro Finance position created!" 
+                          });
+                          console.log('Toast should be shown now');
+                          
+                          // Refresh positions
+                          setTimeout(() => {
+                            window.dispatchEvent(new CustomEvent('refreshPositions', { 
+                              detail: { protocol: 'auro' }
+                            }));
+                          }, 2000);
+                          
+                          setDepositResult(depositRes);
+                          setDepositStatus('success');
+                          setHasProcessedTransaction(true);
+                          return;
+                        } else if (txData.vm_status) {
+                          console.error('Deposit transaction failed with status:', txData.vm_status);
+                          throw new Error(`Deposit transaction failed: ${txData.vm_status}`);
+                        }
+                      } catch (error) {
+                        console.error(`Deposit attempt ${i + 1} failed:`, error);
+                      }
+                      
+                      console.log(`Waiting ${delay}ms before next deposit attempt...`);
+                      await new Promise(resolve => setTimeout(resolve, delay));
+                    }
+                    
+                    console.error('Deposit transaction status check timeout');
+                    throw new Error('Deposit transaction status check timeout');
+                  }
+                } else {
+                  // Standard deposit logic for other protocols
+                  const depositRes = await deposit(
+                    protocol.key as ProtocolKey,
+                    normalizedTokenAddress,
+                    BigInt(amount)
+                  );
+                  setDepositResult(depositRes);
+                  setDepositStatus('success');
+                }
+                
                 // Mark transaction as processed to prevent re-execution
                 setHasProcessedTransaction(true);
               } catch (e: any) {

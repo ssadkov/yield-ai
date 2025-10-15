@@ -443,6 +443,7 @@ export function DepositModal({
         tokenIn={tokenIn}
         amount={amount}
         priceUSD={priceUSD}
+        poolAddress={poolAddress}
       />
     </>
   );

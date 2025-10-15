@@ -54,6 +54,7 @@ interface SwapAndDepositModalProps {
   };
   amount: bigint;
   priceUSD: number;
+  poolAddress?: string; // Add this for Auro Finance
 }
 
 export function SwapAndDepositModal({
@@ -64,6 +65,7 @@ export function SwapAndDepositModal({
   tokenOut,
   amount,
   priceUSD,
+  poolAddress,
 }: SwapAndDepositModalProps) {
   const { tokens, address: userAddress, refreshPortfolio } = useWalletData();
   const { deposit, isLoading: isDepositLoading } = useDeposit();
@@ -430,6 +432,7 @@ export function SwapAndDepositModal({
           logo: protocol.logo,
         }}
         userAddress={userAddress || ''}
+        poolAddress={poolAddress}
       />
     </>
   );
