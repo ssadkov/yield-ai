@@ -34,6 +34,7 @@ interface DepositButtonProps {
   };
   balance?: bigint;
   priceUSD?: number;
+  poolAddress?: string;
 }
 
 export function DepositButton({ 
@@ -43,6 +44,7 @@ export function DepositButton({
   tokenOut = tokenIn,
   balance,
   priceUSD,
+  poolAddress,
 }: DepositButtonProps) {
   
   const [isExternalDialogOpen, setIsExternalDialogOpen] = useState(false);
@@ -198,6 +200,7 @@ export function DepositButton({
             address: tokenIn.address
           }}
           priceUSD={priceUSD || 0}
+          poolAddress={poolAddress}
         />
       )}
     </>

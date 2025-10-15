@@ -64,6 +64,8 @@ export interface InvestmentData {
       source: string;
     }>;
   };
+  // Original pool data (for protocol-specific fields)
+  originalPool?: any;
 }
 
 export interface InvestmentsResponse {

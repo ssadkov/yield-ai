@@ -3,6 +3,8 @@
 import { useEffect, useState, useMemo } from "react";
 import Image from "next/image";
 import { ChevronDown, ArrowLeftRight } from "lucide-react";
+import { useWallet } from "@aptos-labs/wallet-adapter-react";
+import { showTransactionSuccessToast } from "@/components/ui/transaction-toast";
 import {
   Dialog,
   DialogContent,
@@ -53,6 +55,7 @@ interface DepositModalProps {
     address?: string;
   };
   priceUSD: number;
+  poolAddress?: string;
 }
 
 export function DepositModal({
@@ -62,12 +65,14 @@ export function DepositModal({
   tokenIn,
   tokenOut,
   priceUSD,
+  poolAddress,
 }: DepositModalProps) {
   const { tokens, refreshPortfolio } = useWalletData();
   const [isLoading, setIsLoading] = useState(false);
   const { deposit, isLoading: isDepositLoading } = useDeposit();
   const [isYieldExpanded, setIsYieldExpanded] = useState(false);
   const [isSwapModalOpen, setIsSwapModalOpen] = useState(false);
+  const { account, signAndSubmitTransaction } = useWallet();
 
   // Получаем информацию о токене из списка токенов
   const getTokenInfo = (address: string): Token | undefined => {
@@ -173,14 +178,101 @@ export function DepositModal({
       console.log('Starting deposit with:', {
         protocolKey: protocol.key,
         tokenAddress: tokenIn.address,
-        amount: amount.toString()
+        amount: amount.toString(),
+        poolAddress
       });
 
-      await deposit(
-        protocol.key,
-        tokenIn.address,
-        amount
-      );
+      // Special handling for Auro Finance new position creation
+      if (protocol.key === 'auro' && poolAddress) {
+        console.log('Creating new Auro Finance position with poolAddress:', poolAddress);
+        
+        const { AuroProtocol } = await import('@/lib/protocols/auro');
+        const auroProtocol = new AuroProtocol();
+        
+        // Build transaction payload
+        const payload = await auroProtocol.buildCreatePosition(
+          poolAddress,
+          amount,
+          tokenIn.address
+        );
+        
+        console.log('Generated Auro create position payload:', payload);
+        
+        // Submit transaction
+        if (!account || !signAndSubmitTransaction) {
+          throw new Error('Wallet not connected');
+        }
+        
+        const result = await signAndSubmitTransaction({
+          data: {
+            function: payload.function as `${string}::${string}::${string}`,
+            typeArguments: payload.type_arguments,
+            functionArguments: payload.arguments
+          },
+          options: {
+            maxGasAmount: 20000,
+          },
+        });
+        
+        console.log('Auro create position transaction result:', result);
+        
+        // Check transaction status
+        if (result.hash) {
+          console.log('Checking transaction status for hash:', result.hash);
+          const maxAttempts = 10;
+          const delay = 2000;
+          
+          for (let i = 0; i < maxAttempts; i++) {
+            console.log(`Checking transaction status attempt ${i + 1}/${maxAttempts}`);
+            try {
+              const txResponse = await fetch(
+                `https://fullnode.mainnet.aptoslabs.com/v1/transactions/by_hash/${result.hash}`
+              );
+              const txData = await txResponse.json();
+              
+              console.log('Transaction success:', txData.success);
+              console.log('Transaction vm_status:', txData.vm_status);
+              
+              if (txData.success && txData.vm_status === "Executed successfully") {
+                console.log('Transaction confirmed successfully, showing toast...');
+                showTransactionSuccessToast({ 
+                  hash: result.hash, 
+                  title: "Auro Finance position created!" 
+                });
+                console.log('Toast should be shown now');
+                
+                // Refresh positions
+                setTimeout(() => {
+                  window.dispatchEvent(new CustomEvent('refreshPositions', { 
+                    detail: { protocol: 'auro' }
+                  }));
+                }, 2000);
+                
+                onClose();
+                return;
+              } else if (txData.vm_status) {
+                console.error('Transaction failed with status:', txData.vm_status);
+                throw new Error(`Transaction failed: ${txData.vm_status}`);
+              }
+            } catch (error) {
+              console.error(`Attempt ${i + 1} failed:`, error);
+            }
+            
+            console.log(`Waiting ${delay}ms before next attempt...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+          
+          console.error('Transaction status check timeout');
+          throw new Error('Transaction status check timeout');
+        }
+      } else {
+        // Existing deposit logic for other protocols
+        await deposit(
+          protocol.key,
+          tokenIn.address,
+          amount
+        );
+      }
       
       onClose();
     } catch (error) {

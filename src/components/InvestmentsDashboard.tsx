@@ -1165,6 +1165,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                             }}
                             balance={BigInt(1000000000)} // TODO: Get real balance
                             priceUSD={Number(tokenInfo?.usdPrice || 0)}
+                            poolAddress={item.originalPool?.poolAddress}
                           />
                         </CardContent>
                       </Card>
@@ -1315,6 +1316,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                           }}
                           balance={BigInt(1000000000)} // TODO: Get real balance
                           priceUSD={Number(tokenInfo?.usdPrice || 0)}
+                          poolAddress={bestPool.originalPool?.poolAddress}
                         />
                       </CardContent>
                     </Card>
@@ -1758,6 +1760,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                   }}
                                   balance={BigInt(1000000000)} // TODO: Get real balance
                                   priceUSD={Number(tokenInfo?.usdPrice || 0)}
+                                  poolAddress={item.originalPool?.poolAddress}
                                 />
                               )
                             ) : (
