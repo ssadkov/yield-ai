@@ -63,7 +63,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
   const { tokens, refreshPortfolio } = useWalletData();
   const pricesService = PanoraPricesService.getInstance();
 
-  const walletAddress = address || account?.address;
+  const walletAddress = address || account?.address?.toString();
   const protocol = getProtocolByName("Auro Finance");
 
   // Получаем информацию о токене из списка токенов
@@ -1575,7 +1575,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
             usdPrice: getTokenPrice(selectedWithdrawPosition.collateralTokenAddress)
           }}
           isLoading={isWithdrawing}
-          userAddress={walletAddress}
+          userAddress={walletAddress?.toString()}
         />
       )}
 
