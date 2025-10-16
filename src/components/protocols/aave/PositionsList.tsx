@@ -280,7 +280,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
                                )}
                              </div>
                              <div className="text-xs text-muted-foreground">
-                               ${getTokenPrice(position.underlying_asset) || 'N/A'}
+                               {getTokenPrice(position.underlying_asset) || '$0.00'}
                              </div>
                            </div>
                          </div>
@@ -318,7 +318,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
                                </span>
                              </div>
                              <div className="text-xs text-muted-foreground">
-                               ${getTokenPrice(position.underlying_asset) || 'N/A'}
+                               {getTokenPrice(position.underlying_asset) || '$0.00'}
                              </div>
                            </div>
                          </div>
