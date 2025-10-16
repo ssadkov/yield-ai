@@ -27,6 +27,11 @@ export class PanoraPricesService {
     return Date.now() - timestamp < this.CACHE_TTL;
   }
 
+  clearCache(): void {
+    this.cache.clear();
+    console.log('[PanoraPricesService] 🗑️ Cache cleared');
+  }
+
   async getPrices(chainId: number, addresses?: string[]) {
     try {
       const cacheKey = this.getCacheKey(chainId, addresses);
