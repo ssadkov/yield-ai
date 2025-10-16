@@ -272,15 +272,8 @@ export function DepositModal({
           console.error('Transaction status check timeout');
           throw new Error('Transaction status check timeout');
         }
-      } else if (protocol.key === 'auro' && !poolAddress) {
-        console.error('DepositModal: Auro Finance requires poolAddress but it is missing:', {
-          protocol: protocol.key,
-          poolAddress,
-          tokenIn,
-          tokenOut,
-          allProps: { protocol, tokenIn, tokenOut, priceUSD, poolAddress }
-        });
-        throw new Error('Auro Finance requires pool address for deposit');
+                } else if (protocol.key === 'auro' && !poolAddress) {
+                  throw new Error('Auro Finance requires pool address for deposit');
       } else {
         // Existing deposit logic for other protocols
         console.log('DepositModal: Using standard deposit logic for protocol:', protocol.key);

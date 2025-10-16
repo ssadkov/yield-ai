@@ -349,15 +349,6 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, provider = 'panora'
                 console.log('Depositing with normalized token address:', normalizedTokenAddress);
                 
                 // Special handling for Auro Finance new position creation
-                console.log('🔍 SWAP DEPOSIT DEBUG - Checking Auro Finance deposit:', {
-                  protocolKey: protocol.key,
-                  poolAddress,
-                  poolAddressType: typeof poolAddress,
-                  poolAddressLength: poolAddress?.length,
-                  amount,
-                  normalizedTokenAddress
-                });
-                
                 if (protocol.key === 'auro' && poolAddress) {
                   console.log('Creating new Auro Finance position via swap and deposit with poolAddress:', poolAddress);
                   
@@ -442,12 +433,6 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, provider = 'panora'
                     throw new Error('Deposit transaction status check timeout');
                   }
                 } else if (protocol.key === 'auro' && !poolAddress) {
-                  console.error('🔍 SWAP DEPOSIT ERROR - Auro Finance requires poolAddress but it is missing:', {
-                    protocolKey: protocol.key,
-                    poolAddress,
-                    amount,
-                    normalizedTokenAddress
-                  });
                   throw new Error('Auro Finance requires pool address for deposit');
                 } else {
                   // Standard deposit logic for other protocols

@@ -1760,11 +1760,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                   }}
                                   balance={BigInt(1000000000)} // TODO: Get real balance
                                   priceUSD={Number(tokenInfo?.usdPrice || 0)}
-                                  poolAddress={(() => {
-                                    console.log('🔍 INVESTMENTS DEBUG - item.originalPool for Auro:', item.originalPool);
-                                    console.log('🔍 INVESTMENTS DEBUG - poolAddress from originalPool:', item.originalPool?.poolAddress);
-                                    return item.originalPool?.poolAddress;
-                                  })()}
+        poolAddress={item.originalPool?.poolAddress}
                                 />
                               )
                             ) : (
