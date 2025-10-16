@@ -1100,22 +1100,26 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                   
                   {/* Action buttons for collateral positions */}
                   <div className="mt-2 pt-2 border-t border-gray-200">
-                    <div className="flex gap-2">
-                      <button
-                        className="flex-1 px-3 py-1 bg-blue-600 text-white rounded text-sm font-semibold disabled:opacity-60 hover:bg-blue-700"
+                    <div className="flex gap-2 justify-end">
+                      <Button
                         onClick={() => handleDepositClick(pos)}
                         disabled={isDepositing}
+                        size="sm"
+                        variant="default"
+                        className="h-10"
                       >
                         {isDepositing ? 'Depositing...' : 'Deposit'}
-                      </button>
+                      </Button>
                       {!hasDebt && (
-                        <button
-                          className="flex-1 px-3 py-1 bg-orange-600 text-white rounded text-sm font-semibold disabled:opacity-60 hover:bg-orange-700"
+                        <Button
                           onClick={() => handleWithdrawClick(pos)}
                           disabled={isWithdrawing}
+                          size="sm"
+                          variant="outline"
+                          className="h-10"
                         >
                           {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
-                        </button>
+                        </Button>
                       )}
                     </div>
                   </div>
@@ -1228,22 +1232,26 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                 )}
                 
                 {/* Action buttons for mobile */}
-                <div className="flex gap-2">
-                  <button
-                    className="flex-1 py-2 bg-blue-600 text-white rounded text-sm font-semibold disabled:opacity-60 hover:bg-blue-700"
+                <div className="flex gap-2 justify-end">
+                  <Button
                     onClick={() => handleDepositClick(pos)}
                     disabled={isDepositing}
+                    size="sm"
+                    variant="default"
+                    className="h-10"
                   >
                     {isDepositing ? 'Depositing...' : 'Deposit'}
-                  </button>
+                  </Button>
                   {!hasDebt && (
-                    <button
-                      className="flex-1 py-2 bg-orange-600 text-white rounded text-sm font-semibold disabled:opacity-60 hover:bg-orange-700"
+                    <Button
                       onClick={() => handleWithdrawClick(pos)}
                       disabled={isWithdrawing}
+                      size="sm"
+                      variant="outline"
+                      className="h-10"
                     >
                       {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>

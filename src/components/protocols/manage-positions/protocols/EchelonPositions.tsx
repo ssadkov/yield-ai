@@ -966,28 +966,25 @@ export function EchelonPositions() {
                   <div className="text-base text-muted-foreground font-semibold">{formatNumber(amount, 4)}</div>
                   <div className="flex flex-col gap-1 mt-2">
                     {!isBorrow && (
-                      <div className="flex gap-2">
-                        <button
-                          className={cn(
-                            'px-3 py-1 rounded text-sm font-semibold disabled:opacity-60 transition-all',
-                            'bg-blue-500 text-white hover:bg-blue-600',
-                            'shadow-lg flex-1'
-                          )}
+                      <div className="flex gap-2 justify-end">
+                        <Button
                           onClick={() => handleDepositClick(position)}
+                          disabled={false}
+                          size="sm"
+                          variant="default"
+                          className="h-10"
                         >
                           Deposit
-                        </button>
-                        <button
-                          className={cn(
-                            'px-3 py-1 rounded text-sm font-semibold disabled:opacity-60 transition-all',
-                            'bg-green-500 text-white hover:bg-green-600',
-                            'shadow-lg flex-1'
-                          )}
+                        </Button>
+                        <Button
                           onClick={() => handleWithdrawClick(position)}
                           disabled={isWithdrawing}
+                          size="sm"
+                          variant="outline"
+                          className="h-10"
                         >
                           {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
-                        </button>
+                        </Button>
                       </div>
                     )}
                   </div>
@@ -1121,28 +1118,25 @@ export function EchelonPositions() {
 
                 {/* Action Buttons */}
                 {!isBorrow && (
-                  <div className="flex gap-2">
-                    <button
-                      className={cn(
-                        'px-3 py-2 rounded text-sm font-semibold disabled:opacity-60 transition-all',
-                        'bg-blue-500 text-white hover:bg-blue-600',
-                        'shadow-lg flex-1'
-                      )}
+                  <div className="flex gap-2 justify-end">
+                    <Button
                       onClick={() => handleDepositClick(position)}
+                      disabled={false}
+                      size="sm"
+                      variant="default"
+                      className="h-10"
                     >
                       Deposit
-                    </button>
-                    <button
-                      className={cn(
-                        'px-3 py-2 rounded text-sm font-semibold disabled:opacity-60 transition-all',
-                        'bg-green-500 text-white hover:bg-green-600',
-                        'shadow-lg flex-1'
-                      )}
+                    </Button>
+                    <Button
                       onClick={() => handleWithdrawClick(position)}
                       disabled={isWithdrawing}
+                      size="sm"
+                      variant="outline"
+                      className="h-10"
                     >
                       {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
-                    </button>
+                    </Button>
                   </div>
                 )}
               </div>
