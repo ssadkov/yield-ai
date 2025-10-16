@@ -580,7 +580,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                   <div className="text-base text-muted-foreground font-semibold">
                     {amount.toFixed(4)}
                   </div>
-                  <div className="flex gap-2 mt-2">
+                  <div className="flex gap-2 mt-2 justify-end">
                     <Button
                       onClick={() => handleDepositClick(position)}
                       disabled={false}
@@ -698,7 +698,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                     <div className="text-sm text-muted-foreground">
                       {amount.toFixed(4)}
                     </div>
-                    <div className="flex gap-2 mt-2">
+                    <div className="flex gap-2 mt-2 justify-end">
                       <Button
                         onClick={() => handleDepositClick(position)}
                         disabled={false}
