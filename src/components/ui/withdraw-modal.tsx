@@ -108,7 +108,7 @@ export function WithdrawModal({
   // Получаем Available Balance из position (userPositions API)
   // position.supply содержит значение в формате octas (наименьшие единицы токена)
   const availableBalance = typeof position.supply === 'string' 
-    ? BigInt(position.supply)
+    ? BigInt(Math.floor(Number(position.supply)))
     : BigInt(Math.floor(Number(position.supply)));
   const availableBalanceFormatted = tokenInfo?.decimals 
     ? Number(availableBalance) / (10 ** tokenInfo.decimals)

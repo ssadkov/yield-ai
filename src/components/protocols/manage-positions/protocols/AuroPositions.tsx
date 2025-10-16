@@ -10,6 +10,7 @@ import { ManagePositionsButton } from "../../ManagePositionsButton";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import { useClaimRewards } from '@/lib/hooks/useClaimRewards';
 import { useDeposit } from '@/lib/hooks/useDeposit';
+import { useWithdraw } from '@/lib/hooks/useWithdraw';
 import { PanoraPricesService } from "@/lib/services/panora/prices";
 import { TokenPrice } from "@/lib/types/panora";
 import { createDualAddressPriceMap } from "@/lib/utils/addressNormalization";
@@ -26,6 +27,7 @@ import { useWalletData } from '@/contexts/WalletContext';
 import { Token } from '@/lib/types/panora';
 import { showTransactionSuccessToast } from '@/components/ui/transaction-toast';
 import tokenList from "@/lib/data/tokenList.json";
+import { WithdrawModal } from '@/components/ui/withdraw-modal';
 
 interface AuroPositionsProps {
   address?: string;
@@ -46,8 +48,14 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
   const [depositAmount, setDepositAmount] = useState<string>('');
   const [isDepositing, setIsDepositing] = useState(false);
   const [isYieldExpanded, setIsYieldExpanded] = useState(false);
+  
+  // Withdraw modal state
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [selectedWithdrawPosition, setSelectedWithdrawPosition] = useState<any>(null);
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
   const { claimRewards, isLoading: isClaiming } = useClaimRewards();
   const { deposit } = useDeposit();
+  const { withdraw } = useWithdraw();
   const { tokens, refreshPortfolio } = useWalletData();
   const pricesService = PanoraPricesService.getInstance();
 
@@ -693,6 +701,143 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
     }
   };
 
+  // Withdraw handlers
+  const handleWithdrawClick = (position: any) => {
+    setSelectedWithdrawPosition(position);
+    setShowWithdrawModal(true);
+  };
+
+  const handleWithdrawConfirm = async (amount: bigint): Promise<void> => {
+    if (!selectedWithdrawPosition) return;
+    
+    try {
+      setIsWithdrawing(true);
+      
+      // Проверяем, является ли это 100% withdraw
+      const totalSupplyInOctas = BigInt(Math.floor(parseFloat(selectedWithdrawPosition.collateralAmount) * Math.pow(10, selectedWithdrawPosition.collateralTokenInfo?.decimals || 8)));
+      const isFullWithdraw = amount >= totalSupplyInOctas;
+      
+      if (isFullWithdraw) {
+        // Для 100% withdraw сначала показываем сообщение о claim rewards
+        const shouldProceed = window.confirm('СНАЧАЛА ЗАКЛЕЙМИТЕ REWARDS');
+        if (!shouldProceed) {
+          setIsWithdrawing(false);
+          return;
+        }
+        
+        // Claim rewards
+        const { positionIds, tokenTypes } = getClaimablePositionsAndTokens();
+        if (positionIds.length > 0 && tokenTypes.length > 0) {
+          await claimRewards('auro', positionIds, tokenTypes);
+        }
+        
+        // После успешного claim, выполняем exit position
+        await performExitPosition(selectedWithdrawPosition);
+      } else {
+        // Обычный withdraw
+        await performWithdraw(selectedWithdrawPosition, amount);
+      }
+      
+      // Закрываем модал и обновляем состояние
+      setShowWithdrawModal(false);
+      setSelectedWithdrawPosition(null);
+      
+      // Обновляем позиции после успешного withdraw
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('refreshPositions', { 
+          detail: { protocol: 'auro' }
+        }));
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Withdraw failed:', error);
+    } finally {
+      setIsWithdrawing(false);
+    }
+  };
+
+  const performWithdraw = async (position: any, amount: bigint) => {
+    const isCustomToken = position.collateralTokenAddress && position.collateralTokenAddress.includes('::');
+    
+    // Import AuroProtocol and use appropriate withdraw method
+    const { AuroProtocol } = await import('@/lib/protocols/auro');
+    const auroProtocol = new AuroProtocol();
+    
+    let payload;
+    if (isCustomToken) {
+      // Используем withdraw_coin_entry для токенов с ::
+      payload = await auroProtocol.buildWithdrawCoinEntry(position.address, amount, position.collateralTokenAddress);
+    } else {
+      // Используем withdraw_entry для токенов без ::
+      payload = await auroProtocol.buildWithdrawEntry(position.address, amount, position.collateralTokenAddress);
+    }
+    
+    if (!account || !signAndSubmitTransaction) {
+      throw new Error('Wallet not connected');
+    }
+    
+    const result = await signAndSubmitTransaction({
+      data: {
+        function: payload.function as `${string}::${string}::${string}`,
+        typeArguments: payload.type_arguments,
+        functionArguments: payload.arguments
+      },
+      options: {
+        maxGasAmount: 20000,
+      },
+    });
+    
+    console.log('Auro withdraw transaction result:', result);
+    
+    if (result.hash) {
+      showTransactionSuccessToast({ 
+        hash: result.hash, 
+        title: "Auro Finance withdraw successful!" 
+      });
+    }
+  };
+
+  const performExitPosition = async (position: any) => {
+    const isCustomToken = position.collateralTokenAddress && position.collateralTokenAddress.includes('::');
+    
+    // Import AuroProtocol and use appropriate exit method
+    const { AuroProtocol } = await import('@/lib/protocols/auro');
+    const auroProtocol = new AuroProtocol();
+    
+    let payload;
+    if (isCustomToken) {
+      // Используем exit_position_coin для токенов с ::
+      payload = await auroProtocol.buildExitPositionCoin(position.address, position.collateralTokenAddress);
+    } else {
+      // Используем exit_position для токенов без ::
+      payload = await auroProtocol.buildExitPosition(position.address, position.collateralTokenAddress);
+    }
+    
+    if (!account || !signAndSubmitTransaction) {
+      throw new Error('Wallet not connected');
+    }
+    
+    const result = await signAndSubmitTransaction({
+      data: {
+        function: payload.function as `${string}::${string}::${string}`,
+        typeArguments: payload.type_arguments,
+        functionArguments: payload.arguments
+      },
+      options: {
+        maxGasAmount: 20000,
+      },
+    });
+    
+    console.log('Auro exit position transaction result:', result);
+    
+    if (result.hash) {
+      showTransactionSuccessToast({ 
+        hash: result.hash, 
+        title: "Auro Finance position exit successful!" 
+      });
+    }
+  };
+
   return (
     <div className="space-y-4 text-base">
       <ScrollArea>
@@ -918,15 +1063,26 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                     </div>
                   )}
                   
-                  {/* Deposit button for collateral positions */}
+                  {/* Action buttons for collateral positions */}
                   <div className="mt-2 pt-2 border-t border-gray-200">
-                    <button
-                      className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-semibold disabled:opacity-60 hover:bg-blue-700"
-                      onClick={() => handleDepositClick(pos)}
-                      disabled={isDepositing}
-                    >
-                      {isDepositing ? 'Depositing...' : 'Deposit'}
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        className="flex-1 px-3 py-1 bg-blue-600 text-white rounded text-sm font-semibold disabled:opacity-60 hover:bg-blue-700"
+                        onClick={() => handleDepositClick(pos)}
+                        disabled={isDepositing}
+                      >
+                        {isDepositing ? 'Depositing...' : 'Deposit'}
+                      </button>
+                      {!hasDebt && (
+                        <button
+                          className="flex-1 px-3 py-1 bg-orange-600 text-white rounded text-sm font-semibold disabled:opacity-60 hover:bg-orange-700"
+                          onClick={() => handleWithdrawClick(pos)}
+                          disabled={isWithdrawing}
+                        >
+                          {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1036,14 +1192,25 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                   </div>
                 )}
                 
-                {/* Deposit button for mobile */}
-                <button
-                  className="w-full py-2 bg-blue-600 text-white rounded text-sm font-semibold disabled:opacity-60 hover:bg-blue-700"
-                  onClick={() => handleDepositClick(pos)}
-                  disabled={isDepositing}
-                >
-                  {isDepositing ? 'Depositing...' : 'Deposit'}
-                </button>
+                {/* Action buttons for mobile */}
+                <div className="flex gap-2">
+                  <button
+                    className="flex-1 py-2 bg-blue-600 text-white rounded text-sm font-semibold disabled:opacity-60 hover:bg-blue-700"
+                    onClick={() => handleDepositClick(pos)}
+                    disabled={isDepositing}
+                  >
+                    {isDepositing ? 'Depositing...' : 'Deposit'}
+                  </button>
+                  {!hasDebt && (
+                    <button
+                      className="flex-1 py-2 bg-orange-600 text-white rounded text-sm font-semibold disabled:opacity-60 hover:bg-orange-700"
+                      onClick={() => handleWithdrawClick(pos)}
+                      disabled={isWithdrawing}
+                    >
+                      {isWithdrawing ? 'Withdrawing...' : 'Withdraw'}
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Desktop layout - Debt позиция */}
@@ -1343,6 +1510,31 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
             getCollateralAPRData={getCollateralAPRData}
           />
         )}
+
+      {/* Withdraw Modal */}
+      {selectedWithdrawPosition && (
+        <WithdrawModal
+          isOpen={showWithdrawModal}
+          onClose={() => {
+            setShowWithdrawModal(false);
+            setSelectedWithdrawPosition(null);
+          }}
+          onConfirm={handleWithdrawConfirm}
+          position={{
+            coin: selectedWithdrawPosition.collateralTokenAddress,
+            supply: Math.floor(parseFloat(selectedWithdrawPosition.collateralAmount) * Math.pow(10, selectedWithdrawPosition.collateralTokenInfo?.decimals || 8)).toString(),
+            market: selectedWithdrawPosition.address
+          }}
+          tokenInfo={{
+            symbol: selectedWithdrawPosition.collateralSymbol,
+            logoUrl: selectedWithdrawPosition.collateralTokenInfo?.logoUrl,
+            decimals: selectedWithdrawPosition.collateralTokenInfo?.decimals || 8,
+            usdPrice: getTokenPrice(selectedWithdrawPosition.collateralTokenAddress)
+          }}
+          isLoading={isWithdrawing}
+          userAddress={walletAddress}
+        />
+      )}
 
     </div>
   );
