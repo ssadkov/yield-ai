@@ -193,7 +193,7 @@ export function JoulePositions() {
                             <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-xs font-normal px-2 py-0.5 h-5">
                               APY: {apy !== null ? (apy).toFixed(2) + '%' : 'N/A'}
                             </Badge>
-                            <span className="text-lg font-bold">${value.toFixed(2)}</span>
+                            <span className="text-lg font-bold text-right w-24">${value.toFixed(2)}</span>
                           </div>
                           <span className="text-base text-muted-foreground font-semibold">{amount.toFixed(4)}</span>
                         </div>
@@ -231,7 +231,7 @@ export function JoulePositions() {
                             <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20 text-xs font-normal px-2 py-0.5 h-5">
                               APR: {apy !== null ? (apy).toFixed(2) + '%' : 'N/A'}
                             </Badge>
-                            <span className="text-lg font-bold">${value.toFixed(2)}</span>
+                            <span className="text-lg font-bold text-right w-24">${value.toFixed(2)}</span>
                           </div>
                           <span className="text-base text-muted-foreground font-semibold">{amount.toFixed(4)}</span>
                         </div>

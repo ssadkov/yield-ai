@@ -52,7 +52,7 @@ const VaultPosition = memo(function VaultPosition({ vaultToken, vaultData, index
         <div className="flex flex-col items-end gap-2">
           {/* Сумма справа */}
           <div className="flex items-center gap-2">
-            <span className="text-lg font-bold">${value.toFixed(2)}</span>
+            <span className="text-lg font-bold text-right w-24">${value.toFixed(2)}</span>
           </div>
           {/* Кнопка Withdraw */}
           {onWithdraw && (
@@ -99,7 +99,7 @@ const VaultPosition = memo(function VaultPosition({ vaultToken, vaultData, index
             </div>
           </div>
           <div className="text-right">
-            <span className="text-lg font-bold">${value.toFixed(2)}</span>
+            <span className="text-lg font-bold text-right w-24">${value.toFixed(2)}</span>
           </div>
         </div>
         

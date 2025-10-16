@@ -575,7 +575,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                         </Tooltip>
                       </TooltipProvider>
                     )}
-                    <div className="text-lg font-bold">${value.toFixed(2)}</div>
+                    <div className="text-lg font-bold text-right w-24">${value.toFixed(2)}</div>
                   </div>
                   <div className="text-base text-muted-foreground font-semibold">
                     {amount.toFixed(4)}
@@ -693,7 +693,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                           </Tooltip>
                         </TooltipProvider>
                       )}
-                      <div className="text-lg font-bold">${value.toFixed(2)}</div>
+                      <div className="text-lg font-bold text-right w-24">${value.toFixed(2)}</div>
                     </div>
                     <div className="text-sm text-muted-foreground">
                       {amount.toFixed(4)}

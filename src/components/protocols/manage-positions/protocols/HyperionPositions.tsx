@@ -296,7 +296,7 @@ const HyperionPosition = memo(function HyperionPosition({ position, index }: Hyp
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            <span className="text-lg font-bold">${parseFloat(position.value || "0").toFixed(2)}</span>
+            <span className="text-lg font-bold text-right w-24">${parseFloat(position.value || "0").toFixed(2)}</span>
           </div>
           
           {/* Rewards с tooltip */}
@@ -396,7 +396,7 @@ const HyperionPosition = memo(function HyperionPosition({ position, index }: Hyp
             </div>
           </div>
           <div className="text-right">
-            <span className="text-lg font-bold">${parseFloat(position.value || "0").toFixed(2)}</span>
+            <span className="text-lg font-bold text-right w-24">${parseFloat(position.value || "0").toFixed(2)}</span>
           </div>
         </div>
 

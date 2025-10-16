@@ -446,7 +446,7 @@ export function AavePositions() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-lg font-bold">${value}</div>
+                    <div className="text-lg font-bold text-right w-24">${value}</div>
                     <div className="text-sm text-muted-foreground">
                       {amount.toFixed(4)}
                     </div>
@@ -563,7 +563,7 @@ export function AavePositions() {
                     >
                       APR: {apy !== null ? (apy * 100).toFixed(2) + '%' : 'N/A'}
                     </Badge>
-                    <div className="text-lg font-bold">${value}</div>
+                    <div className="text-lg font-bold text-right w-24">${value}</div>
                   </div>
                   <div className="text-base text-muted-foreground font-semibold">
                     {amount.toFixed(4)}

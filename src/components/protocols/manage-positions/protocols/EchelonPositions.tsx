@@ -961,7 +961,7 @@ export function EchelonPositions() {
                         'APR: N/A'
                       )}
                     </Badge>
-                    <div className="text-lg font-bold">{value}</div>
+                    <div className="text-lg font-bold text-right w-24">{value}</div>
                   </div>
                   <div className="text-base text-muted-foreground font-semibold">{formatNumber(amount, 4)}</div>
                   <div className="flex flex-col gap-1 mt-2">
@@ -1031,7 +1031,7 @@ export function EchelonPositions() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-lg font-bold">{value}</div>
+                    <div className="text-lg font-bold text-right w-24">{value}</div>
                     <div className="text-sm text-muted-foreground">{formatNumber(amount, 4)}</div>
                   </div>
                 </div>

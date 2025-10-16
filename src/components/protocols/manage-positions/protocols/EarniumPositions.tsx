@@ -271,7 +271,7 @@ export function EarniumPositionsManaging() {
                       </TooltipContent>
                     </Tooltip>
                   )}
-                  <div className="text-lg font-bold">${(p.poolUserUSD || 0).toFixed(2)}</div>
+                  <div className="text-lg font-bold text-right w-24">${(p.poolUserUSD || 0).toFixed(2)}</div>
                 </div>
               </div>
             );
