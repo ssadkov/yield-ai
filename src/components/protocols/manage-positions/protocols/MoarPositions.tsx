@@ -13,6 +13,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useWalletStore } from '@/lib/stores/walletStore';
 import { WithdrawModal } from '@/components/ui/withdraw-modal';
 import { DepositModal } from '@/components/ui/deposit-modal';
+import { formatNumber, formatCurrency } from '@/lib/utils/numberFormat';
 
 interface MoarPositionsProps {
   address?: string;
@@ -547,7 +548,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                       </Badge>
                     </div>
                     <div className="text-base text-muted-foreground mt-0.5">
-                      ${tokenPrice.toFixed(2)}
+                      {formatCurrency(tokenPrice)}
                     </div>
                   </div>
                 </div>
@@ -561,24 +562,24 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                               variant="outline" 
                               className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs font-normal px-2 py-0.5 h-5 cursor-help"
                             >
-                              APR: {(poolAPR.totalAPR * 100).toFixed(2)}%
+                              APR: {formatNumber(poolAPR.totalAPR * 100, 2)}%
                             </Badge>
                           </TooltipTrigger>
                           <TooltipContent>
                             <div className="space-y-1">
                               <p className="font-medium">APR Breakdown</p>
-                              <p className="text-xs">Interest Rate: {(poolAPR.interestRateComponent * 100).toFixed(2)}%</p>
-                              <p className="text-xs">Farming APY: {(poolAPR.farmingAPY * 100).toFixed(2)}%</p>
-                              <p className="text-xs font-semibold">Total: {(poolAPR.totalAPR * 100).toFixed(2)}%</p>
+                              <p className="text-xs">Interest Rate: {formatNumber(poolAPR.interestRateComponent * 100, 2)}%</p>
+                              <p className="text-xs">Farming APY: {formatNumber(poolAPR.farmingAPY * 100, 2)}%</p>
+                              <p className="text-xs font-semibold">Total: {formatNumber(poolAPR.totalAPR * 100, 2)}%</p>
                             </div>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
                     )}
-                    <div className="text-lg font-bold text-right w-24">${value.toFixed(2)}</div>
+                    <div className="text-lg font-bold text-right w-24">{formatCurrency(value)}</div>
                   </div>
                   <div className="text-base text-muted-foreground font-semibold">
-                    {amount.toFixed(4)}
+                    {formatNumber(amount, 4)}
                   </div>
                   <div className="flex gap-2 mt-2 justify-end">
                     <Button
@@ -628,14 +629,14 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                                 <span className="text-gray-600">{reward.symbol || 'Unknown'}</span>
                               </div>
                               <div className="text-right">
-                                <div className="font-medium">${reward.usdValue?.toFixed(2) || '0.00'}</div>
+                                <div className="font-medium">{formatCurrency(reward.usdValue || 0)}</div>
                               </div>
                             </div>
                           </TooltipTrigger>
                           <TooltipContent className="bg-black text-white border-gray-700">
                             <div className="text-xs">
-                              <div className="text-gray-300">{reward.amount?.toFixed(6) || '0'} {reward.token_info?.symbol || 'Unknown'}</div>
-                              <div className="text-gray-300">${reward.usdValue?.toFixed(2) || '0.00'}</div>
+                              <div className="text-gray-300">{formatNumber(reward.amount || 0, 6)} {reward.token_info?.symbol || 'Unknown'}</div>
+                              <div className="text-gray-300">{formatCurrency(reward.usdValue || 0)}</div>
                             </div>
                           </TooltipContent>
                         </Tooltip>
@@ -665,7 +666,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                     <div>
                       <div className="text-base font-semibold">{tokenInfo.symbol}</div>
                       <div className="text-sm text-muted-foreground">
-                        ${tokenPrice.toFixed(2)}
+                        {formatCurrency(tokenPrice)}
                       </div>
                     </div>
                   </div>
@@ -679,7 +680,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                                 variant="outline" 
                                 className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs font-normal px-2 py-0.5 h-5 cursor-help"
                               >
-                                APR: {(poolAPR.totalAPR * 100).toFixed(2)}%
+                                APR: {formatNumber(poolAPR.totalAPR * 100, 2)}%
                               </Badge>
                             </TooltipTrigger>
                             <TooltipContent>
@@ -693,10 +694,10 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                           </Tooltip>
                         </TooltipProvider>
                       )}
-                      <div className="text-lg font-bold text-right w-24">${value.toFixed(2)}</div>
+                      <div className="text-lg font-bold text-right w-24">{formatCurrency(value)}</div>
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {amount.toFixed(4)}
+                      {formatNumber(amount, 4)}
                     </div>
                     <div className="flex gap-2 mt-2 justify-end">
                       <Button
@@ -756,14 +757,14 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                                   <span className="text-gray-600">{reward.symbol || 'Unknown'}</span>
                                 </div>
                                 <div className="text-right">
-                                  <div className="font-medium">${reward.usdValue?.toFixed(2) || '0.00'}</div>
+                                  <div className="font-medium">{formatCurrency(reward.usdValue || 0)}</div>
                                 </div>
                               </div>
                             </TooltipTrigger>
                             <TooltipContent className="bg-black text-white border-gray-700">
                               <div className="text-xs">
-                                <div className="text-gray-300">{reward.amount?.toFixed(6) || '0'} {reward.symbol || 'Unknown'}</div>
-                                <div className="text-gray-300">${reward.usdValue?.toFixed(2) || '0.00'}</div>
+                                <div className="text-gray-300">{formatNumber(reward.amount || 0, 6)} {reward.symbol || 'Unknown'}</div>
+                                <div className="text-gray-300">{formatCurrency(reward.usdValue || 0)}</div>
                               </div>
                             </TooltipContent>
                           </Tooltip>
@@ -785,7 +786,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
         <div className="hidden md:block">
           <div className="flex items-center justify-between">
             <span className="text-xl">Total assets in Moar Market:</span>
-            <span className="text-xl text-primary font-bold">${(totalValue + totalRewardsValue).toFixed(2)}</span>
+            <span className="text-xl text-primary font-bold">{formatCurrency(totalValue + totalRewardsValue)}</span>
           </div>
           {totalRewardsValue > 0 && (
             <div className="flex justify-end mt-2">
@@ -795,7 +796,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                     <TooltipTrigger asChild>
                       <div className="text-sm text-muted-foreground flex items-center gap-1 justify-end cursor-help">
                         <span>💰</span>
-                        <span>including rewards ${totalRewardsValue.toFixed(2)}</span>
+                        <span>including rewards {formatCurrency(totalRewardsValue)}</span>
                       </div>
                     </TooltipTrigger>
                     <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
@@ -807,8 +808,8 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                               <img src={reward.logoUrl} alt={reward.symbol} className="w-3 h-3 rounded-full" />
                             )}
                             <span>{reward.symbol}</span>
-                            <span>{reward.amount?.toFixed(6) || '0'}</span>
-                            <span className="text-gray-300">${reward.usdValue?.toFixed(2) || '0.00'}</span>
+                            <span>{formatNumber(reward.amount || 0, 6)}</span>
+                            <span className="text-gray-300">{formatCurrency(reward.usdValue || 0)}</span>
                           </div>
                         ))}
                       </div>
@@ -834,7 +835,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
         <div className="md:hidden space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-lg">Total assets in Moar Market:</span>
-            <span className="text-lg text-primary font-bold">${(totalValue + totalRewardsValue).toFixed(2)}</span>
+            <span className="text-lg text-primary font-bold">{formatCurrency(totalValue + totalRewardsValue)}</span>
           </div>
           {totalRewardsValue > 0 && (
             <div className="space-y-2">

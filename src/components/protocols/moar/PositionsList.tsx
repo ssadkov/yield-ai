@@ -12,6 +12,7 @@ import { ManagePositionsButton } from '../ManagePositionsButton';
 import { getProtocolByName } from '@/lib/protocols/getProtocolsList';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { useWalletStore } from '@/lib/stores/walletStore';
+import { formatNumber, formatCurrency } from '@/lib/utils/numberFormat';
 
 interface PositionsListProps {
   address?: string;
@@ -164,7 +165,7 @@ export function PositionsList({
             <CardTitle className="text-lg">Moar Market</CardTitle>
           </div>
           <div className="flex items-center gap-2">
-            <div className="text-lg">${(totalValue + totalRewardsValue).toFixed(2)}</div>
+            <div className="text-lg whitespace-nowrap">{formatCurrency(totalValue + totalRewardsValue)}</div>
             <ChevronDown className={cn(
               "h-5 w-5 transition-transform",
               isExpanded('moar') ? "transform rotate-0" : "transform -rotate-90"
@@ -211,14 +212,14 @@ export function PositionsList({
                                 </span>
                               </div>
                               <div className="text-xs text-muted-foreground">
-                                ${(value / amount).toFixed(2)}
+                                {formatCurrency(value / amount)}
                               </div>
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className="text-sm font-medium">${value.toFixed(2)}</div>
+                            <div className="text-sm font-medium whitespace-nowrap">{formatCurrency(value)}</div>
                             <div className="text-xs text-muted-foreground">
-                              {amount.toFixed(4)}
+                              {formatNumber(amount, 4)}
                             </div>
                           </div>
                         </div>
@@ -235,7 +236,7 @@ export function PositionsList({
                     <TooltipTrigger asChild>
                       <div className="flex items-center justify-between pt-2 border-t border-gray-200 cursor-help">
                         <span className="text-sm text-muted-foreground">💰 Total rewards:</span>
-                        <span className="text-sm font-medium">${totalRewardsValue.toFixed(2)}</span>
+                        <span className="text-sm font-medium whitespace-nowrap">{formatCurrency(totalRewardsValue)}</span>
                       </div>
                     </TooltipTrigger>
                     <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
@@ -247,8 +248,8 @@ export function PositionsList({
                               <img src={reward.logoUrl} alt={reward.symbol} className="w-3 h-3 rounded-full" />
                             )}
                             <span>{reward.symbol}</span>
-                            <span>{reward.amount.toFixed(6)}</span>
-                            <span className="text-gray-300">${reward.usdValue.toFixed(2)}</span>
+                            <span>{formatNumber(reward.amount, 6)}</span>
+                            <span className="text-gray-300">{formatCurrency(reward.usdValue)}</span>
                           </div>
                         ))}
                       </div>

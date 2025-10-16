@@ -9,6 +9,7 @@ import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import Image from "next/image";
 import { ManagePositionsButton } from "../ManagePositionsButton";
 import { useCollapsible } from "@/contexts/CollapsibleContext";
+import { formatCurrency } from "@/lib/utils/numberFormat";
 
 interface PositionsListProps {
   address?: string;
@@ -201,7 +202,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
             <CardTitle className="text-lg">Tapp Exchange</CardTitle>
           </div>
           <div className="flex items-center gap-2">
-            <div className="text-lg">${totalValue.toFixed(2)}</div>
+            <div className="text-lg whitespace-nowrap">{formatCurrency(totalValue)}</div>
             <ChevronDown className={cn(
               "h-5 w-5 transition-transform",
               isExpanded('tapp') ? "transform rotate-0" : "transform -rotate-90"
@@ -223,8 +224,8 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
                </div>
 			 </div>
              <div className="flex-2 items-right">
-               <div className="text-sm font-medium text-right">
-                 ${totalRewardsValue.toFixed(2)}
+               <div className="text-sm font-medium text-right whitespace-nowrap">
+                 {formatCurrency(totalRewardsValue)}
                </div>
 			 </div>
             </div>

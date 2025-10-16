@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { formatCurrency } from "@/lib/utils/numberFormat";
 
 interface PositionProps {
   position: {
@@ -107,7 +108,7 @@ export function PositionCard({ position }: PositionProps) {
           </div>
         </div>
         <div className="flex flex-col items-end gap-2">
-          <div className="text-base font-medium">${totalValue.toFixed(2)}</div>
+          <div className="text-base font-medium whitespace-nowrap">{formatCurrency(totalValue)}</div>
         </div>
       </CardHeader>
     </Card>

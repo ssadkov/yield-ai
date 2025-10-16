@@ -4,20 +4,21 @@ import { useEffect, useState } from "react";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { formatNumber, formatCurrency } from "@/lib/utils/numberFormat";
 
 interface TappPositionProps {
   position: any;
   index: number;
 }
 
-function formatCurrency(value: number) {
+function formatCurrencyValue(value: number) {
   if (value === 0) {
     return '$0.00';
   }
   if (value > 0 && value < 0.01) {
     return '< $0.01';
   }
-  return `$${value.toFixed(2)}`;
+  return formatCurrency(value);
 }
 
 function TappPosition({ position, index }: TappPositionProps) {
@@ -86,20 +87,20 @@ function TappPosition({ position, index }: TappPositionProps) {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs font-normal px-2 py-0.5 h-5 cursor-help mt-1">
-                  APR: {totalApr.toFixed(2)}%
+                  APR: {formatNumber(totalApr, 2)}%
                 </Badge>
               </TooltipTrigger>
               <TooltipContent>
                 <div className="space-y-1">
                   <p className="font-medium">APR Breakdown</p>
-                  <p className="text-xs">Fee APR: {feeApr.toFixed(2)}%</p>
-                  <p className="text-xs">Boosted APR: {boostedApr.toFixed(2)}%</p>
-                  <p className="text-xs font-semibold">Total APR: {totalApr.toFixed(2)}%</p>
+                  <p className="text-xs">Fee APR: {formatNumber(feeApr, 2)}%</p>
+                  <p className="text-xs">Boosted APR: {formatNumber(boostedApr, 2)}%</p>
+                  <p className="text-xs font-semibold">Total APR: {formatNumber(totalApr, 2)}%</p>
                 </div>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          <span className="text-lg font-bold">{formatCurrency(displayedTotal)}</span>
+          <span className="text-lg font-bold">{formatCurrencyValue(displayedTotal)}</span>
         </div>
       </div>
       <div className="flex flex-wrap justify-between items-start">
@@ -107,13 +108,13 @@ function TappPosition({ position, index }: TappPositionProps) {
           {tokenEntries.map((te: { symbol: string; amount: number; value: number }) => (
             <div key={`amt-${te.symbol}`}>
               <div className="text-gray-500">{te.symbol} Amount</div>
-              <div className="font-medium">{te.amount.toFixed(6)}</div>
+              <div className="font-medium">{formatNumber(te.amount, 6)}</div>
             </div>
           ))}
           {tokenEntries.map((te: { symbol: string; amount: number; value: number }) => (
             <div key={`val-${te.symbol}`}>
               <div className="text-gray-500">{te.symbol} Value</div>
-              <div className="font-medium">{formatCurrency(te.value)}</div>
+              <div className="font-medium">{formatCurrencyValue(te.value)}</div>
             </div>
           ))}
         </div>
@@ -123,7 +124,7 @@ function TappPosition({ position, index }: TappPositionProps) {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="text-gray-500 mb-1 cursor-help">🎁 Rewards: ${rewardsValue.toFixed(2)}</div>
+                    <div className="text-gray-500 mb-1 cursor-help">🎁 Rewards: {formatCurrency(rewardsValue)}</div>
                   </TooltipTrigger>
                   <TooltipContent className="max-w-xs">
                     <div className="space-y-1 text-xs max-h-48 overflow-auto">
@@ -135,7 +136,7 @@ function TappPosition({ position, index }: TappPositionProps) {
                             )}
                             <span>{reward.symbol}</span>
                           </div>
-                          <span className="font-semibold">{reward.amount.toFixed(6)}</span>
+                          <span className="font-semibold">{formatNumber(reward.amount, 6)}</span>
                         </div>
                       ))}
                     </div>
@@ -258,14 +259,14 @@ export function TappPositions() {
           <div className="hidden md:block">
             <div className="flex items-center justify-between">
               <span className="text-xl">Total assets in Tapp Exchange:</span>
-              <span className="text-xl text-primary font-bold">${totalValue.toFixed(2)}</span>
+              <span className="text-xl text-primary font-bold">{formatCurrency(totalValue)}</span>
             </div>
             {totalRewards > 0 && (
               <div className="flex justify-end mt-2">
                 <div className="text-right">
                   <div className="text-sm text-muted-foreground flex items-center gap-1 justify-end">
                     <span>💰</span>
-                    <span>including rewards ${totalRewards.toFixed(2)}</span>
+                    <span>including rewards {formatCurrency(totalRewards)}</span>
                   </div>
                 </div>
               </div>
@@ -275,7 +276,7 @@ export function TappPositions() {
           <div className="md:hidden space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-lg">Total assets in Tapp Exchange:</span>
-              <span className="text-lg text-primary font-bold">${totalValue.toFixed(2)}</span>
+              <span className="text-lg text-primary font-bold">{formatCurrency(totalValue)}</span>
             </div>
             {totalRewards > 0 && (
                <div className="space-y-2">
