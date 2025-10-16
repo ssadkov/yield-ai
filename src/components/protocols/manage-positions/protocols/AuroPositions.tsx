@@ -998,10 +998,10 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
-                    <div className="text-lg font-bold">${collateralValue}</div>
+                    <div className="text-lg font-bold text-right w-24">${collateralValue}</div>
                   </div>
                   <div className="text-base text-muted-foreground font-semibold">
-                    {parseFloat(collateral).toFixed(4)} {collateralSymbol}
+                    {formatNumber(parseFloat(collateral), 4)} {collateralSymbol}
                   </div>
                   
                   {/* Rewards section - прямо в карточке */}
@@ -1153,9 +1153,9 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-lg font-bold">${collateralValue}</div>
+                    <div className="text-lg font-bold w-24 ml-auto">${collateralValue}</div>
                     <div className="text-sm text-muted-foreground">
-                      {parseFloat(collateral).toFixed(4)} {collateralSymbol}
+                      {formatNumber(parseFloat(collateral), 4)} {collateralSymbol}
                     </div>
                   </div>
                 </div>
@@ -1333,13 +1333,13 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                               </div>
                             </div>
                           </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                      <div className="text-lg font-bold text-red-600">-${debtValue}</div>
-                    </div>
-                    <div className="text-base text-muted-foreground font-semibold">
-                      {parseFloat(debt).toFixed(4)} {debtSymbol}
-                    </div>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <div className="text-lg font-bold text-red-600 text-right w-24">-${debtValue}</div>
+                  </div>
+                  <div className="text-base text-muted-foreground font-semibold">
+                    {formatNumber(parseFloat(debt), 4)} {debtSymbol}
+                  </div>
                     
                     {/* Rewards section для debt позиции */}
                     {rewardsData[pos.address] && rewardsData[pos.address].borrow.length > 0 && (
@@ -1422,9 +1422,9 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-lg font-bold text-red-600">-${debtValue}</div>
+                      <div className="text-lg font-bold text-red-600 w-24 ml-auto">-${debtValue}</div>
                       <div className="text-sm text-muted-foreground">
-                        {parseFloat(debt).toFixed(4)} {debtSymbol}
+                        {formatNumber(parseFloat(debt), 4)} {debtSymbol}
                       </div>
                     </div>
                   </div>
@@ -1576,9 +1576,9 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
         <DialogContent className="sm:max-w-md w-[95vw] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl">
-              <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
               Claim Rewards Required
@@ -1589,23 +1589,22 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
               <div className="flex items-start gap-3">
-                <div className="w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-orange-800">
+                  <p className="text-sm font-medium text-gray-800">
                     Important Notice
                   </p>
-                  <p className="text-sm text-orange-700">
+                  <p className="text-sm text-gray-700">
                     To ensure you don't lose any accumulated rewards, we'll automatically claim them before exiting your position. This process includes:
                   </p>
-                  <ul className="text-sm text-orange-700 space-y-1 ml-4">
+                  <ul className="text-sm text-gray-700 space-y-1 ml-4">
                     <li>• Claiming all available collateral rewards</li>
-                    <li>• Claiming any borrow rewards (if applicable)</li>
                     <li>• Exiting the position completely</li>
                   </ul>
                 </div>
@@ -1643,7 +1642,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
             <Button 
               onClick={handleClaimRewardsConfirm}
               disabled={isClaiming || isWithdrawing}
-              className="w-full sm:w-auto h-10 bg-orange-600 hover:bg-orange-700"
+              className="w-full sm:w-auto h-10 bg-blue-600 hover:bg-blue-700"
             >
               {isClaiming ? (
                 <>
