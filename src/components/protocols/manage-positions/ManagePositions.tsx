@@ -145,7 +145,7 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
           </div>
           <div className="flex items-center gap-1">
             <TooltipProvider>
-              <Tooltip delayDuration={0} skipDelayDuration={300}>
+              <Tooltip delayDuration={0}>
                 <TooltipTrigger asChild>
                   <Button
                     variant="ghost"
