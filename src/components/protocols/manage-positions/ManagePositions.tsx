@@ -17,6 +17,7 @@ import { RefreshCw, Info, ExternalLink } from "lucide-react";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
+import { ProtocolSocialLinks } from "@/components/ui/protocol-social-links";
 
 interface ManagePositionsProps {
   protocol: Protocol;
@@ -144,6 +145,53 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
           </div>
           <div className="flex items-center gap-1">
             <TooltipProvider>
+              <Tooltip delayDuration={0} skipDelayDuration={300}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 text-gray-400 text-xs hover:text-foreground"
+                  >
+                    <Info className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent 
+                  className="w-80 p-4" 
+                  side="left" 
+                  sideOffset={10}
+                  onPointerDownOutside={(e) => e.preventDefault()}
+                >
+                  <div 
+                    className="space-y-3"
+                    onMouseEnter={(e) => e.preventDefault()}
+                    onMouseLeave={(e) => e.preventDefault()}
+                  >
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-semibold text-sm">{protocol.name}</h4>
+                      <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded-full">{protocol.category}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{protocol.description}</p>
+                    <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs text-foreground border-border hover:bg-accent hover:text-accent-foreground"
+                          onClick={() => window.open(protocol.url, '_blank')}
+                        >
+                          Go to app
+                          <ExternalLink className="h-3 w-3 ml-1" />
+                        </Button>
+                      <ProtocolSocialLinks 
+                        socialMedia={protocol.socialMedia} 
+                        size="sm" 
+                        disableTooltips={true}
+                      />
+                    </div>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -159,39 +207,6 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Refresh positions</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0 text-gray-400 text-xs hover:text-foreground"
-                  >
-                    <Info className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent className="w-80 p-4">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-semibold text-sm">{protocol.name}</h4>
-                      <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded-full">{protocol.category}</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{protocol.description}</p>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-xs bg-background text-foreground border-border hover:bg-accent hover:text-accent-foreground"
-                        onClick={() => window.open(protocol.url, '_blank')}
-                      >
-                        Visit Protocol
-                        <ExternalLink className="h-3 w-3 ml-1" />
-                      </Button>
-                    </div>
-                  </div>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

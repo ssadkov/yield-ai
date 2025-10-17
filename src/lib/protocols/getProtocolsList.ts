@@ -12,6 +12,13 @@ export interface Protocol {
   depositUrl?: string;
   isDepositEnabled: boolean;
   managedType: 'native' | 'external';
+  socialMedia?: {
+    twitter?: string;
+    discord?: string;
+    telegram?: string;
+    github?: string;
+  };
+  airdrop?: string;
   panoraConfig?: {
     integratorFeeAddress: string;
     integratorFeePercentage: string;

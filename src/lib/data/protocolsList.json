@@ -1,6 +1,7 @@
 [
   {
     "name": "Hyperion",
+    "key": "hyperion",
     "category": "DEX",
     "url": "https://hyperion.xyz/drips?inviteCode=O02Eig",
     "logoUrl": "/protocol_ico/hyperion.png",
@@ -8,7 +9,11 @@
     "depositType": "external",
     "depositUrl": "https://hyperion.xyz/pools?inviteCode=O02Eig",
     "isDepositEnabled": true,
-    "managedType": "native"
+    "managedType": "native",
+    "socialMedia": {
+      "twitter": "https://x.com/hyperion_xyz"
+    },
+    "airdrop": "points"
   },
   {
     "name": "Aries",
@@ -20,7 +25,11 @@
     "depositType": "external",
     "depositUrl": "https://app.ariesmarkets.xyz/lending",
     "isDepositEnabled": true,
-    "managedType": "external"
+    "managedType": "external",
+    "socialMedia": {
+      "twitter": "https://x.com/AriesMarkets"
+    },
+    "airdrop": ""
   },
   {
     "name": "Joule",
@@ -31,7 +40,11 @@
     "description": "Lending protocol on Aptos blockchain",
     "depositType": "native",
     "isDepositEnabled": true,
-    "managedType": "native"
+    "managedType": "native",
+    "socialMedia": {
+      "twitter": "https://x.com/JouleFinance"
+    },
+    "airdrop": ""
   },
   {
     "name": "Echelon",
@@ -42,7 +55,11 @@
     "description": "High-efficiency lending market on Aptos blockchain",
     "depositType": "native",
     "isDepositEnabled": true,
-    "managedType": "native"
+    "managedType": "native",
+    "socialMedia": {
+      "twitter": "https://x.com/EchelonMarket"
+    },
+    "airdrop": "points"
   },
   {
     "name": "Meso Finance",
@@ -54,7 +71,11 @@
     "depositType": "external",
     "depositUrl": "https://app.meso.finance/points?ref=DTORFK5S9ITD",
     "isDepositEnabled": true,
-    "managedType": "native"
+    "managedType": "native",
+    "socialMedia": {
+      "twitter": "https://x.com/Meso_Finance"
+    },
+    "airdrop": ""
   },
   {
     "name": "Tapp Exchange",
@@ -66,7 +87,11 @@
     "depositType": "external",
     "depositUrl": "https://tapp.exchange/pool",
     "isDepositEnabled": true,
-    "managedType": "native"
+    "managedType": "native",
+    "socialMedia": {
+      "twitter": "https://x.com/TappExchange"
+    },
+    "airdrop": "points"
   },
   {
     "name": "Auro Finance",
@@ -78,7 +103,11 @@
     "depositType": "native",
     "depositUrl": "https://app.auro.finance?ref=YieldAI",
     "isDepositEnabled": true,
-    "managedType": "native"
+    "managedType": "native",
+    "socialMedia": {
+      "twitter": "https://x.com/AuroFinance_"
+    },
+    "airdrop": ""
   },
   {
     "name": "Amnis Finance",
@@ -89,7 +118,11 @@
     "description": "Pioneering Liquid Staking protocol on Aptos",
     "depositType": "native",
     "isDepositEnabled": true,
-    "managedType": "external"
+    "managedType": "external",
+    "socialMedia": {
+      "twitter": "https://x.com/AmnisFinance"
+    },
+    "airdrop": ""
   },
   {
     "name": "Panora",
@@ -101,6 +134,10 @@
     "depositType": "native",
     "isDepositEnabled": true,
     "managedType": "native",
+    "socialMedia": {
+      "twitter": "https://x.com/PanoraExchange"
+    },
+    "airdrop": "",
     "panoraConfig": {
       "integratorFeeAddress": "0x89e68b91fa64038e98cc1ac0e3e7f6b50d056036980be712dcbe6302cee948cb",
       "integratorFeePercentage": "0.01",
@@ -117,7 +154,11 @@
     "description": "Kofi introduces MEV boosted liquid staking on Aptos, delivering enhanced yields while maintaining complete liquidity. Stake your APT and receive kAPT & stkAPT - your key to maximized returns.",
     "depositType": "native",
     "isDepositEnabled": true,
-    "managedType": "native"
+    "managedType": "native",
+    "socialMedia": {
+      "twitter": "https://x.com/kofi_finance"
+    },
+    "airdrop": ""
   },
   {
     "name": "Earnium",
@@ -129,7 +170,11 @@
     "depositType": "external",
     "depositUrl": "https://app.earnium.io/explore/pool",
     "isDepositEnabled": true,
-    "managedType": "native"
+    "managedType": "native",
+    "socialMedia": {
+      "twitter": "https://x.com/earnium_io"
+    },
+    "airdrop": "points"
   },
   {
     "name": "Aave",
@@ -141,7 +186,11 @@
     "depositType": "native",
     "depositUrl": "https://aptos.aave.com/",
     "isDepositEnabled": true,
-    "managedType": "native"
+    "managedType": "native",
+    "socialMedia": {
+      "twitter": "https://x.com/aave"
+    },
+    "airdrop": ""
   },
   {
     "name": "Moar Market",
@@ -153,6 +202,10 @@
     "depositType": "native",
     "depositUrl": "https://app.moar.market/lend",
     "isDepositEnabled": true,
-    "managedType": "native"
+    "managedType": "native",
+    "socialMedia": {
+      "twitter": "https://x.com/MoarMarket"
+    },
+    "airdrop": "points"
   }
 ] 
