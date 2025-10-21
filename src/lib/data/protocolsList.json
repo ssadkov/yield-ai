@@ -16,32 +16,26 @@
     "airdrop": "points",
     "airdropInfo": {
       "title": "🎁 DRIPs Season 2",
-      "description": "The second season of points farming is underway - in the protocol they are called DRIPs. RION token TGE has already occurred, DRIPs will be used for user rewards. You earn DRIPs for providing liquidity, participating in ecosystem partner projects Goblin and Moar. There is a referral program.",
+      "description": "Second farming season active - earn DRIPs by providing liquidity and participating in ecosystem projects. RION token TGE completed, DRIPs used for user rewards.",
       "links": [
         {
-          "text": "Check DRIPs Amount",
+          "text": "Check DRIPs",
           "url": "https://hyperion.xyz/drips#season-2",
           "type": "app"
         },
         {
-          "text": "Detailed Program Description",
+          "text": "Season 2 Docs",
           "url": "https://docs.hyperion.xyz/drips/drip-season-2",
           "type": "docs"
-        },
-        {
-          "text": "Trade on Hyperion DEX",
-          "url": "https://hyperion.xyz",
-          "type": "website"
         }
       ],
       "requirements": [
-        "Provide liquidity to eligible pools",
-        "Trade on Hyperion DEX (earn DRIPs based on fees paid)",
-        "Participate in ecosystem partner projects (Goblin, Moar)",
-        "Refer friends through referral program",
-        "Trade and provide liquidity in APT/RION pools for bonus DRIPs"
+        "Provide liquidity to earn DRIPs",
+        "Trade on Hyperion DEX",
+        "Participate in ecosystem projects (Goblin, Moar)",
+        "Use referral program for bonuses"
       ],
-      "additionalInfo": "DRIPs are calculated daily and will be used for exclusive incentives and airdrop allocations. Season runs from August 7 - TBD"
+      "additionalInfo": "DRIPs calculated daily for airdrop allocations. Season runs Aug 7 - TBD"
     }
   },
   {
@@ -91,25 +85,24 @@
     "airdrop": "points",
     "airdropInfo": {
       "title": "🎁 Points Program - Season 2",
-      "description": "The second season of the points program is underway. The project participates in the Aptos LFM program, which means a token launch in the future. The number of points will influence future protocol rewards.",
+      "description": "Second season points program active. Participates in Aptos LFM program for future token launch. Points influence future protocol rewards.",
       "links": [
         {
-          "text": "LFM Program Participation",
+          "text": "LFM Program Info",
           "url": "https://x.com/EchelonMarket/status/1947328107741925458",
           "type": "twitter"
         },
         {
-          "text": "Leaderboard & Points Check",
+          "text": "Check Points",
           "url": "https://app.echelon.market/points",
           "type": "app"
         }
       ],
       "requirements": [
-        "Participate in Echelon protocol activities",
-        "Earn points through various protocol interactions",
-        "Points will influence future token rewards"
+        "Participate in protocol activities",
+        "Earn points through interactions"
       ],
-      "additionalInfo": "Participates in Aptos LFM (Launch Fund Management) program"
+      "additionalInfo": "Aptos LFM program participant"
     }
   },
   {
@@ -145,32 +138,26 @@
     "airdrop": "points",
     "airdropInfo": {
       "title": "🎁 Tapp Points - Season 2",
-      "description": "Tapp Points are awarded for providing liquidity, trading, referrals, and completing social tasks. The second farming season is underway, the token has not been launched yet.",
+      "description": "Tapp Points for liquidity, trading, referrals, and social tasks. Second farming season active, token not launched yet.",
       "links": [
         {
-          "text": "Check Your Points",
+          "text": "Check Points",
           "url": "https://tapp.exchange/rewards",
           "type": "app"
         },
         {
-          "text": "Rewards Program Documentation",
+          "text": "Points Docs",
           "url": "https://tapp-exchange.gitbook.io/tapp-exchange/user-guides/earn/points",
           "type": "docs"
-        },
-        {
-          "text": "Trade on Tapp Exchange",
-          "url": "https://tapp.exchange",
-          "type": "website"
         }
       ],
       "requirements": [
-        "Provide liquidity: Up to 15 points/day per $100 TVL (10 base + 5 bonus for APT pools)",
-        "Trade: 20 points for every $0.01 in trading fees paid",
-        "Refer friends: Earn 10% of their points (Tier 1), 6% (Tier 2), 4% (Tier 3)",
-        "Complete social tasks: Connect X, Telegram, Discord for one-time bonuses",
-        "Participate in weekly quests and milestones"
+        "Provide liquidity: 15 points/day per $100 TVL",
+        "Trade: 20 points per $0.01 in fees",
+        "Refer friends: 10%/6%/4% bonus tiers",
+        "Complete social tasks and weekly quests"
       ],
-      "additionalInfo": "Points accrue per second, real-time updates on Rewards page. Multi-level referral system with social bonuses."
+      "additionalInfo": "Points accrue per second, real-time updates. Multi-level referral system."
     }
   },
   {
@@ -257,32 +244,26 @@
     "airdrop": "points",
     "airdropInfo": {
       "title": "🎁 Stardust Campaign",
-      "description": "The Earnium protocol's Stardust campaign will last until the Earnium Governance Token Airdrop! You earn points for trading, providing liquidity, and regular check-ins on the platform. Currently, you also receive stable token USE for providing liquidity, which is not yet tradable and is planned to be launched before TGE.",
+      "description": "Stardust campaign until Earnium Governance Token Airdrop! Earn points for trading, liquidity, and check-ins. Also receive USE tokens (1 USE = 1 USD) for liquidity provision.",
       "links": [
         {
-          "text": "Check Your Stardust Points",
+          "text": "Check Stardust",
           "url": "https://app.earnium.io/stardust",
           "type": "app"
         },
         {
-          "text": "Learn About USE Token",
+          "text": "USE Token Info",
           "url": "https://docs.earnium.io/incentivized-testnet/what-is-use",
           "type": "docs"
-        },
-        {
-          "text": "Trade on Earnium",
-          "url": "https://app.earnium.io",
-          "type": "website"
         }
       ],
       "requirements": [
         "Trade on Earnium DEX",
         "Provide liquidity to pools",
-        "Regular check-ins on the platform",
-        "Complete daily tasks to accumulate Stardust",
-        "Invite friends to earn 5% bonus from their activities"
+        "Regular check-ins and daily tasks",
+        "Invite friends for 5% bonus"
       ],
-      "additionalInfo": "Campaign runs until Dec 31, 2024. USE tokens (1 USE = 1 USD) will be converted to EARN tokens at TGE. Note: Yield AI currently doesn't include USE in portfolio calculations."
+      "additionalInfo": "Campaign until Dec 31, 2024. USE tokens convert to EARN at TGE. Note: Yield AI doesn't include USE in portfolio."
     }
   },
   {
@@ -318,7 +299,7 @@
     "airdrop": "points",
     "airdropInfo": {
       "title": "🎁 Moarbles Points",
-      "description": "Points in Moar are called Moarbles. You earn Moarbles automatically by lending or borrowing on Moar. Lending earns 4x more than borrowing. Moarbles are calculated using time-weighted average balances (TWAB) across the day.",
+      "description": "Points called Moarbles. Earn automatically by lending (4x) or borrowing. Calculated using time-weighted average balances (TWAB).",
       "links": [
         {
           "text": "Moarbles Leaderboard",
@@ -326,24 +307,18 @@
           "type": "app"
         },
         {
-          "text": "Moarbles Documentation",
+          "text": "Moarbles Docs",
           "url": "https://docs.moar.market/points-moarbles",
           "type": "docs"
-        },
-        {
-          "text": "Lend on Moar Market",
-          "url": "https://app.moar.market/lend",
-          "type": "app"
         }
       ],
       "requirements": [
-        "Lend assets: 4 Moarbles per $100 TWAB/day",
-        "Borrow assets: 1 Moarble per $100 TWAB/day",
-        "Positions below $100 are not eligible",
-        "Frequent rebalancing is accounted for via TWAB calculation",
-        "Moarbles accrue automatically - no claiming required"
+        "Lend: 4 Moarbles per $100 TWAB/day",
+        "Borrow: 1 Moarble per $100 TWAB/day",
+        "Min $100 position required",
+        "Auto-accrual via TWAB calculation"
       ],
-      "additionalInfo": "Moarbles support leveraged LPs and vault-based strategies. TWAB ensures fair rewards for active rebalancers based on real exposure over time."
+      "additionalInfo": "Supports leveraged LPs and vault strategies. TWAB ensures fair rewards for rebalancers."
     }
   }
 ] 
