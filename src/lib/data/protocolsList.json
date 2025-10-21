@@ -144,26 +144,33 @@
     },
     "airdrop": "points",
     "airdropInfo": {
-      "title": "🎁 Tapp Points",
-      "description": "Earn Tapp Points by trading and providing liquidity on Tapp Exchange. Points will influence future token distribution and protocol rewards.",
+      "title": "🎁 Tapp Points - Season 2",
+      "description": "Tapp Points are awarded for providing liquidity, trading, referrals, and completing social tasks. The second farming season is underway, the token has not been launched yet.",
       "links": [
+        {
+          "text": "Check Your Points",
+          "url": "https://tapp.exchange/rewards",
+          "type": "app"
+        },
+        {
+          "text": "Rewards Program Documentation",
+          "url": "https://tapp-exchange.gitbook.io/tapp-exchange/user-guides/earn/points",
+          "type": "docs"
+        },
         {
           "text": "Trade on Tapp Exchange",
           "url": "https://tapp.exchange",
           "type": "website"
-        },
-        {
-          "text": "Add Liquidity",
-          "url": "https://tapp.exchange/pool",
-          "type": "app"
         }
       ],
       "requirements": [
-        "Trade on Tapp Exchange",
-        "Provide liquidity to pools",
-        "Participate in protocol activities"
+        "Provide liquidity: Up to 15 points/day per $100 TVL (10 base + 5 bonus for APT pools)",
+        "Trade: 20 points for every $0.01 in trading fees paid",
+        "Refer friends: Earn 10% of their points (Tier 1), 6% (Tier 2), 4% (Tier 3)",
+        "Complete social tasks: Connect X, Telegram, Discord for one-time bonuses",
+        "Participate in weekly quests and milestones"
       ],
-      "additionalInfo": "Points earned through trading volume and liquidity provision"
+      "additionalInfo": "Points accrue per second, real-time updates on Rewards page. Multi-level referral system with social bonuses."
     }
   },
   {

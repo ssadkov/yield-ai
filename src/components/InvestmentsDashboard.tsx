@@ -1149,7 +1149,16 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
-                            <Badge variant="outline" className="ml-auto shrink-0">{item.protocol}</Badge>
+                            <div className="flex items-center gap-2 ml-auto shrink-0">
+                              <Badge variant="outline">{item.protocol}</Badge>
+                              {protocol?.airdropInfo && (
+                                <AirdropInfoTooltip airdropInfo={protocol.airdropInfo} size="sm">
+                                  <div className="flex items-center justify-center w-5 h-5 rounded-full bg-muted hover:bg-muted/80 transition-colors cursor-help">
+                                    <Gift className="h-3 w-3 text-muted-foreground" />
+                                  </div>
+                                </AirdropInfoTooltip>
+                              )}
+                            </div>
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -1300,7 +1309,16 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
-                          <Badge variant="outline" className="ml-auto shrink-0">{bestPool.protocol}</Badge>
+                          <div className="flex items-center gap-2 ml-auto shrink-0">
+                            <Badge variant="outline">{bestPool.protocol}</Badge>
+                            {protocol?.airdropInfo && (
+                              <AirdropInfoTooltip airdropInfo={protocol.airdropInfo} size="sm">
+                                <div className="flex items-center justify-center w-5 h-5 rounded-full bg-muted hover:bg-muted/80 transition-colors cursor-help">
+                                  <Gift className="h-3 w-3 text-muted-foreground" />
+                                </div>
+                              </AirdropInfoTooltip>
+                            )}
+                          </div>
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
@@ -1636,7 +1654,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                               {item.protocol}
                             </Badge>
                             {protocol?.airdropInfo && (
-                              <AirdropInfoTooltip airdropInfo={protocol.airdropInfo}>
+                              <AirdropInfoTooltip airdropInfo={protocol.airdropInfo} size="sm">
                                 <div className="flex items-center justify-center w-5 h-5 rounded-full bg-muted hover:bg-muted/80 transition-colors cursor-help">
                                   <Gift className="h-3 w-3 text-muted-foreground" />
                                 </div>
