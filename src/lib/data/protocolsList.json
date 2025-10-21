@@ -256,26 +256,33 @@
     },
     "airdrop": "points",
     "airdropInfo": {
-      "title": "🎁 Earnium Points",
-      "description": "Earn Earnium Points by trading and providing liquidity on the Earnium DEX. Points will be used for future token distribution and protocol rewards.",
+      "title": "🎁 Stardust Campaign",
+      "description": "The Earnium protocol's Stardust campaign will last until the Earnium Governance Token Airdrop! You earn points for trading, providing liquidity, and regular check-ins on the platform. Currently, you also receive stable token USE for providing liquidity, which is not yet tradable and is planned to be launched before TGE.",
       "links": [
         {
-          "text": "Trade on Earnium",
-          "url": "https://app.earnium.io",
+          "text": "Check Your Stardust Points",
+          "url": "https://app.earnium.io/stardust",
           "type": "app"
         },
         {
-          "text": "Explore Pools",
-          "url": "https://app.earnium.io/explore/pool",
-          "type": "app"
+          "text": "Learn About USE Token",
+          "url": "https://docs.earnium.io/incentivized-testnet/what-is-use",
+          "type": "docs"
+        },
+        {
+          "text": "Trade on Earnium",
+          "url": "https://app.earnium.io",
+          "type": "website"
         }
       ],
       "requirements": [
         "Trade on Earnium DEX",
         "Provide liquidity to pools",
-        "Participate in protocol activities"
+        "Regular check-ins on the platform",
+        "Complete daily tasks to accumulate Stardust",
+        "Invite friends to earn 5% bonus from their activities"
       ],
-      "additionalInfo": "Points earned through trading volume and liquidity provision"
+      "additionalInfo": "Campaign runs until Dec 31, 2024. USE tokens (1 USE = 1 USD) will be converted to EARN tokens at TGE. Note: Yield AI currently doesn't include USE in portfolio calculations."
     }
   },
   {
@@ -310,26 +317,33 @@
     },
     "airdrop": "points",
     "airdropInfo": {
-      "title": "🎁 Moar Points",
-      "description": "Earn Moar Points by lending, borrowing, and participating in Moar Market activities. Points will influence future token distribution and protocol rewards.",
+      "title": "🎁 Moarbles Points",
+      "description": "Points in Moar are called Moarbles. You earn Moarbles automatically by lending or borrowing on Moar. Lending earns 4x more than borrowing. Moarbles are calculated using time-weighted average balances (TWAB) across the day.",
       "links": [
+        {
+          "text": "Moarbles Leaderboard",
+          "url": "https://app.moar.market/moarbles",
+          "type": "app"
+        },
+        {
+          "text": "Moarbles Documentation",
+          "url": "https://docs.moar.market/points-moarbles",
+          "type": "docs"
+        },
         {
           "text": "Lend on Moar Market",
           "url": "https://app.moar.market/lend",
           "type": "app"
-        },
-        {
-          "text": "Borrow Assets",
-          "url": "https://app.moar.market",
-          "type": "app"
         }
       ],
       "requirements": [
-        "Lend assets on Moar Market",
-        "Borrow assets from the protocol",
-        "Participate in protocol activities"
+        "Lend assets: 4 Moarbles per $100 TWAB/day",
+        "Borrow assets: 1 Moarble per $100 TWAB/day",
+        "Positions below $100 are not eligible",
+        "Frequent rebalancing is accounted for via TWAB calculation",
+        "Moarbles accrue automatically - no claiming required"
       ],
-      "additionalInfo": "Points earned through lending, borrowing, and protocol participation"
+      "additionalInfo": "Moarbles support leveraged LPs and vault-based strategies. TWAB ensures fair rewards for active rebalancers based on real exposure over time."
     }
   }
 ] 
