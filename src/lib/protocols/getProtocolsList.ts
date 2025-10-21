@@ -19,6 +19,17 @@ export interface Protocol {
     github?: string;
   };
   airdrop?: string;
+  airdropInfo?: {
+    title: string;
+    description: string;
+    links: Array<{
+      text: string;
+      url: string;
+      type: 'twitter' | 'app' | 'docs' | 'website';
+    }>;
+    requirements: string[];
+    additionalInfo?: string;
+  };
   panoraConfig?: {
     integratorFeeAddress: string;
     integratorFeePercentage: string;

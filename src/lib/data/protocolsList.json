@@ -13,7 +13,36 @@
     "socialMedia": {
       "twitter": "https://x.com/hyperion_xyz"
     },
-    "airdrop": "points"
+    "airdrop": "points",
+    "airdropInfo": {
+      "title": "🎁 DRIPs Season 2",
+      "description": "The second season of points farming is underway - in the protocol they are called DRIPs. RION token TGE has already occurred, DRIPs will be used for user rewards. You earn DRIPs for providing liquidity, participating in ecosystem partner projects Goblin and Moar. There is a referral program.",
+      "links": [
+        {
+          "text": "Check DRIPs Amount",
+          "url": "https://hyperion.xyz/drips#season-2",
+          "type": "app"
+        },
+        {
+          "text": "Detailed Program Description",
+          "url": "https://docs.hyperion.xyz/drips/drip-season-2",
+          "type": "docs"
+        },
+        {
+          "text": "Trade on Hyperion DEX",
+          "url": "https://hyperion.xyz",
+          "type": "website"
+        }
+      ],
+      "requirements": [
+        "Provide liquidity to eligible pools",
+        "Trade on Hyperion DEX (earn DRIPs based on fees paid)",
+        "Participate in ecosystem partner projects (Goblin, Moar)",
+        "Refer friends through referral program",
+        "Trade and provide liquidity in APT/RION pools for bonus DRIPs"
+      ],
+      "additionalInfo": "DRIPs are calculated daily and will be used for exclusive incentives and airdrop allocations. Season runs from August 7 - TBD"
+    }
   },
   {
     "name": "Aries",
@@ -59,7 +88,29 @@
     "socialMedia": {
       "twitter": "https://x.com/EchelonMarket"
     },
-    "airdrop": "points"
+    "airdrop": "points",
+    "airdropInfo": {
+      "title": "🎁 Points Program - Season 2",
+      "description": "The second season of the points program is underway. The project participates in the Aptos LFM program, which means a token launch in the future. The number of points will influence future protocol rewards.",
+      "links": [
+        {
+          "text": "LFM Program Participation",
+          "url": "https://x.com/EchelonMarket/status/1947328107741925458",
+          "type": "twitter"
+        },
+        {
+          "text": "Leaderboard & Points Check",
+          "url": "https://app.echelon.market/points",
+          "type": "app"
+        }
+      ],
+      "requirements": [
+        "Participate in Echelon protocol activities",
+        "Earn points through various protocol interactions",
+        "Points will influence future token rewards"
+      ],
+      "additionalInfo": "Participates in Aptos LFM (Launch Fund Management) program"
+    }
   },
   {
     "name": "Meso Finance",
@@ -91,7 +142,29 @@
     "socialMedia": {
       "twitter": "https://x.com/TappExchange"
     },
-    "airdrop": "points"
+    "airdrop": "points",
+    "airdropInfo": {
+      "title": "🎁 Tapp Points",
+      "description": "Earn Tapp Points by trading and providing liquidity on Tapp Exchange. Points will influence future token distribution and protocol rewards.",
+      "links": [
+        {
+          "text": "Trade on Tapp Exchange",
+          "url": "https://tapp.exchange",
+          "type": "website"
+        },
+        {
+          "text": "Add Liquidity",
+          "url": "https://tapp.exchange/pool",
+          "type": "app"
+        }
+      ],
+      "requirements": [
+        "Trade on Tapp Exchange",
+        "Provide liquidity to pools",
+        "Participate in protocol activities"
+      ],
+      "additionalInfo": "Points earned through trading volume and liquidity provision"
+    }
   },
   {
     "name": "Auro Finance",
@@ -174,7 +247,29 @@
     "socialMedia": {
       "twitter": "https://x.com/earnium_io"
     },
-    "airdrop": "points"
+    "airdrop": "points",
+    "airdropInfo": {
+      "title": "🎁 Earnium Points",
+      "description": "Earn Earnium Points by trading and providing liquidity on the Earnium DEX. Points will be used for future token distribution and protocol rewards.",
+      "links": [
+        {
+          "text": "Trade on Earnium",
+          "url": "https://app.earnium.io",
+          "type": "app"
+        },
+        {
+          "text": "Explore Pools",
+          "url": "https://app.earnium.io/explore/pool",
+          "type": "app"
+        }
+      ],
+      "requirements": [
+        "Trade on Earnium DEX",
+        "Provide liquidity to pools",
+        "Participate in protocol activities"
+      ],
+      "additionalInfo": "Points earned through trading volume and liquidity provision"
+    }
   },
   {
     "name": "Aave",
@@ -206,6 +301,28 @@
     "socialMedia": {
       "twitter": "https://x.com/MoarMarket"
     },
-    "airdrop": "points"
+    "airdrop": "points",
+    "airdropInfo": {
+      "title": "🎁 Moar Points",
+      "description": "Earn Moar Points by lending, borrowing, and participating in Moar Market activities. Points will influence future token distribution and protocol rewards.",
+      "links": [
+        {
+          "text": "Lend on Moar Market",
+          "url": "https://app.moar.market/lend",
+          "type": "app"
+        },
+        {
+          "text": "Borrow Assets",
+          "url": "https://app.moar.market",
+          "type": "app"
+        }
+      ],
+      "requirements": [
+        "Lend assets on Moar Market",
+        "Borrow assets from the protocol",
+        "Participate in protocol activities"
+      ],
+      "additionalInfo": "Points earned through lending, borrowing, and protocol participation"
+    }
   }
 ] 

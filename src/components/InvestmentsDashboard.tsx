@@ -20,7 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import tokenList from "@/lib/data/tokenList.json";
 import { Input } from "@/components/ui/input";
-import { Search, Funnel, X } from "lucide-react";
+import { Search, Funnel, X, Gift } from "lucide-react";
 import { ExternalLink } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DepositButton } from "@/components/ui/deposit-button";
@@ -38,6 +38,7 @@ import { useMobileManagement } from "@/contexts/MobileManagementContext";
 import { useWalletStore } from "@/lib/stores/walletStore";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { ClaimRewardsBlock } from "@/components/ui/claim-rewards-block";
+import { AirdropInfoTooltip } from "@/components/ui/airdrop-info-tooltip";
 import { ClaimAllRewardsModal } from "@/components/ui/claim-all-rewards-modal";
 
 // Список адресов токенов Echelon, которые нужно исключить из отображения
@@ -1630,9 +1631,18 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                           </TooltipProvider>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline">
-						    {item.protocol}
-						  </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">
+                              {item.protocol}
+                            </Badge>
+                            {protocol?.airdropInfo && (
+                              <AirdropInfoTooltip airdropInfo={protocol.airdropInfo}>
+                                <div className="flex items-center justify-center w-5 h-5 rounded-full bg-muted hover:bg-muted/80 transition-colors cursor-help">
+                                  <Gift className="h-3 w-3 text-muted-foreground" />
+                                </div>
+                              </AirdropInfoTooltip>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           {item.depositApy ? (
