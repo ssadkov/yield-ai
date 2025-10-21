@@ -13,11 +13,12 @@ import { AmnisPositions } from "./protocols/AmnisPositions";
 import { EarniumPositionsManaging } from "./protocols/EarniumPositions";
 import { AavePositions } from "./protocols/AavePositions";
 import { MoarPositions } from "./protocols/MoarPositions";
-import { RefreshCw, Info, ExternalLink } from "lucide-react";
+import { RefreshCw, Info, ExternalLink, Gift } from "lucide-react";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { ProtocolSocialLinks } from "@/components/ui/protocol-social-links";
+import { AirdropInfoTooltip } from "@/components/ui/airdrop-info-tooltip";
 
 interface ManagePositionsProps {
   protocol: Protocol;
@@ -141,7 +142,16 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
             {protocol.logoUrl && (
               <Image src={protocol.logoUrl} alt={protocol.name} width={32} height={32} className="object-contain" />
             )}
-            <CardTitle className="text-lg sm:text-xl font-bold">{protocol.name} positions</CardTitle>
+            <CardTitle className="text-lg sm:text-xl font-bold flex items-center gap-2">
+              {protocol.name} positions
+              {protocol.airdropInfo && (
+                <AirdropInfoTooltip airdropInfo={protocol.airdropInfo} size="sm">
+                  <div className="flex items-center justify-center w-5 h-5 rounded-full bg-muted hover:bg-muted/80 transition-colors cursor-help">
+                    <Gift className="h-3 w-3 text-muted-foreground" />
+                  </div>
+                </AirdropInfoTooltip>
+              )}
+            </CardTitle>
           </div>
           <div className="flex items-center gap-1">
             <TooltipProvider>
@@ -156,9 +166,11 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent 
-                  className="w-80 p-4" 
+                  className="w-80 max-w-[90vw] p-4" 
                   side="left" 
                   sideOffset={10}
+                  align="start"
+                  avoidCollisions={true}
                   onPointerDownOutside={(e) => e.preventDefault()}
                 >
                   <div 

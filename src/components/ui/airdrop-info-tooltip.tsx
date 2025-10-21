@@ -49,7 +49,13 @@ export function AirdropInfoTooltip({ airdropInfo, children, size = 'sm' }: Airdr
         <TooltipTrigger asChild>
           {children}
         </TooltipTrigger>
-        <TooltipContent className="w-80 p-4" side="top" sideOffset={5}>
+        <TooltipContent 
+          className="w-80 max-w-[90vw] p-4" 
+          side="top" 
+          sideOffset={5}
+          align="center"
+          avoidCollisions={true}
+        >
           <div className="space-y-3">
             <h4 className="font-semibold text-sm">{airdropInfo.title}</h4>
             <p className="text-sm text-muted-foreground">{airdropInfo.description}</p>
