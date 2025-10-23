@@ -352,7 +352,8 @@ export function SwapAndDepositStatusModal({ isOpen, onClose, provider = 'panora'
                 if (protocol.key === 'auro' && poolAddress) {
                   console.log('Creating new Auro Finance position via swap and deposit with poolAddress:', poolAddress);
                   
-                  const { AuroProtocol } = await import('@/lib/protocols/auro');
+                  const { safeImport } = await import('@/lib/utils/safeImport');
+                  const { AuroProtocol } = await safeImport(() => import('@/lib/protocols/auro'));
                   const auroProtocol = new AuroProtocol();
                   
                   // Build transaction payload

@@ -193,7 +193,8 @@ export function DepositModal({
           isPoolAddressValid: poolAddress && poolAddress.length > 10
         });
         
-        const { AuroProtocol } = await import('@/lib/protocols/auro');
+        const { safeImport } = await import('@/lib/utils/safeImport');
+        const { AuroProtocol } = await safeImport(() => import('@/lib/protocols/auro'));
         const auroProtocol = new AuroProtocol();
         
         // Build transaction payload

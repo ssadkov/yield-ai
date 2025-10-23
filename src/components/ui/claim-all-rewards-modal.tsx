@@ -401,8 +401,9 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
     setCurrentStep('Claiming Earnium rewards...');
 
     try {
-      // Use the EarniumProtocol to build the claim payload
-      const { EarniumProtocol } = await import('@/lib/protocols/earnium');
+      // Use the EarniumProtocol to build the claim payload with safe import
+      const { safeImport } = await import('@/lib/utils/safeImport');
+      const { EarniumProtocol } = await safeImport(() => import('@/lib/protocols/earnium'));
       const earniumProtocol = new EarniumProtocol();
       
       const payload = await earniumProtocol.buildClaimRewards(
@@ -501,8 +502,9 @@ export function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl
           setCurrentStep(`Claiming Hyperion position ${position.position.objectId.slice(0, 8)}...`);
           
           try {
-            // Import SDK dynamically to avoid SSR issues
-            const { sdk } = await import('@/lib/hyperion');
+            // Import SDK dynamically to avoid SSR issues with safe import
+            const { safeImport } = await import('@/lib/utils/safeImport');
+            const { sdk } = await safeImport(() => import('@/lib/hyperion'));
             
             const payload = await sdk.Position.claimAllRewardsTransactionPayload({
               positionId: position.position.objectId,

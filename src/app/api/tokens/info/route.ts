@@ -70,9 +70,10 @@ export async function GET(request: NextRequest) {
     const normalizedAddress = normalizeAddress(address);
     console.log('[Token Info API] Looking up token:', normalizedAddress);
 
-    // 1. Try tokenList first (import here to avoid circular deps)
+    // 1. Try tokenList first (import here to avoid circular deps) with safe import
     try {
-      const tokenList = await import('@/lib/data/tokenList.json');
+      const { safeImport } = await import('@/lib/utils/safeImport');
+      const tokenList = await safeImport(() => import('@/lib/data/tokenList.json'));
       const foundToken = (tokenList.default.data.data as any[]).find(t => {
         const tokenAddr = t.tokenAddress ? normalizeAddress(t.tokenAddress) : null;
         const faAddr = t.faAddress ? normalizeAddress(t.faAddress) : null;

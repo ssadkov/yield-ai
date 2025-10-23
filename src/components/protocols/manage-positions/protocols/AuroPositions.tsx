@@ -615,8 +615,9 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
       });
       
       // For Auro Finance, we need to use the special deposit_entry function
-      // Import AuroProtocol and use buildDepositToPosition method
-      const { AuroProtocol } = await import('@/lib/protocols/auro');
+      // Import AuroProtocol and use buildDepositToPosition method with safe import
+      const { safeImport } = await import('@/lib/utils/safeImport');
+      const { AuroProtocol } = await safeImport(() => import('@/lib/protocols/auro'));
       const auroProtocol = new AuroProtocol();
       
       // Build the transaction payload using buildDepositToPosition

@@ -298,8 +298,9 @@ export const useAuroStore = create<AuroState>()(
           try {
             console.log('[AuroStore] Fetching prices for tokens:', tokenAddresses.length);
             
-            // Use Panora API to fetch prices
-            const { PanoraPricesService } = await import('@/lib/services/panora/prices');
+            // Use Panora API to fetch prices with safe import
+            const { safeImport } = await import('@/lib/utils/safeImport');
+            const { PanoraPricesService } = await safeImport(() => import('@/lib/services/panora/prices'));
             const pricesService = PanoraPricesService.getInstance();
             
             // Clean addresses

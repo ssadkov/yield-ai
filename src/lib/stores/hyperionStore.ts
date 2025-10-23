@@ -269,8 +269,9 @@ export const useHyperionStore = create<HyperionState>()(
           try {
             console.log('[HyperionStore] Fetching prices for tokens:', tokenAddresses.length);
             
-            // Use Panora API to fetch prices
-            const { PanoraPricesService } = await import('@/lib/services/panora/prices');
+            // Use Panora API to fetch prices with safe import
+            const { safeImport } = await import('@/lib/utils/safeImport');
+            const { PanoraPricesService } = await safeImport(() => import('@/lib/services/panora/prices'));
             const pricesService = PanoraPricesService.getInstance();
             
             const prices: Record<string, string> = {};

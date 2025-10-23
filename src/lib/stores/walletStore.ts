@@ -567,8 +567,9 @@ export const useWalletStore = create<WalletState>()(
               return cleanAddress;
             });
             
-            // Use Panora API to fetch prices
-            const { PanoraPricesService } = await import('@/lib/services/panora/prices');
+            // Use Panora API to fetch prices with safe import
+            const { safeImport } = await import('@/lib/utils/safeImport');
+            const { PanoraPricesService } = await safeImport(() => import('@/lib/services/panora/prices'));
             const pricesService = PanoraPricesService.getInstance();
             
             // Fetch prices for Aptos chain (chainId: 1)
@@ -677,7 +678,8 @@ export const useWalletStore = create<WalletState>()(
           // Helper function to get Echelon token prices directly from Panora
           const getEchelonTokenPrices = async (rewards: any[]) => {
             try {
-              const { PanoraPricesService } = await import('@/lib/services/panora/prices');
+              const { safeImport } = await import('@/lib/utils/safeImport');
+              const { PanoraPricesService } = await safeImport(() => import('@/lib/services/panora/prices'));
               const pricesService = PanoraPricesService.getInstance();
               
               // Collect unique token addresses from rewards
@@ -724,7 +726,8 @@ export const useWalletStore = create<WalletState>()(
           // Helper function to get Auro token prices directly from Panora
           const getAuroTokenPrices = async (auroRewards: Record<string, any>) => {
             try {
-              const { PanoraPricesService } = await import('@/lib/services/panora/prices');
+              const { safeImport } = await import('@/lib/utils/safeImport');
+              const { PanoraPricesService } = await safeImport(() => import('@/lib/services/panora/prices'));
               const pricesService = PanoraPricesService.getInstance();
               
               // Collect unique token addresses from auro rewards
@@ -789,7 +792,8 @@ export const useWalletStore = create<WalletState>()(
           // Helper function to get Earnium token prices directly from Panora
           const getEarniumTokenPrices = async (earniumRewards: any[]) => {
             try {
-              const { PanoraPricesService } = await import('@/lib/services/panora/prices');
+              const { safeImport } = await import('@/lib/utils/safeImport');
+              const { PanoraPricesService } = await safeImport(() => import('@/lib/services/panora/prices'));
               const pricesService = PanoraPricesService.getInstance();
               
               // Collect unique token addresses from earnium rewards

@@ -6,28 +6,31 @@ import MobileTabs from "@/components/MobileTabs";
 import { WalletConnect } from "@/components/WalletConnect";
 import { PositionsList } from "@/components/protocols/hyperion/PositionsList";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { ChunkErrorBoundary } from "@/components/ChunkErrorBoundary";
 
 export default function Home() {
   return (
-    <ThemeProvider>
-      <div className="h-screen md:flex overflow-hidden">
-        <div className="hidden md:block border-r h-screen">
-          <Sidebar />
-        </div>
-
-        <div className="block md:hidden h-full">
-          <MobileTabs />
-        </div>
-
-        <div className="flex-1 hidden md:flex flex-row overflow-hidden">
-          <div className="flex-1 border-r h-full overflow-y-auto">
-            <DashboardPanel />
+    <ChunkErrorBoundary>
+      <ThemeProvider>
+        <div className="h-screen md:flex overflow-hidden">
+          <div className="hidden md:block border-r h-screen">
+            <Sidebar />
           </div>
-          <div className="w-[200px] h-full overflow-y-auto">
-            <ChatPanel />
+
+          <div className="block md:hidden h-full">
+            <MobileTabs />
+          </div>
+
+          <div className="flex-1 hidden md:flex flex-row overflow-hidden">
+            <div className="flex-1 border-r h-full overflow-y-auto">
+              <DashboardPanel />
+            </div>
+            <div className="w-[200px] h-full overflow-y-auto">
+              <ChatPanel />
+            </div>
           </div>
         </div>
-      </div>
-    </ThemeProvider>
+      </ThemeProvider>
+    </ChunkErrorBoundary>
   );
 }
