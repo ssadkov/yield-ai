@@ -1,7 +1,7 @@
 "use client";
 
 import { AptosWalletAdapterProvider } from "@aptos-labs/wallet-adapter-react";
-import { PropsWithChildren } from "react";
+import { PropsWithChildren, useState, useEffect } from "react";
 import { Network, Aptos, AptosConfig } from "@aptos-labs/ts-sdk";
 import { useToast } from "@/components/ui/use-toast";
 import { GasStationService } from "./services/gasStation";
@@ -13,6 +13,11 @@ if (typeof window !== "undefined") {
 
 export const WalletProvider = ({ children }: PropsWithChildren) => {
   const { toast } = useToast();
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Initialize gas station globally (this was the working version)
   const gasStationService = GasStationService.getInstance();
@@ -34,6 +39,11 @@ export const WalletProvider = ({ children }: PropsWithChildren) => {
 
   const aptos = new Aptos(aptosConfig);
 
+  // Don't render wallet provider until client-side
+  if (!isClient) {
+    return <>{children}</>;
+  }
+
   return (
     <AptosWalletAdapterProvider
       autoConnect={true}
@@ -54,9 +64,10 @@ export const WalletProvider = ({ children }: PropsWithChildren) => {
         },
       }}
       onError={(error) => {
+        console.error('Wallet error:', error);
         toast({
           variant: "destructive",
-          title: "Error",
+          title: "Wallet Error",
           description: error || "Unknown wallet error",
         });
       }}

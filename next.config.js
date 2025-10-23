@@ -44,6 +44,7 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['@radix-ui/react-icons', 'lucide-react'],
   },
+  // Optimize images for better loading
   images: {
     remotePatterns: [
       {
@@ -76,6 +77,11 @@ const nextConfig = {
       'app.kofi.finance',
       'app.earnium.io'
     ],
+    // Add image optimization settings
+    formats: ['image/webp', 'image/avif'],
+    minimumCacheTTL: 60,
+    dangerouslyAllowSVG: true,
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
 }
 
