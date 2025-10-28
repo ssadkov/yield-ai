@@ -67,10 +67,11 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
           const aprMap: Record<number, any> = {};
           data.data.forEach((pool: any) => {
             if (pool.poolId !== undefined) {
+              // totalAPY already comes in percentage format from API (e.g., 8.4, not 0.084)
               aprMap[pool.poolId] = {
-                totalAPR: (pool.totalAPY || 0) / 100,
-                interestRateComponent: (pool.interestRateComponent || 0) / 100,
-                farmingAPY: (pool.farmingAPY || 0) / 100
+                totalAPR: pool.totalAPY || 0,
+                interestRateComponent: pool.interestRateComponent || 0,
+                farmingAPY: pool.farmingAPY || 0
               };
             }
           });
@@ -380,8 +381,9 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
 
   // Fetch pools APR data separately
   useEffect(() => {
+    console.log('🔄 MoarPositions useEffect triggered - calling fetchPoolsAPR');
     fetchPoolsAPR();
-  }, [fetchPoolsAPR]);
+  }, []); // Empty deps - call once on mount
 
   // Подписка на глобальное событие обновления позиций
   useEffect(() => {
@@ -497,15 +499,6 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
           const amount = parseFloat(rawBalance) / Math.pow(10, tokenInfo.decimals);
           const tokenPrice = amount > 0 ? value / amount : 0;
           
-          // Debug logging
-          console.log('Moar Position Debug:', {
-            symbol: tokenInfo.symbol,
-            rawBalance,
-            decimals: tokenInfo.decimals,
-            amount,
-            value,
-            tokenPrice
-          });
           
           // Находим rewards для этой позиции (если есть)
           // Сопоставляем по poolId с farming_identifier (приводим к строке для сравнения)
@@ -562,15 +555,15 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                               variant="outline" 
                               className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs font-normal px-2 py-0.5 h-5 cursor-help"
                             >
-                              APR: {formatNumber(poolAPR.totalAPR * 100, 2)}%
+                              APR: {formatNumber(poolAPR.totalAPR, 2)}%
                             </Badge>
                           </TooltipTrigger>
                           <TooltipContent>
                             <div className="space-y-1">
                               <p className="font-medium">APR Breakdown</p>
-                              <p className="text-xs">Interest Rate: {formatNumber(poolAPR.interestRateComponent * 100, 2)}%</p>
-                              <p className="text-xs">Farming APY: {formatNumber(poolAPR.farmingAPY * 100, 2)}%</p>
-                              <p className="text-xs font-semibold">Total: {formatNumber(poolAPR.totalAPR * 100, 2)}%</p>
+                              <p className="text-xs">Interest Rate: {poolAPR.interestRateComponent.toFixed(2)}%</p>
+                              <p className="text-xs">Farming APY: {poolAPR.farmingAPY.toFixed(2)}%</p>
+                              <p className="text-xs font-semibold">Total: {poolAPR.totalAPR.toFixed(2)}%</p>
                             </div>
                           </TooltipContent>
                         </Tooltip>
@@ -680,15 +673,15 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                                 variant="outline" 
                                 className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs font-normal px-2 py-0.5 h-5 cursor-help"
                               >
-                                APR: {formatNumber(poolAPR.totalAPR * 100, 2)}%
+                                APR: {formatNumber(poolAPR.totalAPR, 2)}%
                               </Badge>
                             </TooltipTrigger>
                             <TooltipContent>
                               <div className="space-y-1">
                                 <p className="font-medium">APR Breakdown</p>
                                 <p className="text-xs">Interest Rate: {(poolAPR.interestRateComponent * 100).toFixed(2)}%</p>
-                                <p className="text-xs">Farming APY: {(poolAPR.farmingAPY * 100).toFixed(2)}%</p>
-                                <p className="text-xs font-semibold">Total: {(poolAPR.totalAPR * 100).toFixed(2)}%</p>
+                                <p className="text-xs">Farming APY: {poolAPR.farmingAPY.toFixed(2)}%</p>
+                                <p className="text-xs font-semibold">Total: {poolAPR.totalAPR.toFixed(2)}%</p>
                               </div>
                             </TooltipContent>
                           </Tooltip>
@@ -915,8 +908,9 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
             name: "Moar Market",
             logo: "/protocol_ico/moar-market-logo-primary.png",
             apy: (() => {
-              const poolAPR = poolsAPR[parseInt(selectedDepositPosition.poolId)];
-              return poolAPR ? poolAPR.totalAPR * 100 : 0;
+              const poolId = parseInt(selectedDepositPosition.poolId);
+              const poolAPR = poolsAPR[poolId];
+              return poolAPR ? poolAPR.totalAPR : 0;
             })(),
             key: "moar" as any
           }}

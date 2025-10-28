@@ -89,12 +89,6 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
     
     // Try both original and normalized addresses
     const price = tokenPrices[cleanAddress] || tokenPrices[normalizedAddress] || '0';
-    console.log('getTokenPrice for', coinAddress, ':', {
-      cleanAddress,
-      normalizedAddress,
-      foundPrice: price,
-      availablePrices: Object.keys(tokenPrices).slice(0, 5)
-    });
     return price;
   };
 
