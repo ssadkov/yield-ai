@@ -312,18 +312,14 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
   }, [walletAddress]);
 
   if (loading) {
-    console.log('🔍 Earnium loading...');
     return null;
   }
   if (error) {
-    console.log('🔍 Earnium error:', error);
     return null;
   }
   if (totalValue <= 0) {
-    console.log('🔍 Earnium totalValue <= 0:', totalValue, 'pools:', pools.length, 'loading:', loading);
     // Не скрываем компонент если он загружается или есть пулы
     if (loading || pools.length > 0) {
-      console.log('🔍 Earnium: keeping component visible during load or with pools');
       return (
         <Card className="w-full h-full flex flex-col">
           <CardHeader className="py-2">

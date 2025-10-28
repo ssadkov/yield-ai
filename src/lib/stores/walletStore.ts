@@ -211,7 +211,6 @@ export const useWalletStore = create<WalletState>()(
             
             // Log summary of loaded positions
             Object.entries(newPositions).forEach(([protocol, positions]) => {
-              console.log(`[WalletStore] ${protocol}: ${positions.length} positions`);
             });
             
             set({
@@ -244,12 +243,6 @@ export const useWalletStore = create<WalletState>()(
           set({ rewardsLoading: true, rewardsError: null });
           
           try {
-
-
-              NODE_ENV: process.env.NODE_ENV,
-              NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
-              VERCEL_URL: process.env.VERCEL_URL
-            });
             
             // Define protocols to fetch if not specified
             const protocolsToFetch = protocols || ['echelon', 'auro', 'hyperion', 'meso', 'earnium'];
@@ -261,12 +254,10 @@ export const useWalletStore = create<WalletState>()(
             const promises = protocolsToFetch.map(async (protocol) => {
               try {
                 const apiUrl = `${getBaseUrl()}/api/protocols/${protocol}/rewards?address=${encodeURIComponent(address)}`;
-                console.log(`[WalletStore] Fetching ${protocol} rewards from:`, apiUrl);
                 
                 if (protocol === 'hyperion') {
                   // Hyperion rewards are embedded in positions data
                   const hyperionUrl = `${getBaseUrl()}/api/protocols/${protocol}/userPositions?address=${encodeURIComponent(address)}`;
-                  console.log(`[WalletStore] Hyperion using positions URL:`, hyperionUrl);
                   
                   const response = await fetch(hyperionUrl);
                   
@@ -282,7 +273,6 @@ export const useWalletStore = create<WalletState>()(
                     });
                     
                     newRewards[protocol] = rewards;
-                    console.log(`[WalletStore] ${protocol} rewards extracted from positions:`, rewards.length);
                   } else {
                     console.warn(`[WalletStore] Failed to fetch ${protocol} positions:`, response.status, response.statusText);
                     console.warn(`[WalletStore] Failed URL:`, hyperionUrl);
@@ -296,7 +286,6 @@ export const useWalletStore = create<WalletState>()(
                     const data = await response.json();
                     // Store as flat array of rewards
                     newRewards[protocol] = (data?.rewards && Array.isArray(data.rewards)) ? data.rewards : [];
-                    console.log(`[WalletStore] ${protocol} rewards fetched:`, (newRewards[protocol] as any[]).length);
                   } else {
                     console.warn(`[WalletStore] Failed to fetch ${protocol} rewards:`, response.status, response.statusText);
                     console.warn(`[WalletStore] Failed URL:`, apiUrl);
@@ -310,7 +299,6 @@ export const useWalletStore = create<WalletState>()(
                     const data = await response.json();
                     // Store as array of pools
                     newRewards[protocol] = (data?.data && Array.isArray(data.data)) ? data.data : [];
-                    console.log(`[WalletStore] ${protocol} rewards fetched:`, (newRewards[protocol] as any[]).length);
                   } else {
                     console.warn(`[WalletStore] Failed to fetch ${protocol} rewards:`, response.status, response.statusText);
                     console.warn(`[WalletStore] Failed URL:`, apiUrl);
@@ -318,40 +306,20 @@ export const useWalletStore = create<WalletState>()(
                   }
                 } else {
                   // Standard rewards API for echelon and auro
-                  console.log(`[WalletStore] Making request to:`, apiUrl);
                   const startTime = Date.now();
                   
                   const response = await fetch(apiUrl);
                   const endTime = Date.now();
                   
-                  console.log(`[WalletStore] ${protocol} response received in ${endTime - startTime}ms:`, {
-                    status: response.status,
-                    statusText: response.statusText,
-                    ok: response.ok,
-                    headers: Object.fromEntries(response.headers.entries())
-                  });
-                  
                   if (response.ok) {
                     const data = await response.json();
-                    console.log(`[WalletStore] ${protocol} response data:`, data);
                     
                     // For Auro, data.data is an object with position addresses as keys
                     // For Echelon, data.data is an array
                     if (protocol === 'auro') {
                       newRewards[protocol] = data.data || {};
-                      console.log(`[WalletStore] Auro rewards structure:`, {
-                        hasData: !!data.data,
-                        dataType: typeof data.data,
-                        keys: data.data ? Object.keys(data.data) : [],
-                        totalPositions: data.data ? Object.keys(data.data).length : 0
-                      });
-                      
                     } else {
                       newRewards[protocol] = data.data || [];
-                      console.log(`[WalletStore] ${protocol} rewards fetched:`, {
-                        count: newRewards[protocol].length,
-                        sample: newRewards[protocol].slice(0, 2)
-                      });
                     }
                   } else {
                     console.warn(`[WalletStore] Failed to fetch ${protocol} rewards:`, response.status, response.statusText);
@@ -392,7 +360,6 @@ export const useWalletStore = create<WalletState>()(
 
             Object.entries(newRewards).forEach(([protocol, rewards]) => {
               if (Array.isArray(rewards)) {
-                console.log(`[WalletStore] ${protocol}: ${rewards.length} rewards`);
               } else if (typeof rewards === 'object' && rewards !== null) {
                 const count = Object.keys(rewards).length;
                 console.log(`[WalletStore] ${protocol}: ${count} positions with rewards`);
@@ -648,21 +615,6 @@ export const useWalletStore = create<WalletState>()(
         
         getClaimableRewardsSummary: async () => {
           const state = get();
-
-
-            echelon: state.rewards.echelon,
-            auro: state.rewards.auro,
-            hyperion: state.rewards.hyperion,
-            meso: state.rewards.meso,
-            earnium: state.rewards.earnium
-          });
-          
-          // DEBUG: Log all available prices (can be removed after testing)
-
-            count: Object.keys(state.prices).length,
-            addresses: Object.keys(state.prices),
-            sample: Object.entries(state.prices).slice(0, 5)
-          });
           
           // Helper function to get Echelon token prices directly from Panora
           const getEchelonTokenPrices = async (rewards: any[]) => {
@@ -844,20 +796,6 @@ export const useWalletStore = create<WalletState>()(
           
           // Process Echelon rewards
           const echelonRewards = Array.isArray(state.rewards.echelon) ? state.rewards.echelon : [];
-
-            count: echelonRewards.length,
-            sample: echelonRewards.slice(0, 2)
-          });
-          
-          // DEBUG: Log detailed Echelon reward structure (can be removed after testing)
-          if (echelonRewards.length > 0) {
-
-              token: r.token,
-              tokenType: r.tokenType,
-              amount: r.amount,
-              rewardName: r.rewardName
-            })));
-          }
           
           // Get Echelon token prices directly from Panora API
           let echelonPrices: Record<string, string> = {};
@@ -1091,10 +1029,6 @@ export const useWalletStore = create<WalletState>()(
           
           // Process Hyperion rewards (calculate by positions, not individual rewards)
           const hyperionPositions = state.positions.hyperion || [];
-
-            count: hyperionPositions.length,
-            sample: hyperionPositions.slice(0, 2)
-          });
           
           if (hyperionPositions.length > 0) {
             // Use positions data if available
@@ -1106,12 +1040,6 @@ export const useWalletStore = create<WalletState>()(
               if (totalRewards > 0) {
                 summary.protocols.hyperion.value += totalRewards;
                 summary.protocols.hyperion.count++;
-                console.log(`[WalletStore] Hyperion position processed:`, {
-                  positionId: position.position?.objectId?.slice(0, 8),
-                  farmRewards: farmRewards,
-                  feeRewards: feeRewards,
-                  totalRewards: totalRewards
-                });
               }
             });
           } else {
@@ -1136,10 +1064,6 @@ export const useWalletStore = create<WalletState>()(
           
           // Process Meso rewards (array from API; already in USD per item)
           const mesoRewards = Array.isArray(state.rewards.meso) ? state.rewards.meso : [];
-
-            count: mesoRewards.length,
-            sample: mesoRewards.slice(0, 2)
-          });
           
           if (Array.isArray(mesoRewards) && mesoRewards.length > 0) {
             let mesoTotal = 0;
@@ -1159,10 +1083,6 @@ export const useWalletStore = create<WalletState>()(
 
           // Process Earnium rewards (array of pools from API)
           const earniumRewards = Array.isArray(state.rewards.earnium) ? state.rewards.earnium : [];
-
-            count: earniumRewards.length,
-            sample: earniumRewards.slice(0, 2)
-          });
 
           // Get Earnium token prices directly from Panora API
           let earniumPrices: Record<string, string> = {};
@@ -1235,20 +1155,8 @@ export const useWalletStore = create<WalletState>()(
           // Process Moar rewards
           const moarRewards = Array.isArray(state.rewards.moar) ? state.rewards.moar : [];
 
-            count: moarRewards.length,
-            sample: moarRewards.slice(0, 2)
-          });
-
           moarRewards.forEach((reward: any) => {
             if (reward.usdValue && reward.usdValue > 0) {
-              console.log(`[WalletStore] Processing Moar reward:`, {
-                symbol: reward.symbol,
-                amount: reward.amount,
-                usdValue: reward.usdValue,
-                farming_identifier: reward.farming_identifier,
-                reward_id: reward.reward_id
-              });
-
               summary.protocols.moar.value += reward.usdValue;
               summary.protocols.moar.count += 1;
             }

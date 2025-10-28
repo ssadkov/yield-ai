@@ -29,7 +29,6 @@ export class PanoraPricesService {
 
   clearCache(): void {
     this.cache.clear();
-    console.log('[PanoraPricesService] 🗑️ Cache cleared');
   }
 
   async getPrices(chainId: number, addresses?: string[]) {
@@ -39,11 +38,9 @@ export class PanoraPricesService {
 
       if (cached && this.isCacheValid(cached.timestamp)) {
         const age = Math.round((Date.now() - cached.timestamp) / 1000);
-        console.log(`[PanoraPricesService] 📦 Using cached prices (age: ${age}s)`);
         return cached.data;
       }
 
-      console.log('[PanoraPricesService] 🌐 Fetching fresh prices from API');
 
       const queryParams = new URLSearchParams();
       queryParams.append('chainId', chainId.toString());

@@ -564,12 +564,9 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
             url: '/api/protocols/earnium/pools',
 			logoUrl: '/protocol_ico/earnium.png',
             transform: (data: any) => {
-              console.log('🔍 Earnium transform called with data:', data);
               const pools = data.data || [];
-              console.log('📊 Earnium pools count:', pools.length);
               
               return pools.map((pool: any) => {
-                console.log('📈 Earnium pool:', pool.asset, 'APR:', pool.totalAPY);
                 
                 // Helper function to find token by address in tokenList.json
                 const findTokenByAddress = (address: string) => {
@@ -655,9 +652,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
             }
 
             const data = await response.json();
-            console.log(`📊 ${endpoint.name} raw data:`, data);
             const transformedData = endpoint.transform(data);
-            console.log(`📈 ${endpoint.name} transformed data:`, transformedData);
 
             // Update state progressively
             setProtocolsData(prev => ({
