@@ -137,6 +137,88 @@ A comprehensive DeFi investment dashboard built on the Aptos blockchain that all
 - `GET /api/protocols/{protocol}/pools` - Get protocol-specific pools
 - `GET /api/protocols/{protocol}/userPositions` - Get user positions
 
+### Transactions Endpoint
+- `GET /api/transactions` - Get DeFi transactions for an Aptos address
+
+#### Parameters
+- `address` (required): Aptos wallet address (0x-prefixed or without prefix)
+- `protocol` (optional): Filter by protocol key (e.g., `echelon`, `hyperion`, `joule`, `aries`, `meso`, `auro`, `amnis`, `kofi`, `tapp`, `earnium`, `aave`, `moar`)
+- `activityType` (optional): Filter by activity type:
+  - `ACTIVITY_COIN_SWAP` - Token swaps
+  - `ACTIVITY_DEPOSIT_MARKET` - Market deposits
+  - `ACTIVITY_WITHDRAW_MARKET` - Market withdrawals
+  - `ACTIVITY_COIN_ADD_LIQUID` - Add liquidity to pools
+  - `ACTIVITY_COIN_REMOVE_LIQUID` - Remove liquidity from pools
+
+#### Response Format
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "block_id": "string",
+      "tx_version": "string",
+      "trans_id": "string",
+      "block_time": number,
+      "activity_type": "ACTIVITY_COIN_SWAP" | "ACTIVITY_DEPOSIT_MARKET" | ...,
+      "from_address": "string",
+      "sources": ["string"],
+      "platform": ["string"],
+      "amount_info": {
+        "token1": "string",
+        "amount1": number,
+        "token2": "string",
+        "amount2": number,
+        "routers": ["string"],
+        "token1_decimals": number,
+        "token2_decimals": number,
+        "coin_1_isFungible": boolean,
+        "coin_2_isFungible": boolean
+      },
+      "value": number
+    }
+  ],
+  "metadata": {
+    "accounts": {},
+    "coins": {},
+    "tokens": {},
+    "tokenv2s": {},
+    "collections": {},
+    "collectionv2s": {},
+    "fungible_assets": {},
+    "modules": {}
+  }
+}
+```
+
+#### How It Works
+1. **Data Source**: Fetches transactions from Aptoscan API (`api.aptoscan.com/public/v1.0`)
+2. **Pagination**: Automatically fetches all pages of transactions (up to 100 pages max)
+3. **Protocol Filtering**: If `protocol` is specified, filters by contract addresses defined in `protocolsList.json`
+4. **Activity Filtering**: If `activityType` is specified, returns only matching transaction types
+5. **Address Validation**: Validates and normalizes Aptos addresses (64 hex characters)
+6. **Metadata Merging**: Combines metadata from all paginated responses
+7. **Sorting**: Results are sorted by `block_time` in descending order (newest first)
+
+#### Example Requests
+```bash
+# Get all transactions for an address
+GET /api/transactions?address=0x1234...
+
+# Get only Echelon protocol transactions
+GET /api/transactions?address=0x1234...&protocol=echelon
+
+# Get only swap transactions
+GET /api/transactions?address=0x1234...&activityType=ACTIVITY_COIN_SWAP
+
+# Combined filters
+GET /api/transactions?address=0x1234...&protocol=hyperion&activityType=ACTIVITY_DEPOSIT_MARKET
+```
+
+#### Error Responses
+- `400`: Invalid or missing address parameter
+- `500`: Failed to fetch transactions from Aptoscan API
+
 ### Documentation
 - `GET /api/swagger` - API documentation
 - `GET /api/panora/swagger` - Panora API documentation
