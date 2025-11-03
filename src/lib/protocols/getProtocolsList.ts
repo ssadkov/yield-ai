@@ -36,6 +36,7 @@ export interface Protocol {
     apiKey: string;
     rpcUrl: string;
   };
+  contractAddresses?: string[];
 }
 
 export function getProtocolsList(): Protocol[] {
