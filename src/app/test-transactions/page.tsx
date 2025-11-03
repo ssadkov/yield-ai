@@ -196,6 +196,8 @@ export default function TestTransactionsPage() {
 
     if (tx.activity_type === 'ACTIVITY_COIN_SWAP' && token1Info && token2Info) {
       return `${token1Info.symbol} → ${token2Info.symbol}`;
+    } else if (tx.activity_type === 'ACTIVITY_COIN_ADD_LIQUID' && token1Info && token2Info) {
+      return `${token1Info.symbol} + ${token2Info.symbol}`;
     } else if (token1Info) {
       return token1Info.symbol;
     }
@@ -215,6 +217,10 @@ export default function TestTransactionsPage() {
       const amount1 = formatAmount(amount_info.amount1, token1Info.decimals || 8);
       const amount2 = formatAmount(amount_info.amount2, token2Info.decimals || 8);
       return `${amount1} ${token1Info.symbol} → ${amount2} ${token2Info.symbol}`;
+    } else if (tx.activity_type === 'ACTIVITY_COIN_ADD_LIQUID' && token1Info && token2Info) {
+      const amount1 = formatAmount(amount_info.amount1, token1Info.decimals || 8);
+      const amount2 = formatAmount(amount_info.amount2, token2Info.decimals || 8);
+      return `${amount1} ${token1Info.symbol} + ${amount2} ${token2Info.symbol}`;
     } else if (token1Info && amount_info.amount1) {
       const amount = formatAmount(amount_info.amount1, token1Info.decimals || 8);
       return `${amount} ${token1Info.symbol}`;
@@ -338,7 +344,6 @@ export default function TestTransactionsPage() {
                 <TableBody>
                   {filteredTransactions.map((tx) => {
                     const protocol = getTransactionProtocol(tx);
-                    const tokenDisplay = formatTokenDisplay(tx);
                     const amountDisplay = formatAmountDisplay(tx);
 
                     return (
@@ -364,7 +369,52 @@ export default function TestTransactionsPage() {
                             {ACTIVITY_TYPE_LABELS[tx.activity_type]}
                           </Badge>
                         </TableCell>
-                        <TableCell className="font-mono text-sm">{tokenDisplay}</TableCell>
+                        <TableCell>
+                          {(() => {
+                            const token1Info = tx.amount_info?.token1 ? getTokenInfo(tx.amount_info.token1) : null;
+                            const token2Info = tx.amount_info?.token2 ? getTokenInfo(tx.amount_info.token2) : null;
+
+                            if (tx.activity_type === 'ACTIVITY_COIN_SWAP' && token1Info && token2Info) {
+                              return (
+                                <div className="flex items-center gap-1">
+                                  {token1Info.logo && (
+                                    <Image src={token1Info.logo} alt={token1Info.symbol} width={16} height={16} className="rounded-full" />
+                                  )}
+                                  <span className="text-sm">{token1Info.symbol}</span>
+                                  <span className="text-muted-foreground">→</span>
+                                  {token2Info.logo && (
+                                    <Image src={token2Info.logo} alt={token2Info.symbol} width={16} height={16} className="rounded-full" />
+                                  )}
+                                  <span className="text-sm">{token2Info.symbol}</span>
+                                </div>
+                              );
+                            } else if (tx.activity_type === 'ACTIVITY_COIN_ADD_LIQUID' && token1Info && token2Info) {
+                              return (
+                                <div className="flex items-center gap-1">
+                                  {token1Info.logo && (
+                                    <Image src={token1Info.logo} alt={token1Info.symbol} width={16} height={16} className="rounded-full" />
+                                  )}
+                                  <span className="text-sm">{token1Info.symbol}</span>
+                                  <span className="text-muted-foreground">+</span>
+                                  {token2Info.logo && (
+                                    <Image src={token2Info.logo} alt={token2Info.symbol} width={16} height={16} className="rounded-full" />
+                                  )}
+                                  <span className="text-sm">{token2Info.symbol}</span>
+                                </div>
+                              );
+                            } else if (token1Info) {
+                              return (
+                                <div className="flex items-center gap-1">
+                                  {token1Info.logo && (
+                                    <Image src={token1Info.logo} alt={token1Info.symbol} width={16} height={16} className="rounded-full" />
+                                  )}
+                                  <span className="text-sm">{token1Info.symbol}</span>
+                                </div>
+                              );
+                            }
+                            return <span className="text-muted-foreground text-sm">N/A</span>;
+                          })()}
+                        </TableCell>
                         <TableCell className="font-mono text-sm">{amountDisplay}</TableCell>
                         <TableCell>
                           {tx.value !== undefined ? formatCurrency(tx.value) : 'N/A'}
