@@ -49,7 +49,7 @@ export function DepositButton({
   
   const [isExternalDialogOpen, setIsExternalDialogOpen] = useState(false);
   const [isNativeDialogOpen, setIsNativeDialogOpen] = useState(false);
-  const [protocolAPY, setProtocolAPY] = useState<number>(8.4); // Default fallback
+  const [protocolAPY, setProtocolAPY] = useState<number>(0); // No fallback - use real APR from API
   const walletData = useWalletData();
 
   // Fetch real APR data for Amnis Finance, Echelon, and Kofi Finance
@@ -120,6 +120,50 @@ export function DepositButton({
       };
       
       fetchKofiAPY();
+    } else if (protocol.name === 'Moar Market') {
+      const fetchMoarAPY = async () => {
+        try {
+          const response = await fetch('/api/protocols/moar/pools');
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data && data.data.length > 0) {
+              // Find the pool for this specific token
+              const pool = data.data.find((pool: any) => 
+                pool.token === tokenIn?.address
+              );
+              if (pool && pool.totalAPY) {
+                setProtocolAPY(pool.totalAPY);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching Moar Market APR:', error);
+        }
+      };
+      
+      fetchMoarAPY();
+    } else if (protocol.name === 'Auro Finance') {
+      const fetchAuroAPY = async () => {
+        try {
+          const response = await fetch('/api/protocols/auro/pools');
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data && data.data.length > 0) {
+              // Find the pool for this specific token - only COLLATERAL type
+              const pool = data.data.find((pool: any) => 
+                pool.type === 'COLLATERAL' && pool.collateralTokenAddress === tokenIn?.address
+              );
+              if (pool && pool.totalSupplyApr) {
+                setProtocolAPY(pool.totalSupplyApr);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching Auro Finance APR:', error);
+        }
+      };
+      
+      fetchAuroAPY();
     }
   }, [protocol.name, tokenIn?.address]);
 
