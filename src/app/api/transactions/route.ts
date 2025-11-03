@@ -30,21 +30,37 @@ async function fetchTransactionsFromAptoscan(
   const urlString = url.toString();
   console.log('Fetching from Aptoscan:', urlString);
   
+  // Use realistic browser headers to bypass Cloudflare protection
   const response = await fetch(urlString, {
     headers: {
-      'accept': 'application/json',
-      'accept-language': 'en-US,en;q=0.9',
-      'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'referer': 'https://aptoscan.com/',
-      'origin': 'https://aptoscan.com',
+      'Accept': 'application/json, text/plain, */*',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      'Referer': 'https://aptoscan.com/',
+      'Origin': 'https://aptoscan.com',
+      'Connection': 'keep-alive',
+      'Sec-Fetch-Dest': 'empty',
+      'Sec-Fetch-Mode': 'cors',
+      'Sec-Fetch-Site': 'same-origin',
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
     },
     cache: 'no-store',
+    // Add redirect handling
+    redirect: 'follow',
   });
   
   if (!response.ok) {
     const errorText = await response.text().catch(() => 'Unable to read error response');
     console.error('Aptoscan API error:', response.status, response.statusText, errorText);
-    throw new Error(`Aptoscan API error: ${response.status} ${response.statusText}. ${errorText}`);
+    
+    // Check if it's a Cloudflare challenge
+    if (response.status === 403 && errorText.includes('Just a moment') || errorText.includes('challenge-platform')) {
+      throw new Error('Cloudflare protection is blocking requests. Please try again later or contact support if the issue persists.');
+    }
+    
+    throw new Error(`Aptoscan API error: ${response.status} ${response.statusText}`);
   }
   
   let data: TransactionsResponse;
@@ -159,6 +175,9 @@ export async function GET(request: NextRequest) {
           // If we got less than 100 transactions, we're on the last page
           if (response.data.length < 100) {
             hasMore = false;
+          } else {
+            // Add delay between requests to avoid being flagged as bot
+            await new Promise(resolve => setTimeout(resolve, 500));
           }
         } else {
           hasMore = false;
