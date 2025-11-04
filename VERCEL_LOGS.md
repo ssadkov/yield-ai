@@ -51,10 +51,22 @@ vercel logs --follow --since=1h
 
 ## Recent Changes
 
-The `/api/transactions` route now uses **Edge Runtime** instead of Node.js runtime. This should help bypass Cloudflare because:
-- Edge Functions run on Vercel's Edge Network
-- They use different IP ranges that are less likely to be flagged
-- Better performance and lower latency
+The `/api/transactions` route now supports **ScraperAPI** for Cloudflare bypass:
+- Uses ScraperAPI proxy service when `SCRAPERAPI_KEY` environment variable is set
+- Automatically routes requests through residential IPs to bypass Cloudflare
+- Falls back to direct requests if ScraperAPI is not configured
 
-If Edge Runtime doesn't work, you can also set up a proxy service via environment variable `APTOSCAN_PROXY_URL`.
+### Setup ScraperAPI
+
+1. Get API key from [ScraperAPI](https://www.scraperapi.com/)
+2. Add `SCRAPERAPI_KEY` to Vercel environment variables
+3. Redeploy the application
+
+See `SCRAPERAPI_SETUP.md` for detailed instructions.
+
+### Checking if ScraperAPI is Active
+
+In logs, look for:
+- `via ScraperAPI` - ScraperAPI is being used
+- `direct` - ScraperAPI is not configured, using direct requests
 

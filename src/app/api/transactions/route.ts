@@ -3,12 +3,16 @@ import { Transaction, TransactionsResponse, ActivityType } from '@/lib/transacti
 import { getProtocolsList } from '@/lib/protocols/getProtocolsList';
 import { ProtocolKey } from '@/lib/transactions/types';
 
-// Use Edge Runtime to avoid Cloudflare blocking (Edge has different IP ranges)
-export const runtime = 'edge';
+// Use Node.js runtime for better compatibility with proxy services
+// Edge runtime removed as it doesn't help with Cloudflare blocking
+export const runtime = 'nodejs';
 
 const APTOSCAN_API_BASE = 'https://api.aptoscan.com/public/v1.0';
-// Optional proxy service (set via env variable if needed)
-const APTOSCAN_PROXY = process.env.APTOSCAN_PROXY_URL;
+// ScraperAPI for Cloudflare bypass (set SCRAPERAPI_KEY in env)
+const SCRAPERAPI_KEY = process.env.SCRAPERAPI_KEY;
+const SCRAPERAPI_URL = SCRAPERAPI_KEY 
+  ? `http://api.scraperapi.com?api_key=${SCRAPERAPI_KEY}&url=`
+  : null;
 
 interface FetchTransactionsParams {
   address: string;
@@ -35,11 +39,13 @@ async function fetchTransactionsFromAptoscan(
     });
   }
   
-  // Use proxy if configured, otherwise use direct URL
-  const urlString = APTOSCAN_PROXY 
-    ? `${APTOSCAN_PROXY}?url=${encodeURIComponent(url.toString())}`
-    : url.toString();
-  console.log(`Fetching from Aptoscan (attempt ${retryCount + 1}):`, urlString);
+  // Use ScraperAPI if configured, otherwise use direct URL
+  const targetUrl = url.toString();
+  const urlString = SCRAPERAPI_URL 
+    ? `${SCRAPERAPI_URL}${encodeURIComponent(targetUrl)}`
+    : targetUrl;
+  
+  console.log(`Fetching from Aptoscan (attempt ${retryCount + 1}):`, SCRAPERAPI_URL ? 'via ScraperAPI' : 'direct', urlString.substring(0, 100) + '...');
   
   // Use realistic browser headers to bypass Cloudflare protection
   // Rotate User-Agent to avoid detection
@@ -50,31 +56,45 @@ async function fetchTransactionsFromAptoscan(
   ];
   const userAgent = userAgents[retryCount % userAgents.length];
   
+  // Generate realistic browser fingerprint
+  const viewportWidth = Math.floor(Math.random() * 1000) + 1920;
+  const viewportHeight = Math.floor(Math.random() * 500) + 1080;
+  
   // Create AbortController for timeout (more compatible than AbortSignal.timeout)
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds timeout
   
   try {
+    // Build headers - ScraperAPI doesn't need all headers, but we include them for direct requests
+    const headers: Record<string, string> = {
+      'Accept': 'application/json, text/plain, */*',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'User-Agent': userAgent,
+      'Referer': 'https://aptoscan.com/',
+      'Origin': 'https://aptoscan.com',
+      'Connection': 'keep-alive',
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
+    };
+    
+    // Add additional headers for direct requests (not needed for ScraperAPI)
+    if (!SCRAPERAPI_URL) {
+      headers['Sec-Fetch-Dest'] = 'empty';
+      headers['Sec-Fetch-Mode'] = 'cors';
+      headers['Sec-Fetch-Site'] = 'same-site';
+      headers['Sec-Ch-Ua'] = '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"';
+      headers['Sec-Ch-Ua-Mobile'] = '?0';
+      headers['Sec-Ch-Ua-Platform'] = '"Windows"';
+      headers['Sec-Ch-Ua-Platform-Version'] = '"15.0.0"';
+      headers['Sec-Ch-Viewport-Width'] = viewportWidth.toString();
+      headers['Sec-Ch-Viewport-Height'] = viewportHeight.toString();
+      headers['DNT'] = '1';
+      headers['Upgrade-Insecure-Requests'] = '1';
+    }
+    
     const response = await fetch(urlString, {
-      headers: {
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'en-US,en;q=0.9,ru;q=0.8',
-        'Accept-Encoding': 'gzip, deflate, br, zstd',
-        'User-Agent': userAgent,
-        'Referer': 'https://aptoscan.com/',
-        'Origin': 'https://aptoscan.com',
-        'Connection': 'keep-alive',
-        'Sec-Fetch-Dest': 'empty',
-        'Sec-Fetch-Mode': 'cors',
-        'Sec-Fetch-Site': 'same-site',
-        'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
-        'Sec-Ch-Ua-Mobile': '?0',
-        'Sec-Ch-Ua-Platform': '"Windows"',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
-        'DNT': '1',
-        'Upgrade-Insecure-Requests': '1',
-      },
+      headers,
       cache: 'no-store',
       redirect: 'follow',
       signal: controller.signal,
