@@ -12,9 +12,12 @@ interface FetchTransactionsParams {
 }
 
 async function fetchTransactionsFromAptoscan(
-  params: FetchTransactionsParams
+  params: FetchTransactionsParams,
+  retryCount = 0
 ): Promise<TransactionsResponse> {
   const { address, page, platform } = params;
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY = 2000; // 2 seconds
   
   const url = new URL(`${APTOSCAN_API_BASE}/accounts/${address}/dextrading`);
   url.searchParams.set('page', page.toString());
@@ -28,57 +31,112 @@ async function fetchTransactionsFromAptoscan(
   }
   
   const urlString = url.toString();
-  console.log('Fetching from Aptoscan:', urlString);
+  console.log(`Fetching from Aptoscan (attempt ${retryCount + 1}):`, urlString);
   
   // Use realistic browser headers to bypass Cloudflare protection
-  const response = await fetch(urlString, {
-    headers: {
-      'Accept': 'application/json, text/plain, */*',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Accept-Encoding': 'gzip, deflate, br',
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-      'Referer': 'https://aptoscan.com/',
-      'Origin': 'https://aptoscan.com',
-      'Connection': 'keep-alive',
-      'Sec-Fetch-Dest': 'empty',
-      'Sec-Fetch-Mode': 'cors',
-      'Sec-Fetch-Site': 'same-origin',
-      'Cache-Control': 'no-cache',
-      'Pragma': 'no-cache',
-    },
-    cache: 'no-store',
-    // Add redirect handling
-    redirect: 'follow',
-  });
+  // Rotate User-Agent to avoid detection
+  const userAgents = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+  ];
+  const userAgent = userAgents[retryCount % userAgents.length];
   
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => 'Unable to read error response');
-    console.error('Aptoscan API error:', response.status, response.statusText, errorText);
+  // Create AbortController for timeout (more compatible than AbortSignal.timeout)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds timeout
+  
+  try {
+    const response = await fetch(urlString, {
+      headers: {
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9,ru;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br, zstd',
+        'User-Agent': userAgent,
+        'Referer': 'https://aptoscan.com/',
+        'Origin': 'https://aptoscan.com',
+        'Connection': 'keep-alive',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'same-site',
+        'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+        'Sec-Ch-Ua-Mobile': '?0',
+        'Sec-Ch-Ua-Platform': '"Windows"',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'DNT': '1',
+        'Upgrade-Insecure-Requests': '1',
+      },
+      cache: 'no-store',
+      redirect: 'follow',
+      signal: controller.signal,
+    });
     
-    // Check if it's a Cloudflare challenge
-    if (response.status === 403 && errorText.includes('Just a moment') || errorText.includes('challenge-platform')) {
-      throw new Error('Cloudflare protection is blocking requests. Please try again later or contact support if the issue persists.');
+    // Clear timeout if request succeeds
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unable to read error response');
+      console.error('Aptoscan API error:', response.status, response.statusText);
+      console.error('Error response preview:', errorText.substring(0, 500));
+      
+      // Check if it's a Cloudflare challenge
+      const isCloudflareChallenge = 
+        response.status === 403 || 
+        response.status === 429 ||
+        errorText.includes('Just a moment') || 
+        errorText.includes('challenge-platform') ||
+        errorText.includes('cf-browser-verification') ||
+        errorText.includes('Checking your browser');
+      
+      if (isCloudflareChallenge) {
+        // Retry with exponential backoff
+        if (retryCount < MAX_RETRIES) {
+          const delay = RETRY_DELAY * Math.pow(2, retryCount);
+          console.log(`Cloudflare challenge detected. Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return fetchTransactionsFromAptoscan(params, retryCount + 1);
+        }
+        throw new Error('Cloudflare protection is blocking requests. Please try again later or contact support if the issue persists.');
+      }
+      
+      throw new Error(`Aptoscan API error: ${response.status} ${response.statusText}`);
     }
     
-    throw new Error(`Aptoscan API error: ${response.status} ${response.statusText}`);
+    let data: TransactionsResponse;
+    try {
+      data = await response.json();
+    } catch (parseError) {
+      console.error('Failed to parse JSON response:', parseError);
+      throw new Error('Invalid JSON response from Aptoscan API');
+    }
+    
+    // Validate response structure
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid response structure from Aptoscan API');
+    }
+    
+    console.log(`Page ${page}: Received ${data.data?.length || 0} transactions, success: ${data.success}`);
+    
+    return data;
+  } catch (error) {
+    // Clear timeout on error
+    clearTimeout(timeoutId);
+    
+    // Handle timeout and network errors
+    if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('timeout') || error.message.includes('aborted'))) {
+      if (retryCount < MAX_RETRIES) {
+        const delay = RETRY_DELAY * Math.pow(2, retryCount);
+        console.log(`Request timeout. Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return fetchTransactionsFromAptoscan(params, retryCount + 1);
+      }
+      throw new Error('Request timeout. The server may be experiencing high load. Please try again later.');
+    }
+    
+    // Re-throw other errors
+    throw error;
   }
-  
-  let data: TransactionsResponse;
-  try {
-    data = await response.json();
-  } catch (parseError) {
-    console.error('Failed to parse JSON response:', parseError);
-    throw new Error('Invalid JSON response from Aptoscan API');
-  }
-  
-  // Validate response structure
-  if (!data || typeof data !== 'object') {
-    throw new Error('Invalid response structure from Aptoscan API');
-  }
-  
-  console.log(`Page ${page}: Received ${data.data?.length || 0} transactions, success: ${data.success}`);
-  
-  return data;
 }
 
 /**
@@ -177,7 +235,9 @@ export async function GET(request: NextRequest) {
             hasMore = false;
           } else {
             // Add delay between requests to avoid being flagged as bot
-            await new Promise(resolve => setTimeout(resolve, 500));
+            // Increased delay for production to avoid Cloudflare blocks
+            const delay = process.env.NODE_ENV === 'production' ? 1500 : 500;
+            await new Promise(resolve => setTimeout(resolve, delay));
           }
         } else {
           hasMore = false;
