@@ -99,9 +99,9 @@ export default function TestTransactionsPage() {
         // Try client-side fetch first (bypasses Cloudflare on Vercel)
         data = await fetchTransactionsClient(
           address.trim(),
+          getProtocolsList,
           protocol,
-          activityType,
-          getProtocolsList
+          activityType
         );
       } catch (clientError) {
         // If client-side fails (e.g., CORS), fallback to server-side API

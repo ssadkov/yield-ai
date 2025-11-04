@@ -150,9 +150,9 @@ function validateAptosAddress(address: string): boolean {
  */
 export async function fetchTransactionsClient(
   address: string,
+  getProtocolsList: () => Array<{ key: string; contractAddresses?: string[] }>,
   protocol?: ProtocolKey | null,
-  activityType?: ActivityType | null,
-  getProtocolsList: () => Array<{ key: string; contractAddresses?: string[] }>
+  activityType?: ActivityType | null
 ): Promise<TransactionsResponse> {
   // Normalize address (ensure 0x prefix)
   const normalizedAddress = address.startsWith('0x') ? address : `0x${address}`;
