@@ -3,7 +3,12 @@ import { Transaction, TransactionsResponse, ActivityType } from '@/lib/transacti
 import { getProtocolsList } from '@/lib/protocols/getProtocolsList';
 import { ProtocolKey } from '@/lib/transactions/types';
 
+// Use Edge Runtime to avoid Cloudflare blocking (Edge has different IP ranges)
+export const runtime = 'edge';
+
 const APTOSCAN_API_BASE = 'https://api.aptoscan.com/public/v1.0';
+// Optional proxy service (set via env variable if needed)
+const APTOSCAN_PROXY = process.env.APTOSCAN_PROXY_URL;
 
 interface FetchTransactionsParams {
   address: string;
@@ -30,7 +35,10 @@ async function fetchTransactionsFromAptoscan(
     });
   }
   
-  const urlString = url.toString();
+  // Use proxy if configured, otherwise use direct URL
+  const urlString = APTOSCAN_PROXY 
+    ? `${APTOSCAN_PROXY}?url=${encodeURIComponent(url.toString())}`
+    : url.toString();
   console.log(`Fetching from Aptoscan (attempt ${retryCount + 1}):`, urlString);
   
   // Use realistic browser headers to bypass Cloudflare protection
