@@ -24,6 +24,8 @@ import { formatCurrency } from '@/lib/utils/numberFormat';
 import { Loader2, ExternalLink } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { fetchTransactionsClient } from '@/lib/transactions/clientFetch';
+import { ProtocolKey } from '@/lib/transactions/types';
 
 const DEFAULT_ADDRESS = '0x4ade47d86d1013af5a0e38bbbd5d745a72cf4b9fa9759f4a5f7434b15bb1fbd1';
 
@@ -86,32 +88,53 @@ export default function TestTransactionsPage() {
     setMetadata(null);
 
     try {
-      const params = new URLSearchParams({
-        address: address.trim(),
-      });
-
-      if (selectedProtocol !== 'all') {
-        params.set('protocol', selectedProtocol);
-      }
-
-      if (selectedActivityType !== 'all') {
-        params.set('activityType', selectedActivityType);
-      }
-
-      const response = await fetch(`/api/transactions?${params.toString()}`);
+      // Use client-side fetch to bypass Cloudflare blocking on Vercel
+      // This makes requests directly from the browser (user's IP) instead of Vercel server IPs
+      const protocol = selectedProtocol !== 'all' ? (selectedProtocol as ProtocolKey) : null;
+      const activityType = selectedActivityType !== 'all' ? (selectedActivityType as ActivityType) : null;
       
-      const data = await response.json();
+      let data: TransactionsResponse;
       
-      if (!response.ok) {
-        const errorMessage = data.message || data.error || `HTTP ${response.status}`;
-        throw new Error(errorMessage);
+      try {
+        // Try client-side fetch first (bypasses Cloudflare on Vercel)
+        data = await fetchTransactionsClient(
+          address.trim(),
+          protocol,
+          activityType,
+          getProtocolsList
+        );
+      } catch (clientError) {
+        // If client-side fails (e.g., CORS), fallback to server-side API
+        console.warn('Client-side fetch failed, falling back to server API:', clientError);
+        
+        const params = new URLSearchParams({
+          address: address.trim(),
+        });
+
+        if (selectedProtocol !== 'all') {
+          params.set('protocol', selectedProtocol);
+        }
+
+        if (selectedActivityType !== 'all') {
+          params.set('activityType', selectedActivityType);
+        }
+
+        const response = await fetch(`/api/transactions?${params.toString()}`);
+        const serverData = await response.json();
+        
+        if (!response.ok) {
+          const errorMessage = serverData.message || serverData.error || `HTTP ${response.status}`;
+          throw new Error(errorMessage);
+        }
+        
+        data = serverData;
       }
       
       if (data.success) {
         setTransactions(data.data || []);
         setMetadata(data.metadata || null);
       } else {
-        throw new Error(data.message || data.error || 'API returned unsuccessful response');
+        throw new Error('API returned unsuccessful response');
       }
     } catch (err) {
       console.error('Error fetching transactions:', err);

@@ -51,22 +51,28 @@ vercel logs --follow --since=1h
 
 ## Recent Changes
 
-The `/api/transactions` route now supports **ScraperAPI** for Cloudflare bypass:
-- Uses ScraperAPI proxy service when `SCRAPERAPI_KEY` environment variable is set
-- Automatically routes requests through residential IPs to bypass Cloudflare
-- Falls back to direct requests if ScraperAPI is not configured
+The `/api/transactions` endpoint now uses **client-side fetching** to bypass Cloudflare blocking:
 
-### Setup ScraperAPI
+### Why This Works
 
-1. Get API key from [ScraperAPI](https://www.scraperapi.com/)
-2. Add `SCRAPERAPI_KEY` to Vercel environment variables
-3. Redeploy the application
+- **On localhost**: Requests go from your IP → Aptoscan API (works fine)
+- **On Vercel (server-side)**: Requests go from Vercel datacenter IPs → Aptoscan API (blocked by Cloudflare)
+- **Solution**: Requests now go directly from user's browser (user's IP) → Aptoscan API (works fine!)
 
-See `SCRAPERAPI_SETUP.md` for detailed instructions.
+### How It Works
 
-### Checking if ScraperAPI is Active
+1. **Primary**: Client-side fetch from browser directly to Aptoscan API
+   - Uses user's real IP address (not Vercel datacenter IP)
+   - Cloudflare allows these requests
+   - No proxy services needed
 
-In logs, look for:
-- `via ScraperAPI` - ScraperAPI is being used
-- `direct` - ScraperAPI is not configured, using direct requests
+2. **Fallback**: If client-side fails (e.g., CORS), falls back to server-side API
+   - Uses existing `/api/transactions` endpoint
+   - May still be blocked by Cloudflare on Vercel, but serves as backup
+
+### Checking Logs
+
+In browser console, look for:
+- `[Client] Fetching from Aptoscan` - Client-side fetch is being used (should work!)
+- `Client-side fetch failed, falling back to server API` - Fallback to server (may be blocked)
 
