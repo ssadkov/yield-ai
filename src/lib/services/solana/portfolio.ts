@@ -4,10 +4,6 @@ import { Token } from "@/lib/types/token";
 const TOKEN_PROGRAM_ID = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 const WRAPPED_SOL_MINT = "So11111111111111111111111111111111111111112";
 
-type JupiterPriceResponse = {
-  data?: Record<string, { price?: number }>;
-};
-
 const KNOWN_TOKENS: Record<
   string,
   { symbol: string; name: string }
@@ -147,30 +143,43 @@ export class SolanaPortfolioService {
       return {};
     }
 
-    const url = new URL("https://price.jup.ag/v6/price");
-    url.searchParams.set("ids", mints.join(","));
+    const result: Record<string, number> = {};
 
-    try {
-      // TODO: proxy Jupiter Price API through our backend service to avoid direct client calls.
-      const response = await fetch(url.toString(), { cache: "no-store" });
-      if (!response.ok) {
-        return {};
-      }
+    const ids = [...new Set(mints)];
+    const chunkSize = 50;
 
-      const data: JupiterPriceResponse = await response.json();
-      const result: Record<string, number> = {};
+    const fetchBatch = async (idsChunk: string[]) => {
+      if (!idsChunk.length) return;
 
-      for (const [mint, value] of Object.entries(data.data ?? {})) {
-        if (typeof value?.price === "number") {
-          result[mint] = value.price;
+      const url = new URL("https://lite-api.jup.ag/price/v3");
+      url.searchParams.set("ids", idsChunk.join(","));
+
+      try {
+        // TODO: proxy Jupiter Price API through our backend service to avoid direct client calls.
+        const response = await fetch(url.toString(), { cache: "no-store" });
+        if (!response.ok) return;
+
+        const data = (await response.json()) as Record<
+          string,
+          { usdPrice?: number }
+        >;
+
+        for (const [mint, value] of Object.entries(data)) {
+          if (typeof value?.usdPrice === "number") {
+            result[mint] = value.usdPrice;
+          }
         }
+      } catch (error) {
+        console.error("Failed to fetch Solana token prices:", error);
       }
+    };
 
-      return result;
-    } catch (error) {
-      console.error("Failed to fetch Solana token prices:", error);
-      return {};
+    for (let i = 0; i < ids.length; i += chunkSize) {
+      const chunk = ids.slice(i, i + chunkSize);
+      await fetchBatch(chunk);
     }
+
+    return result;
   }
 }
 
