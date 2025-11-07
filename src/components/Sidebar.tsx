@@ -1,6 +1,7 @@
 "use client";
 import { WalletSelector } from "./WalletSelector";
 import { PortfolioCard } from "./portfolio/PortfolioCard";
+import { SolanaWalletCard } from "./portfolio/SolanaWalletCard";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useEffect, useState, useCallback } from "react";
 import { AptosPortfolioService } from "@/lib/services/aptos/portfolio";
@@ -20,9 +21,17 @@ import { PositionsList as AmnisPositionsList } from "./protocols/amnis/Positions
 import { PositionsList as EarniumPositionsList } from "./protocols/earnium/PositionsList";
 import { PositionsList as MoarPositionsList } from "./protocols/moar/PositionsList";
 import { PositionsList as AavePositionsList } from "./protocols/aave/PositionsList";
+import { useSolanaPortfolio } from "@/hooks/useSolanaPortfolio";
 
 export default function Sidebar() {
   const { account } = useWallet();
+  const {
+    address: solanaAddress,
+    tokens: solanaTokens,
+    totalValueUsd: solanaTotalValue,
+    isLoading: isSolanaLoading,
+    refresh: refreshSolana,
+  } = useSolanaPortfolio();
   const [tokens, setTokens] = useState<Token[]>([]);
   const [totalValue, setTotalValue] = useState(0);
   const [hyperionValue, setHyperionValue] = useState(0);
@@ -190,6 +199,14 @@ export default function Sidebar() {
                 onRefresh={handleRefresh}
                 isRefreshing={isRefreshing}
               />
+              {solanaAddress && (
+                <SolanaWalletCard
+                  tokens={solanaTokens}
+                  totalValueUsd={solanaTotalValue}
+                  onRefresh={refreshSolana}
+                  isRefreshing={isSolanaLoading}
+                />
+              )}
               {checkingProtocols.length > 0 && (
                 <div className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground">
                   <span>Checking positions on</span>

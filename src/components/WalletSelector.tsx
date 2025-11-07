@@ -44,6 +44,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { useToast } from "./ui/use-toast";
+import { getSolanaWalletAddress } from "@/lib/wallet/getSolanaWalletAddress";
 
 export function WalletSelector(walletSortingOptions: WalletSortingOptions) {
   const { account, connected, disconnect, wallet } = useWallet();
@@ -51,23 +52,7 @@ export function WalletSelector(walletSortingOptions: WalletSortingOptions) {
   const [mounted, setMounted] = useState(false);
   const { toast } = useToast();
 
-  const solanaAddress = useMemo(() => {
-    if (!wallet) {
-      return null;
-    }
-
-    // X-chain Solana wallets expose the underlying Solana adapter via solanaWallet
-    const maybeDerivedWallet = wallet as unknown as {
-      solanaWallet?: { publicKey?: { toBase58: () => string } };
-    };
-
-    try {
-      const publicKey = maybeDerivedWallet.solanaWallet?.publicKey;
-      return publicKey ? publicKey.toBase58() : null;
-    } catch {
-      return null;
-    }
-  }, [wallet]);
+  const solanaAddress = useMemo(() => getSolanaWalletAddress(wallet), [wallet]);
 
   useEffect(() => {
     setMounted(true);
