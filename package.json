@@ -38,6 +38,7 @@
     "@wallet-standard/core": "^1.1.1",
     "aptos": "^1.21.0",
     "bcs": "^0.0.0",
+    "bs58": "^6.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "got": "^13.0.0",

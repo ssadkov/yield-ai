@@ -1,6 +1,7 @@
 "use client";
 
 import { AptosWalletAdapterProvider } from "@aptos-labs/wallet-adapter-react";
+import { setupAutomaticSolanaWalletDerivation } from "@aptos-labs/derived-wallet-solana";
 import { PropsWithChildren, useState, useEffect } from "react";
 import { Network, Aptos, AptosConfig } from "@aptos-labs/ts-sdk";
 import { useToast } from "@/components/ui/use-toast";
@@ -17,6 +18,9 @@ export const WalletProvider = ({ children }: PropsWithChildren) => {
 
   useEffect(() => {
     setIsClient(true);
+    setupAutomaticSolanaWalletDerivation({
+      defaultNetwork: Network.MAINNET,
+    });
   }, []);
 
   // Initialize gas station globally (this was the working version)
@@ -49,6 +53,7 @@ export const WalletProvider = ({ children }: PropsWithChildren) => {
       autoConnect={true}
       dappConfig={{
         network: Network.MAINNET,
+        crossChainWallets: true,
         transactionSubmitter: transactionSubmitter || aptos.config.getTransactionSubmitter(),
         aptosApiKeys: {
           testnet: process.env.NEXT_PUBLIC_APTOS_API_KEY_TESTNET,
