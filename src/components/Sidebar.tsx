@@ -2,6 +2,7 @@
 import { WalletSelector } from "./WalletSelector";
 import { PortfolioCard } from "./portfolio/PortfolioCard";
 import { SolanaWalletCard } from "./portfolio/SolanaWalletCard";
+import { SolanaSignMessageButton } from "./SolanaSignMessageButton";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useEffect, useState, useCallback } from "react";
 import { AptosPortfolioService } from "@/lib/services/aptos/portfolio";
@@ -200,12 +201,15 @@ export default function Sidebar() {
                 isRefreshing={isRefreshing}
               />
               {solanaAddress && (
-                <SolanaWalletCard
-                  tokens={solanaTokens}
-                  totalValueUsd={solanaTotalValue}
-                  onRefresh={refreshSolana}
-                  isRefreshing={isSolanaLoading}
-                />
+                <div className="space-y-2">
+                  <SolanaWalletCard
+                    tokens={solanaTokens}
+                    totalValueUsd={solanaTotalValue}
+                    onRefresh={refreshSolana}
+                    isRefreshing={isSolanaLoading}
+                  />
+                  <SolanaSignMessageButton />
+                </div>
               )}
               {checkingProtocols.length > 0 && (
                 <div className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground">

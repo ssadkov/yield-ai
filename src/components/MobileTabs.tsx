@@ -5,6 +5,7 @@ import ChatPanel from "./ChatPanel";
 import { WalletSelector } from "./WalletSelector";
 import { PortfolioCard } from "./portfolio/PortfolioCard";
 import { SolanaWalletCard } from "./portfolio/SolanaWalletCard";
+import { SolanaSignMessageButton } from "./SolanaSignMessageButton";
 import { PositionsList as HyperionPositionsList } from "./protocols/hyperion/PositionsList";
 import { PositionsList as EchelonPositionsList } from "./protocols/echelon/PositionsList";
 import { PositionsList as AriesPositionsList } from "./protocols/aries/PositionsList";
@@ -139,12 +140,15 @@ function MobileTabsContent() {
                   <>
                     <PortfolioCard totalValue={totalValue} tokens={tokens} />
                     {solanaAddress && (
-                      <SolanaWalletCard
-                        tokens={solanaTokens}
-                        totalValueUsd={solanaTotalValue}
-                        onRefresh={refreshSolana}
-                        isRefreshing={isSolanaLoading}
-                      />
+                      <div className="space-y-2">
+                        <SolanaWalletCard
+                          tokens={solanaTokens}
+                          totalValueUsd={solanaTotalValue}
+                          onRefresh={refreshSolana}
+                          isRefreshing={isSolanaLoading}
+                        />
+                        <SolanaSignMessageButton />
+                      </div>
                     )}
                     {[
                       { 

@@ -39,9 +39,9 @@ export function TokenItem({ token, stakingAprs = {} }: TokenItemProps) {
   }, [stakingAprs, token.address, symbol]);
 
   // Находим токен в списке для получения logoUrl
-  const tokenList = getTokenList(1); // 1 - это chainId для Aptos
+  const tokenList = getTokenList(1); // 1 - Aptos chainId (fallback for Aptos tokens)
   const tokenInfo = tokenList.find(t => t.symbol === symbol);
-  const logoUrl = tokenInfo?.logoUrl;
+  const logoUrl = token.logoUrl || tokenInfo?.logoUrl;
 
   // Infer staking protocol name from token metadata (websiteUrl/name/symbol)
   const stakingProtocolName = useMemo(() => {

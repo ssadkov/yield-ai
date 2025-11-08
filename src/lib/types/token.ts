@@ -6,4 +6,5 @@ export interface Token {
   amount: string;
   price: string | null;
   value: string | null;
+  logoUrl?: string;
 } 

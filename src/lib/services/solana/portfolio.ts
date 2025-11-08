@@ -1,5 +1,6 @@
 import { Connection, PublicKey, clusterApiUrl } from "@solana/web3.js";
 import { Token } from "@/lib/types/token";
+import { JupiterTokenMetadataService } from "./tokenMetadata";
 
 const TOKEN_PROGRAM_ID = new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 const WRAPPED_SOL_MINT = "So11111111111111111111111111111111111111112";
@@ -104,6 +105,32 @@ export class SolanaPortfolioService {
         price: null,
         value: null,
       });
+    }
+
+    const metadataService = JupiterTokenMetadataService.getInstance();
+    const metadataMap = await metadataService.getMetadataMap(
+      tokens.map((token) => token.address),
+    );
+
+    for (const token of tokens) {
+      const metadata = metadataMap[token.address];
+      if (!metadata) continue;
+
+      if (metadata.symbol) {
+        token.symbol = metadata.symbol;
+      }
+      if (metadata.name) {
+        token.name = metadata.name;
+      }
+      if (metadata.logoUrl) {
+        token.logoUrl = metadata.logoUrl;
+      }
+      if (
+        typeof metadata.decimals === "number" &&
+        Number.isFinite(metadata.decimals)
+      ) {
+        token.decimals = metadata.decimals;
+      }
     }
 
     const uniqueMints = Array.from(new Set(tokens.map((token) => token.address)));
