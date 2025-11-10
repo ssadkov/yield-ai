@@ -6,16 +6,15 @@ export class AptBalanceService {
       const response = await fetch(`/api/aptos/aptBalance?address=${address}`);
       
       if (!response.ok) {
-        console.error('Failed to fetch APT balance:', response.status);
-        // In case of error, assume user has APT to be safe
-        return 1;
+      console.error('Failed to fetch APT balance:', response.status);
+      return 0;
       }
 
       const data = await response.json();
       
       if (data.error) {
         console.error('API error:', data.error);
-        return 1;
+        return 0;
       }
 
       const aptBalance = data.aptBalance || 0;
@@ -23,8 +22,7 @@ export class AptBalanceService {
       return aptBalance;
     } catch (error) {
       console.error('Error checking APT balance:', error);
-      // In case of error, assume user has APT to be safe
-      return 1; // Return 1 APT as fallback to use regular transaction
+      return 0;
     }
   }
 } 
