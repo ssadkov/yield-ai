@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import tokenList from '@/lib/data/tokenList.json';
 
 /**
  * @swagger
@@ -85,34 +86,70 @@ export async function GET() {
       const tokenAAddress = coinAddresses[0] || '';
       const tokenBAddress = coinAddresses[1] || '';
 
-      // Try to extract token symbols from addresses
-      // For common tokens, we can map addresses to symbols
+      // Normalize address function (same as in tokenRegistry)
+      const normalizeTokenAddress = (address: string): string => {
+        if (!address) return '';
+        // Убираем префикс @ если он есть
+        let cleanAddress = address.startsWith('@') ? address.slice(1) : address;
+        
+        // Если адрес содержит ::, значит это Move адрес
+        if (cleanAddress.includes('::')) {
+          // Разбиваем на части
+          const parts = cleanAddress.split('::');
+          // Берем только адрес модуля
+          cleanAddress = parts[0];
+        }
+        
+        // Добавляем префикс 0x если его нет
+        if (!cleanAddress.startsWith('0x')) {
+          cleanAddress = `0x${cleanAddress}`;
+        }
+        
+        // Нормализуем адрес, убирая ведущие нули после 0x
+        if (cleanAddress.startsWith('0x')) {
+          const normalized = '0x' + cleanAddress.slice(2).replace(/^0+/, '') || '0x0';
+          return normalized;
+        }
+        
+        return cleanAddress;
+      };
+
+      // Find token symbol from tokenList
       const getTokenSymbol = (address: string): string => {
         if (!address) return 'Unknown';
         
-        // Common Aptos tokens
-        if (address === '0x1::aptos_coin::AptosCoin' || address === '0xa') {
-          return 'APT';
-        }
-        if (address.includes('USDC') || address.includes('usdc')) {
-          return 'USDC';
-        }
-        if (address.includes('USDT') || address.includes('usdt')) {
-          return 'USDT';
-        }
-        if (address.includes('thAPT') || address.includes('thapt')) {
-          return 'thAPT';
+        // Normalize the address
+        const normalizedAddress = normalizeTokenAddress(address);
+        
+        // Search in tokenList
+        const foundToken = (tokenList.data.data as any[]).find((t: any) => {
+          const normalizedTokenAddress = t.tokenAddress ? normalizeTokenAddress(t.tokenAddress) : null;
+          const normalizedFaAddress = t.faAddress ? normalizeTokenAddress(t.faAddress) : null;
+          
+          return normalizedTokenAddress === normalizedAddress || normalizedFaAddress === normalizedAddress;
+        });
+        
+        if (foundToken) {
+          return foundToken.symbol;
         }
         
-        // Extract symbol from Move type if available
-        const match = address.match(/::(\w+)::/);
-        if (match) {
-          return match[1];
+        // Fallback: try to extract from Move type
+        if (address.includes('::')) {
+          const match = address.match(/::(\w+)::/);
+          if (match) {
+            return match[1];
+          }
+          // Use last part of address as fallback
+          const parts = address.split('::');
+          return parts[parts.length - 1] || 'Unknown';
         }
         
-        // Use last part of address as fallback
-        const parts = address.split('::');
-        return parts[parts.length - 1] || 'Unknown';
+        // If it's a hex address without ::, return shortened version
+        if (address.startsWith('0x')) {
+          return `${address.substring(0, 8)}...`;
+        }
+        
+        return 'Unknown';
       };
 
       const tokenA = getTokenSymbol(tokenAAddress);
