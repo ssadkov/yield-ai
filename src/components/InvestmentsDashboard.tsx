@@ -251,7 +251,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
           'Echelon': true,
           'Aave': true,
           'Moar Market': true,
-          'Earnium': true
+          'Earnium': true,
+          'Thala': true
         };
         setProtocolsLoading(initialLoadingState);
         setProtocolsError({});
@@ -622,6 +623,83 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   symbol: pool.symbol,
                   bestSubPool: pool.bestSubPool,
                   subPools: pool.subPools
+                };
+              });
+            }
+          },
+          {
+            name: 'Thala',
+            url: '/api/protocols/thala/pools',
+            logoUrl: 'https://app.thala.fi/favicon.ico',
+            transform: (data: any) => {
+              // Filter by volume1d > 1000 (same as other DEX protocols)
+              const filtered = (data.data || [])
+                .filter((pool: any) => {
+                  const dailyVolume = parseFloat(pool.volume1d || "0");
+                  return dailyVolume > 1000;
+                });
+              
+              return filtered.map((pool: any) => {
+                // Convert APR from decimal to percentage (0.05 -> 5)
+                const totalAPY = parseFloat(pool.apr || "0") * 100;
+                
+                // Helper to find token info from tokenList by address
+                const findTokenByAddress = (address: string) => {
+                  if (!address) return null;
+                  const tokens = require('@/lib/data/tokenList.json').data?.data || [];
+                  const found = tokens.find((t: any) => {
+                    const fa = t.faAddress ? t.faAddress.toLowerCase() : null;
+                    const coin = t.tokenAddress ? t.tokenAddress.toLowerCase() : null;
+                    const addr = address.toLowerCase();
+                    return fa === addr || coin === addr;
+                  });
+                  return found;
+                };
+                
+                // Get token addresses from coinAddresses array
+                const coinAddresses = pool.coinAddresses || [];
+                const tokenAAddress = coinAddresses[0] || '';
+                const tokenBAddress = coinAddresses[1] || '';
+                
+                // Find tokens in tokenList for logo URLs
+                const tokenAFromList = tokenAAddress ? findTokenByAddress(tokenAAddress) : null;
+                const tokenBFromList = tokenBAddress ? findTokenByAddress(tokenBAddress) : null;
+                
+                // Create token1Info and token2Info objects
+                const token1Info = {
+                  symbol: pool.token_a || 'Unknown',
+                  name: pool.token_a || 'Unknown',
+                  logoUrl: tokenAFromList?.logoUrl || undefined,
+                  decimals: tokenAFromList?.decimals || 8
+                };
+                
+                const token2Info = {
+                  symbol: pool.token_b || 'Unknown',
+                  name: pool.token_b || 'Unknown',
+                  logoUrl: tokenBFromList?.logoUrl || undefined,
+                  decimals: tokenBFromList?.decimals || 8
+                };
+                
+                // Build asset name from token symbols
+                const assetSymbols = `${pool.token_a || 'Unknown'}/${pool.token_b || 'Unknown'}`;
+                
+                return {
+                  asset: assetSymbols,
+                  provider: 'Thala',
+                  totalAPY: totalAPY,
+                  depositApy: totalAPY,
+                  borrowAPY: 0, // DEX pools don't have borrowing
+                  token: pool.pool_id || '',
+                  protocol: 'Thala',
+                  poolType: pool.poolType || 'DEX', // 'Stable' or 'Concentrated'
+                  tvlUSD: parseFloat(pool.tvl || "0"),
+                  dailyVolumeUSD: parseFloat(pool.volume1d || "0"),
+                  // DEX-specific fields for logo display
+                  token1Info: token1Info,
+                  token2Info: token2Info,
+                  swapFee: pool.swapFee || 0,
+                  // APR sources breakdown for tooltip
+                  aprSources: pool.aprSources || []
                 };
               });
             }
@@ -1714,6 +1792,21 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                             <span className="text-blue-400">{item.aprBreakdown.breakdown.subPoolRewards.toFixed(2)}%</span>
                                           </div>
                                         )}
+                                      </>
+                                    )}
+                                    {/* Thala DEX specific breakdown */}
+                                    {item.protocol === 'Thala' && item.aprSources && Array.isArray(item.aprSources) && item.aprSources.length > 0 && (
+                                      <>
+                                        {item.aprSources.map((source: any, idx: number) => {
+                                          const aprPercent = (source.apr || 0) * 100;
+                                          if (aprPercent <= 0) return null;
+                                          return (
+                                            <div key={idx} className="flex justify-between">
+                                              <span>{source.source || 'Reward'}:</span>
+                                              <span className="text-yellow-400">{aprPercent.toFixed(2)}%</span>
+                                            </div>
+                                          );
+                                        })}
                                       </>
                                     )}
                                     <div className="border-t border-gray-600 pt-1 mt-1">
