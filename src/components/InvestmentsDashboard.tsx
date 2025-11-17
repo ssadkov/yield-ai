@@ -699,7 +699,9 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   token2Info: token2Info,
                   swapFee: pool.swapFee || 0,
                   // APR sources breakdown for tooltip
-                  aprSources: pool.aprSources || []
+                  aprSources: pool.aprSources || [],
+                  // Pool URL for external deposit link - lptAddress from API
+                  lptAddress: pool.lptAddress || pool.pool_id || ''
                 };
               });
             }
@@ -1849,6 +1851,10 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                       // Используем адрес пула из API для формирования ссылки
                                       const poolAddress = item.token || item.poolId;
                                       window.open(`https://app.earnium.io/explore/pool/${poolAddress}`, '_blank');
+                                    } else if (item.protocol === 'Thala') {
+                                      // Используем lptAddress для формирования ссылки на пул
+                                      const lptAddress = (item as any).lptAddress || item.token;
+                                      window.open(`https://app.thala.fi/pools/${lptAddress}`, '_blank');
                                     }
                                   }}
                                   className="w-full"

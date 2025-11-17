@@ -173,6 +173,8 @@ export async function GET() {
         balances: pool.balances || [],
         coinAddresses: coinAddresses,
         metadata: pool.metadata,
+        // lptAddress for pool URL generation
+        lptAddress: pool.metadata?.lptAddress || poolId,
         // Additional fields for reference
         tvls: pool.tvls || [],
         version: pool.metadata?.version,
