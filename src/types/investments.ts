@@ -64,6 +64,13 @@ export interface InvestmentData {
       source: string;
     }>;
   };
+  // Thala-specific fields
+  aprSources?: Array<{
+    source: string;
+    apr: number;
+  }>;
+  lptAddress?: string;
+  swapFee?: number;
   // Original pool data (for protocol-specific fields)
   originalPool?: any;
 }

@@ -1853,7 +1853,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                       window.open(`https://app.earnium.io/explore/pool/${poolAddress}`, '_blank');
                                     } else if (item.protocol === 'Thala') {
                                       // Используем lptAddress для формирования ссылки на пул
-                                      const lptAddress = (item as any).lptAddress || item.token;
+                                      const lptAddress = item.lptAddress || item.token;
                                       window.open(`https://app.thala.fi/pools/${lptAddress}`, '_blank');
                                     }
                                   }}
