@@ -38,6 +38,7 @@ export default function TestThalaPage() {
   // Filter states
   const [minApr, setMinApr] = useState<number>(0);
   const [minTvl, setMinTvl] = useState<number>(0);
+  const [minVolume, setMinVolume] = useState<number>(1000); // Default filter like in InvestmentsDashboard
   const [poolTypeFilter, setPoolTypeFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('apr');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -99,6 +100,11 @@ export default function TestThalaPage() {
       filtered = filtered.filter(pool => pool.tvl >= minTvl);
     }
     
+    // Apply daily volume filter (default: 1000, same as InvestmentsDashboard)
+    if (minVolume > 0) {
+      filtered = filtered.filter(pool => pool.volume1d >= minVolume);
+    }
+    
     // Apply pool type filter
     if (poolTypeFilter !== 'all') {
       filtered = filtered.filter(pool => pool.poolType === poolTypeFilter);
@@ -139,7 +145,7 @@ export default function TestThalaPage() {
     });
     
     setFilteredPools(filtered);
-  }, [pools, minApr, minTvl, poolTypeFilter, sortBy, sortOrder, searchQuery]);
+  }, [pools, minApr, minTvl, minVolume, poolTypeFilter, sortBy, sortOrder, searchQuery]);
 
   useEffect(() => {
     fetchThalaPools();
@@ -213,7 +219,7 @@ export default function TestThalaPage() {
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
             <div>
               <Label htmlFor="minApr">Min APR (%)</Label>
               <Input
@@ -235,6 +241,18 @@ export default function TestThalaPage() {
                 value={minTvl}
                 onChange={(e) => setMinTvl(parseFloat(e.target.value) || 0)}
                 placeholder="0"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="minVolume">Min 24h Volume ($)</Label>
+              <Input
+                id="minVolume"
+                type="number"
+                step="1000"
+                value={minVolume}
+                onChange={(e) => setMinVolume(parseFloat(e.target.value) || 0)}
+                placeholder="1000"
               />
             </div>
             
