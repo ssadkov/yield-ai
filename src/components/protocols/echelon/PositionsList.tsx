@@ -620,7 +620,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
                       <span className="text-sm font-medium">${formatNumber(calculateRewardsValue(), 2)}</span>
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
+                  <TooltipContent className="bg-popover text-popover-foreground border-border max-w-xs">
                     <div className="text-xs font-semibold mb-1">Rewards breakdown:</div>
                     <div className="space-y-2 max-h-60 overflow-y-auto">
                                              {rewardsData.map((reward, idx) => {

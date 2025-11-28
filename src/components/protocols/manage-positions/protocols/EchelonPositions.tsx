@@ -896,7 +896,7 @@ export function EchelonPositions() {
                                 APR: {formatNumber(apy * 100, 2)}%
                               </span>
                             </TooltipTrigger>
-                            <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
+                            <TooltipContent className="bg-popover text-popover-foreground border-border max-w-xs">
                               <div className="text-xs font-semibold mb-1">APR Breakdown:</div>
                               <div className="space-y-1">
                                 {!isBorrow && apyData[position.coin]?.lendingApr > 0 && (
@@ -1049,7 +1049,7 @@ export function EchelonPositions() {
                               APR: {formatNumber(apy * 100, 2)}%
                             </span>
                           </TooltipTrigger>
-                          <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
+                          <TooltipContent className="bg-popover text-popover-foreground border-border max-w-xs">
                             <div className="text-xs font-semibold mb-1">APR Breakdown:</div>
                             <div className="space-y-1">
                               {!isBorrow && apyData[position.coin]?.lendingApr > 0 && (
@@ -1157,7 +1157,7 @@ export function EchelonPositions() {
                      💰 including rewards {formatCurrency(calculateRewardsValue(), 2)}
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
+                  <TooltipContent className="bg-popover text-popover-foreground border-border max-w-xs">
                     <div className="text-xs font-semibold mb-1">Rewards breakdown:</div>
                     <div className="space-y-2 max-h-60 overflow-y-auto">
                       {rewardsData.map((reward, idx) => {
