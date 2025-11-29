@@ -1739,7 +1739,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                     {item.depositApy.toFixed(2)}%
                                   </span>
                                 </TooltipTrigger>
-                                <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
+                                <TooltipContent className="bg-popover text-popover-foreground border-border max-w-xs">
                                   <div className="text-xs font-semibold mb-1">Supply APR Breakdown:</div>
                                   <div className="space-y-1">
                                     {(typeof item.lendingApr === 'number' && item.lendingApr > 0) && (

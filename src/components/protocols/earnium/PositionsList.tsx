@@ -400,7 +400,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
                           <TooltipTrigger asChild>
                             <Image src="/icon-crown.webp" alt="Premium Pool" width={12} height={12} className="object-contain cursor-help" />
                           </TooltipTrigger>
-                          <TooltipContent className="bg-black text-white border-gray-700">
+                          <TooltipContent className="bg-popover text-popover-foreground border-border">
                             <div className="text-xs">Premium Pool</div>
                           </TooltipContent>
                         </Tooltip>
@@ -421,7 +421,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
                     <TooltipTrigger asChild>
                       <div className="font-medium cursor-help">${rewardsSummary.totalUSD.toFixed(2)}</div>
                     </TooltipTrigger>
-                    <TooltipContent className="bg-black text-white border-gray-700">
+                    <TooltipContent className="bg-popover text-popover-foreground border-border">
                       <div className="space-y-1 text-xs">
                         {rewardsSummary.items.map((it, i) => (
                           <div key={i} className="flex items-center justify-between gap-6">

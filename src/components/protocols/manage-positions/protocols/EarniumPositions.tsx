@@ -222,7 +222,7 @@ export function EarniumPositionsManaging() {
                       <TooltipTrigger asChild>
                         <Image src="/icon-crown.webp" alt="Premium Pool" width={16} height={16} className="object-contain cursor-help" />
                       </TooltipTrigger>
-                      <TooltipContent className="bg-black text-white border-gray-700">
+                      <TooltipContent className="bg-popover text-popover-foreground border-border">
                         <div className="text-xs">Premium Pool</div>
                       </TooltipContent>
                     </Tooltip>
@@ -236,7 +236,7 @@ export function EarniumPositionsManaging() {
                           APR: {apr.toFixed(2)}%
                         </Badge>
                       </TooltipTrigger>
-                      <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
+                      <TooltipContent className="bg-popover text-popover-foreground border-border max-w-xs">
                         <div className="space-y-1">
                           <div className="text-xs font-semibold mb-1">APR Breakdown:</div>
                           {poolInfo?.aprBreakdown?.breakdown && (
@@ -313,7 +313,7 @@ export function EarniumPositionsManaging() {
                       <span>including rewards ${rewardsUSD.toFixed(2)}</span>
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent className="bg-black text-white border-gray-700">
+                  <TooltipContent className="bg-popover text-popover-foreground border-border">
                     <div className="space-y-1 text-xs">
                       <div className="text-center">Total unclaimed rewards</div>
                       <div className="border-t border-gray-600 pt-1 mt-1">
@@ -358,7 +358,7 @@ export function EarniumPositionsManaging() {
                     <span>including rewards ${rewardsUSD.toFixed(2)}</span>
                   </div>
                 </TooltipTrigger>
-                <TooltipContent className="bg-black text-white border-gray-700">
+                <TooltipContent className="bg-popover text-popover-foreground border-border">
                   <div className="space-y-1 text-xs">
                     <div className="text-center">Total unclaimed rewards</div>
                   </div>

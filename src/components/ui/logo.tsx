@@ -40,7 +40,7 @@ export function Logo({ className, size = "md", ...props }: LogoProps) {
     return (
       <div
         className={cn(
-          "relative bg-gray-200 rounded flex items-center justify-center",
+          "relative bg-muted rounded flex items-center justify-center",
           {
             "h-6 w-6": size === "sm",
             "h-8 w-8": size === "md",
@@ -50,7 +50,7 @@ export function Logo({ className, size = "md", ...props }: LogoProps) {
         )}
         {...props}
       >
-        <span className="text-xs font-bold text-gray-600">Y</span>
+        <span className="text-xs font-bold text-foreground">Y</span>
       </div>
     );
   }
@@ -60,7 +60,7 @@ export function Logo({ className, size = "md", ...props }: LogoProps) {
     return (
       <div
         className={cn(
-          "relative bg-gray-200 rounded flex items-center justify-center",
+          "relative bg-muted rounded flex items-center justify-center",
           {
             "h-6 w-6": size === "sm",
             "h-8 w-8": size === "md",
@@ -70,7 +70,7 @@ export function Logo({ className, size = "md", ...props }: LogoProps) {
         )}
         {...props}
       >
-        <span className="text-xs font-bold text-gray-600">Y</span>
+        <span className="text-xs font-bold text-foreground">Y</span>
       </div>
     );
   }

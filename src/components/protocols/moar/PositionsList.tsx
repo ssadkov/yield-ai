@@ -239,7 +239,7 @@ export function PositionsList({
                         <span className="text-sm font-medium whitespace-nowrap">{formatCurrency(totalRewardsValue)}</span>
                       </div>
                     </TooltipTrigger>
-                    <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
+                    <TooltipContent className="bg-popover text-popover-foreground border-border max-w-xs">
                       <div className="text-xs font-semibold mb-1">Rewards breakdown:</div>
                       <div className="space-y-2 max-h-60 overflow-y-auto">
                         {rewardsData?.data?.map((reward: any, idx: number) => (
