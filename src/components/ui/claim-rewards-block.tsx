@@ -33,7 +33,7 @@ export function ClaimRewardsBlock({ summary, onClaim, loading = false }: ClaimRe
               <h3 className="text-lg font-semibold text-success">
                 Claim Rewards
               </h3>
-              <p className="text-sm text-success/80">
+              <p className="text-sm text-success dark:text-success/80">
                 ${summary.totalValue.toFixed(2)} available for direct claim in {protocolCount} protocol{protocolCount !== 1 ? 's' : ''}
               </p>
             </div>
