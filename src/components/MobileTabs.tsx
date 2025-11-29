@@ -214,7 +214,7 @@ function MobileTabsContent() {
           {/* Bottom navigation - fixed at bottom */}
           <div className="flex-shrink-0 flex border-t bg-background safe-area-bottom mobile-bottom-nav">
             <button
-              className={`flex-1 p-4 text-center transition-colors ${tab === "ideas" ? "text-primary bg-primary/5" : "text-muted-foreground hover:text-foreground"}`}
+              className={`flex-1 p-4 text-center transition-colors cursor-pointer ${tab === "ideas" ? "text-primary bg-primary/5" : "text-muted-foreground hover:text-foreground"}`}
               onClick={() => setTab("ideas")}
             >
               <div className="flex flex-col items-center gap-1">
@@ -225,7 +225,7 @@ function MobileTabsContent() {
               </div>
             </button>
             <button
-              className={`flex-1 p-4 text-center transition-colors ${tab === "assets" ? "text-primary bg-primary/5" : "text-muted-foreground hover:text-foreground"}`}
+              className={`flex-1 p-4 text-center transition-colors cursor-pointer ${tab === "assets" ? "text-primary bg-primary/5" : "text-muted-foreground hover:text-foreground"}`}
               onClick={() => setTab("assets")}
             >
               <div className="flex flex-col items-center gap-1">
@@ -236,7 +236,7 @@ function MobileTabsContent() {
               </div>
             </button>
             <button
-              className={`flex-1 p-4 text-center transition-colors ${tab === "chat" ? "text-primary bg-primary/5" : "text-muted-foreground hover:text-foreground"}`}
+              className={`flex-1 p-4 text-center transition-colors cursor-pointer ${tab === "chat" ? "text-primary bg-primary/5" : "text-muted-foreground hover:text-foreground"}`}
               onClick={() => setTab("chat")}
             >
               <div className="flex flex-col items-center gap-1">

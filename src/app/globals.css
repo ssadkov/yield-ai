@@ -184,6 +184,12 @@
   button:not([data-slot="checkbox"]), [role="button"]:not([data-slot="checkbox"]) {
     min-height: 44px;
     min-width: 44px;
+    cursor: pointer;
+  }
+  
+  /* Cursor pointer for all clickable elements */
+  a, button, [role="button"], [onclick], [onClick] {
+    cursor: pointer;
   }
   
   /* Safe area support for modern mobile browsers */
