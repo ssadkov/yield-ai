@@ -1,15 +1,26 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
 import { useToast } from '@/components/ui/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import { protocols } from '../protocols/protocolsRegistry';
 import { showTransactionSuccessToast } from '@/components/ui/transaction-toast';
 import { ProtocolKey } from '../transactions/types';
+import { GasStationService } from '../services/gasStation';
 
 export function useWithdraw() {
   const wallet = useWallet();
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  
+  // Get Gas Station transaction submitter for free transactions
+  const gasStationService = useMemo(() => GasStationService.getInstance(), []);
+  const transactionSubmitter = useMemo(() => {
+    // Only use Gas Station for native Aptos wallets (not x-chain)
+    if (wallet.wallet?.isAptosNativeWallet) {
+      return gasStationService.getTransactionSubmitter();
+    }
+    return null;
+  }, [gasStationService, wallet.wallet?.isAptosNativeWallet]);
 
   const withdraw = useCallback(async (
     protocolKey: ProtocolKey,
@@ -54,6 +65,9 @@ export function useWithdraw() {
         options: {
           maxGasAmount: 20000, // Network limit is 20000
         },
+        // Explicitly pass transactionSubmitter for Gas Station (free transactions)
+        // If null/undefined, global transactionSubmitter from WalletProvider will be used
+        transactionSubmitter: transactionSubmitter || undefined,
       });
       console.log('Withdraw transaction response:', response);
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
@@ -28,6 +28,7 @@ import { Token } from '@/lib/types/panora';
 import { showTransactionSuccessToast } from '@/components/ui/transaction-toast';
 import tokenList from "@/lib/data/tokenList.json";
 import { WithdrawModal } from '@/components/ui/withdraw-modal';
+import { GasStationService } from "@/lib/services/gasStation";
 
 interface AuroPositionsProps {
   address?: string;
@@ -35,7 +36,17 @@ interface AuroPositionsProps {
 }
 
 export function AuroPositions({ address, onPositionsValueChange }: AuroPositionsProps) {
-  const { account, signAndSubmitTransaction } = useWallet();
+  const { account, signAndSubmitTransaction, wallet } = useWallet();
+  
+  // Get Gas Station transaction submitter for free transactions
+  const gasStationService = useMemo(() => GasStationService.getInstance(), []);
+  const transactionSubmitter = useMemo(() => {
+    // Only use Gas Station for native Aptos wallets (not x-chain)
+    if (wallet?.isAptosNativeWallet) {
+      return gasStationService.getTransactionSubmitter();
+    }
+    return null;
+  }, [gasStationService, wallet?.isAptosNativeWallet]);
   const [positions, setPositions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -641,6 +652,8 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
         options: {
           maxGasAmount: 20000,
         },
+        // Explicitly pass transactionSubmitter for Gas Station (free transactions)
+        transactionSubmitter: transactionSubmitter || undefined,
       });
       
       console.log('Auro deposit transaction result:', result);
@@ -788,6 +801,8 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
       options: {
         maxGasAmount: 20000,
       },
+      // Explicitly pass transactionSubmitter for Gas Station (free transactions)
+      transactionSubmitter: transactionSubmitter || undefined,
     });
     
     console.log('Auro withdraw transaction result:', result);
@@ -829,6 +844,8 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
       options: {
         maxGasAmount: 20000,
       },
+      // Explicitly pass transactionSubmitter for Gas Station (free transactions)
+      transactionSubmitter: transactionSubmitter || undefined,
     });
     
     console.log('Auro exit position transaction result:', result);
