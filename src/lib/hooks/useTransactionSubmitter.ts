@@ -31,7 +31,7 @@ export interface TransactionRequest {
   options?: TransactionOptions;
 }
 
-function normalizeAuthenticator(authenticatorData: any): AccountAuthenticator {
+export function normalizeAuthenticator(authenticatorData: any): AccountAuthenticator {
   try {
     if (authenticatorData instanceof AccountAuthenticator) {
       return authenticatorData;

@@ -4,16 +4,22 @@ import { useMemo, useState } from "react";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
+import { GasStationService } from "@/lib/services/gasStation";
 import { useAptosClient } from "@/contexts/AptosClientContext";
+import { normalizeAuthenticator } from "@/lib/hooks/useTransactionSubmitter";
 
 const TRANSFER_AMOUNT_OCTAS = BigInt(1_000_000); // 0.001 APT
 
 export function SolanaSignMessageButton() {
-  const { connected, wallet, account, signMessage, signAndSubmitTransaction } = useWallet();
+  const { connected, wallet, account, signMessage, signTransaction } = useWallet();
   const { toast } = useToast();
-  const aptosClient = useAptosClient();
   const [isSigning, setIsSigning] = useState(false);
   const [isTransferring, setIsTransferring] = useState(false);
+  const aptosClient = useAptosClient();
+
+  // Get the same GasStationTransactionSubmitter instance (singleton) for explicit use with x-chain wallets
+  const gasStationService = useMemo(() => GasStationService.getInstance(), []);
+  const transactionSubmitter = useMemo(() => gasStationService.getTransactionSubmitter(), [gasStationService]);
 
   const handleSign = async () => {
     if (!connected || !wallet || !signMessage) {
@@ -69,23 +75,79 @@ export function SolanaSignMessageButton() {
         throw new Error("Missing sender address");
       }
 
-      if (!signAndSubmitTransaction) {
-        throw new Error("Wallet does not support signAndSubmitTransaction");
+      if (!signTransaction) {
+        throw new Error("Wallet does not support signTransaction");
       }
 
-      const response = await signAndSubmitTransaction({
-        sender: account.address,
-        data: {
-          function: "0x1::aptos_account::transfer",
-          typeArguments: [],
-          functionArguments: [account.address, Number(TRANSFER_AMOUNT_OCTAS)],
-        },
-      });
+      // For x-chain wallets, use manual approach: build -> sign -> submit via GasStationTransactionSubmitter
+      if (!wallet.isAptosNativeWallet) {
+        if (!transactionSubmitter) {
+          throw new Error("Gas Station transaction submitter not available");
+        }
 
-      toast({
-        title: "Transfer submitted",
-        description: `Hash: ${response.hash}`,
-      });
+        console.log('[gas-station] ===== MANUAL TRANSFER FOR X-CHAIN WALLET =====');
+        console.log('[gas-station] wallet:', wallet?.name ?? 'unknown');
+        console.log('[gas-station] Account address:', account.address.toString());
+
+        const recipientAddress = account.address.toString();
+
+        // Build transaction with withFeePayer: true (required by GasStationTransactionSubmitter)
+        // Gas Station will handle the fee payer signing internally
+        const transaction = await aptosClient.transaction.build.simple({
+          sender: account.address,
+          withFeePayer: true, // Required flag for Gas Station to recognize sponsored transaction
+          data: {
+            function: '0x1::aptos_account::transfer',
+            functionArguments: [
+              recipientAddress,
+              Number(TRANSFER_AMOUNT_OCTAS)
+            ]
+          },
+          options: {
+            maxGasAmount: 2000,
+            gasUnitPrice: 100,
+          }
+        });
+
+        console.log('[gas-station] Transaction built, signing...');
+
+        // Sign transaction with wallet
+        const walletResult = await signTransaction({
+          transactionOrPayload: transaction,
+        } as any);
+
+        console.log('[gas-station] Transaction signed, normalizing authenticator...');
+
+        // Normalize authenticator
+        const senderAuthenticator = normalizeAuthenticator((walletResult as any)?.authenticator ?? walletResult);
+
+        console.log('[gas-station] Submitting via GasStationTransactionSubmitter...');
+
+        // Submit via GasStationTransactionSubmitter
+        // Note: Type casting needed due to version mismatch between ts-sdk versions
+        const response = await transactionSubmitter.submitTransaction({
+          aptosConfig: aptosClient.config as any,
+          transaction: transaction as any,
+          senderAuthenticator: senderAuthenticator as any,
+        });
+
+        console.log('[gas-station] Transaction submitted, full response:', JSON.stringify(response, null, 2));
+        console.log('[gas-station] Response type:', typeof response);
+        console.log('[gas-station] Response hash:', response?.hash);
+        console.log('[gas-station] Response keys:', response ? Object.keys(response) : 'response is null/undefined');
+
+        if (!response || !response.hash) {
+          throw new Error(`Transaction submission failed: no hash returned. Response: ${JSON.stringify(response)}`);
+        }
+
+        toast({
+          title: "Transfer submitted",
+          description: `Hash: ${response.hash}`,
+        });
+      } else {
+        // For native Aptos wallets, use signAndSubmitTransaction (if available)
+        throw new Error("Native Aptos wallet - use regular signAndSubmitTransaction");
+      }
     } catch (error) {
       console.error("Failed to transfer:", error);
       toast({
