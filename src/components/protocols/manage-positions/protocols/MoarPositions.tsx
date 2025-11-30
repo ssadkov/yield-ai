@@ -646,7 +646,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                               </div>
                             </div>
                           </TooltipTrigger>
-                          <TooltipContent className="bg-black text-white border-gray-700">
+                          <TooltipContent className="bg-popover text-popover-foreground border-border">
                             <div className="text-xs">
                               <div className="text-gray-300">{formatNumber(reward.amount || 0, 6)} {reward.token_info?.symbol || 'Unknown'}</div>
                               <div className="text-gray-300">{formatCurrency(reward.usdValue || 0)}</div>
@@ -774,7 +774,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                                 </div>
                               </div>
                             </TooltipTrigger>
-                            <TooltipContent className="bg-black text-white border-gray-700">
+                            <TooltipContent className="bg-popover text-popover-foreground border-border">
                               <div className="text-xs">
                                 <div className="text-gray-300">{formatNumber(reward.amount || 0, 6)} {reward.symbol || 'Unknown'}</div>
                                 <div className="text-gray-300">{formatCurrency(reward.usdValue || 0)}</div>
@@ -812,7 +812,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                         <span>including rewards {formatCurrency(totalRewardsValue)}</span>
                       </div>
                     </TooltipTrigger>
-                    <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
+                    <TooltipContent className="bg-popover text-popover-foreground border-border max-w-xs">
                       <div className="text-xs font-semibold mb-1">Rewards breakdown:</div>
                       <div className="space-y-2 max-h-60 overflow-y-auto">
                         {rewardsData.map((reward: any, idx: number) => (
@@ -860,7 +860,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                       <span>including rewards ${totalRewardsValue.toFixed(2)}</span>
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
+                  <TooltipContent className="bg-popover text-popover-foreground border-border max-w-xs">
                     <div className="text-xs font-semibold mb-1">Rewards breakdown:</div>
                     <div className="space-y-2 max-h-60 overflow-y-auto">
                       {rewardsData.map((reward: any, idx: number) => (

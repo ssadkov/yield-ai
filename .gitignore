@@ -46,3 +46,4 @@ next-env.d.ts
 .npmrc
 npm
 env.local
+/.idea

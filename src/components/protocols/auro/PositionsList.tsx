@@ -484,7 +484,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
                       <span className="text-sm font-medium">${totalRewardsValue.toFixed(2)}</span>
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
+                  <TooltipContent className="bg-popover text-popover-foreground border-border max-w-xs">
                     <div className="text-xs font-semibold mb-1">Rewards breakdown:</div>
                     <div className="space-y-2 max-h-60 overflow-y-auto">
                       {Object.entries(rewardsData).map(([positionAddress, rewards]: [string, any], idx) => {
@@ -501,7 +501,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
                               <span>{tokenInfo.symbol}</span>
                               <span className="text-gray-400">Supply</span>
                               <span>{amount.toFixed(6)}</span>
-                              <span className="text-gray-300">${value}</span>
+                              <span className="text-muted-foreground">${value}</span>
                             </div>
                           );
                         });
@@ -518,14 +518,14 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
                               <span>{tokenInfo.symbol}</span>
                               <span className="text-blue-400">Borrow</span>
                               <span>{amount.toFixed(6)}</span>
-                              <span className="text-gray-300">${value}</span>
+                              <span className="text-muted-foreground">${value}</span>
                             </div>
                           );
                         });
                         if (collateralRows.length === 0 && borrowRows.length === 0) return null;
                         return (
                           <div key={positionAddress} className="mb-1">
-                            <div className="text-[10px] text-gray-400 mb-0.5">Position: {positionAddress.slice(0, 6)}...{positionAddress.slice(-4)}</div>
+                            <div className="text-[10px] text-muted-foreground mb-0.5">Position: {positionAddress.slice(0, 6)}...{positionAddress.slice(-4)}</div>
                             {collateralRows}
                             {borrowRows}
                           </div>

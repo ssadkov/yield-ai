@@ -48,18 +48,18 @@ export function ConfirmRemoveModal({
               Are you sure you want to remove all tokens from this position?
             </p>
             
-            <div className="bg-gray-50 p-3 rounded-lg">
+            <div className="bg-muted p-3 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
                 <span className="font-semibold">{token1Symbol} / {token2Symbol}</span>
                 <span className={`px-2 py-1 rounded text-xs font-semibold ${
                   isActive 
-                    ? 'bg-green-500/10 text-green-600' 
-                    : 'bg-red-500/10 text-red-600'
+                    ? 'bg-primary/10 text-primary' 
+                    : 'bg-destructive/10 text-destructive'
                 }`}>
                   {isActive ? 'Active' : 'Inactive'}
                 </span>
               </div>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-foreground">
                 Position value: <span className="font-semibold">${positionValue}</span>
               </p>
             </div>

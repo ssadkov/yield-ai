@@ -925,28 +925,28 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                           )}
                         </div>
                       </TooltipTrigger>
-                      <TooltipContent className="w-[768px] p-4 bg-black text-white border-gray-700">
+                      <TooltipContent className="w-[768px] p-4 bg-popover text-popover-foreground border-border">
                         <div className="space-y-3">
                                                       <div className="font-semibold text-sm text-white">{collateralSymbol} Supply</div>
-                          <div className="text-xs space-y-2 text-gray-200">
-                            <div><span className="font-medium text-white">Position ID:</span> <code className="bg-gray-800 px-2 py-1 rounded text-xs text-gray-100 block mt-1">{pos.address}</code></div>
-                            <div><span className="font-medium text-white">Pool ID:</span> <code className="bg-gray-800 px-2 py-1 rounded text-xs text-gray-100 block mt-1">{pos.poolAddress}</code></div>
-                            <div><span className="font-medium text-white">Liquidation Price:</span> <code className="bg-gray-800 px-2 py-1 rounded text-xs text-gray-100 block mt-1">${pos.liquidatePrice}</code></div>
+                          <div className="text-xs space-y-2 text-foreground">
+                            <div><span className="font-medium text-white">Position ID:</span> <code className="bg-card px-2 py-1 rounded text-xs text-foreground block mt-1">{pos.address}</code></div>
+                            <div><span className="font-medium text-white">Pool ID:</span> <code className="bg-card px-2 py-1 rounded text-xs text-foreground block mt-1">{pos.poolAddress}</code></div>
+                            <div><span className="font-medium text-white">Liquidation Price:</span> <code className="bg-card px-2 py-1 rounded text-xs text-foreground block mt-1">${pos.liquidatePrice}</code></div>
                             {collateralAPRData.rewardPoolAddress && (
-                              <div><span className="font-medium text-white">Reward Pool:</span> <code className="bg-gray-800 px-2 py-1 rounded text-xs text-gray-100 block mt-1">{collateralAPRData.rewardPoolAddress}</code></div>
+                              <div><span className="font-medium text-white">Reward Pool:</span> <code className="bg-card px-2 py-1 rounded text-xs text-foreground block mt-1">{collateralAPRData.rewardPoolAddress}</code></div>
                             )}
                           </div>
-                          <div className="text-xs space-y-1 text-gray-200">
+                          <div className="text-xs space-y-1 text-foreground">
                             <div><span className="font-medium text-white">Supply APR:</span> {collateralAPRData.supplyApr.toFixed(2)}%</div>
                             <div><span className="font-medium text-white">Incentive APR:</span> {collateralAPRData.supplyIncentiveApr.toFixed(2)}%</div>
                             <div><span className="font-medium text-white">Staking APR:</span> {collateralAPRData.stakingApr.toFixed(2)}%</div>
-                            <div className="border-t border-gray-600 pt-1 mt-1">
+                            <div className="border-t border-border pt-1 mt-1">
                               <span className="font-semibold text-white">Total APR: {collateralAPRData.totalApr.toFixed(2)}%</span>
                             </div>
                             {collateralAPRData.rewardPoolAddress && (
                               <div className="mt-2">
                                 <span className="font-medium text-white">Reward Pool:</span>
-                                <code className="bg-gray-800 px-1 rounded text-xs text-gray-100 block mt-1">{collateralAPRData.rewardPoolAddress}</code>
+                                <code className="bg-card px-1 rounded text-xs text-foreground block mt-1">{collateralAPRData.rewardPoolAddress}</code>
                               </div>
                             )}
                           </div>
@@ -980,26 +980,26 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                               "text-xs font-normal px-2 py-0.5 h-5 cursor-help",
                               collateralAPRData.totalApr > 0 
                                 ? "bg-green-500/10 text-green-600 border-green-500/20"
-                                : "bg-gray-500/10 text-gray-600 border-gray-500/20"
+                                : "bg-muted0/10 text-foreground border-gray-500/20"
                             )}
                           >
                             APR: {collateralAPRData.totalApr.toFixed(2)}%
                           </Badge>
                         </TooltipTrigger>
-                        <TooltipContent className="w-80 p-3 bg-black text-white border-gray-700">
+                        <TooltipContent className="w-80 p-3 bg-popover text-popover-foreground border-border">
                           <div className="space-y-2">
                             <div className="font-semibold text-sm text-white">APR Breakdown</div>
-                            <div className="text-xs space-y-1 text-gray-200">
+                            <div className="text-xs space-y-1 text-foreground">
                               <div><span className="font-medium text-white">Supply APR:</span> {collateralAPRData.supplyApr.toFixed(2)}%</div>
                               <div><span className="font-medium text-white">Incentive APR:</span> {collateralAPRData.supplyIncentiveApr.toFixed(2)}%</div>
                               <div><span className="font-medium text-white">Staking APR:</span> {collateralAPRData.stakingApr.toFixed(2)}%</div>
-                              <div className="border-t border-gray-600 pt-1 mt-1">
+                              <div className="border-t border-border pt-1 mt-1">
                                 <span className="font-semibold text-white">Total APR: {collateralAPRData.totalApr.toFixed(2)}%</span>
                               </div>
                               {collateralAPRData.rewardPoolAddress && (
                                 <div className="mt-2">
                                   <span className="font-medium text-white">Reward Pool:</span>
-                                  <code className="bg-gray-800 px-1 rounded text-xs text-gray-100 block mt-1">{collateralAPRData.rewardPoolAddress}</code>
+                                  <code className="bg-card px-1 rounded text-xs text-foreground block mt-1">{collateralAPRData.rewardPoolAddress}</code>
                                 </div>
                               )}
                             </div>
@@ -1018,11 +1018,11 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                     rewardsData[pos.address].collateral.length > 0 || 
                     (!hasDebt && rewardsData[pos.address].borrow.length > 0)
                   ) && (
-                    <div className="mt-2 pt-2 border-t border-gray-200">
+                    <div className="mt-2 pt-2 border-t border-border">
                       {/* Collateral Rewards */}
                       {rewardsData[pos.address].collateral.length > 0 && (
                         <div className="mb-2">
-                          <div className="text-xs font-medium text-gray-600 mb-1">💰 Supply Rewards</div>
+                          <div className="text-xs font-medium text-foreground mb-1">💰 Supply Rewards</div>
                           <div className="space-y-1">
                             {rewardsData[pos.address].collateral.map((reward, rewardIdx) => {
                               if (!reward || !reward.key || !reward.value) return null;
@@ -1046,7 +1046,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                                         </div>
                                       </div>
                                     </TooltipTrigger>
-                                    <TooltipContent className="bg-black text-white border-gray-700">
+                                    <TooltipContent className="bg-popover text-popover-foreground border-border">
                                       <div className="text-xs">
                                         <div className="text-gray-300">{amount.toFixed(6)} {tokenInfo.symbol}</div>
                                         {rewardValue !== 'N/A' && (
@@ -1065,7 +1065,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                       {/* Borrow Rewards - показываем в collateral секции, если нет debt */}
                       {!hasDebt && rewardsData[pos.address].borrow.length > 0 && (
                         <div>
-                          <div className="text-xs font-medium text-gray-600 mb-1">💳 Borrow Rewards</div>
+                          <div className="text-xs font-medium text-foreground mb-1">💳 Borrow Rewards</div>
                           <div className="space-y-1">
                             {rewardsData[pos.address].borrow.map((reward, rewardIdx) => {
                               if (!reward || !reward.key || !reward.value) return null;
@@ -1089,7 +1089,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                                         </div>
                                       </div>
                                     </TooltipTrigger>
-                                    <TooltipContent className="bg-black text-white border-gray-700">
+                                    <TooltipContent className="bg-popover text-popover-foreground border-border">
                                       <div className="text-xs">
                                         <div className="text-gray-300">{amount.toFixed(6)} {tokenInfo.symbol}</div>
                                         {borrowRewardValue !== 'N/A' && (
@@ -1108,7 +1108,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                   )}
                   
                   {/* Action buttons for collateral positions */}
-                  <div className="mt-2 pt-2 border-t border-gray-200">
+                  <div className="mt-2 pt-2 border-t border-border">
                     <div className="flex gap-2 justify-end">
                       <Button
                         onClick={() => handleDepositClick(pos)}
@@ -1182,12 +1182,12 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                         "text-xs font-normal px-2 py-0.5 h-5",
                         collateralAPRData.totalApr > 0 
                           ? "bg-green-500/10 text-green-600 border-green-500/20"
-                          : "bg-gray-500/10 text-gray-600 border-gray-500/20"
+                          : "bg-muted0/10 text-foreground border-gray-500/20"
                       )}
                     >
                       APR: {collateralAPRData.totalApr.toFixed(2)}%
                     </Badge>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-muted-foreground">
                       Supply: {collateralAPRData.supplyApr.toFixed(2)}% | Incentive: {collateralAPRData.supplyIncentiveApr.toFixed(2)}%
                     </span>
                   </div>
@@ -1198,8 +1198,8 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
 
                 {/* Rewards для мобильных */}
                 {rewardsData[pos.address] && rewardsData[pos.address].collateral.length > 0 && (
-                  <div className="bg-gray-50 p-2 rounded">
-                    <div className="text-xs font-medium text-gray-600 mb-1">💰 Supply Rewards</div>
+                  <div className="bg-muted p-2 rounded">
+                    <div className="text-xs font-medium text-foreground mb-1">💰 Supply Rewards</div>
                     <div className="space-y-1">
                       {rewardsData[pos.address].collateral.map((reward, rewardIdx) => {
                         if (!reward || !reward.key || !reward.value) return null;
@@ -1220,8 +1220,8 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
 
                 {/* Borrow Rewards для мобильных - если нет debt */}
                 {!hasDebt && rewardsData[pos.address] && rewardsData[pos.address].borrow.length > 0 && (
-                  <div className="bg-gray-50 p-2 rounded">
-                    <div className="text-xs font-medium text-gray-600 mb-1">💳 Borrow Rewards</div>
+                  <div className="bg-muted p-2 rounded">
+                    <div className="text-xs font-medium text-foreground mb-1">💳 Borrow Rewards</div>
                     <div className="space-y-1">
                       {rewardsData[pos.address].borrow.map((reward, rewardIdx) => {
                         if (!reward || !reward.key || !reward.value) return null;
@@ -1284,15 +1284,15 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                             )}
                           </div>
                         </TooltipTrigger>
-                        <TooltipContent className="w-[768px] p-4 bg-black text-white border-gray-700">
+                        <TooltipContent className="w-[768px] p-4 bg-popover text-popover-foreground border-border">
                           <div className="space-y-3">
                             <div className="font-semibold text-sm text-white">{debtSymbol} Borrow</div>
-                            <div className="text-xs space-y-2 text-gray-200">
-                              <div><span className="font-medium text-white">Position ID:</span> <code className="bg-gray-800 px-2 py-1 rounded text-xs text-gray-100 block mt-1">{pos.address}</code></div>
-                              <div><span className="font-medium text-white">Pool ID:</span> <code className="bg-gray-800 px-2 py-1 rounded text-xs text-gray-100 block mt-1">{pos.poolAddress}</code></div>
-                              <div><span className="font-medium text-white">Liquidation Price:</span> <code className="bg-gray-800 px-2 py-1 rounded text-xs text-gray-100 block mt-1">${pos.liquidatePrice}</code></div>
+                            <div className="text-xs space-y-2 text-foreground">
+                              <div><span className="font-medium text-white">Position ID:</span> <code className="bg-card px-2 py-1 rounded text-xs text-foreground block mt-1">{pos.address}</code></div>
+                              <div><span className="font-medium text-white">Pool ID:</span> <code className="bg-card px-2 py-1 rounded text-xs text-foreground block mt-1">{pos.poolAddress}</code></div>
+                              <div><span className="font-medium text-white">Liquidation Price:</span> <code className="bg-card px-2 py-1 rounded text-xs text-foreground block mt-1">${pos.liquidatePrice}</code></div>
                               {debtAPRData.rewardPoolAddress && (
-                                <div><span className="font-medium text-white">Reward Pool:</span> <code className="bg-gray-800 px-2 py-1 rounded text-xs text-gray-100 block mt-1">{debtAPRData.rewardPoolAddress}</code></div>
+                                <div><span className="font-medium text-white">Reward Pool:</span> <code className="bg-card px-2 py-1 rounded text-xs text-foreground block mt-1">{debtAPRData.rewardPoolAddress}</code></div>
                               )}
                             </div>
 
@@ -1332,19 +1332,19 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                               APR: {debtAPRData.totalApr.toFixed(2)}%
                             </Badge>
                           </TooltipTrigger>
-                          <TooltipContent className="w-80 p-3 bg-black text-white border-gray-700">
+                          <TooltipContent className="w-80 p-3 bg-popover text-popover-foreground border-border">
                             <div className="space-y-2">
                               <div className="font-semibold text-sm text-white">APR Breakdown</div>
-                              <div className="text-xs space-y-1 text-gray-200">
+                              <div className="text-xs space-y-1 text-foreground">
                                 <div><span className="font-medium text-white">Borrow APR:</span> -{debtAPRData.borrowApr.toFixed(2)}%</div>
                                 <div><span className="font-medium text-white">Incentive APR:</span> +{debtAPRData.borrowIncentiveApr.toFixed(2)}%</div>
-                                <div className="border-t border-gray-600 pt-1 mt-1">
+                                <div className="border-t border-border pt-1 mt-1">
                                   <span className="font-semibold text-white">Net APR: {debtAPRData.totalApr.toFixed(2)}%</span>
                                 </div>
                                 {debtAPRData.rewardPoolAddress && (
                                   <div className="mt-2">
                                     <span className="font-medium text-white">Reward Pool:</span>
-                                    <code className="bg-gray-800 px-1 rounded text-xs text-gray-100 block mt-1">{debtAPRData.rewardPoolAddress}</code>
+                                    <code className="bg-card px-1 rounded text-xs text-foreground block mt-1">{debtAPRData.rewardPoolAddress}</code>
                                   </div>
                                 )}
                               </div>
@@ -1360,10 +1360,10 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                     
                     {/* Rewards section для debt позиции */}
                     {rewardsData[pos.address] && rewardsData[pos.address].borrow.length > 0 && (
-                      <div className="mt-2 pt-2 border-t border-gray-200">
+                      <div className="mt-2 pt-2 border-t border-border">
                         {/* Borrow Rewards для debt позиции */}
                         <div>
-                          <div className="text-xs font-medium text-gray-600 mb-1">💳 Borrow Rewards</div>
+                          <div className="text-xs font-medium text-foreground mb-1">💳 Borrow Rewards</div>
                           <div className="space-y-1">
                             {rewardsData[pos.address].borrow.map((reward, rewardIdx) => {
                               if (!reward || !reward.key || !reward.value) return null;
@@ -1387,7 +1387,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                                         </div>
                                       </div>
                                     </TooltipTrigger>
-                                    <TooltipContent className="bg-black text-white border-gray-700">
+                                    <TooltipContent className="bg-popover text-popover-foreground border-border">
                                       <div className="text-xs">
                                         <div className="text-gray-300">{amount.toFixed(6)} {tokenInfo.symbol}</div>
                                         {borrowRewardValue !== 'N/A' && (
@@ -1460,7 +1460,7 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
                       >
                         APR: {debtAPRData.totalApr.toFixed(2)}%
                       </Badge>
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-muted-foreground">
                         Borrow: -{debtAPRData.borrowApr.toFixed(2)}% | Incentive: +{debtAPRData.borrowIncentiveApr.toFixed(2)}%
                       </span>
                     </div>
@@ -1471,8 +1471,8 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
 
                   {/* Rewards для мобильных */}
                   {rewardsData[pos.address] && rewardsData[pos.address].borrow.length > 0 && (
-                    <div className="bg-gray-50 p-2 rounded">
-                      <div className="text-xs font-medium text-gray-600 mb-1">💳 Borrow Rewards</div>
+                    <div className="bg-muted p-2 rounded">
+                      <div className="text-xs font-medium text-foreground mb-1">💳 Borrow Rewards</div>
                       <div className="space-y-1">
                         {rewardsData[pos.address].borrow.map((reward, rewardIdx) => {
                           if (!reward || !reward.key || !reward.value) return null;
@@ -1606,10 +1606,10 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <div className="bg-muted border border-border rounded-lg p-4">
               <div className="flex items-start gap-3">
                 <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>

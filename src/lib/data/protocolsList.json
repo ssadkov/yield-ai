@@ -362,5 +362,24 @@
     "contractAddresses": [
       "0xa3afc59243afb6deeac965d40b25d509bb3aebc12f502b8592c283070abc2e07"
     ]
+  },
+  {
+    "name": "Thala",
+    "key": "thala",
+    "category": "DEX",
+    "url": "https://app.thala.fi/",
+    "logoUrl": "https://app.thala.fi/favicon.ico",
+    "description": "Thala is a decentralized protocol that consolidates a suite of trading and yield products, enabling composable leverage and a seamless user experience",
+    "depositType": "external",
+    "depositUrl": "https://app.thala.fi/pools",
+    "isDepositEnabled": false,
+    "managedType": "external",
+    "socialMedia": {
+      "twitter": "https://x.com/ThalaLabs"
+    },
+    "airdrop": "",
+    "contractAddresses": [
+      "0x075b4890de3e312d9425408c43d9a9752b64ab3562a30e89a55bdc568c645920"
+    ]
   }
 ] 
