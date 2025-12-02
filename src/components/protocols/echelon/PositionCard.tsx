@@ -1,7 +1,6 @@
 import { Card, CardHeader } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 
 interface PositionProps {
   position: {
@@ -24,7 +23,7 @@ export function PositionCard({ position }: PositionProps) {
   const isSupply = position.assetType === 'supply';
   const value = parseFloat(position.value);
   const formattedBalance = parseFloat(position.balance).toFixed(4);
-  
+
   return (
     <Card className="w-full mb-3">
       <CardHeader className="flex flex-row items-center justify-between py-2">
@@ -39,10 +38,7 @@ export function PositionCard({ position }: PositionProps) {
                 </div>
               )}
             </Avatar>
-            <Badge variant="outline" className={cn("mt-1 py-0 h-5 text-xs", isSupply 
-              ? "bg-green-500/10 text-green-600 border-green-500/20"
-              : "bg-red-500/10 text-red-600 border-red-500/20"
-            )}>
+            <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-xs font-normal px-2 py-0.5 h-5">
               {isSupply ? 'Supply' : 'Borrow'}
             </Badge>
           </div>
@@ -61,4 +57,4 @@ export function PositionCard({ position }: PositionProps) {
       </CardHeader>
     </Card>
   );
-} 
+}
