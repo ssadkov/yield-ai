@@ -37,6 +37,7 @@
     "@telegram-apps/bridge": "^2.11.0",
     "@vercel/analytics": "^1.5.0",
     "@wallet-standard/core": "^1.1.1",
+    "@wormhole-foundation/sdk": "^4.4.0",
     "aptos": "^1.21.0",
     "bcs": "^0.0.0",
     "bs58": "^6.0.0",
