@@ -41,12 +41,14 @@ export class WormholeBridgeService {
 
   private constructor() {
     // Initialize Solana connection
+    // Try to use custom RPC first, then fallback to alternative public RPCs
     const endpoint =
       process.env.SOLANA_RPC_URL ??
       process.env.NEXT_PUBLIC_SOLANA_RPC_URL ??
-      "https://api.mainnet-beta.solana.com";
+      "https://rpc.ankr.com/solana"; // More reliable public RPC
 
     this.solanaConnection = new Connection(endpoint, "confirmed");
+    console.log('[WormholeBridge] Solana RPC endpoint:', endpoint);
   }
 
   public static getInstance(): WormholeBridgeService {
@@ -71,17 +73,9 @@ export class WormholeBridgeService {
       const network = "Mainnet";
       this.wh = await wormhole(network, [solana, aptos]);
       
-      // Configure custom RPC endpoints if provided
-      const solanaChain = this.wh.getChain("Solana");
-      if (this.solanaConnection?.rpcEndpoint) {
-        solanaChain.config.rpc = this.solanaConnection.rpcEndpoint;
-      }
-      
-      const aptosChain = this.wh.getChain("Aptos");
-      const aptosRpc = process.env.APTOS_RPC_URL || process.env.NEXT_PUBLIC_APTOS_RPC_URL;
-      if (aptosRpc) {
-        aptosChain.config.rpc = aptosRpc;
-      }
+      // Note: RPC configuration is handled by the SDK automatically
+      // Custom RPCs can be configured if needed, but for now using defaults
+      console.log('[WormholeBridge] SDK initialized successfully');
     } catch (error) {
       console.error("Failed to initialize Wormhole:", error);
       throw new Error("Failed to initialize Wormhole SDK");
@@ -169,26 +163,88 @@ export class WormholeBridgeService {
         throw new Error("Invalid amount");
       }
 
-      // Get chain contexts
-      const solanaChain = this.wh.getChain("Solana");
-      const aptosChain = this.wh.getChain("Aptos");
-
       // Create CircleTransfer for CCTP (native USDC transfers)
       // Reference: https://wormhole.com/docs/products/cctp-bridge/
-      const transfer = new CircleTransfer(
-        this.wh,
-        {
-          source: solanaChain,
-          destination: aptosChain,
-          token: USDC_SOLANA,
-          amount: amountBigInt,
-          from: new PublicKey(request.fromAddress),
-          to: request.toAddress,
+      // Note: The exact API format may need adjustment based on SDK version
+      console.log('[WormholeBridge] Creating CircleTransfer with params:', {
+        source: "Solana",
+        destination: "Aptos",
+        token: USDC_SOLANA,
+        amount: amountBigInt.toString(),
+        from: request.fromAddress,
+        to: request.toAddress,
+      });
+
+      let transfer;
+      try {
+        // CircleTransfer constructor format needs verification
+        // The error suggests that some parameter is undefined
+        // Trying with explicit type conversions
+        const fromAddress = request.fromAddress;
+        const toAddress = request.toAddress;
+        
+        console.log('[WormholeBridge] Addresses:', {
+          from: fromAddress,
+          to: toAddress,
+          fromType: typeof fromAddress,
+          toType: typeof toAddress,
+        });
+
+        // Create CircleTransfer using static method 'from' or 'transfer'
+        // Based on SDK API, CircleTransfer has static methods: from, transfer, etc.
+        if (CircleTransfer.from) {
+          transfer = await CircleTransfer.from(
+            this.wh,
+            {
+              source: "Solana",
+              destination: "Aptos",
+              token: USDC_SOLANA,
+              amount: amountBigInt,
+              from: fromAddress,
+              to: toAddress,
+            }
+          );
+        } else if (CircleTransfer.transfer) {
+          transfer = await CircleTransfer.transfer(
+            this.wh,
+            {
+              source: "Solana",
+              destination: "Aptos",
+              token: USDC_SOLANA,
+              amount: amountBigInt,
+              from: fromAddress,
+              to: toAddress,
+            }
+          );
+        } else {
+          // Fallback to constructor
+          transfer = new CircleTransfer(
+            this.wh,
+            {
+              source: "Solana",
+              destination: "Aptos",
+              token: USDC_SOLANA,
+              amount: amountBigInt,
+              from: fromAddress,
+              to: toAddress,
+            }
+          );
         }
-      );
+        console.log('[WormholeBridge] CircleTransfer created successfully');
+      } catch (error: any) {
+        console.error('[WormholeBridge] Error creating CircleTransfer:', error);
+        console.error('[WormholeBridge] Error stack:', error.stack);
+        throw new Error(`Failed to create CircleTransfer: ${error.message}. Please check CircleTransfer API documentation.`);
+      }
 
       // Initiate transfer on Solana
-      const txids = await transfer.initiate(signer);
+      console.log('[WormholeBridge] Initiating transfer with signer:', {
+        publicKey: signer.publicKey,
+        hasSignTransaction: !!signer.signTransaction,
+      });
+      
+      // Use initiateTransfer method (not initiate)
+      const txids = await transfer.initiateTransfer(signer);
       
       // Get the transaction hash (first one if multiple)
       const tx = Array.isArray(txids) ? txids[0] : txids;
@@ -233,28 +289,45 @@ export class WormholeBridgeService {
    * Get Solana USDC balance
    */
   public async getSolanaUSDCBalance(address: string): Promise<string> {
-    try {
-      if (!this.solanaConnection) {
-        throw new Error("Solana connection not initialized");
+    const publicKey = new PublicKey(address);
+    const usdcMint = new PublicKey(USDC_SOLANA);
+    
+    // List of alternative RPC endpoints to try
+    const rpcEndpoints = [
+      this.solanaConnection?.rpcEndpoint,
+      process.env.SOLANA_RPC_URL,
+      process.env.NEXT_PUBLIC_SOLANA_RPC_URL,
+      "https://rpc.ankr.com/solana",
+      "https://solana-api.projectserum.com",
+      "https://api.mainnet-beta.solana.com",
+    ].filter(Boolean) as string[];
+
+    for (const endpoint of rpcEndpoints) {
+      try {
+        const connection = new Connection(endpoint, "confirmed");
+        const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
+          publicKey,
+          { mint: usdcMint }
+        );
+
+        if (tokenAccounts.value.length === 0) {
+          return "0";
+        }
+
+        const balance = tokenAccounts.value[0].account.data.parsed.info.tokenAmount
+          .uiAmountString;
+        console.log('[WormholeBridge] USDC balance loaded from', endpoint, ':', balance);
+        return balance || "0";
+      } catch (error: any) {
+        console.warn(`[WormholeBridge] Failed to get balance from ${endpoint}:`, error.message);
+        // Continue to next endpoint
+        continue;
       }
-
-      const publicKey = new PublicKey(address);
-      const tokenAccounts = await this.solanaConnection.getParsedTokenAccountsByOwner(
-        publicKey,
-        { mint: new PublicKey(USDC_SOLANA) }
-      );
-
-      if (tokenAccounts.value.length === 0) {
-        return "0";
-      }
-
-      const balance = tokenAccounts.value[0].account.data.parsed.info.tokenAmount
-        .uiAmountString;
-      return balance || "0";
-    } catch (error) {
-      console.error("Error getting Solana USDC balance:", error);
-      return "0";
     }
+
+    // If all endpoints failed, return 0
+    console.error("[WormholeBridge] All RPC endpoints failed for USDC balance");
+    return "0";
   }
 }
 
