@@ -42,7 +42,7 @@
     "clsx": "^2.1.1",
     "got": "^13.0.0",
     "lucide-react": "^0.513.0",
-    "next": "^15.3.3",
+    "next": "15.3.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "recharts": "^3.1.2",
@@ -57,7 +57,7 @@
     "@types/react": "^19.1.6",
     "@types/react-dom": "^19.1.6",
     "eslint": "^9",
-    "eslint-config-next": "15.3.3",
+    "eslint-config-next": "15.3.6",
     "tailwindcss": "^4",
     "tw-animate-css": "^1.3.4",
     "typescript": "^5"
