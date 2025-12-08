@@ -16,10 +16,22 @@ export async function GET(request: NextRequest) {
     const portfolioService = SolanaPortfolioService.getInstance();
     const portfolio = await portfolioService.getPortfolio(address);
     return NextResponse.json(portfolio);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Failed to load Solana portfolio:", error);
+    console.error("Error details:", {
+      message: error?.message,
+      stack: error?.stack,
+      name: error?.name,
+    });
+    
+    // Return more detailed error information
+    const errorMessage = error?.message || "Failed to load Solana portfolio";
     return NextResponse.json(
-      { error: "Failed to load Solana portfolio" },
+      { 
+        error: errorMessage,
+        tokens: [], // Return empty tokens array instead of failing completely
+        totalValueUsd: 0,
+      },
       { status: 500 },
     );
   }

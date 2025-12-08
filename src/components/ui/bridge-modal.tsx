@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Image from 'next/image';
-import { ArrowLeftRight, Loader2, Info, AlertCircle, CheckCircle, XCircle, Copy, ExternalLink, X } from 'lucide-react';
+import { ArrowLeftRight, Loader2, Info, AlertCircle, CheckCircle, XCircle, Copy, ExternalLink, X, RefreshCw } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -31,11 +31,12 @@ export function BridgeModal({ isOpen, onClose }: BridgeModalProps) {
   const { wallet, connected, account } = useWallet();
   const { bridge, isLoading, bridgeStatus } = useBridge();
   const { toast } = useToast();
-  const { tokens: solanaTokens, isLoading: isSolanaLoading } = useSolanaPortfolio();
+  const { tokens: solanaTokens, isLoading: isSolanaLoading, refresh: refreshPortfolio } = useSolanaPortfolio();
 
   const [amount, setAmount] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [directBalance, setDirectBalance] = useState<string | null>(null);
+  const [isRefreshingBalance, setIsRefreshingBalance] = useState(false);
 
   // Get Solana address
   const solanaAddress = useMemo(() => {
@@ -47,26 +48,60 @@ export function BridgeModal({ isOpen, onClose }: BridgeModalProps) {
     return account?.address?.toString() || null;
   }, [account]);
 
+  // Function to load balance
+  const loadDirectBalance = useCallback(async () => {
+    if (!solanaAddress) {
+      setDirectBalance(null);
+      return;
+    }
+
+    try {
+      console.log('[BridgeModal] Loading direct USDC balance for address:', solanaAddress);
+      const bridgeService = WormholeBridgeService.getInstance();
+      const balance = await bridgeService.getSolanaUSDCBalance(solanaAddress);
+      console.log('[BridgeModal] Direct balance loaded:', balance);
+      setDirectBalance(balance);
+    } catch (error) {
+      console.error('[BridgeModal] Error loading direct balance:', error);
+      setDirectBalance('0');
+    }
+  }, [solanaAddress]);
+
   // Load balance directly from service (always as primary source)
   useEffect(() => {
     if (isOpen && solanaAddress) {
-      const loadDirectBalance = async () => {
-        try {
-          console.log('[BridgeModal] Loading direct USDC balance for address:', solanaAddress);
-          const bridgeService = WormholeBridgeService.getInstance();
-          const balance = await bridgeService.getSolanaUSDCBalance(solanaAddress);
-          console.log('[BridgeModal] Direct balance loaded:', balance);
-          setDirectBalance(balance);
-        } catch (error) {
-          console.error('[BridgeModal] Error loading direct balance:', error);
-          setDirectBalance('0');
-        }
-      };
       loadDirectBalance();
     } else {
       setDirectBalance(null);
     }
-  }, [isOpen, solanaAddress]);
+  }, [isOpen, solanaAddress, loadDirectBalance]);
+
+  // Handle manual refresh
+  const handleRefreshBalance = async () => {
+    if (!solanaAddress || isRefreshingBalance) return;
+    
+    setIsRefreshingBalance(true);
+    try {
+      // Refresh both direct balance and portfolio in parallel
+      await Promise.all([
+        loadDirectBalance(),
+        refreshPortfolio?.() || Promise.resolve(),
+      ]);
+      toast({
+        title: 'Balance refreshed',
+        description: 'USDC balance has been updated',
+      });
+    } catch (error) {
+      console.error('[BridgeModal] Error refreshing balance:', error);
+      toast({
+        title: 'Refresh failed',
+        description: 'Failed to refresh balance. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsRefreshingBalance(false);
+    }
+  };
 
   // Get USDC balance - prioritize direct balance, fallback to portfolio
   const solanaBalance = useMemo(() => {
@@ -249,14 +284,24 @@ export function BridgeModal({ isOpen, onClose }: BridgeModalProps) {
               <Label>Amount</Label>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">
-                  Balance: {isSolanaLoading ? '...' : `${parseFloat(solanaBalance).toFixed(2)} USDC`}
+                  Balance: {isSolanaLoading || isRefreshingBalance ? '...' : `${parseFloat(solanaBalance).toFixed(2)} USDC`}
                 </span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 w-6 p-0"
+                  onClick={handleRefreshBalance}
+                  disabled={isRefreshingBalance || !solanaAddress}
+                  title="Refresh balance"
+                >
+                  <RefreshCw className={`h-3 w-3 ${isRefreshingBalance ? 'animate-spin' : ''}`} />
+                </Button>
                 <Button
                   size="sm"
                   variant="ghost"
                   className="h-6 px-2 text-xs"
                   onClick={handleMax}
-                  disabled={isSolanaLoading || parseFloat(solanaBalance) === 0}
+                  disabled={isSolanaLoading || isRefreshingBalance || parseFloat(solanaBalance) === 0}
                 >
                   MAX
                 </Button>

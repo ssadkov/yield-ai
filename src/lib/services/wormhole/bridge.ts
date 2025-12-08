@@ -1,14 +1,20 @@
-import { wormhole, CircleTransfer } from "@wormhole-foundation/sdk";
+import { wormhole, CircleTransfer, toNative, type Signer, type UnsignedTransaction, type SignedTx, type TxHash, type ChainAddress } from "@wormhole-foundation/sdk";
 import solana from "@wormhole-foundation/sdk/solana";
 import aptos from "@wormhole-foundation/sdk/aptos";
-import { getSolanaWalletSigner } from "@/lib/wallet/getSolanaWalletSigner";
-import { Connection, PublicKey } from "@solana/web3.js";
+// Import CCTP protocol implementations for Solana and Aptos
+import "@wormhole-foundation/sdk-solana-cctp";
+import "@wormhole-foundation/sdk-aptos-cctp";
+import { Connection, PublicKey, Transaction, VersionedTransaction } from "@solana/web3.js";
 import { getSolanaWalletAddress } from "@/lib/wallet/getSolanaWalletAddress";
 import type { AdapterWallet } from "@aptos-labs/wallet-adapter-core";
 
 // USDC token addresses
+// For CCTP, we use native USDC on both chains
+// Solana: Circle's native USDC mint
 const USDC_SOLANA = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
-const USDC_APTOS = "0xf22bede237a07e121b56d91a491eb7bcdfd1f5907926a9e58338f964a01b17fa::asset::USDC";
+// Aptos: Native Circle USDC (not bridged/lzUSDC)
+// Reference: https://www.circle.com/blog/aptos-migration-guide
+const USDC_APTOS_NATIVE = "0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b";
 
 export interface BridgeQuote {
   amount: string;
@@ -136,7 +142,111 @@ export class WormholeBridgeService {
   }
 
   /**
-   * Initiate bridge transfer from Solana to Aptos
+   * Create Wormhole Signer from Solana wallet adapter
+   * Implements the Signer interface required by Wormhole SDK
+   */
+  private createSolanaSigner(phantom: any, publicKey: PublicKey): Signer<"Solana"> {
+    if (!this.solanaConnection) {
+      throw new Error("Solana connection not initialized");
+    }
+
+    return {
+      chain: () => "Solana" as const,
+      address: async () => {
+        // Create ChainAddress using toNative
+        if (!this.wh) {
+          throw new Error("Wormhole SDK not initialized");
+        }
+        const nativeAddress = toNative("Solana", publicKey.toBase58());
+        return {
+          chain: "Solana" as const,
+          address: nativeAddress,
+        };
+      },
+      signAndSend: async (txs: UnsignedTransaction<"Solana">[]): Promise<TxHash[]> => {
+        const txids: TxHash[] = [];
+        const connection = this.solanaConnection!;
+
+        for (const unsigned of txs) {
+          try {
+            // Get latest blockhash
+            const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash("confirmed");
+
+            // Convert UnsignedTransaction to Solana Transaction
+            let transaction: Transaction | VersionedTransaction;
+
+            if (unsigned.transaction instanceof Transaction) {
+              transaction = unsigned.transaction;
+            } else if (unsigned.transaction instanceof VersionedTransaction) {
+              transaction = unsigned.transaction;
+            } else {
+              // If it's a serialized transaction, deserialize it
+              const txBytes = unsigned.transaction as Uint8Array;
+              try {
+                transaction = VersionedTransaction.deserialize(txBytes);
+              } catch {
+                transaction = Transaction.from(txBytes);
+              }
+            }
+
+            // Set fee payer and recent blockhash for legacy transactions
+            if (transaction instanceof Transaction) {
+              transaction.feePayer = publicKey;
+              transaction.recentBlockhash = blockhash;
+            }
+
+            // Sign transaction with Phantom wallet
+            let signed: Transaction | VersionedTransaction;
+            if (transaction instanceof VersionedTransaction) {
+              signed = await phantom.signTransaction(transaction);
+            } else {
+              signed = await phantom.signTransaction(transaction);
+            }
+
+            // Send transaction
+            const signature = await connection.sendRawTransaction(
+              signed.serialize(),
+              { skipPreflight: false, maxRetries: 3 }
+            );
+
+            // Wait for confirmation
+            await connection.confirmTransaction(
+              { signature, blockhash, lastValidBlockHeight },
+              "confirmed"
+            );
+
+            txids.push(signature);
+          } catch (error: any) {
+            console.error('[WormholeBridge] Error signing/sending transaction:', error);
+            throw new Error(`Failed to sign and send transaction: ${error.message}`);
+          }
+        }
+
+        return txids;
+      },
+    };
+  }
+
+  /**
+   * Convert amount string to BigInt in base units (6 decimals for USDC)
+   * Example: "1.5" -> 1500000n
+   */
+  private parseUSDCAmount(amount: string): bigint {
+    const decimals = 6; // USDC has 6 decimals
+    const [intPart, fracPartRaw] = amount.split(".");
+    const fracPart = (fracPartRaw ?? "").padEnd(decimals, "0").slice(0, decimals);
+    const amountBigInt = BigInt(intPart + fracPart);
+
+    if (amountBigInt <= 0n) {
+      throw new Error("Amount must be greater than 0");
+    }
+
+    return amountBigInt;
+  }
+
+  /**
+   * Initiate bridge transfer from Solana to Aptos using CCTP
+   * Reference: https://wormhole-foundation.github.io/wormhole-sdk-ts/
    */
   public async initiateBridge(request: BridgeRequest): Promise<{
     success: boolean;
@@ -151,111 +261,94 @@ export class WormholeBridgeService {
         throw new Error("Wormhole SDK not initialized");
       }
 
-      // Get Solana wallet signer
-      const signer = await getSolanaWalletSigner();
-      if (!signer) {
+      // Get Solana wallet (Phantom, Backpack, etc.)
+      if (typeof window === 'undefined') {
+        throw new Error("Window not available");
+      }
+
+      const phantom = (window as any).solana;
+      if (!phantom || !phantom.isPhantom) {
+        throw new Error("Phantom wallet not detected");
+      }
+
+      if (!phantom.isConnected) {
+        await phantom.connect();
+      }
+
+      const publicKey = phantom.publicKey;
+      if (!publicKey) {
         throw new Error("Solana wallet not connected");
       }
 
-      // Validate amount
-      const amountBigInt = BigInt(request.amount);
-      if (amountBigInt <= 0n) {
-        throw new Error("Invalid amount");
+      const solanaPublicKey = new PublicKey(publicKey.toString());
+
+      // Validate that the fromAddress matches the connected wallet
+      if (solanaPublicKey.toBase58() !== request.fromAddress) {
+        throw new Error("From address does not match connected wallet");
       }
 
-      // Create CircleTransfer for CCTP (native USDC transfers)
-      // Reference: https://wormhole.com/docs/products/cctp-bridge/
-      // Note: The exact API format may need adjustment based on SDK version
-      console.log('[WormholeBridge] Creating CircleTransfer with params:', {
-        source: "Solana",
-        destination: "Aptos",
-        token: USDC_SOLANA,
-        amount: amountBigInt.toString(),
-        from: request.fromAddress,
-        to: request.toAddress,
+      // Convert amount to base units (6 decimals for USDC)
+      const amountBigInt = this.parseUSDCAmount(request.amount);
+      console.log('[WormholeBridge] Amount:', {
+        input: request.amount,
+        baseUnits: amountBigInt.toString(),
       });
 
-      let transfer;
-      try {
-        // CircleTransfer constructor format needs verification
-        // The error suggests that some parameter is undefined
-        // Trying with explicit type conversions
-        const fromAddress = request.fromAddress;
-        const toAddress = request.toAddress;
-        
-        console.log('[WormholeBridge] Addresses:', {
-          from: fromAddress,
-          to: toAddress,
-          fromType: typeof fromAddress,
-          toType: typeof toAddress,
-        });
+      // Create ChainAddress objects using toNative function
+      // Reference: SDK uses toNative(chain, address) to create NativeAddress
+      // Then ChainAddress is { chain, address: NativeAddress }
+      const fromNativeAddress = toNative("Solana", request.fromAddress);
+      const toNativeAddress = toNative("Aptos", request.toAddress);
+      
+      const fromChainAddress: ChainAddress = {
+        chain: "Solana",
+        address: fromNativeAddress,
+      };
+      const toChainAddress: ChainAddress = {
+        chain: "Aptos",
+        address: toNativeAddress,
+      };
 
-        // Create CircleTransfer using static method 'from' or 'transfer'
-        // Based on SDK API, CircleTransfer has static methods: from, transfer, etc.
-        if (CircleTransfer.from) {
-          transfer = await CircleTransfer.from(
-            this.wh,
-            {
-              source: "Solana",
-              destination: "Aptos",
-              token: USDC_SOLANA,
-              amount: amountBigInt,
-              from: fromAddress,
-              to: toAddress,
-            }
-          );
-        } else if (CircleTransfer.transfer) {
-          transfer = await CircleTransfer.transfer(
-            this.wh,
-            {
-              source: "Solana",
-              destination: "Aptos",
-              token: USDC_SOLANA,
-              amount: amountBigInt,
-              from: fromAddress,
-              to: toAddress,
-            }
-          );
-        } else {
-          // Fallback to constructor
-          transfer = new CircleTransfer(
-            this.wh,
-            {
-              source: "Solana",
-              destination: "Aptos",
-              token: USDC_SOLANA,
-              amount: amountBigInt,
-              from: fromAddress,
-              to: toAddress,
-            }
-          );
-        }
-        console.log('[WormholeBridge] CircleTransfer created successfully');
-      } catch (error: any) {
-        console.error('[WormholeBridge] Error creating CircleTransfer:', error);
-        console.error('[WormholeBridge] Error stack:', error.stack);
-        throw new Error(`Failed to create CircleTransfer: ${error.message}. Please check CircleTransfer API documentation.`);
+      console.log('[WormholeBridge] Creating CCTP transfer:', {
+        amount: amountBigInt.toString(),
+        from: fromChainAddress,
+        to: toChainAddress,
+      });
+
+      // Create CCTP transfer using wh.circleTransfer()
+      // This is the correct API - no need to construct CircleTransfer manually
+      if (!this.wh.circleTransfer) {
+        throw new Error('circleTransfer method not available. CCTP may not be supported for Solana → Aptos.');
       }
+
+      const transfer = await this.wh.circleTransfer(
+        amountBigInt,
+        fromChainAddress,
+        toChainAddress,
+        true // automatic delivery
+      );
+
+      console.log('[WormholeBridge] CCTP transfer created successfully');
+
+      // Create Wormhole Signer from Solana wallet
+      const signer = this.createSolanaSigner(phantom, solanaPublicKey);
 
       // Initiate transfer on Solana
-      console.log('[WormholeBridge] Initiating transfer with signer:', {
-        publicKey: signer.publicKey,
-        hasSignTransaction: !!signer.signTransaction,
-      });
-      
-      // Use initiateTransfer method (not initiate)
+      console.log('[WormholeBridge] Initiating transfer...');
       const txids = await transfer.initiateTransfer(signer);
-      
+
       // Get the transaction hash (first one if multiple)
       const tx = Array.isArray(txids) ? txids[0] : txids;
+
+      console.log('[WormholeBridge] Transfer initiated successfully:', tx);
 
       return {
         success: true,
         txHash: tx,
-        messageId: undefined, // Will be available after VAA is generated
+        messageId: undefined, // Will be available after attestation
       };
     } catch (error: any) {
-      console.error("Bridge initiation error:", error);
+      console.error("[WormholeBridge] Bridge initiation error:", error);
       return {
         success: false,
         error: error.message || "Failed to initiate bridge transfer",
@@ -265,19 +358,65 @@ export class WormholeBridgeService {
 
   /**
    * Check bridge transfer status
+   * Uses CircleTransfer.from() to recover transfer and check status
    */
   public async checkBridgeStatus(
     txHash: string,
     messageId?: string
   ): Promise<BridgeStatus> {
     try {
-      // TODO: Implement status checking via Wormhole API or on-chain queries
-      // For now, return pending status
+      await this.initializeWormhole();
+
+      if (!this.wh) {
+        throw new Error("Wormhole SDK not initialized");
+      }
+
+      // Recover transfer from transaction hash
+      // Reference: https://wormhole-foundation.github.io/wormhole-sdk-ts/
+      const transfer = await CircleTransfer.from(this.wh, txHash);
+
+      // Check if transfer is complete (for automatic transfers)
+      // For manual transfers, you'd need to check attestation and completeTransfer
+      // For now, we'll check if the source transaction exists and is confirmed
+      if (this.solanaConnection) {
+        try {
+          const txStatus = await this.solanaConnection.getSignatureStatus(txHash);
+          if (txStatus.value?.err) {
+            return {
+              status: "failed",
+              sourceTxHash: txHash,
+              error: `Transaction failed: ${JSON.stringify(txStatus.value.err)}`,
+            };
+          }
+
+          if (txStatus.value?.confirmationStatus === "confirmed" || txStatus.value?.confirmationStatus === "finalized") {
+            // For automatic transfers, the transfer should complete automatically
+            // We can't easily check destination status without more complex logic
+            return {
+              status: "pending", // Still pending until destination confirms
+              sourceTxHash: txHash,
+            };
+          }
+
+          return {
+            status: "pending",
+            sourceTxHash: txHash,
+          };
+        } catch (error: any) {
+          console.error('[WormholeBridge] Error checking transaction status:', error);
+          return {
+            status: "pending",
+            sourceTxHash: txHash,
+          };
+        }
+      }
+
       return {
         status: "pending",
         sourceTxHash: txHash,
       };
     } catch (error: any) {
+      console.error('[WormholeBridge] Error checking bridge status:', error);
       return {
         status: "failed",
         error: error.message || "Failed to check bridge status",

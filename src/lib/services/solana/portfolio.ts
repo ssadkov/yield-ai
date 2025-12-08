@@ -20,13 +20,19 @@ export interface SolanaPortfolio {
 export class SolanaPortfolioService {
   private static instance: SolanaPortfolioService;
   private connection: Connection;
+  private rpcEndpoints: string[];
 
   private constructor() {
-    const endpoint =
-      process.env.SOLANA_RPC_URL ??
-      process.env.NEXT_PUBLIC_SOLANA_RPC_URL ??
-      clusterApiUrl("mainnet-beta");
+    // List of RPC endpoints to try
+    this.rpcEndpoints = [
+      process.env.SOLANA_RPC_URL,
+      process.env.NEXT_PUBLIC_SOLANA_RPC_URL,
+      "https://rpc.ankr.com/solana",
+      "https://solana-api.projectserum.com",
+      clusterApiUrl("mainnet-beta"),
+    ].filter(Boolean) as string[];
 
+    const endpoint = this.rpcEndpoints[0] || clusterApiUrl("mainnet-beta");
     this.connection = new Connection(endpoint, "confirmed");
   }
 
@@ -40,14 +46,39 @@ export class SolanaPortfolioService {
   async getPortfolio(address: string): Promise<SolanaPortfolio> {
     const owner = new PublicKey(address);
 
-    const [tokenAccounts, lamports] = await Promise.all([
-      this.connection.getParsedTokenAccountsByOwner(
-        owner,
-        { programId: TOKEN_PROGRAM_ID },
-        "confirmed",
-      ),
-      this.connection.getBalance(owner, "confirmed"),
-    ]);
+    // Try multiple RPC endpoints if the first one fails
+    let tokenAccounts: Awaited<ReturnType<Connection["getParsedTokenAccountsByOwner"]>> | null = null;
+    let lamports: number | null = null;
+
+    let lastError: Error | null = null;
+    for (const endpoint of this.rpcEndpoints) {
+      try {
+        const connection = new Connection(endpoint, "confirmed");
+        const [accounts, balance] = await Promise.all([
+          connection.getParsedTokenAccountsByOwner(
+            owner,
+            { programId: TOKEN_PROGRAM_ID },
+            "confirmed",
+          ),
+          connection.getBalance(owner, "confirmed"),
+        ]);
+        
+        tokenAccounts = accounts;
+        lamports = balance;
+        
+        // Update connection if successful
+        this.connection = connection;
+        break;
+      } catch (error: any) {
+        console.warn(`Failed to fetch portfolio from ${endpoint}:`, error.message);
+        lastError = error;
+        continue;
+      }
+    }
+
+    if (!tokenAccounts || lamports === null) {
+      throw lastError || new Error("Failed to fetch portfolio from all RPC endpoints");
+    }
 
     const tokens: Token[] = [];
 

@@ -45,12 +45,21 @@ export function useSolanaPortfolio(): SolanaPortfolioState {
         { cache: "no-store" },
       );
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch Solana portfolio");
+      const data = await response.json();
+      
+      if (addressRef.current !== currentAddress) {
+        return;
       }
 
-      const data = await response.json();
-      if (addressRef.current !== currentAddress) {
+      // Even if response is not ok, try to use the data if available
+      // This allows partial data to be displayed if RPC fails but we have cached data
+      if (!response.ok) {
+        console.warn("Solana portfolio API returned error:", response.status, data.error);
+        // Don't throw error, just use empty/default data
+        setTokens(data.tokens ?? []);
+        setTotalValueUsd(
+          typeof data.totalValueUsd === "number" ? data.totalValueUsd : null,
+        );
         return;
       }
 
@@ -59,10 +68,15 @@ export function useSolanaPortfolio(): SolanaPortfolioState {
         typeof data.totalValueUsd === "number" ? data.totalValueUsd : null,
       );
     } catch (error) {
-      console.error(error);
+      console.error("Error fetching Solana portfolio:", error);
+      // Don't clear tokens on error - keep existing data if available
+      // This prevents UI flickering when there's a temporary network issue
       if (addressRef.current === currentAddress) {
-        setTokens([]);
-        setTotalValueUsd(null);
+        // Only clear if we don't have any tokens yet
+        if (tokens.length === 0) {
+          setTokens([]);
+          setTotalValueUsd(null);
+        }
       }
     } finally {
       if (addressRef.current === currentAddress) {
