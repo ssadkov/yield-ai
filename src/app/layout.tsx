@@ -7,6 +7,7 @@ import { WalletDataProvider } from "@/contexts/WalletContext";
 import { ProtocolProvider } from "@/lib/contexts/ProtocolContext";
 import { DragDropProvider } from "@/contexts/DragDropContext";
 import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
 //import { AlphaBanner } from "@/components/ui/alpha-banner";
 import { Analytics } from "@vercel/analytics/next";
 
@@ -63,8 +64,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <WalletDataProvider>
             <ProtocolProvider>
               <DragDropProvider>
-                {/*<AlphaBanner />*/}
-                {children}
+                <TooltipProvider>
+                  {/*<AlphaBanner />*/}
+                  {children}
                 
                 {/* Fixed home icon in bottom right corner - desktop only */}
                 <Link 
@@ -78,6 +80,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
                   </svg>
                 </Link>
+                </TooltipProvider>
               </DragDropProvider>
             </ProtocolProvider>
           </WalletDataProvider>
