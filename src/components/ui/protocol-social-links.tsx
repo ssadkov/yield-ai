@@ -87,8 +87,8 @@ export function ProtocolSocialLinks({
         }
 
         return (
-          <TooltipProvider key={platform}>
-            <Tooltip delayDuration={100}>
+          <TooltipProvider key={platform} delayDuration={100}>
+            <Tooltip>
               <TooltipTrigger asChild>
                 {button}
               </TooltipTrigger>
