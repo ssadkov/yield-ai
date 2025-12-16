@@ -28,6 +28,8 @@ import { PositionsList as MoarPositionsList } from "./protocols/moar/PositionsLi
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAptosAddressResolver } from '@/lib/hooks/useAptosAddressResolver';
+import { YieldCalculatorModal } from '@/components/ui/yield-calculator-modal';
+import { useWalletStore } from "@/lib/stores/walletStore";
 
 //import { styled } from 'styled-components';
 
@@ -65,6 +67,8 @@ export default function PortfolioPage() {
   const [checkingProtocols, setCheckingProtocols] = useState<string[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [addressInput, setAddressInput] = useState('');
+  const [isYieldCalcOpen, setIsYieldCalcOpen] = useState(false);
+  const setTotalAssetsStore = useWalletStore((s) => s.setTotalAssets);
 
   const params = useParams();
   const router = useRouter();
@@ -220,6 +224,10 @@ export default function PortfolioPage() {
   // Итоговая сумма
   const totalAssets = walletTotal + totalProtocolsValue;
 
+  useEffect(() => {
+    setTotalAssetsStore(totalAssets);
+  }, [totalAssets, setTotalAssetsStore]);
+
   // Данные для чарта: кошелек + каждый протокол отдельным сектором
   const chartSectors = [
     { name: 'Wallet', value: walletTotal },
@@ -265,13 +273,25 @@ export default function PortfolioPage() {
                     <>
                     
 					<div className="mt-4 space-y-4"> 
-                      <div className="flex items-center space-x-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
-                          <Wallet className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
+                            <Wallet className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                          </div>
+                          <div>
+                            <CardTitle className="text-xl pt-2 ml-2">Portfolio</CardTitle>
+                          </div>
                         </div>
-                        <div>
-                          <CardTitle className="text-xl pt-2 ml-2">Portfolio</CardTitle>
-                        </div>
+                        <Button 
+                          variant="outline" 
+                          onClick={() => setIsYieldCalcOpen(true)}
+                          className="flex items-center gap-2"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                          </svg>
+                          Yield Calculator
+                        </Button>
                       </div>
 			        </div>
 					
@@ -497,6 +517,13 @@ export default function PortfolioPage() {
           
         </div>
 	  </div>
+      <YieldCalculatorModal 
+        isOpen={isYieldCalcOpen}
+        onClose={() => setIsYieldCalcOpen(false)}
+        tokens={tokens}
+        totalAssets={totalAssets}
+        walletTotal={walletTotal}
+      />
     </CollapsibleProvider>
   );
 } 

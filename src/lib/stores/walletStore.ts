@@ -51,6 +51,7 @@ interface WalletState {
   positions: ProtocolPositions;
   rewards: ProtocolRewards;
   prices: TokenPrices;
+  totalAssets: number;
   
   // Loading states
   balanceLoading: boolean;
@@ -77,6 +78,7 @@ interface WalletState {
   fetchRewards: (address: string, protocols?: string[], forceRefresh?: boolean) => Promise<void>;
   fetchPrices: (tokenAddresses: string[], forceRefresh?: boolean) => Promise<void>;
   setRewards: (protocol: string, rewards: any[]) => void;
+  setTotalAssets: (value: number) => void;
   
   // Getters
   getBalance: () => WalletBalance[];
@@ -102,6 +104,7 @@ export const useWalletStore = create<WalletState>()(
         positions: {},
         rewards: {},
         prices: {},
+        totalAssets: 0,
         
         balanceLoading: false,
         positionsLoading: false,
@@ -126,6 +129,11 @@ export const useWalletStore = create<WalletState>()(
             if (!address) {
               get().clearData();
             }
+          }
+        },
+        setTotalAssets: (value: number) => {
+          if (Number.isFinite(value)) {
+            set({ totalAssets: value });
           }
         },
         
@@ -188,8 +196,20 @@ export const useWalletStore = create<WalletState>()(
             console.log('[WalletStore] Fetching positions for address:', address);
             console.log('[WalletStore] Base URL:', getBaseUrl());
             
-            // Define protocols to fetch if not specified
-            const protocolsToFetch = protocols || ['echelon', 'joule', 'hyperion', 'auro', 'aries', 'amnis'];
+            // Define protocols to fetch if not specified (expanded list to cover all supported)
+            const protocolsToFetch = protocols || [
+              'echelon',
+              'joule',
+              'hyperion',
+              'auro',
+              'aries',
+              'amnis',
+              'tapp',
+              'meso',
+              'earnium',
+              'aave',
+              'moar',
+            ];
             const newPositions: ProtocolPositions = { ...state.positions };
             
             // Fetch positions for each protocol
@@ -1307,18 +1327,92 @@ export const useWalletStore = create<WalletState>()(
         
         getTotalValue: () => {
           const state = get();
-          // Calculate total value from positions and prices
+          const parseNum = (v: any) => {
+            const n = parseFloat(v);
+            return Number.isFinite(n) ? n : 0;
+          };
+
+          const pickValue = (obj: any, keys: string[]) => {
+            for (const k of keys) {
+              if (obj && obj[k] != null) {
+                const n = parseNum(obj[k]);
+                if (n) return n;
+              }
+            }
+            return 0;
+          };
+
           let total = 0;
-          
+
+          // 1) Суммируем value по позициям
+          const positionValueKeys = [
+            'value',
+            'totalValue',
+            'total_value',
+            'totalValueUsd',
+            'total_value_usd',
+            'usdValue',
+            'amountUSD',
+            'amountUsd',
+            'amount_usd',
+            'positionValueUSD',
+            'position_value_usd',
+            'position_value',
+            'total_position_value',
+            'total_position_value_usd',
+            'netValue',
+            'net_value',
+            'netValueUsd',
+            'net_value_usd',
+            'tvlUSD',
+            'tvl_usd',
+            'liquidityUsd',
+            'liquidity_usd',
+          ];
+
           Object.values(state.positions).forEach((protocolPositions: any[]) => {
             protocolPositions.forEach((position: any) => {
-              // This is a simplified calculation - you might need to adjust based on your data structure
-              if (position.value) {
-                total += parseFloat(position.value) || 0;
+              const baseVal = pickValue(position || {}, positionValueKeys);
+              total += baseVal;
+
+              // deposits / supplies nested
+              if (Array.isArray(position?.deposits)) {
+                position.deposits.forEach((d: any) => {
+                  total += pickValue(d || {}, positionValueKeys);
+                });
               }
+              if (Array.isArray(position?.supplies)) {
+                position.supplies.forEach((d: any) => {
+                  total += pickValue(d || {}, positionValueKeys);
+                });
+              }
+
+              // Hyperion: учесть незаявленные награды внутри позиций
+              const farmRewards = position?.farm?.unclaimed || [];
+              farmRewards.forEach((r: any) => {
+                total += pickValue(r || {}, ['amountUSD', 'amountUsd', 'usdValue', 'amount_usd', 'usd_value', 'amount']);
+              });
+              const feeRewards = position?.fees?.unclaimed || [];
+              feeRewards.forEach((r: any) => {
+                total += pickValue(r || {}, ['amountUSD', 'amountUsd', 'usdValue', 'amount_usd', 'usd_value', 'amount']);
+              });
             });
           });
-          
+
+          // 2) Суммируем rewards стора (если их нет в позициях)
+          Object.values(state.rewards).forEach((protocolRewards: any) => {
+            if (Array.isArray(protocolRewards)) {
+              protocolRewards.forEach((r: any) => {
+                total += pickValue(r || {}, ['amountUSD', 'amountUsd', 'usdValue', 'amount_usd', 'usd_value', 'amount']);
+              });
+            } else if (protocolRewards && typeof protocolRewards === 'object') {
+              // Auro может храниться как объект {positionId: {amountUSD}}
+              Object.values(protocolRewards as any).forEach((r: any) => {
+                total += pickValue(r || {}, ['amountUSD', 'amountUsd', 'usdValue', 'amount_usd', 'usd_value', 'amount']);
+              });
+            }
+          });
+
           return total;
         },
         
