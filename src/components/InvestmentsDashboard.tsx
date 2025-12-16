@@ -344,26 +344,42 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
             url: '/api/protocols/auro/pools',
 			logoUrl: '/protocol_ico/auro.png',
             transform: (data: any) => {
-              const collateralPools = (data.data || [])
+              const allPools = data.data || [];
+
+              // Собираем BORROW-пулы в мапу по адресу пула
+              const borrowByAddress = new Map<string, number>();
+              allPools
+                .filter((pool: any) => pool.type === 'BORROW')
+                .forEach((pool: any) => {
+                  const addr = pool.poolAddress;
+                  const borrowApr = parseFloat(pool.totalBorrowApr || pool.borrowApr || 0);
+                  if (addr && !isNaN(borrowApr)) {
+                    borrowByAddress.set(addr, borrowApr);
+                  }
+                });
+
+              const collateralPools = allPools
                 .filter((pool: any) => pool.type === 'COLLATERAL')
                 .filter((pool: any) => {
                   const tvl = parseFloat(pool.tvl || "0");
                   const totalAPY = (pool.totalSupplyApr || 0);
                   return tvl > 1000 && totalAPY > 0;
                 });
-              
+
               return collateralPools.map((pool: any) => {
                 const supplyApr = parseFloat(pool.supplyApr || "0");
                 const supplyIncentiveApr = parseFloat(pool.supplyIncentiveApr || "0");
                 const stakingApr = parseFloat(pool.stakingApr || "0");
                 const totalAPY = supplyApr + supplyIncentiveApr + stakingApr;
+                // Используем borrow по адресу пула, если нет - используем общий BORROW для всех пулов
+                const borrowAPR = borrowByAddress.get(pool.poolAddress) || borrowByAddress.get('BORROW') || 0;
                 
                 return {
                   asset: pool.collateralTokenSymbol || 'Unknown',
                   provider: 'Auro Finance',
                   totalAPY: totalAPY,
                   depositApy: totalAPY,
-                  borrowAPY: 0,
+                  borrowAPY: borrowAPR,
                   token: pool.collateralTokenAddress || pool.poolAddress,
                   protocol: 'Auro Finance',
                   tvlUSD: parseFloat(pool.tvl || "0"),
