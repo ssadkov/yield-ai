@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SwapModal } from '@/components/ui/swap-modal';
 import { YieldCalculatorModal } from '@/components/ui/yield-calculator-modal';
-import { BridgeModal } from '@/components/ui/bridge-modal';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
 import { ArrowLeftRight } from 'lucide-react';
@@ -15,7 +14,6 @@ import { ArrowLeftRight } from 'lucide-react';
 export default function ChatPanel() {
   const [isSwapModalOpen, setIsSwapModalOpen] = useState(false);
   const [isYieldCalcOpen, setIsYieldCalcOpen] = useState(false);
-  const [isBridgeModalOpen, setIsBridgeModalOpen] = useState(false);
   const { account } = useWallet();
   const router = useRouter();
 
@@ -48,7 +46,7 @@ export default function ChatPanel() {
         </Button>
         <Button 
           variant="outline" 
-          onClick={() => setIsBridgeModalOpen(true)}
+          onClick={() => router.push('/bridge')}
           className="flex items-center gap-2 w-full justify-start"
         >
           <ArrowLeftRight className="w-4 h-4" />
@@ -168,10 +166,6 @@ export default function ChatPanel() {
       <SwapModal 
         isOpen={isSwapModalOpen} 
         onClose={() => setIsSwapModalOpen(false)} 
-      />
-      <BridgeModal 
-        isOpen={isBridgeModalOpen} 
-        onClose={() => setIsBridgeModalOpen(false)} 
       />
       <YieldCalculatorModal 
         isOpen={isYieldCalcOpen}

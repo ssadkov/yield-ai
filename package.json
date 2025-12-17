@@ -17,7 +17,11 @@
     "@aptos-labs/wallet-adapter-core": "^7.4.0",
     "@aptos-labs/wallet-adapter-react": "^7.1.0",
     "@dnd-kit/core": "^6.3.1",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
     "@hyperionxyz/sdk": "^0.0.13",
+    "@mui/icons-material": "^7.3.6",
+    "@mui/material": "^7.3.6",
     "@panoraexchange/swap-sdk": "^1.0.8",
     "@radix-ui/react-alert-dialog": "^1.1.14",
     "@radix-ui/react-avatar": "^1.1.10",
@@ -37,12 +41,10 @@
     "@telegram-apps/bridge": "^2.11.0",
     "@vercel/analytics": "^1.5.0",
     "@wallet-standard/core": "^1.1.1",
-    "@wormhole-foundation/sdk": "^4.4.0",
-    "@wormhole-foundation/sdk-aptos-cctp": "^4.4.0",
-    "@wormhole-foundation/sdk-solana-cctp": "^4.4.0",
+    "@wormhole-foundation/wormhole-connect": "^5.0.0",
     "aptos": "^1.21.0",
     "bcs": "^0.0.0",
-    "bs58": "^6.0.0",
+    "bs58": "^5.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "got": "^13.0.0",
@@ -67,5 +69,8 @@
     "tailwindcss": "^4",
     "tw-animate-css": "^1.3.4",
     "typescript": "^5"
+  },
+  "overrides": {
+    "bs58": "^5.0.0"
   }
 }
