@@ -21,19 +21,43 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 interface YieldCalculatorModalProps {
   isOpen: boolean;
   onClose: () => void;
+  tokens?: any[]; // Опциональные токены для использования вместо токенов из контекста
+  totalAssets?: number; // Опционально: итоговая сумма assets (wallet + протоколы) извне
+  walletTotal?: number; // Опционально: сумма кошелька извне
 }
 
-export function YieldCalculatorModal({ isOpen, onClose }: YieldCalculatorModalProps) {
-  const { address, tokens } = useWalletData();
-  const { fetchPositions, isDataStale, getTotalValue, positions, lastPositionsUpdate } = useWalletStore();
+export function YieldCalculatorModal({ isOpen, onClose, tokens: externalTokens, totalAssets: externalTotalAssets, walletTotal: externalWalletTotal }: YieldCalculatorModalProps) {
+  const { address, tokens: contextTokens } = useWalletData();
+  // Используем внешние токены, если они переданы, иначе токены из контекста
+  const tokens = externalTokens || contextTokens;
+  const { fetchPositions, fetchRewards, isDataStale, getTotalValue, positions, lastPositionsUpdate } = useWalletStore();
 
   const [apr, setApr] = useState<number>(0);
   const [aprInput, setAprInput] = useState<string>('0.00');
-  const [depositUSD, setDepositUSD] = useState<string>('10000');
+  const [depositUSD, setDepositUSD] = useState<string>('0');
   const [animKey, setAnimKey] = useState<number>(0);
   const [userEditedDeposit, setUserEditedDeposit] = useState<boolean>(false);
   const [walletTotalCached, setWalletTotalCached] = useState<number>(0);
   const [loadingDefaults, setLoadingDefaults] = useState<boolean>(false);
+  const formatAssetInputValue = (value: number) => {
+    if (!Number.isFinite(value) || value <= 0) return '0';
+    const fixed = value.toFixed(2);
+    return fixed.replace(/\.?0+$/, ''); // убираем лишние нули
+  };
+  const formatLooseValue = (value: number) => {
+    if (!Number.isFinite(value) || value <= 0) return '0';
+    return value % 1 === 0 ? value.toFixed(0) : value.toString();
+  };
+
+  // Подтягиваем актуальные позиции кошелька при открытии калькулятора
+  useEffect(() => {
+    if (!isOpen) return;
+    if (address) {
+      // Форсируем обновление позиций, чтобы суммы протоколов были актуальны
+      fetchPositions(address, undefined, true);
+      fetchRewards(address, undefined, true);
+    }
+  }, [isOpen, address, fetchPositions, fetchRewards]);
 
   // Helpers
   const computeWalletTotalFromContext = (walletTokens: any[]) => {
@@ -112,20 +136,53 @@ export function YieldCalculatorModal({ isOpen, onClose }: YieldCalculatorModalPr
         setApr(defaultApr);
         setAprInput(defaultApr.toFixed(2));
 
-        // Deposit stays as simple default (10000) for now; no auto-fill from assets
+        // Auto-fill deposit from wallet tokens
+        const walletTotalValue =
+          typeof externalWalletTotal === 'number' && externalWalletTotal > 0
+            ? externalWalletTotal
+            : computeWalletTotalFromContext(tokens as any[]);
+
+        if (walletTotalValue > 0) {
+          // Для кошелька показываем 2 знака после запятой
+          setDepositUSD(walletTotalValue.toFixed(2));
+          setWalletTotalCached(walletTotalValue);
+        } else {
+          // До загрузки кошелька — 0
+          setDepositUSD('0');
+          setWalletTotalCached(0);
+        }
       } finally {
         setLoadingDefaults(false);
       }
     };
 
     fetchDefaults();
-  }, [isOpen]);
+  }, [isOpen, tokens]);
+
+  // Подхватываем обновление суммы кошелька после загрузки (если юзер не правил поле)
+  useEffect(() => {
+    if (!isOpen) return;
+    if (userEditedDeposit) return;
+    const walletTotalValue =
+      typeof externalWalletTotal === 'number' && externalWalletTotal > 0
+        ? externalWalletTotal
+        : computeWalletTotalFromContext(tokens as any[]);
+    if (walletTotalValue > 0) {
+      setDepositUSD(walletTotalValue.toFixed(2));
+      setWalletTotalCached(walletTotalValue);
+    } else {
+      setDepositUSD('0');
+    }
+  }, [isOpen, externalWalletTotal, tokens, userEditedDeposit]);
 
   // No auto-updates for deposit amount for now
 
   const parsedDeposit = useMemo(() => {
-    const digits = depositUSD.replace(/\D/g, '');
-    const val = parseInt(digits || '0', 10);
+    // Парсим число с поддержкой точки для сумм меньше 1
+    const cleaned = depositUSD.replace(/[^0-9.]/g, '');
+    const parts = cleaned.split('.');
+    const normalized = parts.length > 2 ? parts[0] + '.' + parts.slice(1).join('') : cleaned;
+    const val = parseFloat(normalized || '0');
     return isNaN(val) || val < 0 ? 0 : val;
   }, [depositUSD]);
 
@@ -146,6 +203,13 @@ export function YieldCalculatorModal({ isOpen, onClose }: YieldCalculatorModalPr
     const positionsNow = getTotalValue();
     return (walletNow || 0) + (positionsNow || 0);
   }, [walletTotalCached, tokens, positions, lastPositionsUpdate, getTotalValue]);
+  // Если передали полную сумму assets извне (wallet + протоколы), используем её
+  const effectiveTotalAssets = useMemo(() => {
+    if (typeof externalTotalAssets === 'number' && Number.isFinite(externalTotalAssets)) {
+      return externalTotalAssets;
+    }
+    return totalAssetsNow;
+  }, [externalTotalAssets, totalAssetsNow]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -201,14 +265,26 @@ export function YieldCalculatorModal({ isOpen, onClose }: YieldCalculatorModalPr
                 <Input
                   id="deposit"
                   type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
+                  inputMode="decimal"
+                  pattern="[0-9.]*"
                   value={depositUSD}
                   onChange={(e) => {
-                    const digits = e.target.value.replace(/\D/g, '');
-                    setDepositUSD(digits);
+                    // Разрешаем цифры и точку для сумм меньше 1
+                    let v = e.target.value.replace(/[^0-9.]/g, '');
+                    const parts = v.split('.');
+                    if (parts.length > 2) {
+                      v = parts[0] + '.' + parts.slice(1).join('');
+                    }
+                    setDepositUSD(v);
                     setUserEditedDeposit(true);
                     setAnimKey((k) => k + 1);
+                  }}
+                  onBlur={() => {
+                    // Нормализуем значение при потере фокуса — 2 знака после запятой
+                    const num = parseFloat(depositUSD || '0');
+                    if (!isNaN(num) && num >= 0) {
+                      setDepositUSD(num.toFixed(2));
+                    }
                   }}
                   className="h-12 text-lg text-right"
                   disabled={loadingDefaults}
@@ -242,7 +318,7 @@ export function YieldCalculatorModal({ isOpen, onClose }: YieldCalculatorModalPr
 
           <TabsContent value="apr" className="space-y-5">
             {/* APR from result tab */}
-            <AprFromResult />
+            <AprFromResult initialCurrentCapital={effectiveTotalAssets} />
           </TabsContent>
         </Tabs>
       </DialogContent>
@@ -252,9 +328,9 @@ export function YieldCalculatorModal({ isOpen, onClose }: YieldCalculatorModalPr
 
 
 // --- APR from result sub-component ---
-function AprFromResult() {
-  const [startInput, setStartInput] = useState<string>('10000.00');
-  const [currentInput, setCurrentInput] = useState<string>('11250.00');
+function AprFromResult({ initialCurrentCapital }: { initialCurrentCapital?: number }) {
+  const [startInput, setStartInput] = useState<string>('10000');
+  const [currentInput, setCurrentInput] = useState<string>('0');
   const [daysMode, setDaysMode] = useState<'days' | 'dates'>('days');
   const [daysInput, setDaysInput] = useState<string>('30');
   const [startDateStr, setStartDateStr] = useState<string>('');
@@ -277,6 +353,8 @@ function AprFromResult() {
     }
   }, [daysMode, endDateStr]);
 
+  const [userEditedCurrent, setUserEditedCurrent] = useState<boolean>(false);
+
   const parseMoney = (v: string) => {
     const cleaned = v.replace(/[^0-9.]/g, '');
     const parts = cleaned.split('.');
@@ -284,6 +362,21 @@ function AprFromResult() {
     const num = parseFloat(normalized);
     return Number.isFinite(num) ? num : 0;
   };
+  const formatLooseValue = (value: number) => {
+    if (!Number.isFinite(value) || value <= 0) return '0';
+    return value % 1 === 0 ? value.toFixed(0) : value.toString();
+  };
+  const formatAssetInputValue = (value: number) => {
+    if (!Number.isFinite(value) || value <= 0) return '0';
+    const fixed = value.toFixed(2);
+    return fixed.replace(/\.?0+$/, '');
+  };
+
+  useEffect(() => {
+    if (initialCurrentCapital !== undefined && !userEditedCurrent) {
+      setCurrentInput(formatAssetInputValue(initialCurrentCapital));
+    }
+  }, [initialCurrentCapital, userEditedCurrent]);
 
   const start = useMemo(() => parseMoney(startInput), [startInput]);
   const current = useMemo(() => parseMoney(currentInput), [currentInput]);
@@ -340,7 +433,10 @@ function AprFromResult() {
               if (parts.length > 2) v = parts[0] + '.' + parts.slice(1).join('');
               setStartInput(v);
             }}
-            onBlur={() => setStartInput(parseMoney(startInput).toFixed(2))}
+            onBlur={() => {
+              const num = parseMoney(startInput);
+              setStartInput(formatLooseValue(num));
+            }}
             className="h-12 text-lg text-right"
           />
         </div>
@@ -353,8 +449,13 @@ function AprFromResult() {
               const parts = v.split('.');
               if (parts.length > 2) v = parts[0] + '.' + parts.slice(1).join('');
               setCurrentInput(v);
+              setUserEditedCurrent(true);
             }}
-            onBlur={() => setCurrentInput(parseMoney(currentInput).toFixed(2))}
+            onBlur={() => {
+              const num = parseMoney(currentInput);
+              const formatted = formatAssetInputValue(num);
+              setCurrentInput(formatted);
+            }}
             className="h-12 text-lg text-right"
           />
         </div>

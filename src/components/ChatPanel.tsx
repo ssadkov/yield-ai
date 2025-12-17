@@ -9,12 +9,39 @@ import { SwapModal } from '@/components/ui/swap-modal';
 import { YieldCalculatorModal } from '@/components/ui/yield-calculator-modal';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
+import { useWalletData } from '@/contexts/WalletContext';
+import { useWalletStore } from '@/lib/stores/walletStore';
+import { useMemo } from 'react';
 
 export default function ChatPanel() {
   const [isSwapModalOpen, setIsSwapModalOpen] = useState(false);
   const [isYieldCalcOpen, setIsYieldCalcOpen] = useState(false);
   const { account } = useWallet();
+  const { tokens } = useWalletData();
+  const totalAssetsStore = useWalletStore((s) => s.totalAssets);
   const router = useRouter();
+
+  const walletTotal = useMemo(() => {
+    return (tokens || []).reduce((sum, t: any) => {
+      let v = 0;
+      if (t?.value != null) {
+        const parsed = parseFloat(t.value as string);
+        v = isNaN(parsed) ? 0 : parsed;
+      } else if (t?.price != null) {
+        const price = parseFloat(t.price as string);
+        const decimals = typeof t.decimals === 'number' ? t.decimals : 8;
+        const raw = parseFloat(t.amount as string);
+        const amount = isNaN(raw) ? 0 : raw / Math.pow(10, decimals);
+        v = (isNaN(price) ? 0 : price) * amount;
+      }
+      return sum + (isFinite(v) ? v : 0);
+    }, 0);
+  }, [tokens]);
+
+  const totalAssets = useMemo(() => {
+    if (totalAssetsStore && totalAssetsStore > 0) return totalAssetsStore;
+    return walletTotal;
+  }, [totalAssetsStore, walletTotal]);
 
   const handlePortfolioTracker = () => {
     if (account?.address) {
@@ -161,6 +188,8 @@ export default function ChatPanel() {
       <YieldCalculatorModal 
         isOpen={isYieldCalcOpen}
         onClose={() => setIsYieldCalcOpen(false)}
+        totalAssets={totalAssets}
+        walletTotal={walletTotal}
       />
     </div>
   );
