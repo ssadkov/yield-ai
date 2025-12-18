@@ -7,7 +7,15 @@ import { Badge as RadixBadge } from "@radix-ui/themes";
 import { cn } from "@/lib/utils";
 import styles from "./Badge.module.css";
 
-export type BadgeVariant = "default" | "secondary" | "destructive" | "outline";
+export type BadgeVariant =
+  | "default"
+  | "secondary"
+  | "destructive"
+  | "outline"
+  | "success"
+  | "danger"
+  | "info"
+  | "warning";
 
 export interface BadgeProps
   extends Omit<ComponentPropsWithoutRef<typeof RadixBadge>, "variant"> {
