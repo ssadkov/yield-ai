@@ -11,8 +11,8 @@ export async function GET(request: NextRequest) {
       headers: {
         'User-Agent': 'yieldai.app/1.0 (+https://yieldai.app/)', 
 		'Accept': 'application/json',
-		'Origin': 'yieldai.app', 
-		'Referer': 'yieldai.app/',
+		'Origin': 'https://yieldai.app', 
+		'Referer': 'https://yieldai.app/',
       },
     });
 
