@@ -10,14 +10,10 @@ export async function GET(request: NextRequest) {
     const response = await fetch('https://api.auro.finance/api/v1/pool', {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-        'Referer': 'https://auro.finance/',
-        'Origin': 'https://auro.finance',
-        'Connection': 'keep-alive',
-        'Cache-Control': 'no-cache',
+        'User-Agent': 'yieldai.app/1.0 (+https://yieldai.app/)',
+        'Accept': 'application/json',
+        'Origin': 'yieldai.app',
+        'Referer': 'yieldai.app/',
       },
     });
 
