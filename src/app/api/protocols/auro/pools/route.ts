@@ -9,7 +9,10 @@ export async function GET(request: NextRequest) {
     const response = await fetch('https://api.auro.finance/api/v1/pool', {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
+        'User-Agent': 'yieldai.app/1.0 (+https://yieldai.app/)', 
+		'Accept': 'application/json',
+		'Origin': 'yieldai.app', 
+		'Referer': 'yieldai.app/',
       },
     });
 
