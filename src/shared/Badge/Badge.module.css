@@ -1,0 +1,45 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
+  border-width: 1px;
+  border-style: solid;
+  column-gap: 0.25rem;
+  white-space: nowrap;
+}
+
+/* Варианты как в shadcn/radix Badge */
+.variant-default {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border-color: transparent;
+}
+
+.variant-secondary {
+  background-color: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+  border-color: transparent;
+}
+
+.variant-destructive {
+  background-color: hsl(var(--destructive));
+  color: white;
+  border-color: transparent;
+}
+
+.variant-outline {
+  background-color: transparent;
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--border));
+}
+
+.badge:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px hsl(var(--ring));
+  border-color: hsl(var(--ring));
+}
