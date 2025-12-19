@@ -20,7 +20,7 @@ import { Token } from "@/lib/types/token";
 import { Logo } from "./ui/logo";
 //import { AlphaBadge } from "./ui/alpha-badge";
 import { CollapsibleProvider } from "@/contexts/CollapsibleContext";
-import { MobileManagementProvider, useMobileManagement } from "@/contexts/MobileManagementContext";
+import { MobileManagementProvider } from "@/contexts/MobileManagementContext";
 
 function MobileTabsContent() {
   const [tab, setTab] = useState<"ideas" | "assets" | "chat">("assets");
