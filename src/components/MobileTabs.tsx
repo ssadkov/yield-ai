@@ -12,6 +12,7 @@ import { PositionsList as TappPositionsList } from "./protocols/tapp/PositionsLi
 import { PositionsList as MesoPositionsList } from "./protocols/meso/PositionsList";
 import { PositionsList as AuroPositionsList } from "./protocols/auro/PositionsList";
 import { PositionsList as EarniumPositionsList } from "./protocols/earnium/PositionsList";
+import { PositionsList as AavePositionsList } from "./protocols/aave/PositionsList";
 import { PositionsList as MoarPositionsList } from "./protocols/moar/PositionsList";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { AptosPortfolioService } from "@/lib/services/aptos/portfolio";
@@ -19,7 +20,7 @@ import { Token } from "@/lib/types/token";
 import { Logo } from "./ui/logo";
 //import { AlphaBadge } from "./ui/alpha-badge";
 import { CollapsibleProvider } from "@/contexts/CollapsibleContext";
-import { MobileManagementProvider, useMobileManagement } from "@/contexts/MobileManagementContext";
+import { MobileManagementProvider } from "@/contexts/MobileManagementContext";
 
 function MobileTabsContent() {
   const [tab, setTab] = useState<"ideas" | "assets" | "chat">("assets");
@@ -35,7 +36,9 @@ function MobileTabsContent() {
   const [mesoValue, setMesoValue] = useState<number>(0);
   const [auroValue, setAuroValue] = useState<number>(0);
   const [earniumValue, setEarniumValue] = useState<number>(0);
+  const [aaveValue, setAaveValue] = useState<number>(0);
   const [moarValue, setMoarValue] = useState<number>(0);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   // Функция для скролла к верху
   const scrollToTop = () => {
@@ -58,13 +61,13 @@ function MobileTabsContent() {
         }, 0);
 
         setTokens(portfolio.tokens);
-        setTotalValue((total + hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + earniumValue + moarValue).toFixed(2));
+        setTotalValue((total + hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + earniumValue + aaveValue + moarValue).toFixed(2));
       } catch (error) {
       }
     }
 
     loadPortfolio();
-  }, [account?.address, hyperionValue, echelonValue, ariesValue, jouleValue, tappValue, mesoValue, auroValue, earniumValue, moarValue]);
+  }, [account?.address, hyperionValue, echelonValue, ariesValue, jouleValue, tappValue, mesoValue, auroValue, earniumValue, aaveValue, moarValue]);
 
   // Обработчики изменения суммы позиций в протоколах
   const handleHyperionValueChange = (value: number) => {
@@ -99,8 +102,48 @@ function MobileTabsContent() {
     setEarniumValue(value);
   };
 
+  const handleAaveValueChange = (value: number) => {
+    setAaveValue(value);
+  };
+
   const handleMoarValueChange = (value: number) => {
     setMoarValue(value);
+  };
+
+  // Refresh function
+  const handleRefresh = async () => {
+    if (!account?.address) return;
+    
+    setIsRefreshing(true);
+    try {
+      const portfolioService = new AptosPortfolioService();
+      const portfolio = await portfolioService.getPortfolio(account.address.toString());
+      
+      const total = portfolio.tokens.reduce((sum, token) => {
+        const value = token.value ? parseFloat(token.value) : 0;
+        return sum + (isNaN(value) ? 0 : value);
+      }, 0);
+
+      setTokens(portfolio.tokens);
+      
+      // Reset protocol values to trigger reload
+      setHyperionValue(0);
+      setEchelonValue(0);
+      setAriesValue(0);
+      setJouleValue(0);
+      setTappValue(0);
+      setMesoValue(0);
+      setAuroValue(0);
+      setEarniumValue(0);
+      setAaveValue(0);
+      setMoarValue(0);
+      
+      setTotalValue(total.toFixed(2));
+    } catch (error) {
+      console.error('Error refreshing portfolio:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   return (
@@ -128,7 +171,12 @@ function MobileTabsContent() {
                 <WalletSelector />
                 {account?.address ? (
                   <>
-                    <PortfolioCard totalValue={totalValue} tokens={tokens} />
+                    <PortfolioCard 
+                      totalValue={totalValue} 
+                      tokens={tokens} 
+                      onRefresh={handleRefresh}
+                      isRefreshing={isRefreshing}
+                    />
                     {[
                       { 
                         component: HyperionPositionsList, 
@@ -177,6 +225,12 @@ function MobileTabsContent() {
                         value: earniumValue, 
                         name: 'Earnium',
                         handler: handleEarniumValueChange
+                      },
+                      { 
+                        component: AavePositionsList, 
+                        value: aaveValue, 
+                        name: 'Aave',
+                        handler: handleAaveValueChange
                       },
                       { 
                         component: MoarPositionsList, 
