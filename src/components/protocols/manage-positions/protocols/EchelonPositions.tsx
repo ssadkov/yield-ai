@@ -6,7 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import Image from "next/image";
 import tokenList from "@/lib/data/tokenList.json";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/shared/Badge/Badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useWithdraw } from "@/lib/hooks/useWithdraw";
@@ -863,14 +863,9 @@ export function EchelonPositions() {
                   <div>
                     <div className="flex items-center gap-2">
                       <div className="text-lg">{tokenInfo?.symbol || position.coin.substring(0, 4).toUpperCase()}</div>
-                      <Badge 
-                        variant="outline" 
-                        className={cn(
-                          isBorrow
-                            ? 'bg-error-muted text-error border-error/20'
-                            : 'bg-success-muted text-success border-success/20',
-                          'text-xs font-normal px-2 py-0.5 h-5'
-                        )}
+                      <Badge
+                        variant={isBorrow ? "danger" : "success"}
+                        className="text-xs font-normal px-2 py-0.5 h-5"
                       >
                         {isBorrow ? 'Borrow' : 'Supply'}
                       </Badge>
@@ -882,11 +877,9 @@ export function EchelonPositions() {
                 </div>
                 <div className="text-right">
                   <div className="flex items-center justify-between mb-1">
-                    <Badge variant="outline" className={cn(
-                      isBorrow
-                        ? 'bg-red-500/10 text-red-600 border-red-500/20'
-                        : 'bg-green-500/10 text-green-600 border-green-500/20',
-                      'text-xs font-normal px-2 py-0.5 h-5')}
+                    <Badge
+                      variant={isBorrow ? "danger" : "success"}
+                      className="text-xs font-normal px-2 py-0.5 h-5"
                     >
                       {apy !== null ? (
                         <TooltipProvider>
@@ -1010,14 +1003,9 @@ export function EchelonPositions() {
                     <div>
                       <div className="flex items-center gap-1">
                         <div className="text-base font-medium">{tokenInfo?.symbol || position.coin.substring(0, 4).toUpperCase()}</div>
-                        <Badge 
-                          variant="outline" 
-                          className={cn(
-                            isBorrow
-                              ? 'bg-red-500/10 text-red-600 border-red-500/20'
-                              : 'bg-green-500/10 text-green-600 border-green-500/20',
-                            'text-xs font-normal px-1.5 py-0.5 h-4'
-                          )}
+                        <Badge
+                          variant={isBorrow ? "danger" : "success"}
+                          className="text-xs font-normal px-1.5 py-0.5 h-4"
                         >
                           {isBorrow ? 'Borrow' : 'Supply'}
                         </Badge>
@@ -1035,11 +1023,9 @@ export function EchelonPositions() {
 
                 {/* APR Badge */}
                 <div className="flex justify-center">
-                  <Badge variant="outline" className={cn(
-                    isBorrow
-                      ? 'bg-red-500/10 text-red-600 border-red-500/20'
-                      : 'bg-green-500/10 text-green-600 border-green-500/20',
-                    'text-xs font-normal px-2 py-0.5 h-5')}
+                  <Badge
+                    variant={isBorrow ? "danger" : "success"}
+                    className="text-xs font-normal px-2 py-0.5 h-5"
                   >
                     {apy !== null ? (
                       <TooltipProvider>
