@@ -10,7 +10,7 @@ import { Theme } from "@radix-ui/themes";
 export default function Home() {
   return (
     <ChunkErrorBoundary>
-      <Theme>
+      <Theme accentColor="sky">
         <ResourcePreloader />
         <div className="h-screen md:flex overflow-hidden">
           <div className="hidden md:block border-r h-screen">
