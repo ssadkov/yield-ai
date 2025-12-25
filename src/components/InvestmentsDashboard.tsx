@@ -16,7 +16,6 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { InvestmentData } from '@/types/investments';
-import { Skeleton } from "@/components/ui/skeleton";
 import tokenList from "@/lib/data/tokenList.json";
 import { Input } from "@/components/ui/input";
 import { Search, Funnel, X } from "lucide-react";
@@ -44,6 +43,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { InvestmentsDashboardLoading } from "./InvestmentsDashboardLoading";
 
 // Список адресов токенов Echelon, которые нужно исключить из отображения
 const EXCLUDED_ECHELON_TOKENS = [
@@ -74,8 +74,7 @@ interface Token {
 }
 
 export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
-  const [data, setData] = useState<InvestmentData[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showOnlyStablePools, setShowOnlyStablePools] = useState(true);
@@ -83,11 +82,31 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   const { selectedProtocol, setSelectedProtocol } = useProtocol();
 
   // New states for progressive loading
-  const [protocolsLoading, setProtocolsLoading] = useState<Record<string, boolean>>({});
+  // Initialize loading states immediately to show tabs and skeletons right away
+  const [protocolsLoading, setProtocolsLoading] = useState<Record<string, boolean>>({
+    'Joule': true,
+    'Hyperion': true,
+    'Tapp Exchange': true,
+    'Auro Finance': true,
+    'Amnis Finance': true,
+    'Kofi Finance': true,
+    'Echelon': true,
+    'Aave': true,
+    'Moar Market': true
+  });
   const [protocolsError, setProtocolsError] = useState<Record<string, string | null>>({});
   const [protocolsData, setProtocolsData] = useState<Record<string, InvestmentData[]>>({});
-  const [protocolsLogos, setProtocolsLogos] = useState<Record<string, string>>({});
-  const [isClient, setIsClient] = useState(false);
+  const [protocolsLogos, setProtocolsLogos] = useState<Record<string, string>>({
+    'Joule': '/protocol_ico/joule.png',
+    'Hyperion': '/protocol_ico/hyperion.png',
+    'Tapp Exchange': '/protocol_ico/tappexchange.png',
+    'Auro Finance': '/protocol_ico/auro.png',
+    'Amnis Finance': '/protocol_ico/amnis.png',
+    'Kofi Finance': '/protocol_ico/kofi.png',
+    'Echelon': '/protocol_ico/echelon.png',
+    'Aave': '/protocol_ico/aave.ico',
+    'Moar Market': '/protocol_ico/moar-market-logo-primary.png'
+  });
   const [claimModalOpen, setClaimModalOpen] = useState(false);
   const [summary, setSummary] = useState<any>(null);
 
@@ -104,11 +123,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   const { getClaimableRewardsSummary, fetchRewards, fetchPositions, rewardsLoading, rewards } = useWalletStore();
   const { account } = useWallet();
   const { setActiveTab: setMobileTab } = useMobileManagement();
-
-  // Ensure we're on client side
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
 
   // Load rewards and positions data when wallet is connected
   useEffect(() => {
@@ -203,45 +217,24 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     setShowSearchOptions(false); // Закрываем окно опций
   };
 
-  // Функция для обработки ввода в поле поиска
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
-    //if (value) {
-      //setSelectedFilterProtocol('');
-	  //setSearchByProtocols(false);
-    //}
   };
 
-  // Clear protocol filter
-  const clearSearchByProtocols = (value: boolean) => {
+  const clearSearchByProtocols = () => {
     setSelectedFilterProtocols([]);
 	setSearchByProtocols(false);
 	setShowSearchOptions(false);
-  }
+  };
 
-  // Start loading immediately when component mounts (only on client)
+  // Start loading immediately when component mounts
   useEffect(() => {
-    if (!isClient) return;
     if (typeof window === 'undefined') return; // Extra check for SSR
 
     const fetchData = async () => {
       try {
         setLoading(true);
         setError(null);
-
-        // Initialize loading states for all protocols
-        const initialLoadingState = {
-          'Joule': true,
-          'Hyperion': true,
-          'Tapp Exchange': true,
-          'Auro Finance': true,
-          'Amnis Finance': true,
-          'Kofi Finance': true,
-          'Echelon': true,
-          'Aave': true,
-          'Moar Market': true
-        };
-        setProtocolsLoading(initialLoadingState);
         setProtocolsError({});
         setProtocolsData({});
 
@@ -533,18 +526,13 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
             url: '/api/protocols/moar/pools',
 			logoUrl: '/protocol_ico/moar-market-logo-primary.png',
             transform: (data: any) => {
-              console.log('🔍 Moar Market transform called with data:', data);
               const pools = data.data || [];
-              console.log('📊 Moar Market pools count:', pools.length);
 
               return pools.map((pool: any) => {
-                // API returns percentages, use as is for display
                 const totalAPY = pool.totalAPY || 0;
                 const depositApy = pool.depositApy || 0;
                 const interestRateComponent = pool.interestRateComponent || 0;
                 const farmingAPY = pool.farmingAPY || 0;
-
-                console.log('📈 Moar Market pool:', pool.asset, 'APR:', totalAPY);
 
                 return {
                   asset: pool.asset || 'Unknown',
@@ -571,18 +559,9 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
           }
         ];
 
-		const initialLogosState = protocolEndpoints.reduce((acc, endpoint) => {
-          acc[endpoint.name] = endpoint.logoUrl || '';
-          return acc;
-        }, {} as Record<string, string>);
-
-        setProtocolsLogos(initialLogosState);
-
         // Fetch all protocols in parallel
         const fetchPromises = protocolEndpoints.map(async (endpoint) => {
           try {
-            console.log(`🔍 Fetching data for ${endpoint.name} from ${endpoint.url}`);
-
             const response = await fetch(endpoint.url, {
               headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -595,9 +574,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
             }
 
             const data = await response.json();
-            console.log(`📊 ${endpoint.name} raw data:`, data);
             const transformedData = endpoint.transform(data);
-            console.log(`📈 ${endpoint.name} transformed data:`, transformedData);
 
             // Update state progressively
             setProtocolsData(prev => ({
@@ -650,10 +627,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
           }
         });
 
-        setData(allPools);
         setLoading(false);
-
-
       } catch (error) {
         setError('Failed to load investment opportunities');
         setLoading(false);
@@ -661,7 +635,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     };
 
     fetchData();
-  }, [isClient]);
+  }, []);
 
   const handleDragOver = (e: React.DragEvent, investment: InvestmentData) => {
     e.preventDefault();
@@ -712,11 +686,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   // Combine all loaded protocol data
   const allLoadedData = Object.values(protocolsData).flat();
 
-
-  const topInvestments = [...allLoadedData]
-    .sort((a, b) => b.totalAPY - a.totalAPY)
-    .slice(0, 3);
-
   const filteredData = allLoadedData.filter(item => {
 
     // Фильтруем исключенные токены Echelon
@@ -733,30 +702,13 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     const displaySymbol = tokenInfo?.symbol || item.asset;
 	const displayProtocol = item.protocol;
 
-	const result = (
-      // Если нет выбранных протоколов ИЛИ протокол элемента есть в выбранных
+    return (
       (selectedFilterProtocols.length === 0 ||
        selectedFilterProtocols.some(protocol =>
          displayProtocol?.toLowerCase().includes(protocol.toLowerCase())
        )) &&
-      // Поиск по символу
       (!searchQuery || displaySymbol.toLowerCase().includes(searchQuery.toLowerCase()))
     );
-
-    return result;
-
-	/*
-	return (
-      (!selectedFilterProtocol || displayProtocol?.toLowerCase().includes(selectedFilterProtocol.toLowerCase())) &&
-      (!searchQuery || displaySymbol.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-	*/
-
-    //if (searchByProtocols) {
-	  //return displayProtocol?.toLowerCase().includes(selectedFilterProtocol.toLowerCase());
-    //}
-
-    //return displaySymbol.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   // Данные для текущей вкладки
@@ -779,34 +731,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
       })
     : filteredData; // В Pro вкладке используем все отфильтрованные данные
 
-  const handleManageClick = (protocol: Protocol) => {
-    setSelectedProtocol(protocol);
-  };
-
-  // Don't render anything until we're on client side
-  if (!isClient) {
-    return (
-      <div className={className}>
-        <div className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {[1, 2, 3].map((i) => (
-              <Card key={i}>
-                <CardHeader className="space-y-2">
-                  <Skeleton className="h-4 w-[250px]" />
-                  <Skeleton className="h-4 w-[100px]" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-8 w-[100px] mb-2" />
-                  <Skeleton className="h-10 w-full" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   if (error) {
     return (
       <div className="text-center p-4 text-red-500">
@@ -817,102 +741,20 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 
   // Show loading indicators for protocols that are still loading
   const showLoadingIndicators = loading && Object.values(protocolsLoading).some(Boolean);
-  //const protocolNames = Object.keys(protocolsData);
-  const protocolNames = [...Object.keys(protocolsData)].sort((a, b) => a.localeCompare(b));
+  // Use protocolsLoading keys to show all protocols immediately, fallback to protocolsData if available
+  const protocolNames = [...new Set([...Object.keys(protocolsLoading), ...Object.keys(protocolsData)])].sort((a, b) => a.localeCompare(b));
 
   if (showLoadingIndicators) {
     return (
-      <div className={className}>
-        <div className="mb-4 pl-4">
-          <h2 className="text-2xl font-bold">Ideas</h2>
-        </div>
-        <Box pt="2" pb="6">
-          <SegmentedControl.Root
-            value={activeTab}
-            onValueChange={(value) => setActiveTab(value as "lite" | "pro")}
-            style={{ width: '100%' }}
-            radius="full"
-          >
-            <SegmentedControl.Item value="lite" style={{ flex: 1 }}>Lite</SegmentedControl.Item>
-            <SegmentedControl.Item value="pro" style={{ flex: 1 }}>Pro</SegmentedControl.Item>
-          </SegmentedControl.Root>
-        </Box>
-
-        <Box pt="6">
-          {activeTab === "lite" && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Stables</h3>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {[1, 2, 3].map((i) => (
-                    <Card key={i}>
-                      <CardHeader className="space-y-2">
-                        <Skeleton className="h-4 w-[250px]" />
-                        <Skeleton className="h-4 w-[100px]" />
-                      </CardHeader>
-                      <CardContent>
-                        <Skeleton className="h-8 w-[100px] mb-2" />
-                        <Skeleton className="h-10 w-full" />
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-
-              {/* Protocol loading status */}
-              <div className="mt-6">
-                <h4 className="text-sm font-medium mb-3">Loading pools:</h4>
-                <div className="space-y-2">
-                  {Object.entries(protocolsLoading).map(([protocolName, isLoading]) => (
-                    <div key={protocolName} className="flex items-center gap-2 text-sm">
-                      {isLoading ? (
-                        <>
-                          <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse">
-						    <Avatar className="w-3 h-3">
-							  <img
-								src={protocolsLogos[protocolName]}
-								alt={protocolName}
-								className="object-contain bg-white"
-							  />
-							</Avatar>
-						  </div>
-                          <span>Loading {protocolName}...</span>
-                        </>
-                      ) : protocolsError[protocolName] ? (
-                        <>
-                          <div className="w-3 h-3 bg-red-500 rounded-full">
-						    <Avatar className="w-3 h-3">
-							  <img
-								src={protocolsLogos[protocolName]}
-								alt={protocolName}
-								className="object-contain bg-white"
-							  />
-							</Avatar>
-						  </div>
-                          <span className="text-red-500">{protocolName}: {protocolsError[protocolName]}</span>
-                        </>
-                      ) : (
-                        <>
-                          <div className="w-3 h-3 bg-green-500 rounded-full">
-						    <Avatar className="w-3 h-3">
-							  <img
-								src={protocolsLogos[protocolName]}
-								alt={protocolName}
-								className="object-contain bg-white"
-							  />
-							</Avatar>
-						  </div>
-                          <span className="text-green-600">{protocolName}: {protocolsData[protocolName]?.length || 0} pools loaded</span>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-          </Box>
-      </div>
+      <InvestmentsDashboardLoading
+        className={className}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        protocolsLoading={protocolsLoading}
+        protocolsError={protocolsError}
+        protocolsData={protocolsData}
+        protocolsLogos={protocolsLogos}
+      />
     );
   }
 
@@ -1082,8 +924,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                         )}
                                       </>
                                     ) : (
-                                      // Lending tooltip content (existing logic)
-									  //<p className="text-xs">Price: ${tokenInfo.usdPrice}</p>
                                       tokenInfo && (
                                         <>
                                           <p className="text-xs">Name: {tokenInfo.name}</p>
@@ -1130,7 +970,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   { symbol: 'ETH', exact: false }
                 ].map(({ symbol, exact }) => {
 
-                  const bestPool = data
+                  const bestPool = allLoadedData
                     .filter(item => {
                       // Показываем только протоколы с нативным депозитом в Lite вкладке
                       const protocol = getProtocolByName(item.protocol);
@@ -1232,8 +1072,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                       )}
                                     </>
                                   ) : (
-                                    // Lending tooltip content (existing logic)
-									//<p className="text-xs">Price: ${tokenInfo.usdPrice}</p>
                                     tokenInfo && (
                                       <>
                                         <p className="text-xs">Name: {tokenInfo.name}</p>
@@ -1307,7 +1145,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 				        <TooltipTrigger asChild>
 					      <button
 					        key={"Clear Protocol"}
-					        onClick={() => clearSearchByProtocols(false)}
+					        onClick={() => clearSearchByProtocols()}
 						    className={`text-sm transition-colors cursor-pointer`}
 					      >
 						    Clear
@@ -1563,8 +1401,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                       </Avatar>
                                       <div className="flex flex-col">
                                         <span>{displaySymbol}</span>
-                                        {/* Provider под токеном на мобильных */}
-                                        {/* <span className="text-xs text-muted-foreground block md:hidden">{getProvider(item)}</span> */}
                                       </div>
                                     </>
                                   )}
@@ -1591,8 +1427,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                       )}
                                     </>
                                   ) : (
-                                    // Lending tooltip content (existing logic)
-									//<p className="text-xs">Price: ${tokenInfo.usdPrice}</p>
                                     tokenInfo && (
                                       <>
                                         <p className="text-xs">Name: {tokenInfo.name}</p>
