@@ -1,7 +1,7 @@
 'use client';
 
 import { Box } from "@radix-ui/themes";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SegmentedControl } from "@radix-ui/themes";
 import { ProtocolIcon } from "@/shared/ProtocolIcon/ProtocolIcon";
@@ -55,13 +55,43 @@ export function InvestmentsDashboardLoading({
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {[1, 2, 3].map((i) => (
                   <Card key={i}>
-                    <CardHeader className="space-y-2">
-                      <Skeleton className="h-4 w-[250px]" />
-                      <Skeleton className="h-4 w-[100px]" />
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 w-full flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <Skeleton className="h-6 w-6 rounded-full" />
+                          <Skeleton className="h-4 w-12" />
+                        </div>
+                        <Skeleton className="h-5 w-20 ml-auto shrink-0 rounded-md" />
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <Skeleton className="h-8 w-[100px] mb-2" />
-                      <Skeleton className="h-10 w-full" />
+                      <Skeleton className="h-8 w-24 mb-1" />
+                      <Skeleton className="h-3 w-16 mb-4" />
+                      <Skeleton className="h-10 w-full rounded-md" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Fundamentals</h3>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {[1, 2, 3].map((i) => (
+                  <Card key={i}>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 w-full flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <Skeleton className="h-6 w-6 rounded-full" />
+                          <Skeleton className="h-4 w-12" />
+                        </div>
+                        <Skeleton className="h-5 w-20 ml-auto shrink-0 rounded-md" />
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Skeleton className="h-8 w-24 mb-1" />
+                      <Skeleton className="h-3 w-16 mb-4" />
+                      <Skeleton className="h-10 w-full rounded-md" />
                     </CardContent>
                   </Card>
                 ))}
