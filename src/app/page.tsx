@@ -3,16 +3,14 @@ import Sidebar from "@/components/Sidebar";
 import DashboardPanel from "@/components/DashboardPanel";
 import ChatPanel from "@/components/ChatPanel";
 import MobileTabs from "@/components/MobileTabs";
-import { WalletConnect } from "@/components/WalletConnect";
-import { PositionsList } from "@/components/protocols/hyperion/PositionsList";
-import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ChunkErrorBoundary } from "@/components/ChunkErrorBoundary";
 import { ResourcePreloader } from "@/components/ResourcePreloader";
+import { Theme } from "@radix-ui/themes";
 
 export default function Home() {
   return (
     <ChunkErrorBoundary>
-      <ThemeProvider>
+      <Theme>
         <ResourcePreloader />
         <div className="h-screen md:flex overflow-hidden">
           <div className="hidden md:block border-r h-screen">
@@ -32,7 +30,7 @@ export default function Home() {
             </div>
           </div>
         </div>
-      </ThemeProvider>
+      </Theme>
     </ChunkErrorBoundary>
   );
 }
