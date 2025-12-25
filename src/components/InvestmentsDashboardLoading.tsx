@@ -4,7 +4,8 @@ import { Box } from "@radix-ui/themes";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SegmentedControl } from "@radix-ui/themes";
-import { Avatar } from "@/components/ui/avatar";
+import { ProtocolIcon } from "@/shared/ProtocolIcon/ProtocolIcon";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface InvestmentsDashboardLoadingProps {
   className?: string;
@@ -25,6 +26,10 @@ export function InvestmentsDashboardLoading({
   protocolsData,
   protocolsLogos,
 }: InvestmentsDashboardLoadingProps) {
+  const loadingProtocols = Object.entries(protocolsLoading)
+    .filter(([_, isLoading]) => isLoading)
+    .map(([name]) => ({ name, logoUrl: protocolsLogos[name] || '/file.svg' }));
+
   return (
     <div className={className}>
       <div className="mb-4 pl-4">
@@ -63,56 +68,41 @@ export function InvestmentsDashboardLoading({
               </div>
             </div>
 
-            {/* Protocol loading status */}
-            <div className="mt-6">
-              <h4 className="text-sm font-medium mb-3">Loading pools:</h4>
-              <div className="space-y-2">
-                {Object.entries(protocolsLoading).map(([protocolName, isLoading]) => (
-                  <div key={protocolName} className="flex items-center gap-2 text-sm">
-                    {isLoading ? (
-                      <>
-                        <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse">
-                          <Avatar className="w-3 h-3">
-                            <img
-                              src={protocolsLogos[protocolName]}
-                              alt={protocolName}
-                              className="object-contain bg-white"
+            {/* Protocol loading status with spinning icons */}
+            {loadingProtocols.length > 0 && (
+              <div className="mt-6 flex flex-col items-center">
+                <h4 className="text-sm font-medium mb-3 flex items-center gap-1">
+                  Checking pools
+                  <span className="inline-flex gap-0.5 ml-1">
+                    <span className="loading-dot">.</span>
+                    <span className="loading-dot">.</span>
+                    <span className="loading-dot">.</span>
+                  </span>
+                </h4>
+                <div className="flex flex-wrap items-center justify-center gap-4">
+                  {loadingProtocols.map((protocol) => (
+                    <TooltipProvider key={protocol.name} delayDuration={100}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div>
+                            <ProtocolIcon
+                              logoUrl={protocol.logoUrl}
+                              name={protocol.name}
+                              size="md"
+                              isLoading={true}
+                              className="hover:border-primary/40 hover:shadow-lg"
                             />
-                          </Avatar>
-                        </div>
-                        <span>Loading {protocolName}...</span>
-                      </>
-                    ) : protocolsError[protocolName] ? (
-                      <>
-                        <div className="w-3 h-3 bg-red-500 rounded-full">
-                          <Avatar className="w-3 h-3">
-                            <img
-                              src={protocolsLogos[protocolName]}
-                              alt={protocolName}
-                              className="object-contain bg-white"
-                            />
-                          </Avatar>
-                        </div>
-                        <span className="text-red-500">{protocolName}: {protocolsError[protocolName]}</span>
-                      </>
-                    ) : (
-                      <>
-                        <div className="w-3 h-3 bg-green-500 rounded-full">
-                          <Avatar className="w-3 h-3">
-                            <img
-                              src={protocolsLogos[protocolName]}
-                              alt={protocolName}
-                              className="object-contain bg-white"
-                            />
-                          </Avatar>
-                        </div>
-                        <span className="text-green-600">{protocolName}: {protocolsData[protocolName]?.length || 0} pools loaded</span>
-                      </>
-                    )}
-                  </div>
-                ))}
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" sideOffset={5}>
+                          <p>{protocol.name}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
       </Box>
