@@ -188,7 +188,7 @@ export default function Sidebar() {
           </div>
           <WalletSelector />
         </div>
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto scrollbar-hide">
           {account?.address ? (
             <div className="mt-4 space-y-4">
               <PortfolioCard 

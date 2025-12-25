@@ -10,7 +10,7 @@ import { Theme } from "@radix-ui/themes";
 export default function Home() {
   return (
     <ChunkErrorBoundary>
-      <Theme>
+      <Theme accentColor="sky">
         <ResourcePreloader />
         <div className="h-screen md:flex overflow-hidden">
           <div className="hidden md:block border-r h-screen">
@@ -22,7 +22,7 @@ export default function Home() {
           </div>
 
           <div className="flex-1 hidden md:flex flex-row overflow-hidden">
-            <div className="flex-1 border-r h-full overflow-y-auto">
+            <div className="flex-1 border-r h-full overflow-y-auto scrollbar-hide">
               <DashboardPanel />
             </div>
             <div className="w-[200px] h-full overflow-y-auto">
