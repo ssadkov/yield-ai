@@ -239,17 +239,21 @@
 
 @keyframes loading-dots {
   0%, 20% {
-    opacity: 0;
+    opacity: 0.3;
+    transform: scale(0.8);
   }
   50% {
     opacity: 1;
+    transform: scale(1);
   }
   100% {
-    opacity: 0;
+    opacity: 0.3;
+    transform: scale(0.8);
   }
 }
 
 .loading-dot {
+  display: inline-block;
   animation: loading-dots 1.4s ease-in-out infinite;
 }
 
