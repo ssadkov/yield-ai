@@ -22,7 +22,7 @@ export default function Home() {
           </div>
 
           <div className="flex-1 hidden md:flex flex-row overflow-hidden">
-            <div className="flex-1 border-r h-full overflow-y-auto">
+            <div className="flex-1 border-r h-full overflow-y-auto scrollbar-hide">
               <DashboardPanel />
             </div>
             <div className="w-[200px] h-full overflow-y-auto">
