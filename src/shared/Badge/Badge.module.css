@@ -1,0 +1,77 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
+  border-width: 1px;
+  border-style: solid;
+  column-gap: 0.25rem;
+  white-space: nowrap;
+}
+
+/* Базовые варианты, стилизованные ближе к прежним Tailwind-бейджам */
+.variant-default {
+  /* Небольшой залив, контрастный текст, мягкая рамка */
+  background-color: color-mix(in srgb, hsl(var(--primary)) 12%, transparent);
+  color: hsl(var(--primary-foreground));
+  border-color: color-mix(in srgb, hsl(var(--primary)) 40%, transparent);
+}
+
+.variant-secondary {
+  background-color: color-mix(in srgb, hsl(var(--secondary)) 16%, transparent);
+  color: hsl(var(--secondary-foreground));
+  border-color: color-mix(in srgb, hsl(var(--secondary)) 40%, transparent);
+}
+
+.variant-destructive {
+  background-color: color-mix(in srgb, hsl(var(--destructive)) 12%, transparent);
+  color: hsl(var(--destructive-foreground, 0 0% 100%));
+  border-color: color-mix(in srgb, hsl(var(--destructive)) 40%, transparent);
+}
+
+.variant-outline {
+  background-color: transparent;
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--border));
+}
+
+/* Семантические варианты для статусов.
+   Здесь используем "живые" цвета, близкие к тем,
+   что раньше задавались через Tailwind (green/red/blue/yellow). */
+.variant-success {
+  /* примерно bg-green-500/10, text-green-600, border-green-500/20 */
+  background-color: rgba(34, 197, 94, 0.10);
+  color: rgb(22, 163, 74);
+  border-color: rgba(34, 197, 94, 0.20);
+}
+
+.variant-danger {
+  /* примерно bg-red-500/10, text-red-600, border-red-500/20 */
+  background-color: rgba(239, 68, 68, 0.10);
+  color: rgb(220, 38, 38);
+  border-color: rgba(239, 68, 68, 0.20);
+}
+
+.variant-info {
+  /* примерно bg-blue-500/10, text-blue-600, border-blue-500/20 */
+  background-color: rgba(59, 130, 246, 0.10);
+  color: rgb(37, 99, 235);
+  border-color: rgba(59, 130, 246, 0.20);
+}
+
+.variant-warning {
+  /* примерно bg-amber-500/10, text-amber-600, border-amber-500/20 */
+  background-color: rgba(245, 158, 11, 0.10);
+  color: rgb(217, 119, 6);
+  border-color: rgba(245, 158, 11, 0.20);
+}
+
+.badge:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px hsl(var(--ring));
+  border-color: hsl(var(--ring));
+}

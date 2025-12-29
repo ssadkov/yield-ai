@@ -368,7 +368,7 @@
     "key": "thala",
     "category": "DEX",
     "url": "https://app.thala.fi/",
-    "logoUrl": "https://app.thala.fi/favicon.ico",
+    "logoUrl": "/protocol_ico/thala.png",
     "description": "Thala is a decentralized protocol that consolidates a suite of trading and yield products, enabling composable leverage and a seamless user experience",
     "depositType": "external",
     "depositUrl": "https://app.thala.fi/pools",
