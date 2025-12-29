@@ -38,9 +38,17 @@
     "@radix-ui/react-tabs": "^1.1.12",
     "@radix-ui/react-toast": "^1.2.14",
     "@radix-ui/react-tooltip": "^1.2.7",
+    "@solana/wallet-adapter-base": "^0.9.27",
+    "@solana/wallet-adapter-react": "^0.15.39",
+    "@solana/wallet-adapter-wallets": "^0.19.37",
     "@telegram-apps/bridge": "^2.11.0",
     "@vercel/analytics": "^1.5.0",
     "@wallet-standard/core": "^1.1.1",
+    "@wormhole-foundation/sdk": "4.7.1",
+    "@wormhole-foundation/sdk-aptos-cctp": "4.7.1",
+    "@wormhole-foundation/sdk-aptos-tokenbridge": "^4.7.1",
+    "@wormhole-foundation/sdk-base": "^4.7.1",
+    "@wormhole-foundation/sdk-solana-cctp": "4.7.1",
     "@wormhole-foundation/wormhole-connect": "^5.0.0",
     "aptos": "^1.21.0",
     "bcs": "^0.0.0",
@@ -71,6 +79,17 @@
     "typescript": "^5"
   },
   "overrides": {
+    "@wormhole-foundation/sdk-connect": "4.7.1",
+    "@wormhole-foundation/sdk-definitions": "4.7.1",
+    "@wormhole-foundation/sdk-base": "4.7.1",
+    "@wormhole-foundation/sdk-aptos": "4.7.1",
+    "@wormhole-foundation/sdk-solana": "4.7.1",
+    "@wormhole-foundation/sdk-evm": "4.7.1",
+    "@wormhole-foundation/sdk-aptos-tokenbridge": "4.7.1",
+    "@wormhole-foundation/sdk-evm-core": "4.7.1",
+    "@wormhole-foundation/sdk-solana-core": "4.7.1",
+    "@wormhole-foundation/sdk-evm-tokenbridge": "4.7.1",
+    "@wormhole-foundation/sdk-solana-tokenbridge": "4.7.1",
     "bs58": "^5.0.0"
   }
 }

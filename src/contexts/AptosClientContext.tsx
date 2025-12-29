@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useMemo, ReactNode } from "react";
-import { Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk";
+import { Aptos, AptosConfig, Network, Account } from "@aptos-labs/ts-sdk";
 import { GasStationService } from "@/lib/services/gasStation";
 
 const AptosClientContext = createContext<Aptos | null>(null);
