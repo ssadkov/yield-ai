@@ -43,6 +43,8 @@ interface BridgeViewProps {
   transferStatus?: string;
   chains: Chain[];
   tokens: Token[];
+  showSwapButton?: boolean;
+  disableAssetSelection?: boolean;
 }
 
 export function BridgeView({
@@ -65,6 +67,8 @@ export function BridgeView({
   transferStatus,
   chains,
   tokens,
+  showSwapButton = true,
+  disableAssetSelection = false,
 }: BridgeViewProps) {
 
   const handleSwap = () => {
@@ -102,19 +106,22 @@ export function BridgeView({
               tokens={tokens}
               onChainSelect={onSourceChainSelect}
               onTokenSelect={onSourceTokenSelect}
+              disabled={disableAssetSelection}
             />
 
             {/* Swap Button */}
-            <div className="flex justify-center -my-2">
-              <Button
-                variant="outline"
-                size="icon"
-                className="rounded-full rotate-90"
-                onClick={handleSwap}
-              >
-                <ArrowLeftRight className="w-4 h-4" />
-              </Button>
-            </div>
+            {showSwapButton && (
+              <div className="flex justify-center -my-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="rounded-full rotate-90"
+                  onClick={handleSwap}
+                >
+                  <ArrowLeftRight className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
 
             {/* Destination Asset */}
             <AssetPicker
@@ -125,6 +132,7 @@ export function BridgeView({
               tokens={tokens}
               onChainSelect={onDestChainSelect}
               onTokenSelect={onDestTokenSelect}
+              disabled={disableAssetSelection}
             />
           </div>
 
@@ -134,6 +142,7 @@ export function BridgeView({
               value={amount}
               onChange={onAmountChange}
               tokenSymbol={sourceToken.symbol}
+              maxAmount={10}
             />
           )}
 

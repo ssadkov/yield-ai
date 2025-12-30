@@ -58,6 +58,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch attestation from Circle API
+    // Note: Main retry logic is handled on client side with exponential backoff
+    // This API will return 404 if attestation not ready, client will retry
     const url = `${irisApiUrl}/${domain}/${signature.trim()}`;
 	
     const response = await fetch(url, {
@@ -69,6 +71,16 @@ export async function POST(request: NextRequest) {
 
     if (!response.ok) {
       const errorText = await response.text();
+      
+      // 404 means attestation not ready yet - return specific error for client retry logic
+      if (response.status === 404) {
+        console.log('[Mint CCTP API] Attestation not ready yet (404)');
+        return NextResponse.json(
+          createErrorResponse(new Error(`Attestation not ready yet. Please wait and try again.`)),
+          { status: 404 }
+        );
+      }
+      
       console.error('[Mint CCTP API] Circle API error:', response.status, errorText);
       return NextResponse.json(
         createErrorResponse(new Error(`Circle API error: ${response.status} ${response.statusText}. ${errorText}`)),
@@ -99,6 +111,28 @@ export async function POST(request: NextRequest) {
         createErrorResponse(new Error('Attestation field is missing')),
         { status: 400 }
       );
+    }
+    
+    // Check if attestation is "PENDING" or not ready yet
+    const attestationValue = firstMessage.attestation;
+    if (typeof attestationValue === 'string') {
+      const upperAttestation = attestationValue.toUpperCase();
+      // Valid attestation should be a long hex string starting with 0x
+      // "PENDING" or short strings indicate attestation is not ready
+      if (upperAttestation === 'PENDING' || 
+          upperAttestation === 'PENDING...' ||
+          !attestationValue.startsWith('0x') ||
+          attestationValue.length < 200) { // Valid attestation is typically 200+ chars
+        console.log('[Mint CCTP API] Attestation not ready yet:', {
+          attestationValue: attestationValue.substring(0, 50),
+          length: attestationValue.length,
+          isPending: upperAttestation === 'PENDING',
+        });
+        return NextResponse.json(
+          createErrorResponse(new Error(`Attestation not ready yet. Status: ${attestationValue.substring(0, 50)}`)),
+          { status: 404 } // Return 404 to trigger retry
+        );
+      }
     }
 
     // Convert message and attestation hex strings to byte arrays

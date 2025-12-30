@@ -15,6 +15,7 @@ import { useWallet } from '@aptos-labs/wallet-adapter-react';
 import { useWallet as useSolanaWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useToast } from '@/components/ui/use-toast';
 import { BridgeView } from '@/components/bridge/BridgeView';
+import { ActionLog, type ActionLogItem } from '@/components/bridge/ActionLog';
 import { SolanaWalletProviderWrapper } from './SolanaWalletProvider';
 import bs58 from 'bs58';
 
@@ -66,9 +67,72 @@ function Bridge2PageContent() {
   // Store funded signers for potential refund
   const [fundedSigners, setFundedSigners] = useState<Array<{ pubkey: string; keypair: any }>>([]);
   const [lastTransferTxSignature, setLastTransferTxSignature] = useState<string | null>(null);
+  const [actionLog, setActionLog] = useState<ActionLogItem[]>([]);
 
   // Get Solana address from wallet adapter
   const solanaAddress = solanaPublicKey?.toBase58() || null;
+
+  // Ensure source and destination chains/tokens are always set (even if disabled)
+  useEffect(() => {
+    if (!sourceChain) {
+      setSourceChain(CHAINS[0]); // Solana
+    }
+    if (!sourceToken) {
+      const solanaToken = TOKENS.find((t) => t.chain === 'Solana');
+      if (solanaToken) {
+        setSourceToken(solanaToken);
+      }
+    }
+    if (!destChain) {
+      setDestChain(CHAINS[1]); // Aptos
+    }
+    if (!destToken) {
+      const aptosToken = TOKENS.find((t) => t.chain === 'Aptos');
+      if (aptosToken) {
+        setDestToken(aptosToken);
+      }
+    }
+  }, []); // Run once on mount
+
+  // Helper function to add action to log
+  const addAction = (message: string, status: 'pending' | 'success' | 'error', link?: string, linkText?: string, startTime?: number) => {
+    const now = Date.now();
+    const newAction: ActionLogItem = {
+      id: now.toString() + Math.random().toString(36).substr(2, 9),
+      message,
+      status,
+      timestamp: new Date(),
+      link,
+      linkText,
+      startTime: startTime || now,
+      duration: startTime ? now - startTime : undefined,
+    };
+    setActionLog(prev => [...prev, newAction]);
+    console.log(`[Bridge Action] ${status.toUpperCase()}: ${message}`, link ? `Link: ${link}` : '');
+    return newAction.id; // Return ID for tracking
+  };
+
+  // Helper function to update last action
+  const updateLastAction = (message: string, status: 'pending' | 'success' | 'error', link?: string, linkText?: string) => {
+    const now = Date.now();
+    setActionLog(prev => {
+      const newLog = [...prev];
+      if (newLog.length > 0) {
+        const lastAction = newLog[newLog.length - 1];
+        const startTime = lastAction.startTime || lastAction.timestamp.getTime();
+        newLog[newLog.length - 1] = {
+          ...lastAction,
+          message,
+          status,
+          link,
+          linkText,
+          startTime,
+          duration: status !== 'pending' ? now - startTime : undefined, // Calculate duration when action completes
+        };
+      }
+      return newLog;
+    });
+  };
 
   // Initialize Wormhole SDK
   useEffect(() => {
@@ -346,8 +410,40 @@ function Bridge2PageContent() {
       return;
     }
 
+    // Ensure chains and tokens are set (they should be, but double-check)
+    if (!sourceChain || !sourceToken || !destChain || !destToken) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Source and destination chains/tokens must be selected",
+      });
+      return;
+    }
+
+    // Validate amount (max 10 USDC)
+    const amountNum = parseFloat(transferAmount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please enter a valid amount",
+      });
+      return;
+    }
+    if (amountNum > 10) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Maximum amount is 10 USDC",
+      });
+      return;
+    }
+
     setIsTransferring(true);
     setTransferStatus('Initializing transfer...');
+    setActionLog([]); // Clear previous actions
+    const transferStartTime = Date.now();
+    addAction('Initializing transfer...', 'pending', undefined, undefined, transferStartTime);
 
     // Store signers that were funded in this specific transfer attempt
     // This is crucial for the automatic refund on error
@@ -436,6 +532,7 @@ function Bridge2PageContent() {
       const automatic = false;
 
       setTransferStatus('Creating transfer...');
+      updateLastAction('Creating transfer...', 'pending');
       
       // Use AutomaticCircleBridge protocol directly
       // Get protocol instance and use its transfer method
@@ -515,6 +612,12 @@ function Bridge2PageContent() {
               if (txSignature) {
                 setLastTransferTxSignature(txSignature);
                 console.log('[Bridge2] Transaction sent:', txSignature);
+                updateLastAction(
+                  `Transaction sent successfully`,
+                  'success',
+                  `https://solscan.io/tx/${txSignature}`,
+                  'View on Solscan'
+                );
               }
               
               // Store xfer object from step if available
@@ -812,6 +915,15 @@ function Bridge2PageContent() {
       // Transaction signature is already set from generator iteration
       console.log('[Bridge2] Transfer completed, txSignature:', txSignature);
       
+      if (txSignature) {
+        updateLastAction(
+          `Transfer initiated on Solana`,
+          'success',
+          `https://solscan.io/tx/${txSignature}`,
+          'View transaction on Solscan'
+        );
+      }
+      
       setTransferStatus(`Transfer initiated! Transaction: ${txSignature ? txSignature.slice(0, 8) + '...' + txSignature.slice(-8) : 'pending'}`);
       
       toast({
@@ -819,246 +931,314 @@ function Bridge2PageContent() {
         description: `Your transfer has been initiated. Transaction: ${txSignature ? txSignature.slice(0, 8) + '...' + txSignature.slice(-8) : 'pending'}. The relayer will complete it automatically.${txSignature ? ` View on Solscan: https://solscan.io/tx/${txSignature}` : ''}`,
       });
 
-      // After successful initiation, save xfer object immediately
-      // Then fetch attestation in background (non-blocking) and update localStorage when ready
+      // After successful initiation, wait for Solana confirmation, then poll for attestation
       if (txSignature) {
-        setTransferStatus('Saving transfer data...');
+        setTransferStatus('Waiting for Solana transaction confirmation...');
+        addAction('Waiting for Solana transaction confirmation...', 'pending');
         
-        // Automatically mint USDC on Aptos via server API
-        if (destinationAddress) {
-          setTransferStatus('Minting USDC on Aptos...');
+        // Wait for Solana transaction to be finalized
+        const waitForSolanaConfirmation = async (): Promise<void> => {
+          const { Connection } = await import('@solana/web3.js');
+          const connection = solanaConnection || new Connection(
+            process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 
+            process.env.SOLANA_RPC_URL || 
+            'https://mainnet.helius-rpc.com/?api-key=29798653-2d13-4d8a-96ad-df70b015e234',
+            'confirmed'
+          );
+
+          const maxConfirmationAttempts = 30; // 30 attempts * 2s = 60 seconds max
+          const confirmationDelay = 2000; // 2 seconds
+
+          for (let attempt = 1; attempt <= maxConfirmationAttempts; attempt++) {
+            try {
+              const txStatus = await connection.getSignatureStatus(txSignature);
+              
+              if (txStatus?.value?.confirmationStatus === 'finalized' || 
+                  txStatus?.value?.confirmationStatus === 'confirmed') {
+                updateLastAction(
+                  'Solana transaction confirmed',
+                  'success',
+                  `https://solscan.io/tx/${txSignature}`,
+                  'View transaction on Solscan'
+                );
+                return;
+              }
+              
+              if (txStatus?.value?.err) {
+                throw new Error(`Transaction failed: ${JSON.stringify(txStatus.value.err)}`);
+              }
+              
+              // Update status
+              if (attempt % 5 === 0) {
+                updateLastAction(
+                  `Waiting for confirmation... (${attempt}/${maxConfirmationAttempts})`,
+                  'pending'
+                );
+              }
+            } catch (error: any) {
+              if (attempt === maxConfirmationAttempts) {
+                throw new Error(`Failed to confirm transaction: ${error.message}`);
+              }
+            }
+            
+            await new Promise(resolve => setTimeout(resolve, confirmationDelay));
+          }
           
-          fetch('/api/aptos/mint-cctp', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              signature: txSignature,
-              sourceDomain: '5', // Solana CCTP V1 domain
-              finalRecipient: destinationAddress,
-            }),
-          })
-            .then(async (response) => {
+          throw new Error('Transaction confirmation timeout');
+        };
+
+        // Poll for attestation with exponential backoff
+        const pollForAttestation = async (): Promise<void> => {
+          const maxAttempts = 15; // Increased from 12 to 15
+          const initialDelay = 10000; // 10 seconds after confirmation (increased from 5)
+          const maxDelay = 30000; // Max 30 seconds between attempts
+          
+          // Wait initial delay after confirmation (Circle needs time to generate attestation)
+          console.log(`[Bridge2] Waiting ${initialDelay}ms before first attestation request...`);
+          await new Promise(resolve => setTimeout(resolve, initialDelay));
+          
+          for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            const delay = Math.min(initialDelay * Math.pow(1.5, attempt - 1), maxDelay);
+            const attemptStartTime = Date.now();
+            
+            // Add or update action for this attempt
+            if (attempt === 1) {
+              addAction(
+                `Requesting attestation from Circle... (attempt ${attempt}/${maxAttempts})`,
+                'pending',
+                `https://iris-api.circle.com/v1/messages/5/${txSignature}`,
+                'View attestation request',
+                attemptStartTime
+              );
+            } else {
+              updateLastAction(
+                `Requesting attestation from Circle... (attempt ${attempt}/${maxAttempts})`,
+                'pending',
+                `https://iris-api.circle.com/v1/messages/5/${txSignature}`,
+                'View attestation request'
+              );
+            }
+            
+            try {
+              const requestBody = {
+                signature: txSignature.trim(),
+                sourceDomain: '5', // Solana CCTP V1 domain
+                finalRecipient: destinationAddress.trim(),
+              };
+              
+              console.log(`[Bridge2] Calling mint API, attempt ${attempt}/${maxAttempts}:`, {
+                signature: requestBody.signature.substring(0, 20) + '...',
+                sourceDomain: requestBody.sourceDomain,
+                finalRecipient: requestBody.finalRecipient.substring(0, 20) + '...',
+              });
+              
+              const response = await fetch('/api/aptos/mint-cctp', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestBody),
+              });
+              
               const data = await response.json();
+              
               if (response.ok) {
-                console.log('[Bridge2] USDC minted successfully on Aptos');
+                // Success! Attestation received and minting completed
+                // Update the "Requesting attestation" action to success
+                updateLastAction(
+                  'Attestation received and minting completed',
+                  'success',
+                  `https://iris-api.circle.com/v1/messages/5/${txSignature}`,
+                  'View attestation'
+                );
+                
+                console.log('[Bridge2] USDC minted successfully on Aptos', data);
+                
+                // Add signing action if we have account info
+                if (data.data?.accountAddress) {
+                  addAction(
+                    `Signing transaction with wallet`,
+                    'success',
+                    `https://explorer.aptoslabs.com/account/${data.data.accountAddress}?network=mainnet`,
+                    'View signing wallet on Aptos Explorer'
+                  );
+                }
+                
+                // Add recipient wallet action
+                const recipientAddress = data.data?.transaction?.finalRecipient || destinationAddress;
+                if (recipientAddress) {
+                  addAction(
+                    `Recipient wallet`,
+                    'success',
+                    `https://explorer.aptoslabs.com/account/${recipientAddress}?network=mainnet`,
+                    'View recipient wallet on Aptos Explorer'
+                  );
+                }
+                
+                // Add minting action
+                const mintTxHash = data.data?.transaction?.hash;
+                if (mintTxHash) {
+                  addAction(
+                    `USDC minted successfully on Aptos`,
+                    'success',
+                    `https://explorer.aptoslabs.com/txn/${mintTxHash}?network=mainnet`,
+                    'View mint transaction on Aptos Explorer'
+                  );
+                } else if (data.data?.accountAddress) {
+                  addAction(
+                    `USDC minted successfully on Aptos`,
+                    'success',
+                    `https://explorer.aptoslabs.com/account/${data.data.accountAddress}?network=mainnet`,
+                    'View destination wallet on Aptos Explorer'
+                  );
+                } else {
+                  addAction(
+                    `USDC minted successfully on Aptos`,
+                    'success'
+                  );
+                }
+                
                 toast({
                   title: "USDC Minted on Aptos",
                   description: `USDC has been automatically minted on Aptos. Account: ${data.data?.accountAddress || 'N/A'}`,
                 });
                 setTransferStatus(`Transfer complete! USDC minted on Aptos. Transaction: ${txSignature.slice(0, 8)}...${txSignature.slice(-8)}`);
+                return; // Success, exit polling
               } else {
-                console.error('[Bridge2] Failed to mint USDC on Aptos:', data);
-                toast({
-                  title: "Minting Failed",
-                  description: data.error?.message || "Failed to automatically mint USDC on Aptos. You can mint manually later.",
-                  variant: "destructive",
-                });
-                // Don't fail the whole transfer if minting fails
-                setTransferStatus(`Transfer initiated! Transaction: ${txSignature.slice(0, 8)}...${txSignature.slice(-8)}. Minting failed, you can mint manually later.`);
+                // Check if it's an attestation error (not ready or invalid)
+                const errorMessage = data.error?.message || '';
+                const isAttestationError = 
+                  errorMessage.includes('404') ||
+                  errorMessage.includes('not found') ||
+                  errorMessage.includes('EINVALID_ATTESTATION') ||
+                  errorMessage.includes('EINVALID_ATTESTATION_LENGTH') ||
+                  errorMessage.includes('attestation') ||
+                  response.status === 404;
+                
+                // For any attestation-related error, continue polling until max attempts
+                if (isAttestationError && attempt < maxAttempts) {
+                  // Attestation not ready or invalid, continue polling
+                  // Update status to show error but keep as pending for retry
+                  console.log(`[Bridge2] Attestation error (${errorMessage}), attempt ${attempt}/${maxAttempts}, waiting ${delay}ms...`);
+                  updateLastAction(
+                    `Requesting attestation from Circle... (attempt ${attempt}/${maxAttempts}) - ${errorMessage.substring(0, 50)}${errorMessage.length > 50 ? '...' : ''}`,
+                    'pending',
+                    `https://iris-api.circle.com/v1/messages/5/${txSignature}`,
+                    'View attestation request'
+                  );
+                  await new Promise(resolve => setTimeout(resolve, delay));
+                  continue;
+                } else if (attempt < maxAttempts) {
+                  // Other errors - also continue polling (might be temporary)
+                  console.log(`[Bridge2] Error on attempt ${attempt}/${maxAttempts}: ${errorMessage}, retrying...`);
+                  updateLastAction(
+                    `Requesting attestation from Circle... (attempt ${attempt}/${maxAttempts}) - ${errorMessage.substring(0, 50)}${errorMessage.length > 50 ? '...' : ''}`,
+                    'pending',
+                    `https://iris-api.circle.com/v1/messages/5/${txSignature}`,
+                    'View attestation request'
+                  );
+                  await new Promise(resolve => setTimeout(resolve, delay));
+                  continue;
+                } else {
+                  // Max attempts reached - update to error status
+                  updateLastAction(
+                    `Requesting attestation from Circle failed. Max attempts reached: ${errorMessage.substring(0, 80)}${errorMessage.length > 80 ? '...' : ''}`,
+                    'error',
+                    `https://iris-api.circle.com/v1/messages/5/${txSignature}`,
+                    'View attestation request'
+                  );
+                  throw new Error(data.error?.message || 'Failed to get attestation after all attempts');
+                }
               }
+            } catch (error: any) {
+              // Check if it's a network error, attestation error, or any other error
+              const errorMessage = error.message || '';
+              const isNetworkError = errorMessage.includes('fetch') || 
+                                    errorMessage.includes('network') ||
+                                    errorMessage.includes('ECONNREFUSED');
+              const isAttestationError = errorMessage.includes('EINVALID_ATTESTATION') ||
+                                        errorMessage.includes('attestation');
+              
+              // For any error (network, attestation, or other), continue polling until max attempts
+              if (attempt < maxAttempts) {
+                const errorType = isNetworkError ? 'Network error' : 
+                                 isAttestationError ? 'Attestation error' : 
+                                 'Error';
+                console.log(`[Bridge2] ${errorType}, retrying... attempt ${attempt}/${maxAttempts}: ${errorMessage}`);
+                updateLastAction(
+                  `Requesting attestation from Circle... (attempt ${attempt}/${maxAttempts}) - ${errorType}: ${errorMessage.substring(0, 50)}${errorMessage.length > 50 ? '...' : ''}`,
+                  'pending',
+                  `https://iris-api.circle.com/v1/messages/5/${txSignature}`,
+                  'View attestation request'
+                );
+                await new Promise(resolve => setTimeout(resolve, delay));
+                continue;
+              }
+              
+              // Max attempts reached - update to error status and throw
+              updateLastAction(
+                `Requesting attestation from Circle failed. Max attempts reached: ${errorMessage.substring(0, 80)}${errorMessage.length > 80 ? '...' : ''}`,
+                'error',
+                `https://iris-api.circle.com/v1/messages/5/${txSignature}`,
+                'View attestation request'
+              );
+              throw error;
+            }
+          }
+          
+          throw new Error('Attestation polling timeout - attestation not ready after all attempts');
+        };
+
+        // Execute: wait for confirmation, then poll for attestation
+        if (destinationAddress) {
+          waitForSolanaConfirmation()
+            .then(() => {
+              setTransferStatus('Solana transaction confirmed. Waiting for Circle attestation...');
+              return pollForAttestation();
             })
             .catch((error) => {
-              console.error('[Bridge2] Error calling mint API:', error);
+              console.error('[Bridge2] Error in confirmation or attestation polling:', error);
+              updateLastAction(
+                `Error: ${error.message || 'Failed to complete minting'}`,
+                'error'
+              );
+              
+              // Add recipient wallet info even on error
+              if (destinationAddress) {
+                addAction(
+                  `Recipient wallet`,
+                  'pending',
+                  `https://explorer.aptoslabs.com/account/${destinationAddress}?network=mainnet`,
+                  'View recipient wallet on Aptos Explorer'
+                );
+              }
+              
+              addAction(
+                `Minting failed: ${error.message || 'Unknown error'}`,
+                'error'
+              );
               toast({
-                title: "Minting Error",
-                description: "Failed to automatically mint USDC on Aptos. You can mint manually later.",
+                title: "Minting Failed",
+                description: error.message || "Failed to automatically mint USDC on Aptos. You can mint manually later.",
                 variant: "destructive",
               });
-              // Don't fail the whole transfer if minting fails
-              setTransferStatus(`Transfer initiated! Transaction: ${txSignature.slice(0, 8)}...${txSignature.slice(-8)}. Minting error, you can mint manually later.`);
+              setTransferStatus(`Transfer initiated! Transaction: ${txSignature.slice(0, 8)}...${txSignature.slice(-8)}. Minting failed, you can mint manually later.`);
             });
         }
         
-        // Save xfer object to localStorage immediately (without attestation)
-        // Deep clone xfer with proper serialization
-        let serializedXfer: any = null;
-        
-        
-        try {
-          if (xfer) {
-            serializedXfer = JSON.parse(JSON.stringify(xfer, (key, value) => {
-              // Remove circular references and functions
-              if (typeof value === 'function') return undefined;
-              if (value instanceof Error) return { message: value.message, stack: value.stack };
-              
-              // Handle Uint8Array, Buffer, etc.
-              if (value instanceof Uint8Array || (value && value.constructor?.name === 'Uint8Array')) {
-                return Array.from(value);
-              }
-              if (value && typeof value === 'object' && value.constructor?.name === 'Buffer') {
-                return Array.from(value);
-              }
-              
-              // Handle PublicKey-like objects
-              if (value && typeof value === 'object' && value.toBase58) {
-                try {
-                  return { _type: 'PublicKey', address: value.toBase58() };
-                } catch (e) {
-                  return { _type: 'PublicKey', error: 'Could not serialize' };
-                }
-              }
-              
-              // Handle BigInt
-              if (typeof value === 'bigint') {
-                return value.toString();
-              }
-              
-              return value;
-            }));
-            
-            console.log('[Bridge2] Successfully serialized xfer object:', {
-              serializedKeys: Object.keys(serializedXfer || {}),
-              serializedSize: JSON.stringify(serializedXfer).length,
-            });
-          } else {
-            console.warn('[Bridge2] xfer object is null or undefined, cannot serialize');
-            serializedXfer = {
-              _error: 'xfer object is null or undefined',
-              _note: 'xfer object was not found in generator steps',
-            };
-          }
-        } catch (serializeError: any) {
-          console.error('[Bridge2] Failed to serialize xfer object:', serializeError.message, serializeError.stack);
-          serializedXfer = {
-            _error: 'Failed to serialize',
-            _errorMessage: serializeError.message,
-            _errorStack: serializeError.stack,
-            _keys: xfer ? Object.keys(xfer) : [],
-            _constructor: xfer?.constructor?.name,
-            _xferType: typeof xfer,
-          };
-        }
-        
-        // Extract message hash if available from xfer
-        let messageHash: string | null = null;
-        try {
-          // Try to extract from xfer object
-          if (xfer) {
-            const possibleHashProps = ['messageHash', 'hash', 'id'];
-            for (const prop of possibleHashProps) {
-              if (xfer[prop]) {
-                const value = xfer[prop];
-                if (typeof value === 'string' && (value.startsWith('0x') || value.length >= 32)) {
-                  messageHash = value;
-                  break;
-                } else if (typeof value === 'object' && value.hash) {
-                  messageHash = value.hash;
-                  break;
-                }
-              }
-            }
-          }
-          
-        } catch (hashError: any) {
-          console.warn('[Bridge2] Error extracting message hash:', hashError.message);
-        }
-        
-        // Save full CCTP message including xfer object (without attestation for now)
-        
-        setTransferStatus('Transfer initiated! Fetching attestation in background...');
+        // Note: We don't need to save xfer object or fetch attestation here
+        // The minting API will handle attestation fetching directly from Circle API
+        // We only need txSignature and destinationAddress for the mint API call
+        // The polling logic above will handle waiting for attestation and calling the API
       }
-      
-      // Fetch attestation in background (non-blocking) - it may be available immediately or within a few seconds
-      // This allows the UI to remain responsive while we wait for attestation
-      // Only try to fetch attestation if xfer object has the method
-      
-      if (xfer && typeof xfer.fetchAttestation === 'function') {
-        (async () => {
-          try {
-            setTransferStatus(prev => prev + ' (waiting for attestation...)');
-            // Use shorter timeout - attestation is usually available within 10-15 seconds
-            const timeout = 15 * 1000; // 15 seconds timeout (usually enough)
-            console.log('[Bridge2] Calling xfer.fetchAttestation() in background with timeout:', timeout);
-            
-            const attestIds = await xfer.fetchAttestation(timeout);
-            console.log('[Bridge2] Got attestation in background:', attestIds);
-          
-          // Serialize attestation for localStorage
-          let serializedAttestation: any = null;
-          try {
-            serializedAttestation = JSON.parse(JSON.stringify(attestIds, (key, value) => {
-              if (typeof value === 'function') return undefined;
-              if (value instanceof Error) return { message: value.message, stack: value.stack };
-              if (value instanceof Uint8Array || (value && value.constructor?.name === 'Uint8Array')) {
-                return Array.from(value);
-              }
-              if (value && typeof value === 'object' && value.constructor?.name === 'Buffer') {
-                return Array.from(value);
-              }
-              if (value && typeof value === 'object' && value.toBase58) {
-                try {
-                  return { _type: 'PublicKey', address: value.toBase58() };
-                } catch (e) {
-                  return { _type: 'PublicKey', error: 'Could not serialize' };
-                }
-              }
-              if (typeof value === 'bigint') {
-                return value.toString();
-              }
-              return value;
-            }));
-          } catch (serializeError: any) {
-            console.warn('[Bridge2] Failed to serialize attestation:', serializeError.message);
-            serializedAttestation = {
-              _error: 'Failed to serialize',
-              _errorMessage: serializeError.message,
-              _raw: attestIds,
-            };
-          }
-          
-          // Update localStorage entry with attestation
-          if (txSignature) {
-            const existingEntries = localStorage.getItem('cctp_messages');
-            const entries = existingEntries ? JSON.parse(existingEntries) : [];
-            const entryIndex = entries.findIndex((e: any) => e.txSignature === txSignature);
-            
-            if (entryIndex >= 0) {
-              entries[entryIndex].attestation = serializedAttestation;
-              entries[entryIndex].attestationReceivedAt = Date.now();
-              entries[entryIndex].attestationReceivedAtISO = new Date().toISOString();
-              localStorage.setItem('cctp_messages', JSON.stringify(entries));
-              
-              console.log('[Bridge2] Updated localStorage entry with attestation:', {
-                txSignature,
-                hasAttestation: !!serializedAttestation,
-              });
-              
-              setTransferStatus(`Transfer initiated! Attestation received.`);
-              
-              toast({
-                title: "Attestation Received",
-                description: `Circle attestation received and saved to localStorage. You can now use it to complete the transfer on Aptos.`,
-              });
-            } else {
-              // Entry not found, save as new entry
-              console.warn('[Bridge2] Entry not found in localStorage, saving with attestation...');
-            }
-          }
-          } catch (attestError: any) {
-            console.warn('[Bridge2] Failed to fetch attestation in background (this is OK for automatic transfers - relayer will handle it):', attestError.message);
-            // Don't fail the transfer if attestation fetch fails - relayer will handle it
-            setTransferStatus(prev => prev.replace(' (waiting for attestation...)', ' (attestation will be handled by relayer)'));
-          }
-        })();
-      } else {
-        console.warn('[Bridge2] xfer object does not have fetchAttestation method, skipping attestation fetch (relayer will handle it)', {
-          hasXfer: !!xfer,
-          xferType: typeof xfer,
-          xferConstructor: xfer?.constructor?.name,
-          xferKeys: xfer ? Object.keys(xfer) : [],
-          xferMethods: xfer ? Object.getOwnPropertyNames(Object.getPrototypeOf(xfer || {})).filter(name => typeof (xfer as any)[name] === 'function') : [],
-          note: 'Attestation will be fetched by relayer automatically',
-        });
-      }
-      
-      // The relayer will automatically complete the transfer
-      setTransferStatus('Waiting for relayer to complete transfer...');
       
     } catch (error: any) {
       console.error('[Bridge2] Transfer error:', error);
       setTransferStatus(`Error: ${error.message || 'Unknown error'}`);
+      addAction(
+        `Transfer failed: ${error.message || 'Unknown error'}`,
+        'error'
+      );
       
       // Automatically refund SOL from funded signers if transfer failed
       // Only refund signers that were funded in this specific attempt
@@ -1188,7 +1368,11 @@ function Bridge2PageContent() {
           transferStatus={transferStatus}
           chains={CHAINS}
           tokens={TOKENS}
+          showSwapButton={false}
+          disableAssetSelection={true}
         />
+
+        <ActionLog items={actionLog} />
 
       </div>
     </div>
