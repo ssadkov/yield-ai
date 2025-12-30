@@ -84,7 +84,7 @@ export default function CctpFinalizedTransactionPage() {
     return `0x${normalized.toLowerCase()}`;
   };
 
-  // Verify if transaction is a CCTP transaction
+  // Verify if transaction is a CCTP transaction test test
   const verifyCCTPTransaction = (tx: any) => {
     try {
       const instructions = tx.transaction?.message?.instructions || [];
