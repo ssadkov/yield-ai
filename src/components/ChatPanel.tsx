@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SwapModal } from '@/components/ui/swap-modal';
@@ -20,6 +20,7 @@ export default function ChatPanel() {
   const { tokens } = useWalletData();
   const totalAssetsStore = useWalletStore((s) => s.totalAssets);
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const walletTotal = useMemo(() => {
     return (tokens || []).reduce((sum, t: any) => {
@@ -52,6 +53,27 @@ export default function ChatPanel() {
       router.push('/portfolio');
     }
   };
+
+  // Handle query parameter to open calculator
+  useEffect(() => {
+    const calculatorParam = searchParams.get('calculator');
+    if (calculatorParam === 'true') {
+      setIsYieldCalcOpen(true);
+    }
+  }, [searchParams]);
+
+  // Handle closing calculator and removing query parameter
+  const handleCloseCalculator = useCallback(() => {
+    setIsYieldCalcOpen(false);
+    // Remove calculator parameter from URL
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('calculator');
+    params.delete('apr');
+    params.delete('deposit');
+    const newSearch = params.toString();
+    const newUrl = newSearch ? `${window.location.pathname}?${newSearch}` : window.location.pathname;
+    router.replace(newUrl);
+  }, [searchParams, router]);
 
   return (
     <div className="p-4">
@@ -187,9 +209,21 @@ export default function ChatPanel() {
       />
       <YieldCalculatorModal 
         isOpen={isYieldCalcOpen}
-        onClose={() => setIsYieldCalcOpen(false)}
+        onClose={handleCloseCalculator}
         totalAssets={totalAssets}
         walletTotal={walletTotal}
+        initialApr={(() => {
+          const aprParam = searchParams.get('apr');
+          if (!aprParam) return undefined;
+          const aprValue = parseFloat(aprParam);
+          return Number.isFinite(aprValue) && aprValue > 0 ? aprValue : undefined;
+        })()}
+        initialDeposit={(() => {
+          const depositParam = searchParams.get('deposit');
+          if (!depositParam) return undefined;
+          const depositValue = parseFloat(depositParam);
+          return Number.isFinite(depositValue) && depositValue >= 0 ? depositValue : undefined;
+        })()}
       />
     </div>
   );

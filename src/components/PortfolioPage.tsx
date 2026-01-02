@@ -3,7 +3,7 @@ import { WalletSelector } from "./WalletSelector";
 import { PortfolioPageCard } from "./portfolio/PortfolioPageCard";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { AptosPortfolioService } from "@/lib/services/aptos/portfolio";
 import { Token } from "@/lib/types/token";
 import { Logo } from "./ui/logo";
@@ -72,6 +72,7 @@ export default function PortfolioPage() {
 
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const input = params?.address as string;
   
   const { resolvedAddress, resolvedName, isLoading, error } = useAptosAddressResolver(input);
@@ -168,6 +169,27 @@ export default function PortfolioPage() {
       setCheckingProtocols([]);
     }
   }, [loadPortfolio]);
+
+  // Handle query parameter to open calculator
+  useEffect(() => {
+    const calculatorParam = searchParams.get('calculator');
+    if (calculatorParam === 'true') {
+      setIsYieldCalcOpen(true);
+    }
+  }, [searchParams]);
+
+  // Handle closing calculator and removing query parameter
+  const handleCloseCalculator = useCallback(() => {
+    setIsYieldCalcOpen(false);
+    // Remove calculator parameter from URL
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('calculator');
+    params.delete('apr');
+    params.delete('deposit');
+    const newSearch = params.toString();
+    const newUrl = newSearch ? `${window.location.pathname}?${newSearch}` : window.location.pathname;
+    router.replace(newUrl);
+  }, [searchParams, router]);
 
   const handleHyperionValueChange = useCallback((value: number) => {
     setHyperionValue(value);
@@ -519,10 +541,22 @@ export default function PortfolioPage() {
 	  </div>
       <YieldCalculatorModal 
         isOpen={isYieldCalcOpen}
-        onClose={() => setIsYieldCalcOpen(false)}
+        onClose={handleCloseCalculator}
         tokens={tokens}
         totalAssets={totalAssets}
         walletTotal={walletTotal}
+        initialApr={(() => {
+          const aprParam = searchParams.get('apr');
+          if (!aprParam) return undefined;
+          const aprValue = parseFloat(aprParam);
+          return Number.isFinite(aprValue) && aprValue > 0 ? aprValue : undefined;
+        })()}
+        initialDeposit={(() => {
+          const depositParam = searchParams.get('deposit');
+          if (!depositParam) return undefined;
+          const depositValue = parseFloat(depositParam);
+          return Number.isFinite(depositValue) && depositValue >= 0 ? depositValue : undefined;
+        })()}
       />
     </CollapsibleProvider>
   );

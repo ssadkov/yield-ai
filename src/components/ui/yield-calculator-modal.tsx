@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -24,9 +24,11 @@ interface YieldCalculatorModalProps {
   tokens?: any[]; // Опциональные токены для использования вместо токенов из контекста
   totalAssets?: number; // Опционально: итоговая сумма assets (wallet + протоколы) извне
   walletTotal?: number; // Опционально: сумма кошелька извне
+  initialApr?: number; // Опционально: начальное значение APR для предзаполнения
+  initialDeposit?: number; // Опционально: начальное значение депозита для предзаполнения
 }
 
-export function YieldCalculatorModal({ isOpen, onClose, tokens: externalTokens, totalAssets: externalTotalAssets, walletTotal: externalWalletTotal }: YieldCalculatorModalProps) {
+export function YieldCalculatorModal({ isOpen, onClose, tokens: externalTokens, totalAssets: externalTotalAssets, walletTotal: externalWalletTotal, initialApr, initialDeposit }: YieldCalculatorModalProps) {
   const { address, tokens: contextTokens } = useWalletData();
   // Используем внешние токены, если они переданы, иначе токены из контекста
   const tokens = externalTokens || contextTokens;
@@ -39,6 +41,7 @@ export function YieldCalculatorModal({ isOpen, onClose, tokens: externalTokens, 
   const [userEditedDeposit, setUserEditedDeposit] = useState<boolean>(false);
   const [walletTotalCached, setWalletTotalCached] = useState<number>(0);
   const [loadingDefaults, setLoadingDefaults] = useState<boolean>(false);
+  const initialDepositAppliedRef = useRef<boolean>(false);
   const formatAssetInputValue = (value: number) => {
     if (!Number.isFinite(value) || value <= 0) return '0';
     const fixed = value.toFixed(2);
@@ -77,9 +80,41 @@ export function YieldCalculatorModal({ isOpen, onClose, tokens: externalTokens, 
     }, 0);
   };
 
-  // Fetch defaults on open: best stable APR from Lite Stables
+  // Reset userEditedDeposit and ref when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setUserEditedDeposit(false);
+      initialDepositAppliedRef.current = false;
+    } else {
+      initialDepositAppliedRef.current = false;
+    }
+  }, [isOpen]);
+
+  // Apply initial values from query parameters (if provided) - priority over defaults
   useEffect(() => {
     if (!isOpen) return;
+    
+    // Apply initial APR if provided
+    if (initialApr !== undefined && Number.isFinite(initialApr) && initialApr > 0) {
+      const normalizedApr = Math.max(0, Math.round(initialApr * 100) / 100);
+      setApr(normalizedApr);
+      setAprInput(normalizedApr.toFixed(2));
+    }
+    
+    // Apply initial deposit if provided (check for valid number, including 0)
+    if (initialDeposit !== undefined && Number.isFinite(initialDeposit) && initialDeposit >= 0) {
+      setDepositUSD(initialDeposit.toFixed(2));
+      setWalletTotalCached(initialDeposit); // Cache the value to prevent overwriting
+      setUserEditedDeposit(false); // Reset flag to prevent other useEffects from overwriting
+      initialDepositAppliedRef.current = true; // Mark that we've applied initial deposit
+    }
+  }, [isOpen, initialApr, initialDeposit]);
+
+  // Fetch defaults on open: best stable APR from Lite Stables (only if not provided from URL)
+  useEffect(() => {
+    if (!isOpen) return;
+    // Skip if values are provided from URL
+    if (initialApr !== undefined && initialApr > 0) return;
 
     const fetchDefaults = async () => {
       try {
@@ -135,34 +170,23 @@ export function YieldCalculatorModal({ isOpen, onClose, tokens: externalTokens, 
         const defaultApr = bestStableApr > 0 ? parseFloat(bestStableApr.toFixed(2)) : 0;
         setApr(defaultApr);
         setAprInput(defaultApr.toFixed(2));
-
-        // Auto-fill deposit from wallet tokens
-        const walletTotalValue =
-          typeof externalWalletTotal === 'number' && externalWalletTotal > 0
-            ? externalWalletTotal
-            : computeWalletTotalFromContext(tokens as any[]);
-
-        if (walletTotalValue > 0) {
-          // Для кошелька показываем 2 знака после запятой
-          setDepositUSD(walletTotalValue.toFixed(2));
-          setWalletTotalCached(walletTotalValue);
-        } else {
-          // До загрузки кошелька — 0
-          setDepositUSD('0');
-          setWalletTotalCached(0);
-        }
       } finally {
         setLoadingDefaults(false);
       }
     };
 
     fetchDefaults();
-  }, [isOpen, tokens]);
+  }, [isOpen, tokens, initialApr]);
 
-  // Подхватываем обновление суммы кошелька после загрузки (если юзер не правил поле)
+  // Подхватываем обновление суммы кошелька после загрузки (если юзер не правил поле и нет initialDeposit)
   useEffect(() => {
     if (!isOpen) return;
     if (userEditedDeposit) return;
+    // Skip if initialDeposit was applied from URL - it has priority (including 0)
+    if (initialDepositAppliedRef.current || (initialDeposit !== undefined && Number.isFinite(initialDeposit))) {
+      return; // Don't overwrite deposit from URL, even if it's 0
+    }
+    
     const walletTotalValue =
       typeof externalWalletTotal === 'number' && externalWalletTotal > 0
         ? externalWalletTotal
@@ -172,8 +196,9 @@ export function YieldCalculatorModal({ isOpen, onClose, tokens: externalTokens, 
       setWalletTotalCached(walletTotalValue);
     } else {
       setDepositUSD('0');
+      setWalletTotalCached(0);
     }
-  }, [isOpen, externalWalletTotal, tokens, userEditedDeposit]);
+  }, [isOpen, externalWalletTotal, tokens, userEditedDeposit, initialDeposit]);
 
   // No auto-updates for deposit amount for now
 
