@@ -1,4 +1,5 @@
 "use client";
+import { Suspense } from "react";
 import Sidebar from "@/components/Sidebar";
 import DashboardPanel from "@/components/DashboardPanel";
 import ChatPanel from "@/components/ChatPanel";
@@ -26,7 +27,9 @@ export default function Home() {
               <DashboardPanel />
             </div>
             <div className="w-[200px] h-full overflow-y-auto">
-              <ChatPanel />
+              <Suspense fallback={<div className="p-4">Loading...</div>}>
+                <ChatPanel />
+              </Suspense>
             </div>
           </div>
         </div>
