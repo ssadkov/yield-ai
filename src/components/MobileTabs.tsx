@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import DashboardPanel from "./DashboardPanel";
-import ChatPanel from "./ChatPanel";
+import ChatPanelWrapper from "./ChatPanelWrapper";
 import { WalletSelector } from "./WalletSelector";
 import { PortfolioCard } from "./portfolio/PortfolioCard";
 import { PositionsList as HyperionPositionsList } from "./protocols/hyperion/PositionsList";
@@ -259,7 +259,7 @@ function MobileTabsContent() {
               </div>
             </div>
             <div className={tab === "chat" ? "block" : "hidden"}>
-              <ChatPanel />
+              <ChatPanelWrapper />
             </div>
             {/* Spacer to ensure content never hides under bottom nav */}
             <div className="h-[calc(72px+env(safe-area-inset-bottom))] sm:h-0" />
