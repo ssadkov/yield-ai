@@ -37,7 +37,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
   const { claimRewards, isLoading: isClaiming } = useClaimRewards();
   const { withdraw, isLoading: isWithdrawing } = useWithdraw();
   const { toast } = useToast();
-  const { setRewards } = useWalletStore();
+  const { setRewards, getTokenPrice } = useWalletStore();
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -940,7 +940,17 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
               return selectedDepositPosition.assetInfo.symbol;
             })()
           }}
-          priceUSD={4.40} // TODO: Get real price from API
+          priceUSD={(() => {
+            const tokenAddress = (() => {
+              if (selectedDepositPosition.assetInfo.symbol === 'APT') {
+                return '0x1::aptos_coin::AptosCoin';
+              } else if (selectedDepositPosition.assetInfo.symbol === 'USDC') {
+                return '0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b';
+              }
+              return selectedDepositPosition.assetInfo.symbol;
+            })();
+            return parseFloat(getTokenPrice(tokenAddress)) || 0;
+          })()}
         />
       )}
     </div>
