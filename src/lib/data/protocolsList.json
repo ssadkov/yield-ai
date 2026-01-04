@@ -69,7 +69,7 @@
     "url": "https://app.joule.finance/rewards?tabId=referral&referralAddress=0x56ff2fc971deecd286314fe99b8ffd6a5e72e62eacdc46ae9b234c5282985f97",
     "logoUrl": "/protocol_ico/joule.png",
     "description": "Lending protocol on Aptos blockchain",
-    "depositType": "native",
+    "depositType": "external",
     "isDepositEnabled": true,
     "managedType": "native",
     "socialMedia": {
