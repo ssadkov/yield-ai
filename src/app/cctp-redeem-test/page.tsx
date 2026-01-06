@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { Aptos, AptosConfig, Network } from "@aptos-labs/ts-sdk";
@@ -22,7 +22,7 @@ const CCTP_RECEIVE_FN =
 const DEFAULT_SOLANA_TX =
   "34765YUsCvzkUD1ruUFhrbeUmnxsiycHsxUnuKCfk71QiPqnSKaXPed2XrvuPQA4aVofhMSS8BLX6TNkHwbSK6Aj";
 
-export default function CctpRedeemTestPage() {
+function CctpRedeemTestPageContent() {
   const searchParams = useSearchParams();
   const { account, signAndSubmitTransaction } = useWallet();
   const { toast } = useToast();
@@ -1223,6 +1223,14 @@ export default function CctpRedeemTestPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function CctpRedeemTestPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <CctpRedeemTestPageContent />
+    </Suspense>
   );
 }
 
