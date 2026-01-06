@@ -629,7 +629,7 @@ function Bridge2PageContent() {
             console.log('[Bridge2] Transaction confirmed on blockchain:', {
               signature,
               confirmResult,
-              slot: confirmResult?.slot,
+              slot: confirmResult?.context?.slot,
               err: confirmResult?.value?.err,
             });
             
