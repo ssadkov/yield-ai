@@ -225,7 +225,11 @@ export default function MintingAptosPage() {
         
         console.log('CCTP USDC balance via view:', balanceView);
         
-        if (balanceView && balanceView[0] && BigInt(balanceView[0]) > 0) {
+        // Check if balanceView[0] is a valid number/string for BigInt conversion
+        const balanceValue = balanceView && balanceView[0];
+        const isValidBalance = balanceValue && (typeof balanceValue === 'string' || typeof balanceValue === 'number' || typeof balanceValue === 'bigint');
+        
+        if (isValidBalance && BigInt(balanceValue) > 0) {
           const existing = balances.find(b => b.tokenAddress === cctpUsdcType);
           if (!existing) {
             balances.push({
@@ -233,8 +237,8 @@ export default function MintingAptosPage() {
               symbol: "USDC (CCTP)",
               name: "USD Coin (Circle CCTP)",
               decimals: 6,
-              balance: balanceView[0].toString(),
-              formattedBalance: (BigInt(balanceView[0]) / BigInt(1_000_000)).toString(),
+              balance: String(balanceValue),
+              formattedBalance: (BigInt(balanceValue) / BigInt(1_000_000)).toString(),
               type: "fungible_asset"
             });
           }
