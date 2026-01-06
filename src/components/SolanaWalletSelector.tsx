@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
-import { WalletReadyState } from '@solana/wallet-adapter-base';
+import { WalletReadyState, WalletName } from '@solana/wallet-adapter-base';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -50,7 +50,7 @@ export function SolanaWalletSelector({ onWalletChange }: SolanaWalletSelectorPro
 
   const handleWalletSelect = async (walletName: string) => {
     try {
-      select(walletName);
+      select(walletName as WalletName);
       setIsDialogOpen(false);
       
       // Auto-connect after selection
