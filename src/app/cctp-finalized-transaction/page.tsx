@@ -458,7 +458,7 @@ export default function CctpFinalizedTransactionPage() {
       }
       
       // Check if first 32 bytes match the hash from logs
-      const hashMatches = actualHashFromLogs && first32BytesHex === actualHashFromLogs.toLowerCase();
+      const hashMatches = actualHashFromLogs ? (first32BytesHex === actualHashFromLogs.toLowerCase()) : undefined;
       if (hashMatches) {
         issues.push(`CRITICAL: First 32 bytes of message match depositMessageHash from logs! This means the message structure is corrupted - a hash was written into the message data instead of proper CCTP fields.`);
       }
