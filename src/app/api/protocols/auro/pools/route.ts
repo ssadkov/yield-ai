@@ -3,13 +3,17 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function GET(request: NextRequest) {
   console.log('Auro Finance - API endpoint called');
   try {
-  
+    // Get base URL from environment or use default
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.VERCEL_URL || 'http://localhost:3000';
     
-    // Fetch data from Auro Finance API
+    // Fetch data from Auro Finance API with realistic browser headers
     const response = await fetch('https://api.auro.finance/api/v1/pool', {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
+        'User-Agent': 'yieldai.app/1.0 (+https://yieldai.app/)',
+        'Accept': 'application/json',
+        'Origin': 'yieldai.app',
+        'Referer': 'yieldai.app/',
       },
     });
 

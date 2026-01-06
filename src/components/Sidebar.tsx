@@ -10,6 +10,7 @@ import { Token } from "@/lib/types/token";
 import { Logo } from "./ui/logo";
 import { AlphaBadge } from "./ui/alpha-badge";
 import { CollapsibleProvider } from "@/contexts/CollapsibleContext";
+import { useWalletStore } from "@/lib/stores/walletStore";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import { PositionsList as HyperionPositionsList } from "./protocols/hyperion/PositionsList";
 import { PositionsList as EchelonPositionsList } from "./protocols/echelon/PositionsList";
@@ -49,6 +50,8 @@ export default function Sidebar() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [checkingProtocols, setCheckingProtocols] = useState<string[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  const setTotalAssetsStore = useWalletStore((s) => s.setTotalAssets);
 
   const allProtocolNames = [
     "Hyperion",
@@ -176,6 +179,10 @@ export default function Sidebar() {
   // Итоговая сумма
   const totalAssets = walletTotal + totalProtocolsValue;
 
+  useEffect(() => {
+    setTotalAssetsStore(totalAssets);
+  }, [totalAssets, setTotalAssetsStore]);
+
   return (
     <CollapsibleProvider>
       <div className="hidden md:flex w-[360px] p-4 border-r h-screen flex-col">
@@ -191,7 +198,7 @@ export default function Sidebar() {
           </div>
           <WalletSelector />
         </div>
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto scrollbar-hide">
           {account?.address ? (
             <div className="mt-4 space-y-4">
               <PortfolioCard 

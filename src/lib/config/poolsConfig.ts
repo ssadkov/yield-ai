@@ -142,7 +142,21 @@ export const poolSources: PoolSource[] = [
     transform: (data: any) => {
       // Transform Auro pools data to InvestmentData format
       // Only include COLLATERAL pools (Supply pools)
-      const collateralPools = (data.data || [])
+      const allPools = data.data || [];
+
+      // Собираем BORROW-пулы в мапу по адресу пула
+      const borrowByAddress = new Map<string, number>();
+      allPools
+        .filter((pool: any) => pool.type === 'BORROW')
+        .forEach((pool: any) => {
+          const addr = pool.poolAddress;
+          const borrowApr = parseFloat(pool.totalBorrowApr || pool.borrowApr || 0);
+          if (addr && !isNaN(borrowApr)) {
+            borrowByAddress.set(addr, borrowApr);
+          }
+        });
+
+      const collateralPools = allPools
         .filter((pool: any) => pool.type === 'COLLATERAL')
         .filter((pool: any) => {
           // Filter out pools with very low TVL or no APY
@@ -157,13 +171,15 @@ export const poolSources: PoolSource[] = [
         const supplyIncentiveApr = parseFloat(pool.supplyIncentiveApr || "0");
         const stakingApr = parseFloat(pool.stakingApr || "0");
         const totalAPY = supplyApr + supplyIncentiveApr + stakingApr;
+        // Используем borrow по адресу пула, если нет - используем общий BORROW для всех пулов
+        const borrowAPR = borrowByAddress.get(pool.poolAddress) || borrowByAddress.get('BORROW') || 0;
         
         return {
           asset: pool.collateralTokenSymbol || 'Unknown',
           provider: 'Auro Finance',
           totalAPY: totalAPY,
           depositApy: totalAPY, // Supply APY is the deposit APY
-          borrowAPY: 0, // We're only including collateral pools
+          borrowAPY: borrowAPR, // показываем borrow APY из BORROW-пула
           token: pool.collateralTokenAddress || pool.poolAddress,
           protocol: 'Auro Finance',
           tvlUSD: parseFloat(pool.tvl || "0"),
@@ -302,35 +318,6 @@ export const poolSources: PoolSource[] = [
           market: position.market,
           amount: position.amount,
           type: position.type
-        };
-      });
-    }
-  },
-  // Earnium pools API
-  {
-    name: 'Earnium Pools API',
-    url: '/api/protocols/earnium/pools',
-    enabled: true,
-    transform: (data: any) => {
-      // Transform Earnium pools data to InvestmentData format
-      const pools = data.data || [];
-      
-      return pools.map((pool: any) => {
-        return {
-          asset: pool.asset || 'Unknown',
-          provider: pool.provider || 'Earnium',
-          totalAPY: pool.totalAPY || 0,
-          depositApy: pool.depositApy || 0,
-          borrowAPY: pool.borrowAPY || 0,
-          token: pool.token || '',
-          protocol: pool.protocol || 'Earnium',
-          poolType: pool.poolType || 'Staking',
-          tvlUSD: pool.tvlUSD || 0,
-          dailyVolumeUSD: pool.dailyVolumeUSD || 0,
-          // Additional Earnium-specific data
-          poolId: pool.poolId,
-          poolAddress: pool.poolAddress,
-          description: pool.description
         };
       });
     }

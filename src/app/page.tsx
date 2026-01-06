@@ -1,18 +1,16 @@
 "use client";
 import Sidebar from "@/components/Sidebar";
 import DashboardPanel from "@/components/DashboardPanel";
-import ChatPanel from "@/components/ChatPanel";
+import ChatPanelWrapper from "@/components/ChatPanelWrapper";
 import MobileTabs from "@/components/MobileTabs";
-import { WalletConnect } from "@/components/WalletConnect";
-import { PositionsList } from "@/components/protocols/hyperion/PositionsList";
-import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ChunkErrorBoundary } from "@/components/ChunkErrorBoundary";
 import { ResourcePreloader } from "@/components/ResourcePreloader";
+import { Theme } from "@radix-ui/themes";
 
 export default function Home() {
   return (
     <ChunkErrorBoundary>
-      <ThemeProvider>
+      <Theme accentColor="sky">
         <ResourcePreloader />
         <div className="h-screen md:flex overflow-hidden">
           <div className="hidden md:block border-r h-screen">
@@ -24,15 +22,15 @@ export default function Home() {
           </div>
 
           <div className="flex-1 hidden md:flex flex-row overflow-hidden">
-            <div className="flex-1 border-r h-full overflow-y-auto">
+            <div className="flex-1 border-r h-full overflow-y-auto scrollbar-hide">
               <DashboardPanel />
             </div>
             <div className="w-[200px] h-full overflow-y-auto">
-              <ChatPanel />
+              <ChatPanelWrapper />
             </div>
           </div>
         </div>
-      </ThemeProvider>
+      </Theme>
     </ChunkErrorBoundary>
   );
 }

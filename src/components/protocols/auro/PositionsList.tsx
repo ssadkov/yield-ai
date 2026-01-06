@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
@@ -8,11 +7,10 @@ import { ChevronDown } from "lucide-react";
 import { ManagePositionsButton } from "../ManagePositionsButton";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import { useCollapsible } from "@/contexts/CollapsibleContext";
-import { formatNumber, formatCurrency } from "@/lib/utils/numberFormat";
+import { formatCurrency } from "@/lib/utils/numberFormat";
 import tokenList from "@/lib/data/tokenList.json";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { PanoraPricesService } from "@/lib/services/panora/prices";
-import { TokenPrice } from "@/lib/types/panora";
 import { createDualAddressPriceMap } from "@/lib/utils/addressNormalization";
 
 interface PositionsListProps {
@@ -41,11 +39,11 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
   const safeCalculateValue = (amount: string | number, price: string | number): number => {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
     const numPrice = typeof price === 'string' ? parseFloat(price) : price;
-    
+
     if (isNaN(numAmount) || isNaN(numPrice)) {
       return 0;
     }
-    
+
     const result = numAmount * numPrice;
     return isNaN(result) ? 0 : result;
   };
@@ -67,27 +65,27 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
   const getRewardTokenInfoHelper = useCallback((tokenAddress: string) => {
     const cleanAddress = tokenAddress.startsWith('@') ? tokenAddress.slice(1) : tokenAddress;
     const fullAddress = cleanAddress.startsWith('0x') ? cleanAddress : `0x${cleanAddress}`;
-    
+
     // Normalize addresses by removing leading zeros after 0x
     const normalizeAddress = (addr: string) => {
       if (!addr || !addr.startsWith('0x')) return addr;
       return '0x' + addr.slice(2).replace(/^0+/, '') || '0x0';
     };
-    
+
     const normalizedFullAddress = normalizeAddress(fullAddress);
-    
+
     const token = (tokenList as any).data.data.find((token: any) => {
       const normalizedTokenAddress = normalizeAddress(token.tokenAddress || '');
       const normalizedFaAddress = normalizeAddress(token.faAddress || '');
-      
-      return normalizedTokenAddress === normalizedFullAddress || 
+
+      return normalizedTokenAddress === normalizedFullAddress ||
              normalizedFaAddress === normalizedFullAddress;
     });
-    
+
     if (!token) {
       return undefined;
     }
-    
+
     const result = {
       address: token.tokenAddress,
       faAddress: token.faAddress,
@@ -96,7 +94,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
       decimals: token.decimals,
       price: getTokenPrice(fullAddress) // Используем динамическую цену
     };
-    
+
     return result;
   }, [getTokenPrice]);
 
@@ -105,11 +103,11 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
     if (!rewardsData[positionAddress]) {
       return 0;
     }
-    
+
     let totalValue = 0;
     let collateralSum = 0;
     let borrowSum = 0;
-    
+
     // Считаем collateral rewards
     rewardsData[positionAddress].collateral.forEach((reward: any) => {
       if (!reward || !reward.key || !reward.value) {
@@ -124,7 +122,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
       totalValue += value;
       collateralSum += value;
     });
-    
+
     // Считаем borrow rewards
     rewardsData[positionAddress].borrow.forEach((reward: any) => {
       if (!reward || !reward.key || !reward.value) {
@@ -139,7 +137,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
       totalValue += value;
       borrowSum += value;
     });
-    
+
     return totalValue;
   }, [rewardsData, getRewardTokenInfoHelper]);
 
@@ -156,7 +154,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
   // Функция для загрузки наград
   const fetchRewards = useCallback(async (positionsData: any[]) => {
     if (!walletAddress || positionsData.length === 0) return;
-    
+
     try {
       // Сначала загружаем данные о пулах
       console.log('Auro Finance - Fetching pools from PositionsList');
@@ -166,7 +164,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
         throw new Error(`Pools API returned status ${poolsResponse.status}`);
       }
       const poolsData = await poolsResponse.json();
-      
+
       if (!poolsData.success || !poolsData.data) {
         throw new Error('Failed to load pools data');
       }
@@ -182,12 +180,12 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
           poolsData: poolsData.data
         })
       });
-      
+
       if (!response.ok) {
         throw new Error(`API returned status ${response.status}`);
       }
       const data = await response.json();
-      
+
       if (data.success && data.data) {
         setRewardsData(data.data);
         // Не рассчитываем totalRewardsValue здесь - это будет сделано в отдельном useEffect
@@ -213,7 +211,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
       console.log('Auro Finance - Starting loadData for address:', walletAddress);
       setLoading(true);
       setError(null);
-      
+
       try {
         // Загружаем позиции
         console.log('Auro Finance - Fetching userPositions for address:', walletAddress);
@@ -222,13 +220,13 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
         if (!positionsResponse.ok) {
           throw new Error(`Positions API returned status ${positionsResponse.status}`);
         }
-        
+
         const positionsData = await positionsResponse.json();
         console.log('Auro Finance - userPositions data:', positionsData);
         const positionsArray = Array.isArray(positionsData.positionInfo) ? positionsData.positionInfo : [];
         console.log('Auro Finance - positions array length:', positionsArray.length);
         setPositions(positionsArray);
-        
+
         // Загружаем награды только если есть позиции
         if (positionsArray.length > 0) {
           await fetchRewards(positionsArray);
@@ -271,7 +269,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
           }
           addresses.add(cleanAddress);
         }
-        
+
         // Добавляем debt токен (USDA)
         const debtTokenAddress = "0x534e4c3dc0f038dab1a8259e89301c4da58779a5d482fb354a41c08147e6b9ec";
         addresses.add(debtTokenAddress);
@@ -310,7 +308,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
       });
 
       const addressesArray = Array.from(addresses);
-      
+
       if (addressesArray.length === 0) return;
 
       try {
@@ -349,17 +347,17 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
       // Сумма по collateral позициям
       const collateralPrice = pos.collateralTokenAddress ? parseFloat(getTokenPrice(pos.collateralTokenAddress)) : 0;
       const collateralValue = safeCalculateValue(pos.collateralAmount, collateralPrice);
-      
+
       // Сумма по debt позициям (вычитаем)
       const debtPrice = parseFloat(getTokenPrice("0x534e4c3dc0f038dab1a8259e89301c4da58779a5d482fb354a41c08147e6b9ec")); // USDA
       const debtValue = safeCalculateValue(pos.debtAmount, debtPrice);
-      
+
       // Добавляем награды для этой позиции
       const positionRewards = calculateRewardsValue(pos.address);
-      
+
       return sum + collateralValue - debtValue + positionRewards;
     }, 0);
-    
+
     // Дополнительная защита от NaN
     return isNaN(result) ? 0 : result;
   }, [sortedPositions, calculateRewardsValue, getTokenPrice]);
@@ -376,15 +374,15 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
 
   return (
     <Card className="w-full">
-      <CardHeader 
+      <CardHeader
         className="py-2 cursor-pointer hover:bg-accent/50 transition-colors"
         onClick={() => toggleSection('auro')}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-5 h-5 relative">
-              <Image 
-                src="https://app.auro.finance/logo.png" 
+              <Image
+                src="https://app.auro.finance/logo.png"
                 alt="Auro Finance"
                 width={20}
                 height={20}
@@ -536,7 +534,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
                 </Tooltip>
               </TooltipProvider>
             )}
-            
+
             {/* Кнопка Manage Positions */}
             {protocol && showManageButton && (
               <ManagePositionsButton protocol={protocol} />
@@ -546,4 +544,4 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
       )}
     </Card>
   );
-} 
+}

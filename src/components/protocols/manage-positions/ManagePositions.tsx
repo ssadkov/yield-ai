@@ -154,8 +154,8 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
             </CardTitle>
           </div>
           <div className="flex items-center gap-1">
-            <TooltipProvider>
-              <Tooltip delayDuration={0}>
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     variant="ghost"

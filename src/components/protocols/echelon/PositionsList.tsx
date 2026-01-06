@@ -1,9 +1,8 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { PositionCard } from "./PositionCard";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
-import { ChevronDown, ExternalLink } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import Image from "next/image";
@@ -11,11 +10,11 @@ import tokenList from "@/lib/data/tokenList.json";
 import { ManagePositionsButton } from "../ManagePositionsButton";
 import { useCollapsible } from "@/contexts/CollapsibleContext";
 import { PanoraPricesService } from "@/lib/services/panora/prices";
-import { TokenPrice } from "@/lib/types/panora";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { createDualAddressPriceMap } from "@/lib/utils/addressNormalization";
 import { TokenInfoService } from "@/lib/services/tokenInfoService";
 import { formatNumber } from "@/lib/utils/numberFormat";
+import { Badge } from "@/components/ui/badge";
 
 interface PositionsListProps {
   address?: string;
@@ -78,15 +77,15 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
     if (!cleanAddress.startsWith('0x')) {
       cleanAddress = `0x${cleanAddress}`;
     }
-    
+
     // Normalize address by removing leading zeros after 0x
     const normalizeAddress = (addr: string) => {
       if (!addr || !addr.startsWith('0x')) return addr;
       return '0x' + addr.slice(2).replace(/^0+/, '') || '0x0';
     };
-    
+
     const normalizedAddress = normalizeAddress(cleanAddress);
-    
+
     // Try both original and normalized addresses
     const price = tokenPrices[cleanAddress] || tokenPrices[normalizedAddress] || '0';
     return price;
@@ -99,9 +98,9 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
       if (!addr || !addr.startsWith('0x')) return addr;
       return '0x' + addr.slice(2).replace(/^0+/, '') || '0x0';
     };
-    
+
     const normalizedCoinAddress = normalizeAddress(coinAddress);
-    
+
     // First, check fallback token info (from protocol APIs)
     if (fallbackTokenInfo[normalizedCoinAddress] || fallbackTokenInfo[coinAddress]) {
       const fallbackInfo = fallbackTokenInfo[normalizedCoinAddress] || fallbackTokenInfo[coinAddress];
@@ -113,16 +112,16 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
         usdPrice: null // Цена будет получена динамически
       };
     }
-    
+
     // Then check tokenList
     const token = tokenList.data.data.find((t) => {
       const normalizedFaAddress = normalizeAddress(t.faAddress || '');
       const normalizedTokenAddress = normalizeAddress(t.tokenAddress || '');
-      
-      return normalizedFaAddress === normalizedCoinAddress || 
+
+      return normalizedFaAddress === normalizedCoinAddress ||
              normalizedTokenAddress === normalizedCoinAddress;
     });
-    
+
     if (token) {
       return {
         symbol: token.symbol,
@@ -132,21 +131,21 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
         usdPrice: null // Цена будет получена динамически
       };
     }
-    
+
     return null;
   };
 
   // Функция для получения информации о токене наград
   const getRewardTokenInfoHelper = useCallback((tokenSymbol: string) => {
-    const token = (tokenList as any).data.data.find((token: any) => 
+    const token = (tokenList as any).data.data.find((token: any) =>
       token.symbol.toLowerCase() === tokenSymbol.toLowerCase() ||
       token.name.toLowerCase().includes(tokenSymbol.toLowerCase())
     );
-    
+
     if (!token) {
       return undefined;
     }
-    
+
     const result = {
       address: token.tokenAddress,
       faAddress: token.faAddress,
@@ -155,7 +154,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
       decimals: token.decimals,
       price: null // Цена будет получена динамически
     };
-    
+
     return result;
   }, []);
 
@@ -164,41 +163,41 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
     if (!rewardsData || rewardsData.length === 0) {
       return 0;
     }
-    
+
     let totalValue = 0;
-    
+
     rewardsData.forEach((reward) => {
       const tokenInfo = getRewardTokenInfoHelper(reward.token);
       if (!tokenInfo) {
         return;
       }
-      
+
       // Получаем цену динамически
       const price = getTokenPrice(tokenInfo.faAddress || tokenInfo.address || '');
       if (!price || price === '0') {
         return;
       }
-      
+
       const value = reward.amount * parseFloat(price);
       totalValue += value;
     });
-    
+
     return totalValue;
   }, [rewardsData, getRewardTokenInfoHelper, tokenPrices]);
 
   // Функция для загрузки наград
   const fetchRewards = useCallback(async () => {
     if (!walletAddress || walletAddress.length < 10) return;
-    
+
     try {
       const response = await fetch(`/api/protocols/echelon/rewards?address=${walletAddress}`);
-      
+
       if (!response.ok) {
         throw new Error(`API returned status ${response.status}`);
       }
-      
+
       const data = await response.json();
-      
+
       if (data.success && data.data) {
         setRewardsData(data.data);
       } else {
@@ -212,13 +211,13 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
   // Получаем все уникальные адреса токенов из позиций
   const getAllTokenAddresses = useCallback(() => {
     const addresses = new Set<string>();
-    
+
     // Normalize address function
     const normalizeAddress = (addr: string) => {
       if (!addr || !addr.startsWith('0x')) return addr;
       return '0x' + addr.slice(2).replace(/^0+/, '') || '0x0';
     };
-    
+
     positions.forEach(position => {
       let cleanAddress = position.coin;
       if (cleanAddress.startsWith('@')) {
@@ -227,7 +226,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
       if (!cleanAddress.startsWith('0x')) {
         cleanAddress = `0x${cleanAddress}`;
       }
-      
+
       // Add only normalized address (like Wallet does)
       addresses.add(normalizeAddress(cleanAddress));
     });
@@ -274,11 +273,11 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
 
         if (missingPrices.length > 0) {
           console.log('[EchelonPositionsList] Missing prices for tokens, trying Echelon API:', missingPrices);
-          
+
           // Try to get prices from Echelon API for missing tokens
           const service = TokenInfoService.getInstance();
           const fallbackPrices: Record<string, string> = {};
-          
+
           await Promise.all(
             missingPrices.map(async (addr) => {
               try {
@@ -348,23 +347,23 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
     const timeoutId = setTimeout(async () => {
       setLoading(true);
       setError(null);
-      
+
       try {
         // Загружаем позиции
         const positionsResponse = await fetch(`/api/protocols/echelon/userPositions?address=${walletAddress}`);
-        
+
         if (!positionsResponse.ok) {
           throw new Error(`Positions API returned status ${positionsResponse.status}`);
         }
-        
+
         const positionsData = await positionsResponse.json();
-        
+
         if (positionsData.success && Array.isArray(positionsData.data)) {
           setPositions(positionsData.data);
         } else {
           setPositions([]);
         }
-        
+
         // Загружаем награды
         await fetchRewards();
       } catch (err) {
@@ -383,42 +382,42 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
   useEffect(() => {
     const loadUnknownTokens = async () => {
       if (positions.length === 0) return;
-      
+
       const normalizeAddress = (addr: string) => {
         if (!addr || !addr.startsWith('0x')) return addr;
         return '0x' + addr.slice(2).replace(/^0+/, '') || '0x0';
       };
-      
+
       // Find tokens not in tokenList
       const unknownTokens: string[] = [];
       positions.forEach(position => {
         const normalizedAddr = normalizeAddress(position.coin);
-        
+
         // Skip if already in fallback cache
         if (fallbackTokenInfo[normalizedAddr] || fallbackTokenInfo[position.coin]) {
           return;
         }
-        
+
         // Check if in tokenList
         const inTokenList = tokenList.data.data.find((t) => {
           const normalizedFaAddress = normalizeAddress(t.faAddress || '');
           const normalizedTokenAddress = normalizeAddress(t.tokenAddress || '');
           return normalizedFaAddress === normalizedAddr || normalizedTokenAddress === normalizedAddr;
         });
-        
+
         if (!inTokenList) {
           unknownTokens.push(position.coin);
         }
       });
-      
+
       if (unknownTokens.length === 0) return;
-      
+
       console.log('[EchelonPositionsList] Loading info for unknown tokens:', unknownTokens);
-      
+
       // Load token info from protocol APIs
       const service = TokenInfoService.getInstance();
       const newTokenInfo: Record<string, TokenInfo> = {};
-      
+
       await Promise.all(
         unknownTokens.map(async (tokenAddr) => {
           try {
@@ -441,7 +440,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
           }
         })
       );
-      
+
       if (Object.keys(newTokenInfo).length > 0) {
         setFallbackTokenInfo(prev => ({
           ...prev,
@@ -449,7 +448,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
         }));
       }
     };
-    
+
     loadUnknownTokens();
   }, [positions]);
 
@@ -466,7 +465,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
         return apy * 100;
       }
     }
-    
+
     // Fallback на старые данные
     return position.supplyApr || 0;
   };
@@ -485,7 +484,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
       }
       return sum + value;
     }, 0);
-    
+
     return positionsValue + calculateRewardsValue();
   }, [positions, tokenPrices, calculateRewardsValue]);
 
@@ -530,7 +529,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
 
   return (
     <Card className="w-full">
-      <CardHeader 
+      <CardHeader
         className="py-2 cursor-pointer hover:bg-accent/50 transition-colors"
         onClick={() => toggleSection('echelon')}
       >
@@ -538,8 +537,8 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
           <div className="flex items-center gap-2">
             {protocol && (
               <div className="w-5 h-5 relative">
-                <Image 
-                  src={protocol.logoUrl} 
+                <Image
+                  src={protocol.logoUrl}
                   alt={protocol.name}
                   width={20}
                   height={20}
@@ -558,7 +557,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
           </div>
         </div>
       </CardHeader>
-      
+
       {isExpanded('echelon') && (
         <CardContent className="flex-1 overflow-y-auto px-3 pt-0">
           <ScrollArea className="h-full">
@@ -571,13 +570,13 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
               const value = price ? formatNumber(amount * parseFloat(price), 2) : 'N/A';
               const apy = getApyForPosition(position);
               return (
-                <div key={`${position.coin}-${index}`} className={cn('mb-2', isBorrow && 'bg-error-muted rounded')}> 
+                <div key={`${position.coin}-${index}`} className={cn('mb-2', isBorrow && 'bg-error-muted rounded')}>
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
                       {tokenInfo?.logoUrl && (
                         <div className="w-6 h-6 relative">
-                          <Image 
-                            src={tokenInfo.logoUrl} 
+                          <Image
+                            src={tokenInfo.logoUrl}
                             alt={tokenInfo.symbol}
                             width={24}
                             height={24}
@@ -588,12 +587,9 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium">{tokenInfo?.symbol || position.coin.substring(0, 4).toUpperCase()}</span>
-                          <span className={cn(
-                            'text-xs font-semibold px-2 py-0.5 rounded',
-                            isBorrow ? 'bg-error-muted text-error border border-error/20' : 'bg-success-muted text-success border border-success/20')
-                          }>
+                          <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-xs font-normal px-2 py-0.5 h-5">
                             {isBorrow ? 'Borrow' : 'Supply'}
-                          </span>
+                          </Badge>
                         </div>
                         <div className="text-xs text-muted-foreground">
                           ${price ? formatNumber(parseFloat(price), 2) : 'N/A'}
@@ -603,13 +599,13 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
                     <div className="text-right">
                       <div className="text-sm font-medium">${value}</div>
                       <div className="text-xs text-muted-foreground">{formatNumber(amount, 4)}</div>
-                      
+
                     </div>
                   </div>
                 </div>
               );
             })}
-            
+
             {/* Total Rewards */}
             {calculateRewardsValue() > 0 && (
               <TooltipProvider>
@@ -644,7 +640,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
                 </Tooltip>
               </TooltipProvider>
             )}
-            
+
             {/* Кнопка управления позициями, как у других протоколов */}
             {protocol && showManageButton && (
               <ManagePositionsButton protocol={protocol} />
@@ -654,4 +650,4 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
       )}
     </Card>
   );
-} 
+}

@@ -22,7 +22,7 @@ export function ClaimRewardsBlock({ summary, onClaim, loading = false }: ClaimRe
     .filter(p => p.count > 0).length;
 
   return (
-    <Card className="mb-6 bg-success-muted border-success/20 hover:shadow-md transition-shadow">
+    <Card className="mb-6 border-success/20 hover:shadow-md transition-shadow">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -33,12 +33,12 @@ export function ClaimRewardsBlock({ summary, onClaim, loading = false }: ClaimRe
               <h3 className="text-lg font-semibold text-success">
                 Claim Rewards
               </h3>
-              <p className="text-sm text-success/80">
+              <p className="text-sm text-success dark:text-success/80">
                 ${summary.totalValue.toFixed(2)} available for direct claim in {protocolCount} protocol{protocolCount !== 1 ? 's' : ''}
               </p>
             </div>
           </div>
-          <Button 
+          <Button
             onClick={onClaim}
             disabled={loading}
             className="bg-success text-success-foreground hover:bg-success/90"
@@ -49,4 +49,4 @@ export function ClaimRewardsBlock({ summary, onClaim, loading = false }: ClaimRe
       </CardContent>
     </Card>
   );
-} 
+}

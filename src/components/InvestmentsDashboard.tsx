@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SegmentedControl, Box } from "@radix-ui/themes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -15,20 +15,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { InvestmentData, InvestmentAction } from '@/types/investments';
-import { Skeleton } from "@/components/ui/skeleton";
-import { ConfirmModal } from "@/components/ui/confirm-modal";
+import { InvestmentData } from '@/types/investments';
 import tokenList from "@/lib/data/tokenList.json";
 import { Input } from "@/components/ui/input";
-import { Search, Funnel, X, Gift } from "lucide-react";
-import { ExternalLink } from "lucide-react";
+import { Search, Funnel, X } from "lucide-react";
+import { ExternalLink, Gift } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DepositButton } from "@/components/ui/deposit-button";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import Image from "next/image";
 import { ManagePositions } from "./protocols/manage-positions/ManagePositions";
 import { Protocol } from "@/lib/protocols/getProtocolsList";
-import { ManagePositionsButton } from "@/components/protocols/ManagePositionsButton";
 import { useProtocol } from "@/lib/contexts/ProtocolContext";
 import { useDragDrop } from "@/contexts/DragDropContext";
 import { DragData } from "@/types/dragDrop";
@@ -38,8 +35,16 @@ import { useMobileManagement } from "@/contexts/MobileManagementContext";
 import { useWalletStore } from "@/lib/stores/walletStore";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { ClaimRewardsBlock } from "@/components/ui/claim-rewards-block";
-import { AirdropInfoTooltip } from "@/components/ui/airdrop-info-tooltip";
 import { ClaimAllRewardsModal } from "@/components/ui/claim-all-rewards-modal";
+import { AirdropInfoTooltip } from "@/components/ui/airdrop-info-tooltip";
+import { Settings } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { InvestmentsDashboardLoading } from "./InvestmentsDashboardLoading";
 
 // Список адресов токенов Echelon, которые нужно исключить из отображения
 const EXCLUDED_ECHELON_TOKENS = [
@@ -70,36 +75,55 @@ interface Token {
 }
 
 export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
-  const [data, setData] = useState<InvestmentData[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showOnlyStablePools, setShowOnlyStablePools] = useState(true);
   const [activeTab, setActiveTab] = useState<"lite" | "pro">("lite");
   const { selectedProtocol, setSelectedProtocol } = useProtocol();
-  
+
   // New states for progressive loading
-  const [protocolsLoading, setProtocolsLoading] = useState<Record<string, boolean>>({});
+  // Initialize loading states immediately to show tabs and skeletons right away
+  const [protocolsLoading, setProtocolsLoading] = useState<Record<string, boolean>>({
+    'Joule': true,
+    'Hyperion': true,
+    'Tapp Exchange': true,
+    'Auro Finance': true,
+    'Amnis Finance': true,
+    'Kofi Finance': true,
+    'Echelon': true,
+    'Aave': true,
+    'Moar Market': true
+  });
   const [protocolsError, setProtocolsError] = useState<Record<string, string | null>>({});
   const [protocolsData, setProtocolsData] = useState<Record<string, InvestmentData[]>>({});
-  const [protocolsLogos, setProtocolsLogos] = useState<Record<string, string>>({});
-  const [isClient, setIsClient] = useState(false);
+  const [protocolsLogos, setProtocolsLogos] = useState<Record<string, string>>({
+    'Joule': '/protocol_ico/joule.png',
+    'Hyperion': '/protocol_ico/hyperion.png',
+    'Tapp Exchange': '/protocol_ico/tappexchange.png',
+    'Auro Finance': '/protocol_ico/auro.png',
+    'Amnis Finance': '/protocol_ico/amnis.png',
+    'Kofi Finance': '/protocol_ico/kofi.png',
+    'Echelon': '/protocol_ico/echelon.png',
+    'Aave': '/protocol_ico/aave.ico',
+    'Moar Market': '/protocol_ico/moar-market-logo-primary.png'
+  });
   const [claimModalOpen, setClaimModalOpen] = useState(false);
   const [summary, setSummary] = useState<any>(null);
 
   const [showSearchOptions, setShowSearchOptions] = useState(false);
   const [searchByProtocols, setSearchByProtocols] = useState(false);
   const [selectedFilterProtocols, setSelectedFilterProtocols] = useState<string[]>([]);
-  
+
+  // Column visibility settings for Pro tab
+  const [showBorrowColumn, setShowBorrowColumn] = useState(false);
+  const [showTypeColumn, setShowTypeColumn] = useState(false);
+  const [showTvlColumn, setShowTvlColumn] = useState(true);
+
   const { state, handleDrop, validateDrop } = useDragDrop();
   const { getClaimableRewardsSummary, fetchRewards, fetchPositions, rewardsLoading, rewards } = useWalletStore();
   const { account } = useWallet();
   const { setActiveTab: setMobileTab } = useMobileManagement();
-
-  // Ensure we're on client side
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
 
   // Load rewards and positions data when wallet is connected
   useEffect(() => {
@@ -122,28 +146,16 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 
   const getTokenInfo = (asset: string, tokenAddress?: string): Token | undefined => {
     if (tokenAddress) {
-      // Normalize addresses by removing leading zeros after 0x
-      const normalizeAddress = (addr: string) => {
-        if (!addr || !addr.startsWith('0x')) return addr;
-        return '0x' + addr.slice(2).replace(/^0+/, '') || '0x0';
-      };
-      
-      const normalizedTokenAddress = normalizeAddress(tokenAddress);
-      
-      return (tokenList.data.data as Token[]).find(token => {
-        const normalizedTokenListAddress = normalizeAddress(token.tokenAddress || '');
-        const normalizedFaAddress = normalizeAddress(token.faAddress || '');
-        
-        return normalizedTokenListAddress === normalizedTokenAddress || 
-               normalizedFaAddress === normalizedTokenAddress;
-      });
+      return (tokenList.data.data as Token[]).find(token =>
+        token.tokenAddress === tokenAddress || token.faAddress === tokenAddress
+      );
     }
     return undefined;
   };
 
   const getProvider = (item: InvestmentData): string => {
     if (item.provider !== 'Unknown') return item.provider;
-    
+
     const tokenInfo = getTokenInfo(item.asset, item.token);
     return tokenInfo?.bridge || 'Unknown';
   };
@@ -153,53 +165,44 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     if (item.token1Info && item.token2Info) {
       const symbol1 = item.token1Info.symbol.toLowerCase();
       const symbol2 = item.token2Info.symbol.toLowerCase();
-      
+
       // Проверяем стабильные токены
-      const stableTokens = ['usdt', 'usdc', 'dai', 'busd', 'tusd', 'gusd', 'frax', 'usd1', 'usda'];
+      const stableTokens = ['usdt', 'usdc', 'dai', 'busd', 'tusd', 'gusd', 'frax'];
       const isStable1 = stableTokens.some(token => symbol1.includes(token));
       const isStable2 = stableTokens.some(token => symbol2.includes(token));
-      
+
       // Если оба токена стабильные, это стабильная пара
       if (isStable1 && isStable2) {
         return true;
       }
-      
-      // Ищем совпадающие символы (минимум 3 символа подряд) для связанных токенов
-      // Например: kAPT/APT, thAPT/APT, TruAPT/APT
+
+      // Ищем совпадающие символы (минимум 3 символа подряд) для других случаев
       for (let i = 0; i <= symbol1.length - 3; i++) {
         const substring = symbol1.substring(i, i + 3);
         if (symbol2.includes(substring)) {
           return true;
         }
       }
-      
-      // Также проверяем в обратном направлении
-      for (let i = 0; i <= symbol2.length - 3; i++) {
-        const substring = symbol2.substring(i, i + 3);
-        if (symbol1.includes(substring)) {
-          return true;
-        }
-      }
     }
-    
+
     // Для лендинговых пулов (не DEX) считаем стабильными
     if (!item.token1Info && !item.token2Info) {
       return true;
     }
-    
+
     // Echelon пулы считаем стабильными (они все лендинговые)
     if (item.protocol === 'Echelon') {
       return true;
     }
-    
+
     // Kofi Finance стейкинг-пулы считаем стабильными
     if (item.protocol === 'Kofi Finance' && item.isStakingPool) {
       return true;
     }
-    
+
     return false;
   };
-  
+
   const handleProtocolSelect = (protocolName: string) => {
     setSelectedFilterProtocols(prev => {
       if (prev.includes(protocolName)) {
@@ -215,51 +218,35 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     setShowSearchOptions(false); // Закрываем окно опций
   };
 
-  // Функция для обработки ввода в поле поиска
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
-    //if (value) {
-      //setSelectedFilterProtocol('');
-	  //setSearchByProtocols(false);
-    //}
   };
-  
-  // Clear protocol filter
-  const clearSearchByProtocols = (value: boolean) => {
+
+  const clearSearchByProtocols = () => {
     setSelectedFilterProtocols([]);
 	setSearchByProtocols(false);
 	setShowSearchOptions(false);
-  }
+  };
 
-  // Start loading immediately when component mounts (only on client)
+  // Start loading immediately when component mounts
   useEffect(() => {
-    if (!isClient) return;
     if (typeof window === 'undefined') return; // Extra check for SSR
-    
+
     const fetchData = async () => {
       try {
         setLoading(true);
         setError(null);
-        
-        // Initialize loading states for all protocols
-        const initialLoadingState = {
-          'Hyperion': true,
-          'Tapp Exchange': true,
-          'Auro Finance': true,
-          'Amnis Finance': true,
-          'Kofi Finance': true,
-          'Echelon': true,
-          'Aave': true,
-          'Moar Market': true,
-          'Earnium': true,
-          'Thala': true
-        };
-        setProtocolsLoading(initialLoadingState);
         setProtocolsError({});
         setProtocolsData({});
 
         // Define protocol endpoints
         const protocolEndpoints = [
+          {
+            name: 'Joule',
+            url: '/api/protocols/primary-yield?protocol=Joule',
+			logoUrl: '/protocol_ico/joule.png',
+            transform: (data: any) => data.data || []
+          },
           {
             name: 'Hyperion',
             url: '/api/protocols/hyperion/pools',
@@ -270,15 +257,15 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   const dailyVolume = parseFloat(pool.dailyVolumeUSD || "0");
                   return dailyVolume > 1000;
                 });
-              
+
               return filtered.map((pool: any) => {
                 const feeAPR = parseFloat(pool.feeAPR || "0");
                 const farmAPR = parseFloat(pool.farmAPR || "0");
                 const totalAPY = feeAPR + farmAPR;
-                
+
                 const token1Info = pool.pool?.token1Info || pool.token1Info;
                 const token2Info = pool.pool?.token2Info || pool.token2Info;
-                
+
                 return {
                   asset: `${token1Info?.symbol || 'Unknown'}/${token2Info?.symbol || 'Unknown'}`,
                   provider: 'Hyperion',
@@ -305,24 +292,24 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   const dailyVolume = parseFloat(pool.volume_7d || "0") / 7;
                   return dailyVolume > 1000;
                 });
-              
+
               return filtered.map((pool: any) => {
                 const totalAPY = parseFloat(pool.apr || "0") * 100;
-                
+
                 const token1Info = {
                   symbol: pool.token_a || 'Unknown',
                   name: pool.token_a || 'Unknown',
                   logoUrl: pool.tokens?.[0]?.img || undefined,
                   decimals: 8
                 };
-                
+
                 const token2Info = {
                   symbol: pool.token_b || 'Unknown',
                   name: pool.token_b || 'Unknown',
                   logoUrl: pool.tokens?.[1]?.img || undefined,
                   decimals: 8
                 };
-                
+
                 const tokensInfo = Array.isArray(pool.tokens)
                   ? pool.tokens.slice(0, 3).map((t: any) => ({
                       symbol: t?.symbol || 'Unknown',
@@ -331,7 +318,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                       decimals: 8
                     }))
                   : undefined;
-                
+
                 const assetSymbols = Array.isArray(pool.tokens)
                   ? pool.tokens.slice(0, 3).map((t: any) => t?.symbol || 'Unknown').join('/')
                   : `${token1Info.symbol}/${token2Info.symbol}`;
@@ -361,26 +348,42 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
             url: '/api/protocols/auro/pools',
 			logoUrl: '/protocol_ico/auro.png',
             transform: (data: any) => {
-              const collateralPools = (data.data || [])
+              const allPools = data.data || [];
+
+              // Собираем BORROW-пулы в мапу по адресу пула
+              const borrowByAddress = new Map<string, number>();
+              allPools
+                .filter((pool: any) => pool.type === 'BORROW')
+                .forEach((pool: any) => {
+                  const addr = pool.poolAddress;
+                  const borrowApr = parseFloat(pool.totalBorrowApr || pool.borrowApr || 0);
+                  if (addr && !isNaN(borrowApr)) {
+                    borrowByAddress.set(addr, borrowApr);
+                  }
+                });
+
+              const collateralPools = allPools
                 .filter((pool: any) => pool.type === 'COLLATERAL')
                 .filter((pool: any) => {
                   const tvl = parseFloat(pool.tvl || "0");
                   const totalAPY = (pool.totalSupplyApr || 0);
                   return tvl > 1000 && totalAPY > 0;
                 });
-              
+
               return collateralPools.map((pool: any) => {
                 const supplyApr = parseFloat(pool.supplyApr || "0");
                 const supplyIncentiveApr = parseFloat(pool.supplyIncentiveApr || "0");
                 const stakingApr = parseFloat(pool.stakingApr || "0");
                 const totalAPY = supplyApr + supplyIncentiveApr + stakingApr;
-                
+                // Используем borrow по адресу пула, если нет - используем общий BORROW для всех пулов
+                const borrowAPR = borrowByAddress.get(pool.poolAddress) || borrowByAddress.get('BORROW') || 0;
+
                 return {
                   asset: pool.collateralTokenSymbol || 'Unknown',
                   provider: 'Auro Finance',
                   totalAPY: totalAPY,
                   depositApy: totalAPY,
-                  borrowAPY: 0,
+                  borrowAPY: borrowAPR,
                   token: pool.collateralTokenAddress || pool.poolAddress,
                   protocol: 'Auro Finance',
                   tvlUSD: parseFloat(pool.tvl || "0"),
@@ -396,7 +399,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 			logoUrl: '/protocol_ico/amnis.png',
             transform: (data: any) => {
               const pools = data.pools || [];
-              
+
               return pools.map((pool: any) => {
                 return {
                   asset: pool.asset || 'Unknown',
@@ -422,7 +425,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 			logoUrl: '/protocol_ico/kofi.png',
             transform: (data: any) => {
               const pools = data.data || [];
-              
+
               return pools.map((pool: any) => {
                 return {
                   asset: pool.asset || 'Unknown',
@@ -458,7 +461,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 			logoUrl: '/protocol_ico/echelon.png',
             transform: (data: any) => {
               const pools = data.data || [];
-              
+
               return pools.map((pool: any) => {
                 return {
                   asset: pool.asset || 'Unknown',
@@ -496,7 +499,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 			logoUrl: '/protocol_ico/aave.ico',
             transform: (data: any) => {
               const pools = data.data || [];
-              
+
               return pools.map((pool: any) => {
                 return {
                   asset: pool.asset || 'Unknown',
@@ -524,19 +527,14 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
             url: '/api/protocols/moar/pools',
 			logoUrl: '/protocol_ico/moar-market-logo-primary.png',
             transform: (data: any) => {
-              console.log('🔍 Moar Market transform called with data:', data);
               const pools = data.data || [];
-              console.log('📊 Moar Market pools count:', pools.length);
-              
+
               return pools.map((pool: any) => {
-                // API returns percentages, use as is for display
                 const totalAPY = pool.totalAPY || 0;
                 const depositApy = pool.depositApy || 0;
                 const interestRateComponent = pool.interestRateComponent || 0;
                 const farmingAPY = pool.farmingAPY || 0;
-                
-                console.log('📈 Moar Market pool:', pool.asset, 'APR:', totalAPY);
-                
+
                 return {
                   asset: pool.asset || 'Unknown',
                   provider: pool.provider || 'Moar Market',
@@ -559,167 +557,12 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                 };
               });
             }
-          },
-          {
-            name: 'Earnium',
-            url: '/api/protocols/earnium/pools',
-			logoUrl: '/protocol_ico/earnium.png',
-            transform: (data: any) => {
-              const pools = data.data || [];
-              
-              return pools.map((pool: any) => {
-                
-                // Helper function to find token by address in tokenList.json
-                const findTokenByAddress = (address: string) => {
-                  if (!address) return null;
-                  const tokens = require('@/lib/data/tokenList.json').data?.data || [];
-                  const found = tokens.find((t: any) => {
-                    const fa = t.faAddress ? t.faAddress.toLowerCase() : null;
-                    const coin = t.tokenAddress ? t.tokenAddress.toLowerCase() : null;
-                    const addr = address.toLowerCase();
-                    return fa === addr || coin === addr;
-                  });
-                  return found;
-                };
-
-                // Create token info objects for DEX display
-                // Try to find token by address first, then fallback to Earnium data
-                const token0FromList = pool.token0?.address ? findTokenByAddress(pool.token0.address) : null;
-                const token1FromList = pool.token1?.address ? findTokenByAddress(pool.token1.address) : null;
-                
-                const token1Info = {
-                  symbol: pool.token0?.symbol || 'Unknown',
-                  name: pool.token0?.name || 'Unknown',
-                  logoUrl: token0FromList?.logoUrl || pool.token0?.icon_uri || undefined,
-                  decimals: pool.token0?.decimals || 8
-                };
-                
-                const token2Info = {
-                  symbol: pool.token1?.symbol || 'Unknown',
-                  name: pool.token1?.name || 'Unknown',
-                  logoUrl: token1FromList?.logoUrl || pool.token1?.icon_uri || undefined,
-                  decimals: pool.token1?.decimals || 8
-                };
-                
-                return {
-                  asset: pool.asset || 'Unknown',
-                  provider: 'Earnium',
-                  totalAPY: pool.totalAPY || 0,
-                  depositApy: pool.depositApy || 0,
-                  borrowAPY: 0, // DEX pools don't have borrowing
-                  token: pool.token || '',
-                  protocol: 'Earnium',
-                  poolType: pool.poolType || 'DEX', // 'Stable' or 'Volatile'
-                  tvlUSD: pool.tvlUSD || 0,
-                  dailyVolumeUSD: pool.dailyVolumeUSD || 0,
-                  // DEX-specific fields for logo display
-                  token1Info: token1Info,
-                  token2Info: token2Info,
-                  feeTier: pool.feeTier,
-                  // APR breakdown for tooltip
-                  aprBreakdown: pool.aprBreakdown,
-                  // Additional Earnium-specific data
-                  poolId: pool.poolId,
-                  symbol: pool.symbol,
-                  bestSubPool: pool.bestSubPool,
-                  subPools: pool.subPools
-                };
-              });
-            }
-          },
-          {
-            name: 'Thala',
-            url: '/api/protocols/thala/pools',
-            logoUrl: 'https://app.thala.fi/favicon.ico',
-            transform: (data: any) => {
-              // Filter by volume1d > 1000 (same as other DEX protocols)
-              const filtered = (data.data || [])
-                .filter((pool: any) => {
-                  const dailyVolume = parseFloat(pool.volume1d || "0");
-                  return dailyVolume > 1000;
-                });
-              
-              return filtered.map((pool: any) => {
-                // Convert APR from decimal to percentage (0.05 -> 5)
-                const totalAPY = parseFloat(pool.apr || "0") * 100;
-                
-                // Helper to find token info from tokenList by address
-                const findTokenByAddress = (address: string) => {
-                  if (!address) return null;
-                  const tokens = require('@/lib/data/tokenList.json').data?.data || [];
-                  const found = tokens.find((t: any) => {
-                    const fa = t.faAddress ? t.faAddress.toLowerCase() : null;
-                    const coin = t.tokenAddress ? t.tokenAddress.toLowerCase() : null;
-                    const addr = address.toLowerCase();
-                    return fa === addr || coin === addr;
-                  });
-                  return found;
-                };
-                
-                // Get token addresses from coinAddresses array
-                const coinAddresses = pool.coinAddresses || [];
-                const tokenAAddress = coinAddresses[0] || '';
-                const tokenBAddress = coinAddresses[1] || '';
-                
-                // Find tokens in tokenList for logo URLs
-                const tokenAFromList = tokenAAddress ? findTokenByAddress(tokenAAddress) : null;
-                const tokenBFromList = tokenBAddress ? findTokenByAddress(tokenBAddress) : null;
-                
-                // Create token1Info and token2Info objects
-                const token1Info = {
-                  symbol: pool.token_a || 'Unknown',
-                  name: pool.token_a || 'Unknown',
-                  logoUrl: tokenAFromList?.logoUrl || undefined,
-                  decimals: tokenAFromList?.decimals || 8
-                };
-                
-                const token2Info = {
-                  symbol: pool.token_b || 'Unknown',
-                  name: pool.token_b || 'Unknown',
-                  logoUrl: tokenBFromList?.logoUrl || undefined,
-                  decimals: tokenBFromList?.decimals || 8
-                };
-                
-                // Build asset name from token symbols
-                const assetSymbols = `${pool.token_a || 'Unknown'}/${pool.token_b || 'Unknown'}`;
-                
-                return {
-                  asset: assetSymbols,
-                  provider: 'Thala',
-                  totalAPY: totalAPY,
-                  depositApy: totalAPY,
-                  borrowAPY: 0, // DEX pools don't have borrowing
-                  token: pool.pool_id || '',
-                  protocol: 'Thala',
-                  poolType: pool.poolType || 'DEX', // 'Stable' or 'Concentrated'
-                  tvlUSD: parseFloat(pool.tvl || "0"),
-                  dailyVolumeUSD: parseFloat(pool.volume1d || "0"),
-                  // DEX-specific fields for logo display
-                  token1Info: token1Info,
-                  token2Info: token2Info,
-                  swapFee: pool.swapFee || 0,
-                  // APR sources breakdown for tooltip
-                  aprSources: pool.aprSources || [],
-                  // Pool URL for external deposit link - lptAddress from API
-                  lptAddress: pool.lptAddress || pool.pool_id || ''
-                };
-              });
-            }
           }
         ];
-
-		const initialLogosState = protocolEndpoints.reduce((acc, endpoint) => {
-          acc[endpoint.name] = endpoint.logoUrl || '';
-          return acc;
-        }, {} as Record<string, string>);
-
-        setProtocolsLogos(initialLogosState);
 
         // Fetch all protocols in parallel
         const fetchPromises = protocolEndpoints.map(async (endpoint) => {
           try {
-            console.log(`🔍 Fetching data for ${endpoint.name} from ${endpoint.url}`);
-            
             const response = await fetch(endpoint.url, {
               headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -739,27 +582,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
               ...prev,
               [endpoint.name]: transformedData
             }));
-			
-			setProtocolsLogos(prev => ({
-             ...prev,
-             [endpoint.name]: endpoint.logoUrl
-            }));
-            
-            setProtocolsLoading(prev => ({
-              ...prev,
-              [endpoint.name]: false
-            }));
-            
-            return { name: endpoint.name, data: transformedData, success: true };
-          } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            console.error(`❌ Error fetching ${endpoint.name}:`, error);
-            
-            setProtocolsError(prev => ({
-              ...prev,
-              [endpoint.name]: errorMessage
-            }));
-			
+
 			setProtocolsLogos(prev => ({
              ...prev,
              [endpoint.name]: endpoint.logoUrl
@@ -769,14 +592,34 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
               ...prev,
               [endpoint.name]: false
             }));
-            
+
+            return { name: endpoint.name, data: transformedData, success: true };
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            console.error(`❌ Error fetching ${endpoint.name}:`, error);
+
+            setProtocolsError(prev => ({
+              ...prev,
+              [endpoint.name]: errorMessage
+            }));
+
+			setProtocolsLogos(prev => ({
+             ...prev,
+             [endpoint.name]: endpoint.logoUrl
+            }));
+
+            setProtocolsLoading(prev => ({
+              ...prev,
+              [endpoint.name]: false
+            }));
+
             return { name: endpoint.name, data: [], success: false, error };
           }
         });
-	
+
         // Wait for all promises to settle
         const results = await Promise.allSettled(fetchPromises);
-        
+
         // Combine all successful results
         const allPools: InvestmentData[] = [];
         results.forEach((result) => {
@@ -784,11 +627,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
             allPools.push(...result.value.data);
           }
         });
-        
-        setData(allPools);
+
         setLoading(false);
-        
-        
       } catch (error) {
         setError('Failed to load investment opportunities');
         setLoading(false);
@@ -796,7 +636,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     };
 
     fetchData();
-  }, [isClient]);
+  }, []);
 
   const handleDragOver = (e: React.DragEvent, investment: InvestmentData) => {
     e.preventDefault();
@@ -809,7 +649,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 
   const handleDropEvent = (e: React.DragEvent, investment: InvestmentData) => {
     e.preventDefault();
-    
+
     try {
       const dragData = JSON.parse(e.dataTransfer.getData('application/json')) as DragData;
       handleDrop(dragData, investment);
@@ -846,101 +686,51 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 
   // Combine all loaded protocol data
   const allLoadedData = Object.values(protocolsData).flat();
-  
-  
-  const topInvestments = [...allLoadedData]
-    .sort((a, b) => b.totalAPY - a.totalAPY)
-    .slice(0, 3);
 
   const filteredData = allLoadedData.filter(item => {
-    
+
     // Фильтруем исключенные токены Echelon
     if (item.protocol === 'Echelon' && EXCLUDED_ECHELON_TOKENS.includes(item.token)) {
       return false;
     }
-    
+
     // Фильтруем по стабильным пулам, если включен чекбокс
-    if (showOnlyStablePools && !isStablePool(item)) {
+    if (showOnlyStablePools && !isStablePool(item) && item.protocol !== 'Tapp Exchange') {
       return false;
     }
-    
+
     const tokenInfo = getTokenInfo(item.asset, item.token);
     const displaySymbol = tokenInfo?.symbol || item.asset;
 	const displayProtocol = item.protocol;
-	
-	const result = (
-      // Если нет выбранных протоколов ИЛИ протокол элемента есть в выбранных
-      (selectedFilterProtocols.length === 0 || 
-       selectedFilterProtocols.some(protocol => 
+
+    return (
+      (selectedFilterProtocols.length === 0 ||
+       selectedFilterProtocols.some(protocol =>
          displayProtocol?.toLowerCase().includes(protocol.toLowerCase())
        )) &&
-      // Поиск по символу
       (!searchQuery || displaySymbol.toLowerCase().includes(searchQuery.toLowerCase()))
     );
-    
-    return result;
-	
-	/*
-	return (
-      (!selectedFilterProtocol || displayProtocol?.toLowerCase().includes(selectedFilterProtocol.toLowerCase())) &&
-      (!searchQuery || displaySymbol.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-	*/
-
-    //if (searchByProtocols) {
-	  //return displayProtocol?.toLowerCase().includes(selectedFilterProtocol.toLowerCase());
-    //}
-
-    //return displaySymbol.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   // Данные для текущей вкладки
-  const currentTabData = activeTab === "lite" 
+  const currentTabData = activeTab === "lite"
     ? allLoadedData.filter(item => {
         // Фильтруем исключенные токены Echelon
         if (item.protocol === 'Echelon' && EXCLUDED_ECHELON_TOKENS.includes(item.token)) {
           return false;
         }
-        
+
         // Показываем только протоколы с нативным депозитом в Lite вкладке
         const protocol = getProtocolByName(item.protocol);
         if (!protocol || protocol.depositType !== 'native') {
           return false;
         }
-        
+
         const tokenInfo = getTokenInfo(item.asset, item.token);
         const displaySymbol = tokenInfo?.symbol || item.asset;
         return displaySymbol.toLowerCase().includes(searchQuery.toLowerCase());
       })
     : filteredData; // В Pro вкладке используем все отфильтрованные данные
-
-  const handleManageClick = (protocol: Protocol) => {
-    setSelectedProtocol(protocol);
-  };
-
-  // Don't render anything until we're on client side
-  if (!isClient) {
-    return (
-      <div className={className}>
-        <div className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {[1, 2, 3].map((i) => (
-              <Card key={i}>
-                <CardHeader className="space-y-2">
-                  <Skeleton className="h-4 w-[250px]" />
-                  <Skeleton className="h-4 w-[100px]" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-8 w-[100px] mb-2" />
-                  <Skeleton className="h-10 w-full" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   if (error) {
     return (
@@ -952,95 +742,20 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 
   // Show loading indicators for protocols that are still loading
   const showLoadingIndicators = loading && Object.values(protocolsLoading).some(Boolean);
-  //const protocolNames = Object.keys(protocolsData);
-  const protocolNames = [...Object.keys(protocolsData)].sort((a, b) => a.localeCompare(b));
+  // Use protocolsLoading keys to show all protocols immediately, fallback to protocolsData if available
+  const protocolNames = [...new Set([...Object.keys(protocolsLoading), ...Object.keys(protocolsData)])].sort((a, b) => a.localeCompare(b));
 
   if (showLoadingIndicators) {
     return (
-      <div className={className}>
-        <div className="mb-4 pl-4">
-          <h2 className="text-2xl font-bold">Ideas</h2>
-        </div>
-        <Tabs defaultValue="lite" className="w-full" onValueChange={(value) => setActiveTab(value as "lite" | "pro")}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="lite">Lite</TabsTrigger>
-            <TabsTrigger value="pro">Pro</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="lite" className="mt-6">
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Stables</h3>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {[1, 2, 3].map((i) => (
-                    <Card key={i}>
-                      <CardHeader className="space-y-2">
-                        <Skeleton className="h-4 w-[250px]" />
-                        <Skeleton className="h-4 w-[100px]" />
-                      </CardHeader>
-                      <CardContent>
-                        <Skeleton className="h-8 w-[100px] mb-2" />
-                        <Skeleton className="h-10 w-full" />
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Protocol loading status */}
-              <div className="mt-6">
-                <h4 className="text-sm font-medium mb-3">Loading pools:</h4>
-                <div className="space-y-2">
-                  {Object.entries(protocolsLoading).map(([protocolName, isLoading]) => (
-                    <div key={protocolName} className="flex items-center gap-2 text-sm">
-                      {isLoading ? (
-                        <>
-                          <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse">
-						    <Avatar className="w-3 h-3">
-							  <img 
-								src={protocolsLogos[protocolName]} 
-								alt={protocolName} 
-								className="object-contain bg-white" 
-							  />
-							</Avatar>
-						  </div>
-                          <span>Loading {protocolName}...</span>
-                        </>
-                      ) : protocolsError[protocolName] ? (
-                        <>
-                          <div className="w-3 h-3 bg-red-500 rounded-full">
-						    <Avatar className="w-3 h-3">
-							  <img 
-								src={protocolsLogos[protocolName]} 
-								alt={protocolName} 
-								className="object-contain bg-white" 
-							  />
-							</Avatar>
-						  </div>
-                          <span className="text-red-500">{protocolName}: {protocolsError[protocolName]}</span>
-                        </>
-                      ) : (
-                        <>
-                          <div className="w-3 h-3 bg-green-500 rounded-full">
-						    <Avatar className="w-3 h-3">
-							  <img 
-								src={protocolsLogos[protocolName]} 
-								alt={protocolName} 
-								className="object-contain bg-white" 
-							  />
-							</Avatar>
-						  </div>
-                          <span className="text-green-600">{protocolName}: {protocolsData[protocolName]?.length || 0} pools loaded</span>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </div>
+      <InvestmentsDashboardLoading
+        className={className}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        protocolsLoading={protocolsLoading}
+        protocolsError={protocolsError}
+        protocolsData={protocolsData}
+        protocolsLogos={protocolsLogos}
+      />
     );
   }
 
@@ -1048,20 +763,20 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     <div className={className}>
       {selectedProtocol && (
         <CollapsibleProvider>
-          <ManagePositions 
-            protocol={selectedProtocol} 
+          <ManagePositions
+            protocol={selectedProtocol}
             onClose={() => {
               setSelectedProtocol(null);
               if (setMobileTab) {
                 setMobileTab('assets');
               }
-            }} 
+            }}
           />
         </CollapsibleProvider>
       )}
 
               {/* Claim Rewards Block */}
-        <ClaimRewardsBlock 
+        <ClaimRewardsBlock
           summary={summary}
           onClaim={() => setClaimModalOpen(true)}
           loading={rewardsLoading}
@@ -1087,13 +802,20 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
           )}
         </div>
       </div>
-      <Tabs defaultValue="lite" className="w-full" onValueChange={(value) => setActiveTab(value as "lite" | "pro")}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="lite">Lite</TabsTrigger>
-          <TabsTrigger value="pro">Pro</TabsTrigger>
-        </TabsList>
+      <Box pt="2" pb="6">
+        <SegmentedControl.Root
+          value={activeTab}
+          onValueChange={(value) => setActiveTab(value as "lite" | "pro")}
+          style={{ width: '100%' }}
+          radius="full"
+        >
+          <SegmentedControl.Item value="lite" style={{ flex: 1 }}>Lite</SegmentedControl.Item>
+          <SegmentedControl.Item value="pro" style={{ flex: 1 }}>Pro</SegmentedControl.Item>
+        </SegmentedControl.Root>
+      </Box>
 
-        <TabsContent value="lite" className="mt-6">
+      <Box pt="6">
+        {activeTab === "lite" && (
           <div className="space-y-6">
             <div>
               <h3 className="text-lg font-semibold mb-4">Stables</h3>
@@ -1109,7 +831,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                     if (!protocol || protocol.depositType !== 'native') {
                       return false;
                     }
-                    return item.asset.toUpperCase().includes('USDT') || 
+                    return item.asset.toUpperCase().includes('USDT') ||
                            item.asset.toUpperCase().includes('USDC') ||
                            item.asset.toUpperCase().includes('DAI') ||
                            item.asset.toUpperCase().includes('SUSD');
@@ -1126,7 +848,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                     const isDex = !!(item.token1Info && item.token2Info) || !!(item as any).tokensInfo?.length;
 
                     return (
-                      <Card 
+                      <Card
                         key={index}
                         className={cn("border-2", getDropZoneClassName(item))}
                         onDragOver={(e) => handleDragOver(e, item)}
@@ -1171,8 +893,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                       <>
                                         {logoUrl && (
                                           <div className="w-6 h-6 relative">
-                                            <Image 
-                                              src={logoUrl} 
+                                            <Image
+                                              src={logoUrl}
                                               alt={displaySymbol}
                                               width={24}
                                               height={24}
@@ -1203,8 +925,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                         )}
                                       </>
                                     ) : (
-                                      // Lending tooltip content (existing logic)
-									  //<p className="text-xs">Price: ${tokenInfo.usdPrice}</p>
                                       tokenInfo && (
                                         <>
                                           <p className="text-xs">Name: {tokenInfo.name}</p>
@@ -1217,7 +937,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
-                            <div className="flex items-center gap-2 ml-auto shrink-0">
+                            <div className="ml-auto shrink-0 flex items-center gap-2">
                               <Badge variant="outline">{item.protocol}</Badge>
                               {protocol?.airdropInfo && (
                                 <AirdropInfoTooltip airdropInfo={protocol.airdropInfo} size="sm">
@@ -1232,8 +952,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                         <CardContent>
                           <div className="text-2xl font-bold">{item.totalAPY?.toFixed(2) || "0.00"}%</div>
                           <p className="text-xs text-muted-foreground">Total APR</p>
-                          <DepositButton 
-                            protocol={protocol!} 
+                          <DepositButton
+                            protocol={protocol!}
                             className="mt-4 w-full"
                             tokenIn={{
                               symbol: isDex ? (item.token1Info?.symbol || 'Unknown') : displaySymbol,
@@ -1243,7 +963,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                             }}
                             balance={BigInt(1000000000)} // TODO: Get real balance
                             priceUSD={Number(tokenInfo?.usdPrice || 0)}
-                            poolAddress={item.originalPool?.poolAddress}
                           />
                         </CardContent>
                       </Card>
@@ -1261,14 +980,14 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   { symbol: 'ETH', exact: false }
                 ].map(({ symbol, exact }) => {
 
-                  const bestPool = data
+                  const bestPool = allLoadedData
                     .filter(item => {
                       // Показываем только протоколы с нативным депозитом в Lite вкладке
                       const protocol = getProtocolByName(item.protocol);
                       if (!protocol || protocol.depositType !== 'native') {
                         return false;
                       }
-                      return exact 
+                      return exact
                         ? item.asset.toUpperCase() === symbol
                         : item.asset.toUpperCase().includes(symbol);
                     })
@@ -1283,10 +1002,10 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 
                   // Check if this is a DEX pool with two tokens
                   const isDex = !!(bestPool.token1Info && bestPool.token2Info);
-				  
-				  
+
+
                   return (
-                    <Card 
+                    <Card
                       key={symbol}
                       className={cn("border-2", getDropZoneClassName(bestPool))}
                       onDragOver={(e) => handleDragOver(e, bestPool)}
@@ -1331,8 +1050,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                     <>
                                       {logoUrl && (
                                         <div className="w-6 h-6 relative">
-                                          <Image 
-                                            src={logoUrl} 
+                                          <Image
+                                            src={logoUrl}
                                             alt={displaySymbol}
                                             width={24}
                                             height={24}
@@ -1363,8 +1082,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                       )}
                                     </>
                                   ) : (
-                                    // Lending tooltip content (existing logic)
-									//<p className="text-xs">Price: ${tokenInfo.usdPrice}</p>
                                     tokenInfo && (
                                       <>
                                         <p className="text-xs">Name: {tokenInfo.name}</p>
@@ -1377,7 +1094,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
-                          <div className="flex items-center gap-2 ml-auto shrink-0">
+                          <div className="ml-auto shrink-0 flex items-center gap-2">
                             <Badge variant="outline">{bestPool.protocol}</Badge>
                             {protocol?.airdropInfo && (
                               <AirdropInfoTooltip airdropInfo={protocol.airdropInfo} size="sm">
@@ -1392,8 +1109,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                       <CardContent>
                         <div className="text-2xl font-bold">{bestPool.totalAPY?.toFixed(2) || "0.00"}%</div>
                         <p className="text-xs text-muted-foreground">Total APR</p>
-                        <DepositButton 
-                          protocol={protocol!} 
+                        <DepositButton
+                          protocol={protocol!}
                           className="mt-4 w-full"
                           tokenIn={{
                             symbol: isDex ? (bestPool.token1Info?.symbol || 'Unknown') : displaySymbol,
@@ -1403,7 +1120,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                           }}
                           balance={BigInt(1000000000)} // TODO: Get real balance
                           priceUSD={Number(tokenInfo?.usdPrice || 0)}
-                          poolAddress={bestPool.originalPool?.poolAddress}
                         />
                       </CardContent>
                     </Card>
@@ -1412,17 +1128,19 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
               </div>
             </div>
           </div>
-        </TabsContent>
-        <TabsContent value="pro" className="mt-6">
+        )}
+
+        {activeTab === "pro" && (
+          <>
           <div className="flex flex-wrap items-center gap-2 mb-4">
-		  
+
 		  <div className="relative flex-1 max-w-md" onBlur={(e) => {
 		    // Закрываем, если фокус ушёл за пределы контейнера
 		    if (!e.currentTarget.contains(e.relatedTarget as Node)) setShowSearchOptions(false);
 		  }}>
-		  
+
 		  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-		    
+
 		  <div className="flex gap-1 min-w-[200px] w-full sm:min-w-0 sm:w-auto flex-none">
 			<Input
 		      placeholder="Search tokens..."
@@ -1439,14 +1157,14 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 			    tabIndex={-1}
 			  >
 			    <div className="flex items-center space-x-2 relative">
-				 
+
 				  <div className="absolute -top-2 right-4 z-10">
 				    <TooltipProvider>
 				      <Tooltip>
-				        <TooltipTrigger asChild>   
+				        <TooltipTrigger asChild>
 					      <button
 					        key={"Clear Protocol"}
-					        onClick={() => clearSearchByProtocols(false)}
+					        onClick={() => clearSearchByProtocols()}
 						    className={`text-sm transition-colors cursor-pointer`}
 					      >
 						    Clear
@@ -1457,11 +1175,11 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 						  </TooltipContent>
 					    </Tooltip>
 					  </TooltipProvider>
-				  </div> 
+				  </div>
 				  <div className="absolute -top-2 -right-4 z-10">
 					  <TooltipProvider>
 				        <Tooltip>
-				          <TooltipTrigger asChild> 
+				          <TooltipTrigger asChild>
 							<Button
 						      variant="ghost"
 						      size="sm"
@@ -1471,7 +1189,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 						      <X className={cn(
 							   "h-3 w-3"
 						      )} />
-						    </Button>				      
+						    </Button>
 						  </TooltipTrigger>
 						  <TooltipContent>
 						    <p>Close filter by protocol</p>
@@ -1521,8 +1239,43 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                 Show only stable pools
               </label>
             </div>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 flex-none"
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                  Columns
+                </div>
+                <DropdownMenuCheckboxItem
+                  checked={showTvlColumn}
+                  onCheckedChange={(checked) => setShowTvlColumn(!!checked)}
+                >
+                  TVL
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={showBorrowColumn}
+                  onCheckedChange={(checked) => setShowBorrowColumn(!!checked)}
+                >
+                  Borrow APR
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={showTypeColumn}
+                  onCheckedChange={(checked) => setShowTypeColumn(!!checked)}
+                >
+                  Type
+                </DropdownMenuCheckboxItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-          
+
           <TooltipProvider>
             <Table>
               <TableHeader>
@@ -1543,7 +1296,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 						      <Funnel className={cn(
 							   "h-3 w-3"
 						      )} />
-						    </Button>				      
+						    </Button>
 						  </TooltipTrigger>
 						  <TooltipContent>
 						    <p>Filter by protocol</p>
@@ -1563,7 +1316,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 						      <Funnel className={cn(
 							   "h-3 w-3"
 						      )} />
-						    </Button>				      
+						    </Button>
 						  </TooltipTrigger>
 						  <TooltipContent>
 						    <p>Filter by protocol</p>
@@ -1574,17 +1327,20 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 				</TableHead>
                   <TableHead>
                     <Tooltip>
-                      <TooltipTrigger>Supply APR</TooltipTrigger>
+                      <TooltipTrigger>Supply</TooltipTrigger>
                       <TooltipContent>APR - Annual % yield from supply</TooltipContent>
                     </Tooltip>
                   </TableHead>
-                  <TableHead>
-                    <Tooltip>
-                      <TooltipTrigger>Borrow APR</TooltipTrigger>
-                      <TooltipContent>APR - Annual % cost or reward from borrowing</TooltipContent>
-                    </Tooltip>
-                  </TableHead>
-                  <TableHead>Type</TableHead>
+                  {showBorrowColumn && (
+                    <TableHead>
+                      <Tooltip>
+                        <TooltipTrigger>Borrow</TooltipTrigger>
+                        <TooltipContent>APR - Annual % cost or reward from borrowing</TooltipContent>
+                      </Tooltip>
+                    </TableHead>
+                  )}
+                  {showTvlColumn && <TableHead>TVL</TableHead>}
+                  {showTypeColumn && <TableHead>Type</TableHead>}
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1595,13 +1351,14 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                     const hasTokenInfo = !!tokenInfo;
                     const hasAssetColon = item.asset.includes('::');
                     const hasDexTokens = !!(item.token1Info && item.token2Info) || !!(item as any).tokensInfo?.length;
-                    
-                    
+
+
                     // Включаем все пулы: с tokenInfo, с :: в asset, DEX-пулы с token1Info/token2Info, Echelon пулы, или Moar Market пулы
                     return hasAssetColon || hasTokenInfo || hasDexTokens || item.protocol === 'Echelon' || item.protocol === 'Moar Market';
                   })
                   .sort((a, b) => b.totalAPY - a.totalAPY)
                   .map((item, index) => {
+
                     const tokenInfo = getTokenInfo(item.asset, item.token);
                     const displaySymbol = tokenInfo?.symbol || item.asset;
                     const logoUrl = tokenInfo?.logoUrl;
@@ -1610,9 +1367,9 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                     // Check if this is a DEX pool with two or more tokens
                     const isDex = !!(item.token1Info && item.token2Info) || !!(item as any).tokensInfo?.length;
 
-                    
+
                     return (
-                      <TableRow 
+                      <TableRow
                         key={index}
                         className={cn("transition-colors", getDropZoneClassName(item))}
                         onDragOver={(e) => handleDragOver(e, item)}
@@ -1663,8 +1420,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                       </Avatar>
                                       <div className="flex flex-col">
                                         <span>{displaySymbol}</span>
-                                        {/* Provider под токеном на мобильных */}
-                                        {/* <span className="text-xs text-muted-foreground block md:hidden">{getProvider(item)}</span> */}
                                       </div>
                                     </>
                                   )}
@@ -1689,20 +1444,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                       {item.tvlUSD && (
                                         <p className="text-xs">TVL: ${item.tvlUSD.toLocaleString()}</p>
                                       )}
-                                      {item.aprBreakdown?.rewardTokens && item.aprBreakdown.rewardTokens.length > 0 && (
-                                        <div className="mt-2">
-                                          <p className="text-xs font-semibold">Reward Tokens:</p>
-                                          {item.aprBreakdown.rewardTokens.slice(0, 3).map((reward: any, idx: number) => (
-                                            <p key={idx} className="text-xs">
-                                              {reward.tokenAddress?.slice(0, 6)}...{reward.tokenAddress?.slice(-4)}: {reward.apr.toFixed(2)}%
-                                            </p>
-                                          ))}
-                                        </div>
-                                      )}
                                     </>
                                   ) : (
-                                    // Lending tooltip content (existing logic)
-									//<p className="text-xs">Price: ${tokenInfo.usdPrice}</p>
                                     tokenInfo && (
                                       <>
                                         <p className="text-xs">Name: {tokenInfo.name}</p>
@@ -1739,7 +1482,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                     {item.depositApy.toFixed(2)}%
                                   </span>
                                 </TooltipTrigger>
-                                <TooltipContent className="bg-popover text-popover-foreground border-border max-w-xs">
+                                <TooltipContent className="bg-black text-white border-gray-700 max-w-xs">
                                   <div className="text-xs font-semibold mb-1">Supply APR Breakdown:</div>
                                   <div className="space-y-1">
                                     {(typeof item.lendingApr === 'number' && item.lendingApr > 0) && (
@@ -1773,44 +1516,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                         <span className="text-yellow-400">{item.farmingAPY.toFixed(2)}%</span>
                                       </div>
                                     )}
-                                    {/* Earnium DEX specific breakdown */}
-                                    {item.aprBreakdown && item.aprBreakdown.breakdown && (
-                                      <>
-                                        {(typeof item.aprBreakdown.breakdown.tradingFees === 'number' && item.aprBreakdown.breakdown.tradingFees > 0) && (
-                                          <div className="flex justify-between">
-                                            <span>Trading Fees:</span>
-                                            <span className="text-green-400">{item.aprBreakdown.breakdown.tradingFees.toFixed(2)}%</span>
-                                          </div>
-                                        )}
-                                        {(typeof item.aprBreakdown.breakdown.rewards === 'number' && item.aprBreakdown.breakdown.rewards > 0) && (
-                                          <div className="flex justify-between">
-                                            <span>Rewards:</span>
-                                            <span className="text-yellow-400">{item.aprBreakdown.breakdown.rewards.toFixed(2)}%</span>
-                                          </div>
-                                        )}
-                                        {(typeof item.aprBreakdown.breakdown.subPoolRewards === 'number' && item.aprBreakdown.breakdown.subPoolRewards > 0) && (
-                                          <div className="flex justify-between">
-                                            <span>SubPool Rewards:</span>
-                                            <span className="text-blue-400">{item.aprBreakdown.breakdown.subPoolRewards.toFixed(2)}%</span>
-                                          </div>
-                                        )}
-                                      </>
-                                    )}
-                                    {/* Thala DEX specific breakdown */}
-                                    {item.protocol === 'Thala' && item.aprSources && Array.isArray(item.aprSources) && item.aprSources.length > 0 && (
-                                      <>
-                                        {item.aprSources.map((source: any, idx: number) => {
-                                          const aprPercent = (source.apr || 0) * 100;
-                                          if (aprPercent <= 0) return null;
-                                          return (
-                                            <div key={idx} className="flex justify-between">
-                                              <span>{source.source || 'Reward'}:</span>
-                                              <span className="text-yellow-400">{aprPercent.toFixed(2)}%</span>
-                                            </div>
-                                          );
-                                        })}
-                                      </>
-                                    )}
                                     <div className="border-t border-gray-600 pt-1 mt-1">
                                       <div className="flex justify-between font-semibold">
                                         <span>Total:</span>
@@ -1823,38 +1528,43 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                             </TooltipProvider>
                           ) : "-"}
                         </TableCell>
-                        <TableCell>{item.borrowAPY ? `${item.borrowAPY.toFixed(2)}%` : "-"}</TableCell>
-                        <TableCell>
-                          {isDex ? (
-                            <Badge variant="secondary" className="text-xs">
-                              {item.poolType || 'DEX'}
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-xs">
-                              Lending
-                            </Badge>
-                          )}
-                        </TableCell>
+                        {showBorrowColumn && (
+                          <TableCell>
+                            {item.borrowAPY ? `${item.borrowAPY.toFixed(2)}%` : "-"}
+                          </TableCell>
+                        )}
+                        {showTvlColumn && (
+                          <TableCell>
+                            {typeof item.tvlUSD === "number" && item.tvlUSD > 0
+                              ? `$${Math.round(item.tvlUSD).toLocaleString()}`
+                              : "-"}
+                          </TableCell>
+                        )}
+                        {showTypeColumn && (
+                          <TableCell>
+                            {isDex ? (
+                              <Badge variant="secondary" className="text-xs">
+                                {item.poolType || 'DEX'}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-xs">
+                                Lending
+                              </Badge>
+                            )}
+                          </TableCell>
+                        )}
                         <TableCell className="text-right">
                           <div>
                             {protocol ? (
                               isDex ? (
                                 // Для DEX-пулов - прямая ссылка на пул
-                                <Button 
+                                <Button
                                   variant="secondary"
                                   onClick={() => {
                                     if (item.protocol === 'Hyperion') {
                                       window.open(`https://hyperion.xyz/pool/${item.token}`, '_blank');
                                     } else if (item.protocol === 'Tapp Exchange') {
                                       window.open(`https://tapp.exchange/pool`, '_blank');
-                                    } else if (item.protocol === 'Earnium') {
-                                      // Используем адрес пула из API для формирования ссылки
-                                      const poolAddress = item.token || item.poolId;
-                                      window.open(`https://app.earnium.io/explore/pool/${poolAddress}`, '_blank');
-                                    } else if (item.protocol === 'Thala') {
-                                      // Используем lptAddress для формирования ссылки на пул
-                                      const lptAddress = item.lptAddress || item.token;
-                                      window.open(`https://app.thala.fi/pools/${lptAddress}`, '_blank');
                                     }
                                   }}
                                   className="w-full"
@@ -1864,8 +1574,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                 </Button>
                               ) : (
                                 // Для лендинговых пулов - обычная кнопка Deposit
-                                <DepositButton 
-                                  protocol={protocol} 
+                                <DepositButton
+                                  protocol={protocol}
                                   className="w-full"
                                   tokenIn={{
                                     symbol: displaySymbol,
@@ -1875,7 +1585,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                   }}
                                   balance={BigInt(1000000000)} // TODO: Get real balance
                                   priceUSD={Number(tokenInfo?.usdPrice || 0)}
-        poolAddress={item.originalPool?.poolAddress}
                                 />
                               )
                             ) : (
@@ -1891,8 +1600,9 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
               </TableBody>
             </Table>
           </TooltipProvider>
-        </TabsContent>
-      </Tabs>
+          </>
+        )}
+      </Box>
 
       {/* Claim All Rewards Modal */}
       {summary && (
@@ -1905,4 +1615,4 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
       )}
     </div>
   );
-} 
+}

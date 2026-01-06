@@ -44,8 +44,8 @@ export function AirdropInfoTooltip({ airdropInfo, children, size = 'sm' }: Airdr
     );
   }
   return (
-    <TooltipProvider>
-      <Tooltip delayDuration={100}>
+    <TooltipProvider delayDuration={100}>
+      <Tooltip>
         <TooltipTrigger asChild>
           {children}
         </TooltipTrigger>
