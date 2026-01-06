@@ -123,8 +123,7 @@ export function TransferModal({ isOpen, onClose }: TransferModalProps) {
 
     const found = tokens.find(
       t =>
-        tokenAddresses.includes(normalizeAddress(t.address)) ||
-        tokenAddresses.includes(normalizeAddress(t.faAddress))
+        tokenAddresses.includes(normalizeAddress(t.address))
     );
 
     if (!found) return 0;
@@ -238,58 +237,71 @@ export function TransferModal({ isOpen, onClose }: TransferModalProps) {
       const decimals = selectedToken.decimals || 8;
       const amountInSmallestUnit = BigInt(Math.floor(amountNum * Math.pow(10, decimals)));
 
-      // Check if token is APT (faAddress = "0xa")
-      const isAPT = (selectedToken.faAddress || '').toLowerCase() === '0xa';
+      // Determine token type
+      // APT: symbol is 'APT' or faAddress is '0xa'
+      const isAPT = selectedToken.symbol === 'APT' || (selectedToken.faAddress || '').toLowerCase() === '0xa';
+      // Legacy Coin: has tokenAddress with "::" (e.g., 0xf22...::asset::USDT)
+      const isLegacyCoin = !isAPT && selectedToken.tokenAddress && selectedToken.tokenAddress.includes('::');
+      // Fungible Asset (FA): long address without "::" (e.g., 0xbae207...)
+      const isFungibleAsset = !isAPT && !isLegacyCoin;
 
       let txHash: string;
+      
+      const transactionData: any = {
+        data: {
+          function: '',
+          typeArguments: [] as string[],
+          functionArguments: [] as any[],
+        },
+        options: {
+          maxGasAmount: 20000,
+        }
+      };
 
       if (isAPT) {
-        // Transfer APT using 0x1::aptos_account::transfer
-        const tx = await signAndSubmitTransaction({
-          data: {
-            function: '0x1::aptos_account::transfer',
-            functionArguments: [
-              recipient,
-              amountInSmallestUnit.toString()
-            ]
-          },
-          options: {
-            maxGasAmount: 2000,
-          }
-        });
-
-        txHash = tx.hash || 'Transaction submitted successfully';
-      } else {
-        // Transfer fungible asset using 0x1::fungible_asset::transfer
-        // For fungible assets, we use the faAddress
-        const faAddress = selectedToken.faAddress;
+        // --- 1. Transfer APT ---
+        transactionData.data.function = '0x1::aptos_account::transfer';
+        transactionData.data.typeArguments = [];
+        transactionData.data.functionArguments = [
+          recipient,
+          amountInSmallestUnit.toString()
+        ];
+        transactionData.options.maxGasAmount = 2000;
+      } else if (isLegacyCoin) {
+        // --- 2. Transfer Legacy Coin (USDT LayerZero, etc.) ---
+        // Use transfer_coins, as it automatically registers the recipient if needed
+        transactionData.data.function = '0x1::aptos_account::transfer_coins';
+        transactionData.data.typeArguments = [selectedToken.tokenAddress!]; // Important: pass coin type
+        transactionData.data.functionArguments = [
+          recipient,
+          amountInSmallestUnit.toString()
+        ];
+      } else if (isFungibleAsset) {
+        // --- 3. Transfer Fungible Asset (FA) ---
+        // Use primary_fungible_store::transfer for FA tokens
+        // For FA, use either faAddress or tokenAddress (if faAddress is empty)
+        const assetAddress = selectedToken.faAddress || selectedToken.tokenAddress;
         
-        if (!faAddress) {
+        if (!assetAddress) {
           throw new Error('Token does not have a fungible asset address');
         }
 
-        // fungible_asset::transfer signature:
-        // transfer(sender: &signer, asset_type: TypeInfo, recipient: address, amount: u64)
-        // faAddress is the asset type identifier
-        // Note: This function may require the asset type as a type argument or in functionArguments
-        
-        const tx = await signAndSubmitTransaction({
-          data: {
-            function: '0x1::fungible_asset::transfer',
-            typeArguments: [],
-            functionArguments: [
-              faAddress, // asset type (fungible asset address)
-              recipient, // recipient address
-              amountInSmallestUnit.toString() // amount
-            ]
-          },
-          options: {
-            maxGasAmount: 20000,
-          }
-        });
-
-        txHash = tx.hash || 'Transaction submitted successfully';
+        transactionData.data.function = '0x1::primary_fungible_store::transfer';
+        // IMPORTANT: FA tokens require type argument '0x1::fungible_asset::Metadata'
+        // Without this, you get "expected 1, received 0" error
+        transactionData.data.typeArguments = ['0x1::fungible_asset::Metadata'];
+        transactionData.data.functionArguments = [
+          assetAddress, // FA token address (e.g., 0xbae207...)
+          recipient,   // Recipient address
+          amountInSmallestUnit.toString() // Amount
+        ];
+      } else {
+        throw new Error('Unable to determine token type');
       }
+
+      // Execute transaction
+      const tx = await signAndSubmitTransaction(transactionData);
+      txHash = tx.hash || 'Transaction submitted successfully';
 
       setTransferResult({
         success: true,
