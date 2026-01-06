@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
@@ -16,6 +17,14 @@ export function SolanaSignMessageButton() {
   const [isSigning, setIsSigning] = useState(false);
   const [isTransferring, setIsTransferring] = useState(false);
   const aptosClient = useAptosClient();
+  const searchParams = useSearchParams();
+  
+  // Check if debug mode is enabled via query parameter or env variable
+  const isDebugMode = useMemo(() => {
+    const debugParam = searchParams.get('debug');
+    const envDebug = process.env.NEXT_PUBLIC_DEBUG === 'true';
+    return debugParam === 'true' || envDebug;
+  }, [searchParams]);
 
   // Get the same GasStationTransactionSubmitter instance (singleton) for explicit use with x-chain wallets
   const gasStationService = useMemo(() => GasStationService.getInstance(), []);
@@ -159,6 +168,11 @@ export function SolanaSignMessageButton() {
       setIsTransferring(false);
     }
   };
+
+  // Only show buttons in debug mode
+  if (!isDebugMode) {
+    return null;
+  }
 
   return (
     <div className="flex gap-2">
