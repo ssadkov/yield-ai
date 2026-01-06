@@ -206,6 +206,7 @@ export default function Sidebar() {
                 tokens={tokens} 
                 onRefresh={handleRefresh}
                 isRefreshing={isRefreshing}
+                hasSolanaWallet={!!solanaAddress}
               />
               {solanaAddress && (
                 <div className="space-y-2">
