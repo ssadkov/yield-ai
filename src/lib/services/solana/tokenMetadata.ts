@@ -88,7 +88,7 @@ export class JupiterTokenMetadataService {
 
         const data = (await response.json()) as JupiterTokenMetadata[];
         const match =
-          data?.find((item) => item.id === mint || item.mint === mint) ?? null;
+          data?.find((item) => item.address === mint || item.mint === mint) ?? null;
 
         if (match) {
           this.cache.set(mint, {
@@ -96,7 +96,7 @@ export class JupiterTokenMetadataService {
             metadata: {
               symbol: match.symbol,
               name: match.name,
-              logoUrl: match.icon ?? match.logoURI,
+              logoUrl: match.logoURI,
               decimals: match.decimals,
             },
           });
