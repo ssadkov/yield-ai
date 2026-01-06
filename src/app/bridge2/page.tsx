@@ -19,6 +19,8 @@ import { BridgeView } from '@/components/bridge/BridgeView';
 import { ActionLog, type ActionLogItem } from '@/components/bridge/ActionLog';
 import { SolanaWalletProviderWrapper } from './SolanaWalletProvider';
 import { useSolanaPortfolio } from '@/hooks/useSolanaPortfolio';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
 import bs58 from 'bs58';
 
 // USDC token addresses
@@ -53,6 +55,7 @@ function Bridge2PageContent() {
   const { connection: solanaConnection } = useConnection();
   const { toast } = useToast();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { tokens: solanaTokens } = useSolanaPortfolio();
   
   // Calculate USDC balance from Solana portfolio
@@ -1621,6 +1624,17 @@ function Bridge2PageContent() {
   return (
     <div className="w-full min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-gray-50 via-white to-gray-100">
       <div className="w-full max-w-2xl space-y-4">
+        {/* Back to Dashboard button */}
+        <div className="flex items-center mb-4">
+          <button
+            onClick={() => router.push('/')}
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Dashboard
+          </button>
+        </div>
+        
         <BridgeView
           sourceChain={sourceChain}
           sourceToken={sourceToken}
