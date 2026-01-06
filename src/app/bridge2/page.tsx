@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Wormhole } from '@wormhole-foundation/sdk-connect';
 import solana from '@wormhole-foundation/sdk/solana';
 import aptos from '@wormhole-foundation/sdk/aptos';
@@ -50,6 +51,7 @@ function Bridge2PageContent() {
   const { publicKey: solanaPublicKey, wallet: solanaWallet, signTransaction } = useSolanaWallet();
   const { connection: solanaConnection } = useConnection();
   const { toast } = useToast();
+  const searchParams = useSearchParams();
   
   const [wh, setWh] = useState<any>(null);
   const [sourceChain, setSourceChain] = useState<typeof CHAINS[0] | null>(CHAINS[0]);
@@ -93,6 +95,16 @@ function Bridge2PageContent() {
       }
     }
   }, []); // Run once on mount
+
+  // Read destination address from query parameter
+  useEffect(() => {
+    const destination = searchParams.get('destination');
+    if (destination) {
+      // Decode and set destination address
+      const decodedAddress = decodeURIComponent(destination);
+      setDestinationAddress(decodedAddress);
+    }
+  }, [searchParams]);
 
   // Helper function to add action to log
   const addAction = (message: string, status: 'pending' | 'success' | 'error', link?: string, linkText?: string, startTime?: number) => {
