@@ -590,7 +590,7 @@ export default function MintingAptosPage() {
               variant="outline"
               onClick={() => {
                 if (account?.address) {
-                  setTargetAddress(account.address);
+                  setTargetAddress(account.address.toString());
                   setActiveTab("balance");
                   setTimeout(() => checkAddressBalance(), 100);
                 }
