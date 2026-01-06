@@ -14,17 +14,22 @@ import { useWalletData } from '@/contexts/WalletContext';
 import { useWalletStore } from '@/lib/stores/walletStore';
 import { useToast } from '@/components/ui/use-toast';
 import { useMemo } from 'react';
+import { getSolanaWalletAddress } from '@/lib/wallet/getSolanaWalletAddress';
 
 export default function ChatPanel() {
   const [isSwapModalOpen, setIsSwapModalOpen] = useState(false);
   const [isYieldCalcOpen, setIsYieldCalcOpen] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
-  const { account } = useWallet();
+  const { account, wallet } = useWallet();
   const { tokens } = useWalletData();
   const totalAssetsStore = useWalletStore((s) => s.totalAssets);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
+
+  // Check if Solana wallet is connected
+  const solanaAddress = useMemo(() => getSolanaWalletAddress(wallet), [wallet]);
+  const hasSolanaWallet = !!solanaAddress;
 
   const walletTotal = useMemo(() => {
     return (tokens || []).reduce((sum, t: any) => {
@@ -122,16 +127,18 @@ export default function ChatPanel() {
           </svg>
           Swap
         </Button>
-        <Button 
-          variant="outline" 
-          onClick={handleTransfer}
-          className="flex items-center gap-2 w-full justify-start"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-          </svg>
-          Transfer
-        </Button>
+        {hasSolanaWallet && (
+          <Button 
+            variant="outline" 
+            onClick={handleTransfer}
+            className="flex items-center gap-2 w-full justify-start"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            </svg>
+            Transfer
+          </Button>
+        )}
         <Button 
           variant="outline" 
           onClick={() => setIsYieldCalcOpen(true)}
@@ -152,16 +159,18 @@ export default function ChatPanel() {
           </svg>
           Portfolio Tracker
         </Button>
-        <Button 
-          variant="outline" 
-          onClick={handleBridgeUSDC}
-          className="flex items-center gap-2 w-full justify-start"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-          </svg>
-          Bridge USDC
-        </Button>
+        {hasSolanaWallet && (
+          <Button 
+            variant="outline" 
+            onClick={handleBridgeUSDC}
+            className="flex items-center gap-2 w-full justify-start"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+            </svg>
+            Bridge USDC
+          </Button>
+        )}
       </div>
 
       {/* Compact Footer - Mobile only */}

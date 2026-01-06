@@ -299,6 +299,19 @@ export function TransferModal({ isOpen, onClose }: TransferModalProps) {
         throw new Error('Unable to determine token type');
       }
 
+      // Log transaction data for debugging
+      console.log('[TransferModal] Transaction data:', {
+        tokenType: isAPT ? 'APT' : isLegacyCoin ? 'Legacy Coin' : 'Fungible Asset',
+        function: transactionData.data.function,
+        typeArguments: transactionData.data.typeArguments,
+        functionArguments: transactionData.data.functionArguments,
+        tokenSymbol: selectedToken.symbol,
+        tokenAddress: selectedToken.tokenAddress,
+        faAddress: selectedToken.faAddress,
+        amount: amountInSmallestUnit.toString(),
+        recipient,
+      });
+
       // Execute transaction
       const tx = await signAndSubmitTransaction(transactionData);
       txHash = tx.hash || 'Transaction submitted successfully';
@@ -324,17 +337,31 @@ export function TransferModal({ isOpen, onClose }: TransferModalProps) {
       }, 2000);
 
     } catch (error: any) {
+      // Log full error for debugging
+      console.error('[TransferModal] Transfer error:', {
+        error,
+        message: error?.message,
+        name: error?.name,
+        code: error?.code,
+        stack: error?.stack,
+        fullError: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+      });
+
       let errorMessage = 'Failed to execute transfer';
-      if (error.message) {
+      if (error?.message) {
         errorMessage = error.message;
-      } else if (error.name === 'PetraApiError') {
+      } else if (error?.name === 'PetraApiError') {
         errorMessage = 'Petra wallet error. Please check your wallet connection and try again.';
       } else if (isUserRejectedError(error)) {
         errorMessage = 'Transaction was rejected by user.';
-      } else if (error.code === 'WALLET_NOT_CONNECTED') {
+      } else if (error?.code === 'WALLET_NOT_CONNECTED') {
         errorMessage = 'Wallet not connected. Please connect your wallet first.';
-      } else if (error.code === 'WALLET_LOCKED') {
+      } else if (error?.code === 'WALLET_LOCKED') {
         errorMessage = 'Wallet is locked. Please unlock your wallet and try again.';
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error?.toString) {
+        errorMessage = error.toString();
       }
 
       setTransferResult({
