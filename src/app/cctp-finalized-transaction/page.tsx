@@ -394,7 +394,7 @@ export default function CctpFinalizedTransactionPage() {
       
       // Check nonce (should be at offset 12)
       const nonceBytes = dataBytes.slice(12, 20);
-      let nonce = 0n;
+      let nonce = BigInt(0);
       for (let i = 0; i < 8; i++) {
         nonce |= BigInt(nonceBytes[i]) << BigInt(i * 8);
       }
