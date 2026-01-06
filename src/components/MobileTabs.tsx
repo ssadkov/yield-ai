@@ -181,8 +181,12 @@ function MobileTabsContent() {
                 <WalletSelector />
                 {account?.address ? (
                   <>
-<<<<<<< HEAD
-                    <PortfolioCard totalValue={totalValue} tokens={tokens} />
+                    <PortfolioCard 
+                      totalValue={totalValue} 
+                      tokens={tokens} 
+                      onRefresh={handleRefresh}
+                      isRefreshing={isRefreshing}
+                    />
                     {solanaAddress && (
                       <div className="space-y-2">
                         <SolanaWalletCard
@@ -194,14 +198,6 @@ function MobileTabsContent() {
                         <SolanaSignMessageButton />
                       </div>
                     )}
-=======
-                    <PortfolioCard 
-                      totalValue={totalValue} 
-                      tokens={tokens} 
-                      onRefresh={handleRefresh}
-                      isRefreshing={isRefreshing}
-                    />
->>>>>>> main
                     {[
                       { 
                         component: HyperionPositionsList, 
