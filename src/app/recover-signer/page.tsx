@@ -136,8 +136,9 @@ export default function RecoverSignerPage() {
           const res = await provider.connect();
           feePayerPubkey = provider.publicKey || (res?.publicKey ? new PublicKey(res.publicKey) : null);
           if (feePayerPubkey) {
-            setWalletAddress(feePayerPubkey.toBase58());
-            setStatus((s) => `${s}\nИспользуем кошелёк ${feePayerPubkey.toBase58()} как fee payer...`);
+            const feePayerAddress = feePayerPubkey.toBase58();
+            setWalletAddress(feePayerAddress);
+            setStatus((s) => `${s}\nИспользуем кошелёк ${feePayerAddress} как fee payer...`);
           }
         } catch (err: any) {
           console.warn("[RecoverSigner] Не удалось подключить кошелёк, пробуем старый режим fee payer = signer:", err?.message);
