@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
@@ -28,6 +28,7 @@ import { Token } from '@/lib/types/panora';
 import { showTransactionSuccessToast } from '@/components/ui/transaction-toast';
 import tokenList from "@/lib/data/tokenList.json";
 import { WithdrawModal } from '@/components/ui/withdraw-modal';
+import { GasStationService } from '@/lib/services/gasStation';
 
 interface AuroPositionsProps {
   address?: string;
@@ -39,6 +40,10 @@ export function AuroPositions({ address, onPositionsValueChange }: AuroPositions
   
   // Gas Station is configured globally in WalletProvider
   // All transactions via signAndSubmitTransaction will automatically use Gas Station (free transactions)
+  // Get the same GasStationTransactionSubmitter instance (singleton) for explicit use
+  const gasStationService = useMemo(() => GasStationService.getInstance(), []);
+  const transactionSubmitter = useMemo(() => gasStationService.getTransactionSubmitter(), [gasStationService]);
+  
   const [positions, setPositions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
