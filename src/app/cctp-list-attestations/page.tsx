@@ -298,7 +298,7 @@ export default function MintingAptosPage() {
       
       toast({
         title: "Analysis Complete",
-        description: `Found ${tx.events?.length || 0} events`,
+        description: "Transaction details loaded successfully",
       });
 
     } catch (error: any) {
