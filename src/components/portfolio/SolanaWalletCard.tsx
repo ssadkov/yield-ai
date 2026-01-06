@@ -74,7 +74,7 @@ export function SolanaWalletCard({
         {isExpanded("solana-wallet") && (
           <CardContent className="flex-1 overflow-y-auto px-3 pt-0">
             <ScrollArea className="h-full">
-              {tokens.length > 0 ? <TokenList tokens={tokens} /> : null}
+              {tokens.length > 0 ? <TokenList tokens={tokens} disableDrag={true} /> : null}
             </ScrollArea>
           </CardContent>
         )}

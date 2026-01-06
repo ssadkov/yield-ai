@@ -12,9 +12,10 @@ import { formatNumber, formatCurrency } from "@/lib/utils/numberFormat";
 interface TokenItemProps {
   token: Token;
   stakingAprs?: Record<string, { aprPct: number; source: string }>;
+  disableDrag?: boolean;
 }
 
-export function TokenItem({ token, stakingAprs = {} }: TokenItemProps) {
+export function TokenItem({ token, stakingAprs = {}, disableDrag = false }: TokenItemProps) {
   const { startDrag, endDrag, state } = useDragDrop();
   
   const formattedAmount = formatNumber(parseFloat(token.amount) / Math.pow(10, token.decimals), 3);
@@ -110,12 +111,13 @@ export function TokenItem({ token, stakingAprs = {} }: TokenItemProps) {
   return (
     <div 
       className={cn(
-        "flex items-center justify-between py-2 px-1 hover:bg-accent rounded-md transition-colors cursor-grab active:cursor-grabbing",
+        "flex items-center justify-between py-2 px-1 hover:bg-accent rounded-md transition-colors",
+        !disableDrag && "cursor-grab active:cursor-grabbing",
         isBeingDragged && "opacity-50"
       )}
-      draggable={true}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
+      draggable={!disableDrag}
+      onDragStart={disableDrag ? undefined : handleDragStart}
+      onDragEnd={disableDrag ? undefined : handleDragEnd}
     >
       <div className="flex items-center gap-2 min-w-0">
         <Avatar className="h-6 w-6 flex-shrink-0">
