@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Wormhole } from '@wormhole-foundation/sdk-connect';
 import solana from '@wormhole-foundation/sdk/solana';
@@ -1656,7 +1656,9 @@ function Bridge2PageContent() {
 export default function Bridge2Page() {
   return (
     <SolanaWalletProviderWrapper>
-      <Bridge2PageContent />
+      <Suspense fallback={<div>Loading...</div>}>
+        <Bridge2PageContent />
+      </Suspense>
     </SolanaWalletProviderWrapper>
   );
 }
