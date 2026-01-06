@@ -18,6 +18,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { BridgeView } from '@/components/bridge/BridgeView';
 import { ActionLog, type ActionLogItem } from '@/components/bridge/ActionLog';
 import { SolanaWalletProviderWrapper } from './SolanaWalletProvider';
+import { useSolanaPortfolio } from '@/hooks/useSolanaPortfolio';
 import bs58 from 'bs58';
 
 // USDC token addresses
@@ -52,6 +53,15 @@ function Bridge2PageContent() {
   const { connection: solanaConnection } = useConnection();
   const { toast } = useToast();
   const searchParams = useSearchParams();
+  const { tokens: solanaTokens } = useSolanaPortfolio();
+  
+  // Calculate USDC balance from Solana portfolio
+  const usdcBalance = solanaTokens.find(
+    (token) => token.address === USDC_SOLANA || token.symbol === 'USDC'
+  );
+  const availableUsdcBalance = usdcBalance
+    ? (parseFloat(usdcBalance.amount) / Math.pow(10, usdcBalance.decimals)).toFixed(6)
+    : null;
   
   const [wh, setWh] = useState<any>(null);
   const [sourceChain, setSourceChain] = useState<typeof CHAINS[0] | null>(CHAINS[0]);
@@ -1633,6 +1643,7 @@ function Bridge2PageContent() {
           tokens={TOKENS}
           showSwapButton={false}
           disableAssetSelection={true}
+          availableBalance={availableUsdcBalance}
         />
 
         <ActionLog items={actionLog} />

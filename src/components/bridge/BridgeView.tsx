@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AssetPicker } from './AssetPicker';
 import { AmountInput } from './AmountInput';
 import { SolanaWalletSelector } from '@/components/SolanaWalletSelector';
 import { Input } from '@/components/ui/input';
-import { ArrowLeftRight } from 'lucide-react';
+import { ArrowLeftRight, CheckCircle2 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface Chain {
   id: string;
@@ -45,6 +47,7 @@ interface BridgeViewProps {
   tokens: Token[];
   showSwapButton?: boolean;
   disableAssetSelection?: boolean;
+  availableBalance?: string | null;
 }
 
 export function BridgeView({
@@ -69,7 +72,17 @@ export function BridgeView({
   tokens,
   showSwapButton = true,
   disableAssetSelection = false,
+  availableBalance,
 }: BridgeViewProps) {
+  const searchParams = useSearchParams();
+  
+  // Check if destination address matches the URL parameter
+  const isGeneratedWallet = useMemo(() => {
+    const urlDestination = searchParams.get('destination');
+    if (!urlDestination || !destinationAddress) return false;
+    // Compare addresses (case-insensitive, trim whitespace)
+    return urlDestination.trim().toLowerCase() === destinationAddress.trim().toLowerCase();
+  }, [searchParams, destinationAddress]);
 
   const handleSwap = () => {
     if (sourceChain && destChain) {
@@ -138,12 +151,19 @@ export function BridgeView({
 
           {/* Amount Input */}
           {sourceToken && (
-            <AmountInput
-              value={amount}
-              onChange={onAmountChange}
-              tokenSymbol={sourceToken.symbol}
-              maxAmount={10}
-            />
+            <div className="space-y-2">
+              <AmountInput
+                value={amount}
+                onChange={onAmountChange}
+                tokenSymbol={sourceToken.symbol}
+                maxAmount={10}
+              />
+              {availableBalance !== null && availableBalance !== undefined && (
+                <p className="text-sm text-muted-foreground text-right">
+                  Available: {availableBalance} {sourceToken.symbol} on Solana
+                </p>
+              )}
+            </div>
           )}
 
           {/* Wallets */}
@@ -165,13 +185,29 @@ export function BridgeView({
               <label className="text-sm font-medium text-muted-foreground">
                 Destination Wallet Address
               </label>
-              <Input
-                type="text"
-                value={destinationAddress}
-                onChange={(e) => onDestinationAddressChange(e.target.value)}
-                placeholder={`Enter ${destChain?.name || 'destination'} wallet address`}
-                className="font-mono text-sm"
-              />
+              <div className="relative">
+                <Input
+                  type="text"
+                  value={destinationAddress}
+                  onChange={(e) => onDestinationAddressChange(e.target.value)}
+                  placeholder={`Enter ${destChain?.name || 'destination'} wallet address`}
+                  className="font-mono text-sm pr-10"
+                />
+                {isGeneratedWallet && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <CheckCircle2 className="h-5 w-5 text-green-500" />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Generated Aptos wallet for this Solana address</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
             </div>
           </div>
 
