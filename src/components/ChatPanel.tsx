@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SwapModal } from '@/components/ui/swap-modal';
 import { YieldCalculatorModal } from '@/components/ui/yield-calculator-modal';
+import { TransferModal } from '@/components/ui/transfer-modal';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
 import { useWalletData } from '@/contexts/WalletContext';
@@ -17,6 +18,7 @@ import { useMemo } from 'react';
 export default function ChatPanel() {
   const [isSwapModalOpen, setIsSwapModalOpen] = useState(false);
   const [isYieldCalcOpen, setIsYieldCalcOpen] = useState(false);
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const { account } = useWallet();
   const { tokens } = useWalletData();
   const totalAssetsStore = useWalletStore((s) => s.totalAssets);
@@ -70,6 +72,18 @@ export default function ChatPanel() {
     }
   };
 
+  const handleTransfer = () => {
+    if (account?.address) {
+      setIsTransferModalOpen(true);
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Wallet Not Connected",
+        description: "Please connect your Aptos wallet to transfer tokens",
+      });
+    }
+  };
+
   // Handle query parameter to open calculator
   useEffect(() => {
     const calculatorParam = searchParams.get('calculator');
@@ -107,6 +121,16 @@ export default function ChatPanel() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
           </svg>
           Swap
+        </Button>
+        <Button 
+          variant="outline" 
+          onClick={handleTransfer}
+          className="flex items-center gap-2 w-full justify-start"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+          </svg>
+          Transfer
         </Button>
         <Button 
           variant="outline" 
@@ -232,6 +256,10 @@ export default function ChatPanel() {
       <SwapModal 
         isOpen={isSwapModalOpen} 
         onClose={() => setIsSwapModalOpen(false)} 
+      />
+      <TransferModal 
+        isOpen={isTransferModalOpen} 
+        onClose={() => setIsTransferModalOpen(false)} 
       />
       <YieldCalculatorModal 
         isOpen={isYieldCalcOpen}
