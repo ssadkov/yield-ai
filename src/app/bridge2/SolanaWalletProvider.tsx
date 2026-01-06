@@ -14,8 +14,10 @@ import { useMemo, ReactNode } from 'react';
 
 // RPC endpoint for Solana
 const SOLANA_RPC = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 
-                   process.env.SOLANA_RPC_URL || 
-                   'https://mainnet.helius-rpc.com/?api-key=29798653-2d13-4d8a-96ad-df70b015e234';
+                   process.env.SOLANA_RPC_URL ||
+                   (process.env.NEXT_PUBLIC_SOLANA_RPC_API_KEY || process.env.SOLANA_RPC_API_KEY
+                     ? `https://mainnet.helius-rpc.com/?api-key=${process.env.NEXT_PUBLIC_SOLANA_RPC_API_KEY || process.env.SOLANA_RPC_API_KEY}`
+                     : 'https://mainnet.helius-rpc.com/?api-key=29798653-2d13-4d8a-96ad-df70b015e234');
 
 export function SolanaWalletProviderWrapper({ children }: { children: ReactNode }) {
   // Create array of wallet adapters

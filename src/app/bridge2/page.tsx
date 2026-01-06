@@ -460,9 +460,26 @@ function Bridge2PageContent() {
       const sendChain = wh.getChain('Solana');
       const rcvChain = wh.getChain('Aptos');
 
-      // Get RPC URLs
-      const solanaRpc = await sendChain.getRpc();
+      // Get RPC URLs - use env variables first, fallback to Wormhole SDK
+      // NOTE: In Next.js, only NEXT_PUBLIC_* variables are available on client side
+      const solanaRpcFromEnv = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 
+                                process.env.SOLANA_RPC_URL ||
+                                (process.env.NEXT_PUBLIC_SOLANA_RPC_API_KEY || process.env.SOLANA_RPC_API_KEY
+                                  ? `https://mainnet.helius-rpc.com/?api-key=${process.env.NEXT_PUBLIC_SOLANA_RPC_API_KEY || process.env.SOLANA_RPC_API_KEY}`
+                                  : 'https://mainnet.helius-rpc.com/?api-key=29798653-2d13-4d8a-96ad-df70b015e234');
+      
+      const solanaRpcFromWormhole = await sendChain.getRpc();
       const aptosRpc = await rcvChain.getRpc();
+      
+      // Use RPC from env, not from Wormhole SDK
+      const solanaRpc = solanaRpcFromEnv;
+      
+      console.log('[Bridge2] RPC Configuration:', {
+        usingEnv: !!process.env.NEXT_PUBLIC_SOLANA_RPC_URL || !!process.env.SOLANA_RPC_URL || !!process.env.SOLANA_RPC_API_KEY,
+        solanaRpcFromEnv,
+        solanaRpcFromWormhole,
+        finalRpc: solanaRpc,
+      });
 
       // Get signers
       // For Solana, use wallet adapter
@@ -471,44 +488,203 @@ function Bridge2PageContent() {
       }
       
       // Create Solana signer from wallet adapter
-      // Use connection from provider or create new one
-      const { Connection } = await import('@solana/web3.js');
+      // Use connection from provider or create new one with RPC from env
+      const { Connection, PublicKey, LAMPORTS_PER_SOL } = await import('@solana/web3.js');
       const connection = solanaConnection || new Connection(solanaRpc, 'confirmed');
+      
+      console.log('[Bridge2] Connection created:', {
+        usingSolanaConnection: !!solanaConnection,
+        connectionEndpoint: connection.rpcEndpoint,
+      });
+      
+      // Check wallet balance before sending transaction
+      if (solanaAddress) {
+        try {
+          const balance = await connection.getBalance(new PublicKey(solanaAddress));
+          const balanceSOL = balance / LAMPORTS_PER_SOL;
+          console.log('[Bridge2] Wallet balance check:', {
+            address: solanaAddress,
+            balance: balance,
+            balanceSOL: balanceSOL,
+            hasEnoughSOL: balanceSOL >= 0.01, // Minimum recommended: 0.01 SOL
+          });
+          
+          if (balanceSOL < 0.01) {
+            console.warn('[Bridge2] WARNING: Low SOL balance! Transaction may fail. Recommended: at least 0.01 SOL');
+            toast({
+              variant: "destructive",
+              title: "Low SOL Balance",
+              description: `You have ${balanceSOL.toFixed(4)} SOL. Recommended: at least 0.01 SOL for transaction fees and rent.`,
+            });
+          }
+        } catch (balanceError: any) {
+          console.warn('[Bridge2] Could not check wallet balance:', balanceError.message);
+        }
+      }
       
 
       const solanaSigner = {
         address: () => solanaAddress!,
         chain: () => 'Solana' as const,
         signAndSendTx: async (tx: any) => {
+          console.log('[Bridge2] solanaSigner.signAndSendTx() called:', {
+            txType: typeof tx,
+            txConstructor: tx?.constructor?.name,
+            hasSerialize: typeof tx?.serialize === 'function',
+          });
+          
           // Sign transaction with wallet adapter
           if (!signTransaction) {
             throw new Error('Sign transaction function not available');
           }
           
+          console.log('[Bridge2] Calling signTransaction()...');
           const signed = await signTransaction(tx);
+          console.log('[Bridge2] Transaction signed:', {
+            signedType: typeof signed,
+            signedConstructor: signed?.constructor?.name,
+            hasSerialize: typeof signed?.serialize === 'function',
+          });
           
           // Send transaction with skipPreflight: true to bypass simulation
           // Simulation may show false positives for rent errors, but transaction can still succeed
-          const signature = await connection.sendRawTransaction(signed.serialize(), {
-            skipPreflight: true,
-            maxRetries: 3,
-          });
+          console.log('[Bridge2] Calling connection.sendRawTransaction()...');
+          console.log('[Bridge2] Transaction serialized length:', signed.serialize().length);
+          
+          let signature: string;
+          try {
+            signature = await connection.sendRawTransaction(signed.serialize(), {
+              skipPreflight: false, // Enable preflight to catch errors early
+              maxRetries: 3,
+            });
+            console.log('[Bridge2] Transaction sent to blockchain, signature:', signature);
+            console.log('[Bridge2] Transaction URL: https://solscan.io/tx/' + signature);
+          } catch (sendError: any) {
+            console.error('[Bridge2] sendRawTransaction failed:', {
+              error: sendError,
+              message: sendError?.message,
+              name: sendError?.name,
+              code: sendError?.code,
+              logs: sendError?.logs,
+            });
+            
+            // If preflight fails, try with skipPreflight: true
+            if (sendError?.message?.includes('preflight') || sendError?.message?.includes('simulation')) {
+              console.log('[Bridge2] Retrying with skipPreflight: true...');
+              try {
+                signature = await connection.sendRawTransaction(signed.serialize(), {
+                  skipPreflight: true,
+                  maxRetries: 3,
+                });
+                console.log('[Bridge2] Transaction sent to blockchain (retry), signature:', signature);
+              } catch (retryError: any) {
+                console.error('[Bridge2] Retry also failed:', retryError);
+                throw new Error(`Failed to send transaction: ${retryError.message || sendError.message}`);
+              }
+            } else {
+              throw sendError;
+            }
+          }
+          
+          // Check transaction status immediately after sending
+          try {
+            const txStatus = await connection.getSignatureStatus(signature);
+            console.log('[Bridge2] Transaction status immediately after send:', {
+              signature,
+              status: txStatus,
+              confirmationStatus: txStatus?.value?.confirmationStatus,
+              err: txStatus?.value?.err,
+            });
+          } catch (statusError: any) {
+            console.warn('[Bridge2] Could not get transaction status immediately:', statusError.message);
+          }
           
           // Try to confirm transaction with longer timeout
           // If confirmation times out, the transaction may still succeed
           try {
-            await connection.confirmTransaction(signature, 'confirmed');
+            console.log('[Bridge2] Waiting for transaction confirmation...');
+            const confirmResult = await connection.confirmTransaction(signature, 'confirmed');
+            console.log('[Bridge2] Transaction confirmed on blockchain:', {
+              signature,
+              confirmResult,
+              slot: confirmResult?.slot,
+              err: confirmResult?.value?.err,
+            });
+            
+            // Double-check transaction status after confirmation
+            const finalStatus = await connection.getSignatureStatus(signature);
+            console.log('[Bridge2] Final transaction status after confirmation:', {
+              signature,
+              status: finalStatus,
+              confirmationStatus: finalStatus?.value?.confirmationStatus,
+              err: finalStatus?.value?.err,
+            });
           } catch (confirmError: any) {
+            console.error('[Bridge2] Transaction confirmation error:', {
+              error: confirmError,
+              message: confirmError?.message,
+              name: confirmError?.name,
+              stack: confirmError?.stack,
+            });
+            
+            // Check transaction status even if confirmation failed
+            try {
+              const errorStatus = await connection.getSignatureStatus(signature);
+              console.log('[Bridge2] Transaction status after confirmation error:', {
+                signature,
+                status: errorStatus,
+                confirmationStatus: errorStatus?.value?.confirmationStatus,
+                err: errorStatus?.value?.err,
+              });
+              
+              // Also try getTransaction for more details
+              try {
+                const txDetails = await connection.getTransaction(signature, {
+                  commitment: 'confirmed',
+                  maxSupportedTransactionVersion: 0,
+                });
+                console.log('[Bridge2] Transaction details after confirmation error:', {
+                  signature,
+                  slot: txDetails?.slot,
+                  blockTime: txDetails?.blockTime,
+                  err: txDetails?.meta?.err,
+                  fee: txDetails?.meta?.fee,
+                  success: !txDetails?.meta?.err,
+                  exists: !!txDetails,
+                });
+                
+                if (!txDetails) {
+                  console.error('[Bridge2] Transaction NOT FOUND on blockchain! This means it was never submitted or was rejected.');
+                } else if (txDetails.meta?.err) {
+                  console.error('[Bridge2] Transaction FAILED on blockchain:', txDetails.meta.err);
+                } else {
+                  console.log('[Bridge2] Transaction SUCCESS on blockchain, but confirmation timed out');
+                }
+              } catch (txError: any) {
+                console.warn('[Bridge2] Could not get transaction details after confirmation error:', txError.message);
+                // If getTransaction returns null, transaction doesn't exist
+                if (txError.message?.includes('not found') || txError.message?.includes('null')) {
+                  console.error('[Bridge2] Transaction NOT FOUND on blockchain!');
+                }
+              }
+            } catch (statusError: any) {
+              console.warn('[Bridge2] Could not get transaction status after confirmation error:', statusError.message);
+            }
+            
             // If confirmation times out, check if transaction was successful
             if (confirmError.message?.includes('TransactionExpiredTimeoutError') || 
-                confirmError.message?.includes('not confirmed')) {
+                confirmError.message?.includes('not confirmed') ||
+                confirmError.message?.includes('timeout')) {
               // Transaction may still be processing, return signature anyway
               // User can check transaction status manually
+              console.warn('[Bridge2] Transaction confirmation timeout, but may have succeeded:', confirmError.message);
             } else {
-              throw confirmError;
+              console.error('[Bridge2] Transaction confirmation failed with non-timeout error, but returning signature anyway');
+              // Don't throw - return signature so user can check manually
             }
           }
           
+          console.log('[Bridge2] solanaSigner.signAndSendTx() returning signature:', signature);
           return signature;
         },
       };
@@ -539,7 +715,13 @@ function Bridge2PageContent() {
       let xfer: any;
       let txSignature: string = '';
       try {
+        console.log('[Bridge2] Getting AutomaticCircleBridge protocol...');
         const acb = await sendChain.getProtocol('AutomaticCircleBridge');
+        console.log('[Bridge2] AutomaticCircleBridge protocol obtained:', {
+          acbType: typeof acb,
+          acbConstructor: acb?.constructor?.name,
+          hasTransfer: typeof acb?.transfer === 'function',
+        });
         
         // CRITICAL: Explicitly set domains if they are undefined
         // CCTP domain numbers:
@@ -577,6 +759,14 @@ function Bridge2PageContent() {
             }
           }
         }
+        console.log('[Bridge2] Calling acb.transfer() with params:', {
+          sourceAddress: sourceAddress.address,
+          destChain: destAddress.chain,
+          destAddress: destAddress.address,
+          amount: amtUnits.toString(),
+          nativeGas: nativeGas.toString(),
+          automatic,
+        });
         const transferGen = acb.transfer(
           sourceAddress.address,
           { chain: destAddress.chain, address: destAddress.address },
@@ -590,17 +780,45 @@ function Bridge2PageContent() {
         let stepCount = 0;
         let lastStep: any = null;
         
+        console.log('[Bridge2] Starting iteration over transfer generator...');
         for await (const step of transferGen) {
           stepCount++;
           lastStep = step;
+          console.log(`[Bridge2] Processing step ${stepCount}:`, {
+            stepType: typeof step,
+            stepConstructor: step?.constructor?.name,
+            stepKeys: Object.keys(step || {}),
+            hasSend: typeof step?.send === 'function',
+            hasTx: !!step?.tx,
+            hasTransaction: !!step?.transaction,
+            hasXfer: !!step?.xfer,
+            hasTransfer: !!step?.transfer,
+          });
           
           // Try to use step.send() if available (this is the recommended way)
           if (typeof step?.send === 'function') {
             try {
+              console.log('[Bridge2] Calling step.send() with solanaSigner...');
               const result = await step.send(solanaSigner);
+              console.log('[Bridge2] step.send() result:', {
+                resultType: typeof result,
+                resultConstructor: result?.constructor?.name,
+                resultKeys: result && typeof result === 'object' ? Object.keys(result) : null,
+                resultValue: result,
+                isString: typeof result === 'string',
+                isArray: Array.isArray(result),
+              });
               
               // Extract transaction signature from result
               if (result && typeof result === 'object') {
+                console.log('[Bridge2] Extracting signature from object:', {
+                  txid: result.txid,
+                  txHash: result.txHash,
+                  signature: result.signature,
+                  tx: result.tx,
+                  txType: typeof result.tx,
+                  txConstructor: result.tx?.constructor?.name,
+                });
                 txSignature = result.txid || result.txHash || result.signature || result.tx || '';
                 if (Array.isArray(result) && result.length > 0) {
                   txSignature = result[0]?.txid || result[0]?.txHash || result[0]?.signature || result[0] || '';
@@ -609,15 +827,34 @@ function Bridge2PageContent() {
                 txSignature = result;
               }
               
+              console.log('[Bridge2] Extracted txSignature:', {
+                txSignature,
+                length: txSignature?.length,
+                isValidBase58: txSignature && /^[1-9A-HJ-NP-Za-km-z]{32,}$/.test(txSignature),
+                isString: typeof txSignature === 'string',
+              });
+              
               if (txSignature) {
-                setLastTransferTxSignature(txSignature);
-                console.log('[Bridge2] Transaction sent:', txSignature);
-                updateLastAction(
-                  `Transaction sent successfully`,
-                  'success',
-                  `https://solscan.io/tx/${txSignature}`,
-                  'View on Solscan'
-                );
+                // Check if txSignature is actually a valid signature (not an object or transaction)
+                if (typeof txSignature !== 'string' || txSignature.length < 32) {
+                  console.error('[Bridge2] WARNING: txSignature is not a valid string signature!', {
+                    txSignature,
+                    type: typeof txSignature,
+                    length: txSignature?.length,
+                  });
+                } else {
+                  setLastTransferTxSignature(txSignature);
+                  console.log('[Bridge2] Transaction sent, signature set:', txSignature);
+                  console.log('[Bridge2] Transaction URL: https://solscan.io/tx/' + txSignature);
+                  updateLastAction(
+                    `Transaction sent successfully`,
+                    'success',
+                    `https://solscan.io/tx/${txSignature}`,
+                    'View on Solscan'
+                  );
+                }
+              } else {
+                console.warn('[Bridge2] No txSignature extracted from step.send() result');
               }
               
               // Store xfer object from step if available
@@ -820,6 +1057,18 @@ function Bridge2PageContent() {
           } else if (step?.xfer || step?.transfer) {
             // Store xfer object if found in step
             xfer = step.xfer || step.transfer;
+            console.log('[Bridge2] Found xfer/transfer in step (no tx or send method):', {
+              hasXfer: !!step.xfer,
+              hasTransfer: !!step.transfer,
+              xferType: step.xfer?.constructor?.name,
+              transferType: step.transfer?.constructor?.name,
+            });
+          } else {
+            console.log('[Bridge2] Step has no send(), tx, transaction, xfer, or transfer:', {
+              stepKeys: Object.keys(step || {}),
+              stepType: typeof step,
+              stepConstructor: step?.constructor?.name,
+            });
           }
         }
         
@@ -827,6 +1076,8 @@ function Bridge2PageContent() {
           stepCount,
           hasXfer: !!xfer,
           txSignature,
+          txSignatureLength: txSignature?.length,
+          txSignatureType: typeof txSignature,
         });
         
         if (!txSignature) {

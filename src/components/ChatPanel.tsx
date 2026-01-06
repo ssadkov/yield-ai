@@ -9,7 +9,6 @@ import { SwapModal } from '@/components/ui/swap-modal';
 import { YieldCalculatorModal } from '@/components/ui/yield-calculator-modal';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
-import { ArrowLeftRight } from 'lucide-react';
 import { useWalletData } from '@/contexts/WalletContext';
 import { useWalletStore } from '@/lib/stores/walletStore';
 import { useMemo } from 'react';
@@ -92,14 +91,6 @@ export default function ChatPanel() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
           </svg>
           Swap
-        </Button>
-        <Button 
-          variant="outline" 
-          onClick={() => router.push('/bridge')}
-          className="flex items-center gap-2 w-full justify-start"
-        >
-          <ArrowLeftRight className="w-4 h-4" />
-          Bridge USDC
         </Button>
         <Button 
           variant="outline" 

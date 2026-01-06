@@ -50,7 +50,6 @@
     "@wormhole-foundation/sdk-aptos-tokenbridge": "4.7.1",
     "@wormhole-foundation/sdk-base": "4.7.1",
     "@wormhole-foundation/sdk-solana-cctp": "4.7.1",
-    "@wormhole-foundation/wormhole-connect": "^5.0.0",
     "aptos": "^1.21.0",
     "bcs": "^0.0.0",
     "bs58": "^5.0.0",
@@ -92,6 +91,7 @@
     "@wormhole-foundation/sdk-solana-core": "4.7.1",
     "@wormhole-foundation/sdk-evm-tokenbridge": "4.7.1",
     "@wormhole-foundation/sdk-solana-tokenbridge": "4.7.1",
-    "bs58": "^5.0.0"
+    "bs58": "^5.0.0",
+    "viem": "2.41.2"
   }
 }
