@@ -39,13 +39,40 @@ export function TokenItem({ token, stakingAprs = {}, disableDrag = false }: Toke
     return 0;
   }, [stakingAprs, token.address, symbol]);
 
-  // Находим токен в списке для получения logoUrl
-  const tokenList = getTokenList(1); // 1 - Aptos chainId (fallback for Aptos tokens)
-  const tokenInfo = tokenList.find(t => t.symbol === symbol);
+  // Determine if this is a Solana token (Solana addresses are base58, typically 32-44 chars, no '::' or '0x' prefix)
+  // Aptos addresses are hex strings starting with '0x' or Move types with '::'
+  const isSolanaToken = !token.address.includes('::') && !token.address.startsWith('0x') && token.address.length >= 32;
+  
+  // Get token info from token list (only for Aptos tokens)
+  const tokenInfo = useMemo(() => {
+    if (isSolanaToken) {
+      return null; // Solana tokens don't use Aptos token list
+    }
+    const tokenList = getTokenList(1); // 1 - Aptos chainId
+    return tokenList.find(t => t.symbol === symbol) || null;
+  }, [isSolanaToken, symbol]);
+  
+  // For Solana tokens, use logoUrl directly from Jupiter API (already set in SolanaPortfolioService)
+  // For Aptos tokens, try to find in token list as fallback
+  // IMPORTANT: token.logoUrl should be set by SolanaPortfolioService from Jupiter API
   const logoUrl = token.logoUrl || tokenInfo?.logoUrl;
+  
+  // Debug logging for Solana tokens
+  if (isSolanaToken && !logoUrl) {
+    console.warn('[TokenItem] Solana token missing logoUrl:', {
+      address: token.address,
+      symbol: token.symbol,
+      name: token.name,
+      hasTokenLogoUrl: !!token.logoUrl,
+    });
+  }
 
   // Infer staking protocol name from token metadata (websiteUrl/name/symbol)
   const stakingProtocolName = useMemo(() => {
+    // For Solana tokens, we don't have tokenInfo from token list, so skip protocol detection
+    if (isSolanaToken || !tokenInfo) {
+      return null;
+    }
     const website = (tokenInfo as any)?.websiteUrl as string | undefined;
     const name = tokenInfo?.name || '';
     const lowerName = name.toLowerCase();
@@ -81,7 +108,7 @@ export function TokenItem({ token, stakingAprs = {}, disableDrag = false }: Toke
     if (upperSymbol === 'SUSDE') return 'Ethena';
     if (['AMAPT', 'STAPT'].includes(upperSymbol)) return 'Amnis';
     return null;
-  }, [tokenInfo, symbol]);
+  }, [tokenInfo, symbol, isSolanaToken]);
 
   const handleDragStart = (e: React.DragEvent) => {
     const dragData: TokenDragData = {

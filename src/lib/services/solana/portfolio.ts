@@ -145,7 +145,10 @@ export class SolanaPortfolioService {
 
     for (const token of tokens) {
       const metadata = metadataMap[token.address];
-      if (!metadata) continue;
+      if (!metadata) {
+        console.log(`[SolanaPortfolio] No metadata found for token: ${token.address}`);
+        continue;
+      }
 
       if (metadata.symbol) {
         token.symbol = metadata.symbol;
@@ -155,6 +158,9 @@ export class SolanaPortfolioService {
       }
       if (metadata.logoUrl) {
         token.logoUrl = metadata.logoUrl;
+        console.log(`[SolanaPortfolio] Set logoUrl for ${token.symbol || token.address}: ${metadata.logoUrl}`);
+      } else {
+        console.log(`[SolanaPortfolio] No logoUrl in metadata for ${token.symbol || token.address}`);
       }
       if (
         typeof metadata.decimals === "number" &&
@@ -209,13 +215,30 @@ export class SolanaPortfolioService {
     const fetchBatch = async (idsChunk: string[]) => {
       if (!idsChunk.length) return;
 
-      const url = new URL("https://lite-api.jup.ag/price/v3");
+      const url = new URL("https://api.jup.ag/price/v3");
       url.searchParams.set("ids", idsChunk.join(","));
 
       try {
+        const headers: HeadersInit = {
+          'Accept': 'application/json',
+        };
+        
+        // Добавляем API ключ, если он есть
+        const apiKey = process.env.NEXT_PUBLIC_JUP_API_KEY || process.env.JUP_API_KEY;
+        if (apiKey) {
+          headers['x-api-key'] = apiKey;
+        }
+
         // TODO: proxy Jupiter Price API through our backend service to avoid direct client calls.
-        const response = await fetch(url.toString(), { cache: "no-store" });
-        if (!response.ok) return;
+        const response = await fetch(url.toString(), { 
+          cache: "no-store",
+          headers,
+        });
+        
+        if (!response.ok) {
+          console.warn(`[SolanaPortfolio] Price API response not OK: ${response.status} ${response.statusText}`);
+          return;
+        }
 
         const data = (await response.json()) as Record<
           string,
