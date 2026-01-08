@@ -10,6 +10,9 @@ export function useWithdraw() {
   const wallet = useWallet();
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  
+  // Gas Station is configured globally in WalletProvider
+  // All transactions via signAndSubmitTransaction will automatically use Gas Station (free transactions)
 
   const withdraw = useCallback(async (
     protocolKey: ProtocolKey,
@@ -54,6 +57,7 @@ export function useWithdraw() {
         options: {
           maxGasAmount: 20000, // Network limit is 20000
         },
+        // Gas Station is configured globally in WalletProvider, no need to pass explicitly
       });
       console.log('Withdraw transaction response:', response);
 

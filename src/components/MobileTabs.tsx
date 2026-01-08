@@ -4,6 +4,8 @@ import DashboardPanel from "./DashboardPanel";
 import ChatPanelWrapper from "./ChatPanelWrapper";
 import { WalletSelector } from "./WalletSelector";
 import { PortfolioCard } from "./portfolio/PortfolioCard";
+import { SolanaWalletCard } from "./portfolio/SolanaWalletCard";
+import { SolanaSignMessageButton } from "./SolanaSignMessageButton";
 import { PositionsList as HyperionPositionsList } from "./protocols/hyperion/PositionsList";
 import { PositionsList as EchelonPositionsList } from "./protocols/echelon/PositionsList";
 import { PositionsList as AriesPositionsList } from "./protocols/aries/PositionsList";
@@ -21,10 +23,18 @@ import { Logo } from "./ui/logo";
 //import { AlphaBadge } from "./ui/alpha-badge";
 import { CollapsibleProvider } from "@/contexts/CollapsibleContext";
 import { MobileManagementProvider } from "@/contexts/MobileManagementContext";
+import { useSolanaPortfolio } from "@/hooks/useSolanaPortfolio";
 
 function MobileTabsContent() {
   const [tab, setTab] = useState<"ideas" | "assets" | "chat">("assets");
   const { account } = useWallet();
+  const {
+    address: solanaAddress,
+    tokens: solanaTokens,
+    totalValueUsd: solanaTotalValue,
+    isLoading: isSolanaLoading,
+    refresh: refreshSolana,
+  } = useSolanaPortfolio();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [tokens, setTokens] = useState<Token[]>([]);
   const [totalValue, setTotalValue] = useState<string>("0");
@@ -176,7 +186,19 @@ function MobileTabsContent() {
                       tokens={tokens} 
                       onRefresh={handleRefresh}
                       isRefreshing={isRefreshing}
+                      hasSolanaWallet={!!solanaAddress}
                     />
+                    {solanaAddress && (
+                      <div className="space-y-2">
+                        <SolanaWalletCard
+                          tokens={solanaTokens}
+                          totalValueUsd={solanaTotalValue}
+                          onRefresh={refreshSolana}
+                          isRefreshing={isSolanaLoading}
+                        />
+                        <SolanaSignMessageButton />
+                      </div>
+                    )}
                     {[
                       { 
                         component: HyperionPositionsList, 

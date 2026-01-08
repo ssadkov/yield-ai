@@ -6,6 +6,8 @@ import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import tokenList from "@/lib/data/tokenList.json";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/components/ui/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 
 function findToken(address: string) {
   // Normalize addresses by removing leading zeros after 0x
@@ -54,11 +56,13 @@ function normalizePriceMap(list: any[]): Record<string, number> {
 
 export function EarniumPositionsManaging() {
   const { account, signAndSubmitTransaction } = useWallet();
+  const { toast } = useToast();
   const [pools, setPools] = useState<any[]>([]);
   const [rewardsUSD, setRewardsUSD] = useState(0);
   const [claiming, setClaiming] = useState(false);
   const [poolsData, setPoolsData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [earniumRewardsData, setEarniumRewardsData] = useState<any[]>([]);
 
   const load = useCallback(async () => {
     if (!account?.address) return;
@@ -70,6 +74,7 @@ export function EarniumPositionsManaging() {
       const resp = await fetch(`/api/protocols/earnium/rewards?address=${account.address}`);
       const json = await resp.json();
       const data: any[] = Array.isArray(json.data) ? json.data : [];
+      setEarniumRewardsData(data);
       
       // Загружаем данные о пулах с APR
       const poolsResp = await fetch('/api/protocols/earnium/pools');
@@ -114,16 +119,18 @@ export function EarniumPositionsManaging() {
       const pairSet: { logo?: string; symbol: string }[] = [];
       (p.balances || []).forEach((b: any) => {
         const t = findToken(b.asset_type);
-        const decimals = typeof t?.decimals === 'number' ? t.decimals : 8;
-        const addrA = (t?.faAddress || '').toLowerCase();
-        const addrB = (t?.tokenAddress || '').toLowerCase();
+        // Skip tokens that are not in tokenList
+        if (!t) return;
+        const decimals = typeof t.decimals === 'number' ? t.decimals : 8;
+        const addrA = (t.faAddress || '').toLowerCase();
+        const addrB = (t.tokenAddress || '').toLowerCase();
         const price = addrA ? (priceMap[addrA] || 0) : (priceMap[addrB] || 0);
         const poolAmountRaw = (() => { try { return BigInt(b.amount || '0'); } catch { return BigInt(0); } })();
         const userAmountRaw = totalSupplyRaw > BigInt(0) ? (poolAmountRaw * stakedRaw) / totalSupplyRaw : BigInt(0);
         const userAmount = Number(userAmountRaw) / Math.pow(10, decimals);
         const usd = userAmount * price;
         poolUserUSD += usd;
-        const sym = t?.symbol || b.asset_type; const logo = t?.logoUrl;
+        const sym = t.symbol; const logo = t.logoUrl;
         if (sym && !pairSet.find((x) => x.symbol === sym)) pairSet.push({ logo, symbol: sym });
       });
              const pairSymbols = pairSet.map((x) => x.symbol).slice(0, 3);
@@ -173,13 +180,54 @@ export function EarniumPositionsManaging() {
     if (!signAndSubmitTransaction) return;
     try {
       setClaiming(true);
+      
+      // Get pool indices that have rewards (same logic as in claim-all-rewards-modal)
+      const poolIndices = earniumRewardsData
+        .filter((pool: any) => 
+          Array.isArray(pool.rewards) && 
+          pool.rewards.some((r: any) => Number(r.amountRaw || 0) > 0)
+        )
+        .map((pool: any) => pool.pool);
+
+      // If no pools with rewards, use all pools from 0 to 3
+      const finalPoolIndices = poolIndices.length > 0 
+        ? poolIndices.map(String) // Convert to strings
+        : ['0', '1', '2', '3']; // Default to all pools
+
       const functionAddress = '0x7c92a9636a412407aaede35eb2654d176477c00a47bc11ea3338d1f571ec95bc';
       const payload = {
         function: `${functionAddress}::premium_staked_pool::claim_all_rewards` as `${string}::${string}::${string}`,
         typeArguments: [] as string[],
-        functionArguments: [[0,1,2,3]] as any[]
+        functionArguments: [finalPoolIndices] as any[] // Array of pool indices as strings
       } as const;
-      await signAndSubmitTransaction({ data: payload } as any);
+      const tx = await signAndSubmitTransaction({ 
+        data: payload,
+        options: { maxGasAmount: 5000 } // Match successful transaction (4730 used, set 5000 for safety)
+      } as any);
+
+      // Show success toast
+      toast({
+        title: "Rewards claimed!",
+        description: `Transaction: ${tx.hash.slice(0, 8)}...${tx.hash.slice(-8)}`,
+        action: (
+          <ToastAction altText="View in Explorer" onClick={() => window.open(`https://explorer.aptoslabs.com/txn/${tx.hash}?network=mainnet`, '_blank')}>
+            View in Explorer
+          </ToastAction>
+        ),
+      });
+
+      // Refresh data after successful claim
+      setTimeout(() => {
+        load();
+        window.dispatchEvent(new CustomEvent('refreshPositions', { detail: { protocol: 'earnium' } }));
+      }, 2000);
+    } catch (error) {
+      console.error('Error claiming rewards:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to claim rewards",
+        variant: "destructive",
+      });
     } finally {
       setClaiming(false);
     }

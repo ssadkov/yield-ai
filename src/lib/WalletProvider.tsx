@@ -1,8 +1,9 @@
 "use client";
 
 import { AptosWalletAdapterProvider } from "@aptos-labs/wallet-adapter-react";
+import { setupAutomaticSolanaWalletDerivation } from "@aptos-labs/derived-wallet-solana";
 import { PropsWithChildren, useState, useEffect } from "react";
-import { Network, Aptos, AptosConfig } from "@aptos-labs/ts-sdk";
+import { Network } from "@aptos-labs/ts-sdk";
 import { useToast } from "@/components/ui/use-toast";
 import { GasStationService } from "./services/gasStation";
 
@@ -17,27 +18,30 @@ export const WalletProvider = ({ children }: PropsWithChildren) => {
 
   useEffect(() => {
     setIsClient(true);
+    setupAutomaticSolanaWalletDerivation({
+      defaultNetwork: Network.MAINNET,
+    });
   }, []);
 
-  // Initialize gas station globally (this was the working version)
+  // Initialize gas station
+  // For x-chain accounts: GasStationTransactionSubmitter is passed in transactionInput (per transaction)
+  //   This overrides the global transactionSubmitter, so x-chain wallets will use Gas Station explicitly
+  // For native Aptos wallets: GasStationTransactionSubmitter is set globally in dappConfig
+  //   All transactions via signAndSubmitTransaction will automatically use Gas Station (free transactions)
+  // According to documentation, transactionSubmitter in transactionInput overrides global one
   const gasStationService = GasStationService.getInstance();
-  let transactionSubmitter;
+  const gasStationTransactionSubmitter = gasStationService.isAvailable() 
+    ? gasStationService.getTransactionSubmitter() 
+    : undefined;
   
-  if (gasStationService.isAvailable()) {
-    // Use gas station as transaction submitter
-    const gasStationClient = gasStationService.getGasStationClient();
-    if (gasStationClient) {
-      transactionSubmitter = gasStationClient;
-    }
+  if (gasStationTransactionSubmitter) {
+    console.log('[gas-station] WalletProvider: Gas Station available globally:', {
+      type: gasStationTransactionSubmitter.constructor?.name,
+      available: Boolean(gasStationTransactionSubmitter)
+    });
+  } else {
+    console.warn('[gas-station] WalletProvider: Gas Station is not available - native Aptos wallets will pay gas fees');
   }
-
-  // Create Aptos config with gas station if available
-  const aptosConfig = new AptosConfig({
-    network: Network.MAINNET,
-    ...(transactionSubmitter && { transactionSubmitter }),
-  });
-
-  const aptos = new Aptos(aptosConfig);
 
   // Don't render wallet provider until client-side
   if (!isClient) {
@@ -49,7 +53,10 @@ export const WalletProvider = ({ children }: PropsWithChildren) => {
       autoConnect={true}
       dappConfig={{
         network: Network.MAINNET,
-        transactionSubmitter: transactionSubmitter || aptos.config.getTransactionSubmitter(),
+        crossChainWallets: true,
+        // Set global transactionSubmitter for native Aptos wallets
+        // X-chain wallets will override this with explicit transactionSubmitter in transactionInput
+        transactionSubmitter: gasStationTransactionSubmitter || undefined,
         aptosApiKeys: {
           testnet: process.env.NEXT_PUBLIC_APTOS_API_KEY_TESTNET,
           devnet: process.env.NEXT_PUBLIC_APTOS_API_KEY_DEVNET,

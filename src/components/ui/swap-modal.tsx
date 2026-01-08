@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useWalletData } from '@/contexts/WalletContext';
-import { useTransactionSubmitter } from '@/lib/hooks/useTransactionSubmitter';
+import { useWallet } from '@aptos-labs/wallet-adapter-react';
 import { isUserRejectedError } from '@/lib/utils/errors';
 import { Token } from '@/lib/types/panora';
 import tokenList from '@/lib/data/tokenList.json';
@@ -58,7 +58,7 @@ interface SwapModalProps {
 
 export function SwapModal({ isOpen, onClose }: SwapModalProps) {
   const { tokens, address: userAddress, refreshPortfolio } = useWalletData();
-  const { submitTransaction, isConnected } = useTransactionSubmitter();
+  const { signAndSubmitTransaction, connected } = useWallet();
   
   // Убираем fetchPrices - используем готовые цены из tokens
   // const { prices, fetchPrices } = useWalletStore();
@@ -365,7 +365,7 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
   };
 
   const executeSwap = async () => {
-    if (!isConnected) {
+    if (!connected) {
       setError('Wallet not connected. Please connect your wallet first.');
       return;
     }
@@ -442,12 +442,17 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
           console.log('Processed type arguments:', typeArguments);
           console.log('Function arguments (as is):', functionArguments);
           
-          console.log('Executing swap via unified transaction submitter...');
+          console.log('Executing swap via signAndSubmitTransaction with Gas Station...');
           
-          // Use the unified transaction submitter which handles gasless transactions automatically
-          const tx = await submitTransaction({
+          // Use signAndSubmitTransaction with global Gas Station transactionSubmitter from WalletProvider
+          // Gas Station will automatically sponsor the transaction (free for user)
+          if (!connected || !signAndSubmitTransaction) {
+            throw new Error('Wallet not connected');
+          }
+          
+          const tx = await signAndSubmitTransaction({
             data: {
-              function: txPayload.function,
+              function: txPayload.function as `${string}::${string}::${string}`,
               typeArguments: typeArguments,
               functionArguments: functionArguments
             },

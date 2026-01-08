@@ -1,9 +1,10 @@
-import { GasStationClient, createGasStationClient } from "@aptos-labs/gas-station-client";
+import { GasStationClient, GasStationTransactionSubmitter } from "@aptos-labs/gas-station-client";
 import { Network, AptosConfig } from "@aptos-labs/ts-sdk";
 
 export class GasStationService {
   private static instance: GasStationService;
   private gasStationClient: GasStationClient | null = null;
+  private transactionSubmitter: GasStationTransactionSubmitter | null = null;
 
   private constructor() {
     this.initializeGasStationClient();
@@ -30,20 +31,33 @@ export class GasStationService {
         return;
       }
 
+      // Trim API key to remove any whitespace (like working example)
+      const cleanApiKey = apiKey.trim();
       
-      this.gasStationClient = createGasStationClient({
+      // Use new GasStationClient (like working example) instead of createGasStationClient
+      this.gasStationClient = new GasStationClient({
         network: Network.MAINNET,
-        apiKey: apiKey,
+        apiKey: cleanApiKey,
       });
+
+      // Create GasStationTransactionSubmitter from GasStationClient (like working example)
+      if (this.gasStationClient) {
+        this.transactionSubmitter = new GasStationTransactionSubmitter(this.gasStationClient);
+      }
 
     } catch (error) {
       console.error('Failed to initialize gas station client:', error);
       this.gasStationClient = null;
+      this.transactionSubmitter = null;
     }
   }
 
   public getGasStationClient(): GasStationClient | null {
     return this.gasStationClient;
+  }
+
+  public getTransactionSubmitter(): GasStationTransactionSubmitter | null {
+    return this.transactionSubmitter;
   }
 
   public isAvailable(): boolean {

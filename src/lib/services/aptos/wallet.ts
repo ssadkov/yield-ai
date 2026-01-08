@@ -27,7 +27,6 @@ export class AptosWalletService {
     });
     this.aptos = new Aptos(config);
     this.baseUrl = 'https://indexer.mainnet.aptoslabs.com/v1/graphql';
-    console.log('AptosWalletService initialized with baseUrl:', this.baseUrl);
   }
 
   public static getInstance(): AptosWalletService {
@@ -39,13 +38,10 @@ export class AptosWalletService {
 
   async getBalances(address: string) {
     try {
-      console.log('Getting balances for address:', address);
-      
       // Use AptosApiService directly instead of making HTTP request
       const apiService = new AptosApiService();
       const data = await apiService.getBalances(address);
       
-      console.log('Balances response:', data);
       return data;
     } catch (error) {
       console.error('Failed to fetch Aptos balances:', error);

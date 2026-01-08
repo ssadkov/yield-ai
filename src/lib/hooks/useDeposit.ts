@@ -5,11 +5,9 @@ import { useToast } from '@/components/ui/use-toast';
 import { showTransactionSuccessToast } from '@/components/ui/transaction-toast';
 import { ToastAction } from '@/components/ui/toast';
 import { protocols } from '../protocols/protocolsRegistry';
-import { useTransactionSubmitter } from './useTransactionSubmitter';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
 
 export function useDeposit() {
-  const { submitTransaction, isConnected, hasSignAndSubmitTransaction } = useTransactionSubmitter();
   const wallet = useWallet();
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -45,12 +43,8 @@ export function useDeposit() {
       }
 
       console.log('Submitting transaction with payload:', payload);
-      console.log('Wallet state:', { 
-        hasSignAndSubmitTransaction,
-        isConnected
-      });
 
-      if (!isConnected || !hasSignAndSubmitTransaction) {
+      if (!wallet.connected || !wallet.signAndSubmitTransaction) {
         throw new Error('Wallet not connected');
       }
 
@@ -73,9 +67,11 @@ export function useDeposit() {
         maxGasAmount = 2000; // Increased gas limit for APT transactions with gas station
       }
 
-      const response = await submitTransaction({
+      // Use signAndSubmitTransaction with global Gas Station transactionSubmitter from WalletProvider
+      // Gas Station will automatically sponsor the transaction (free for user)
+      const response = await wallet.signAndSubmitTransaction({
         data: {
-          function: payload.function,
+          function: payload.function as `${string}::${string}::${string}`,
           typeArguments: payload.type_arguments,
           functionArguments: payload.arguments
         },
@@ -131,7 +127,7 @@ export function useDeposit() {
     } finally {
       setIsLoading(false);
     }
-  }, [submitTransaction, isConnected, hasSignAndSubmitTransaction, wallet, toast]);
+  }, [wallet, toast]);
 
   return {
     deposit,

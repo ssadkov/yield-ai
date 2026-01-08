@@ -7,20 +7,29 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SwapModal } from '@/components/ui/swap-modal';
 import { YieldCalculatorModal } from '@/components/ui/yield-calculator-modal';
+import { TransferModal } from '@/components/ui/transfer-modal';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
 import { useWalletData } from '@/contexts/WalletContext';
 import { useWalletStore } from '@/lib/stores/walletStore';
+import { useToast } from '@/components/ui/use-toast';
 import { useMemo } from 'react';
+import { getSolanaWalletAddress } from '@/lib/wallet/getSolanaWalletAddress';
 
 export default function ChatPanel() {
   const [isSwapModalOpen, setIsSwapModalOpen] = useState(false);
   const [isYieldCalcOpen, setIsYieldCalcOpen] = useState(false);
-  const { account } = useWallet();
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+  const { account, wallet } = useWallet();
   const { tokens } = useWalletData();
   const totalAssetsStore = useWalletStore((s) => s.totalAssets);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { toast } = useToast();
+
+  // Check if Solana wallet is connected
+  const solanaAddress = useMemo(() => getSolanaWalletAddress(wallet), [wallet]);
+  const hasSolanaWallet = !!solanaAddress;
 
   const walletTotal = useMemo(() => {
     return (tokens || []).reduce((sum, t: any) => {
@@ -51,6 +60,32 @@ export default function ChatPanel() {
     } else {
       // If no wallet connected, go to portfolio input page
       router.push('/portfolio');
+    }
+  };
+
+  const handleBridgeUSDC = () => {
+    if (account?.address) {
+      // Navigate to bridge2 page with destination address as query parameter
+      router.push(`/bridge2?destination=${encodeURIComponent(account.address.toString())}`);
+    } else {
+      // Show toast if wallet is not connected
+      toast({
+        variant: "destructive",
+        title: "Wallet Not Connected",
+        description: "Please connect your Aptos wallet to bridge USDC",
+      });
+    }
+  };
+
+  const handleTransfer = () => {
+    if (account?.address) {
+      setIsTransferModalOpen(true);
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Wallet Not Connected",
+        description: "Please connect your Aptos wallet to transfer tokens",
+      });
     }
   };
 
@@ -92,6 +127,18 @@ export default function ChatPanel() {
           </svg>
           Swap
         </Button>
+        {hasSolanaWallet && (
+          <Button 
+            variant="outline" 
+            onClick={handleTransfer}
+            className="flex items-center gap-2 w-full justify-start"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            </svg>
+            Transfer
+          </Button>
+        )}
         <Button 
           variant="outline" 
           onClick={() => setIsYieldCalcOpen(true)}
@@ -112,6 +159,18 @@ export default function ChatPanel() {
           </svg>
           Portfolio Tracker
         </Button>
+        {hasSolanaWallet && (
+          <Button 
+            variant="outline" 
+            onClick={handleBridgeUSDC}
+            className="flex items-center gap-2 w-full justify-start"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+            </svg>
+            Bridge USDC
+          </Button>
+        )}
       </div>
 
       {/* Compact Footer - Mobile only */}
@@ -206,6 +265,10 @@ export default function ChatPanel() {
       <SwapModal 
         isOpen={isSwapModalOpen} 
         onClose={() => setIsSwapModalOpen(false)} 
+      />
+      <TransferModal 
+        isOpen={isTransferModalOpen} 
+        onClose={() => setIsTransferModalOpen(false)} 
       />
       <YieldCalculatorModal 
         isOpen={isYieldCalcOpen}

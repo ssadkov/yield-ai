@@ -1,0 +1,130 @@
+[1mdiff --git a/src/components/ui/claim-all-rewards-modal.tsx b/src/components/ui/claim-all-rewards-modal.tsx[m
+[1mindex 8d64385..86e9d41 100644[m
+[1m--- a/src/components/ui/claim-all-rewards-modal.tsx[m
+[1m+++ b/src/components/ui/claim-all-rewards-modal.tsx[m
+[36m@@ -13,6 +13,7 @@[m [mimport { useClaimRewards } from '@/lib/hooks/useClaimRewards';[m
+ import { useWalletStore } from '@/lib/stores/walletStore';[m
+ import { ToastAction } from '@/components/ui/toast';[m
+ import { getBaseUrl } from '@/lib/utils/config';[m
+[32m+[m[32mimport { ClaimSuccessModal } from '@/components/ui/claim-success-modal';[m
+ [m
+ interface ClaimAllRewardsModalProps {[m
+   isOpen: boolean;[m
+[36m@@ -47,6 +48,9 @@[m [mexport function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl[m
+   const [results, setResults] = useState<ClaimResult[]>([]);[m
+   const [currentStep, setCurrentStep] = useState<string>('');[m
+   const [claimedValue, setClaimedValue] = useState(0);[m
+[32m+[m[32m  const [showClaimSuccessModal, setShowClaimSuccessModal] = useState(false);[m
+[32m+[m[32m  const [claimedRewards, setClaimedRewards] = useState<any[]>([]);[m
+[32m+[m[32m  const [claimTransactionHash, setClaimTransactionHash] = useState<string>('');[m
+ [m
+   // Helper: detect user rejected errors from different wallets[m
+   const isUserRejected = isUserRejectedError;[m
+[36m@@ -282,9 +286,26 @@[m [mexport function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl[m
+       return;[m
+     }[m
+ [m
+[32m+[m[32m    // Save claimable amounts before claiming[m
+[32m+[m[32m    const rewardsToClaim: any[] = [];[m
+[32m+[m[32m    moarRewards.forEach((reward: any) => {[m
+[32m+[m[32m      if (reward.farming_identifier && reward.reward_id && reward.claimable_amount) {[m
+[32m+[m[32m        rewardsToClaim.push({[m
+[32m+[m[32m          farming_identifier: reward.farming_identifier,[m
+[32m+[m[32m          reward_id: reward.reward_id,[m
+[32m+[m[32m          symbol: reward.symbol,[m
+[32m+[m[32m          amount: reward.amount,[m
+[32m+[m[32m          usdValue: reward.usdValue,[m
+[32m+[m[32m          logoUrl: reward.logoUrl || reward.token_info?.logoUrl,[m
+[32m+[m[32m          claimable_amount: reward.claimable_amount,[m
+[32m+[m[32m          decimals: reward.decimals || reward.token_info?.decimals || 8[m
+[32m+[m[32m        });[m
+[32m+[m[32m      }[m
+[32m+[m[32m    });[m
+[32m+[m
+     // Group rewards by farming_identifier to avoid duplicate calls[m
+     const rewardsByPool = new Map();[m
+[31m-    moarRewards.forEach((reward: any) => {[m
+[32m+[m[32m    rewardsToClaim.forEach((reward: any) => {[m
+       if (reward.farming_identifier && reward.reward_id) {[m
+         if (!rewardsByPool.has(reward.farming_identifier)) {[m
+           rewardsByPool.set(reward.farming_identifier, []);[m
+[36m@@ -295,8 +316,8 @@[m [mexport function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl[m
+ [m
+     console.log('[ClaimAll] Grouped Moar rewards by pool:', Array.from(rewardsByPool.entries()));[m
+ [m
+[31m-    let totalClaimedRewards = 0;[m
+     let lastTransactionHash = '';[m
+[32m+[m[32m    const claimedRewardsList: any[] = [];[m
+ [m
+     // Claim rewards for each pool[m
+     for (const [farmingIdentifier, rewardIds] of rewardsByPool) {[m
+[36m@@ -304,6 +325,11 @@[m [mexport function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl[m
+       [m
+       setCurrentStep(`Claiming Moar pool`);[m
+       [m
+[32m+[m[32m      // Find rewards that match this pool[m
+[32m+[m[32m      const poolRewards = rewardsToClaim.filter([m
+[32m+[m[32m        (r) => r.farming_identifier === farmingIdentifier && rewardIds.includes(r.reward_id)[m
+[32m+[m[32m      );[m
+[32m+[m[41m      [m
+       try {[m
+         const result = await claimRewards('moar', [farmingIdentifier], rewardIds);[m
+         [m
+[36m@@ -312,7 +338,15 @@[m [mexport function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl[m
+           lastTransactionHash = result.hash;[m
+         }[m
+         [m
+[31m-        totalClaimedRewards += rewardIds.length;[m
+[32m+[m[32m        // Add claimed rewards to list[m
+[32m+[m[32m        poolRewards.forEach((reward) => {[m
+[32m+[m[32m          claimedRewardsList.push({[m
+[32m+[m[32m            symbol: reward.symbol,[m
+[32m+[m[32m            amount: reward.amount,[m
+[32m+[m[32m            usdValue: reward.usdValue,[m
+[32m+[m[32m            logoUrl: reward.logoUrl[m
+[32m+[m[32m          });[m
+[32m+[m[32m        });[m
+         [m
+         // Small delay between claims to avoid rate limiting[m
+         await new Promise(resolve => setTimeout(resolve, 1000));[m
+[36m@@ -331,15 +365,10 @@[m [mexport function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl[m
+     const moarValue = summary.protocols.moar?.value || 0;[m
+     setClaimedValue(prev => prev + moarValue);[m
+ [m
+[31m-    toast({[m
+[31m-      title: `Moar rewards claimed!`,[m
+[31m-      description: `Successfully claimed ${totalClaimedRewards} rewards from ${rewardsByPool.size} pools`,[m
+[31m-      action: lastTransactionHash ? ([m
+[31m-        <ToastAction altText="View in Explorer" onClick={() => window.open(`https://explorer.aptoslabs.com/txn/${lastTransactionHash}?network=mainnet`, '_blank')}>[m
+[31m-          View in Explorer[m
+[31m-        </ToastAction>[m
+[31m-      ) : undefined,[m
+[31m-    });[m
+[32m+[m[32m    // Show success modal instead of toast[m
+[32m+[m[32m    setClaimedRewards(claimedRewardsList);[m
+[32m+[m[32m    setClaimTransactionHash(lastTransactionHash);[m
+[32m+[m[32m    setShowClaimSuccessModal(true);[m
+   };[m
+ [m
+   // Special handling for Earnium - single call claim_all_rewards[m
+[36m@@ -898,6 +927,19 @@[m [mexport function ClaimAllRewardsModal({ isOpen, onClose, summary, positions }: Cl[m
+           </div>[m
+         </div>[m
+       </DialogContent>[m
+[32m+[m
+[32m+[m[32m      {/* Claim Success Modal for Moar */}[m
+[32m+[m[32m      <ClaimSuccessModal[m
+[32m+[m[32m        isOpen={showClaimSuccessModal}[m
+[32m+[m[32m        onClose={() => {[m
+[32m+[m[32m          setShowClaimSuccessModal(false);[m
+[32m+[m[32m          setClaimedRewards([]);[m
+[32m+[m[32m          setClaimTransactionHash('');[m
+[32m+[m[32m        }}[m
+[32m+[m[32m        transactionHash={claimTransactionHash}[m
+[32m+[m[32m        rewards={claimedRewards}[m
+[32m+[m[32m        protocolName="Moar Market"[m
+[32m+[m[32m      />[m
+     </Dialog>[m
+   );[m
+ } [m
+\ No newline at end of file[m

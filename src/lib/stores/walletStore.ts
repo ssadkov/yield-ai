@@ -1235,21 +1235,8 @@ export const useWalletStore = create<WalletState>()(
 
           earniumRewards.forEach((pool: any) => {
             if (pool.rewards && Array.isArray(pool.rewards)) {
-              console.log(`[WalletStore] Processing Earnium pool ${pool.pool}:`, {
-                poolId: pool.pool,
-                rewardsCount: pool.rewards.length,
-                staked: pool.staked
-              });
-
               pool.rewards.forEach((reward: any) => {
                 if (reward.amount && reward.amount > 0) {
-                  console.log(`[WalletStore] Processing Earnium reward:`, {
-                    token: reward.symbol,
-                    tokenKey: reward.tokenKey,
-                    amount: reward.amount,
-                    decimals: reward.decimals
-                  });
-
                   // Clean the token address
                   let cleanAddress = reward.tokenKey;
                   if (cleanAddress.startsWith('@')) {
@@ -1263,32 +1250,14 @@ export const useWalletStore = create<WalletState>()(
                   let price = '0';
                   if (earniumPrices[cleanAddress]) {
                     price = earniumPrices[cleanAddress];
-                    console.log(`[WalletStore] Found direct Earnium price: ${price}`);
                   } else if (state.prices[cleanAddress]) {
                     price = state.prices[cleanAddress];
-                    console.log(`[WalletStore] Found store price: ${price}`);
-                  } else {
-                    console.log(`[WalletStore] No price found for address: ${cleanAddress}`);
                   }
 
                   if (parseFloat(price) > 0) {
                     const value = reward.amount * parseFloat(price);
                     summary.protocols.earnium.value += value;
                     summary.protocols.earnium.count++;
-                    console.log(`[WalletStore] Earnium reward processed:`, {
-                      token: reward.symbol,
-                      amount: reward.amount,
-                      price: price,
-                      value: value,
-                      pool: pool.pool
-                    });
-                  } else {
-                    console.log(`[WalletStore] Earnium reward skipped (no price):`, {
-                      token: reward.symbol,
-                      amount: reward.amount,
-                      address: cleanAddress,
-                      reason: 'Price is 0 or not found'
-                    });
                   }
                 }
               });

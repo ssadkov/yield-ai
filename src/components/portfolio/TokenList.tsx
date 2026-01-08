@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 
 interface TokenListProps {
   tokens: Token[];
+  disableDrag?: boolean;
 }
 
-export function TokenList({ tokens }: TokenListProps) {
+export function TokenList({ tokens, disableDrag = false }: TokenListProps) {
   const [stakingAprs, setStakingAprs] = useState<Record<string, { aprPct: number; source: string }>>({});
 
   useEffect(() => {
@@ -38,7 +39,7 @@ export function TokenList({ tokens }: TokenListProps) {
   return (
     <div className="space-y-2">
       {sortedTokens.map((token) => (
-        <TokenItem key={token.address} token={token} stakingAprs={stakingAprs} />
+        <TokenItem key={token.address} token={token} stakingAprs={stakingAprs} disableDrag={disableDrag} />
       ))}
     </div>
   );

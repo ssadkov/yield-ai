@@ -23,7 +23,7 @@ import {
   LogOut,
   User,
 } from "lucide-react";
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState, useEffect, useMemo } from "react";
 import { Button } from "./ui/button";
 import {
   Collapsible,
@@ -44,12 +44,15 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { useToast } from "./ui/use-toast";
+import { getSolanaWalletAddress } from "@/lib/wallet/getSolanaWalletAddress";
 
 export function WalletSelector(walletSortingOptions: WalletSortingOptions) {
   const { account, connected, disconnect, wallet } = useWallet();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const { toast } = useToast();
+
+  const solanaAddress = useMemo(() => getSolanaWalletAddress(wallet), [wallet]);
 
   useEffect(() => {
     setMounted(true);
@@ -73,6 +76,23 @@ export function WalletSelector(walletSortingOptions: WalletSortingOptions) {
       });
     }
   }, [account?.address, toast]);
+
+  const copySolanaAddress = useCallback(async () => {
+    if (!solanaAddress) return;
+    try {
+      await navigator.clipboard.writeText(solanaAddress);
+      toast({
+        title: "Success",
+        description: "Copied Solana address to clipboard",
+      });
+    } catch {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to copy Solana address",
+      });
+    }
+  }, [solanaAddress, toast]);
 
   const handleDisconnect = useCallback(async () => {
     try {
@@ -106,6 +126,27 @@ export function WalletSelector(walletSortingOptions: WalletSortingOptions) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
+        {solanaAddress && (
+          <div className="px-4 py-3 text-sm">
+            <p className="text-xs uppercase text-muted-foreground">
+              Cross-chain Solana wallet
+            </p>
+            <div className="mt-2 flex items-center gap-2">
+              <span className="font-mono text-xs">
+                {truncateAddress(solanaAddress)}
+              </span>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7"
+                onClick={copySolanaAddress}
+                aria-label="Copy Solana address"
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
         <DropdownMenuItem onSelect={copyAddress} className="gap-2">
           <Copy className="h-4 w-4" /> Copy address
         </DropdownMenuItem>

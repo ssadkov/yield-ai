@@ -13,6 +13,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useWalletStore } from '@/lib/stores/walletStore';
 import { WithdrawModal } from '@/components/ui/withdraw-modal';
 import { DepositModal } from '@/components/ui/deposit-modal';
+import { ClaimSuccessModal } from '@/components/ui/claim-success-modal';
 import { formatNumber, formatCurrency } from '@/lib/utils/numberFormat';
 
 interface MoarPositionsProps {
@@ -49,6 +50,9 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [selectedDepositPosition, setSelectedDepositPosition] = useState<Position | null>(null);
+  const [showClaimSuccessModal, setShowClaimSuccessModal] = useState(false);
+  const [claimedRewards, setClaimedRewards] = useState<any[]>([]);
+  const [claimTransactionHash, setClaimTransactionHash] = useState<string>('');
 
   const walletAddress = address || account?.address;
 
@@ -176,9 +180,26 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
     }
 
     try {
+      // Save claimable amounts before claiming
+      const rewardsToClaim: any[] = [];
+      rewardsData.forEach((reward: any) => {
+        if (reward.farming_identifier && reward.reward_id && reward.claimable_amount) {
+          rewardsToClaim.push({
+            farming_identifier: reward.farming_identifier,
+            reward_id: reward.reward_id,
+            symbol: reward.symbol,
+            amount: reward.amount,
+            usdValue: reward.usdValue,
+            logoUrl: reward.logoUrl || reward.token_info?.logoUrl,
+            claimable_amount: reward.claimable_amount,
+            decimals: reward.decimals || reward.token_info?.decimals || 8
+          });
+        }
+      });
+
       // Group rewards by farming_identifier to avoid duplicate calls
       const rewardsByPool = new Map();
-      rewardsData.forEach((reward: any) => {
+      rewardsToClaim.forEach((reward: any) => {
         if (reward.farming_identifier && reward.reward_id) {
           if (!rewardsByPool.has(reward.farming_identifier)) {
             rewardsByPool.set(reward.farming_identifier, []);
@@ -187,12 +208,18 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
         }
       });
 
-      let totalClaimedRewards = 0;
       let lastTransactionHash = '';
+      const claimedRewardsList: any[] = [];
 
       // Claim rewards for each pool
       for (const [farmingIdentifier, rewardIds] of rewardsByPool) {
         console.log(`Claiming rewards for pool ${farmingIdentifier}:`, rewardIds);
+        
+        // Find rewards that match this pool
+        const poolRewards = rewardsToClaim.filter(
+          (r) => r.farming_identifier === farmingIdentifier && rewardIds.includes(r.reward_id)
+        );
+        
         const result = await claimRewards('moar', [farmingIdentifier], rewardIds);
         
         // Extract transaction hash if available
@@ -200,31 +227,24 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
           lastTransactionHash = result.hash;
         }
         
-        totalClaimedRewards += rewardIds.length;
+        // Add claimed rewards to list
+        poolRewards.forEach((reward) => {
+          claimedRewardsList.push({
+            symbol: reward.symbol,
+            amount: reward.amount,
+            usdValue: reward.usdValue,
+            logoUrl: reward.logoUrl
+          });
+        });
         
         // Small delay between claims to avoid rate limiting
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
 
-      // Show success notification with explorer link
-      toast({
-        title: "Success!",
-        description: (
-          <div className="space-y-2">
-            <p>Successfully claimed {totalClaimedRewards} rewards from Moar Market</p>
-            {lastTransactionHash && (
-              <a 
-                href={`https://explorer.aptoslabs.com/txn/${lastTransactionHash}?network=mainnet`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-800 underline text-sm"
-              >
-                View transaction on Explorer →
-              </a>
-            )}
-          </div>
-        ),
-      });
+      // Show success modal
+      setClaimedRewards(claimedRewardsList);
+      setClaimTransactionHash(lastTransactionHash);
+      setShowClaimSuccessModal(true);
 
       // Refresh rewards data after successful claim
       setTimeout(() => {
@@ -953,6 +973,19 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
           })()}
         />
       )}
+
+      {/* Claim Success Modal */}
+      <ClaimSuccessModal
+        isOpen={showClaimSuccessModal}
+        onClose={() => {
+          setShowClaimSuccessModal(false);
+          setClaimedRewards([]);
+          setClaimTransactionHash('');
+        }}
+        transactionHash={claimTransactionHash}
+        rewards={claimedRewards}
+        protocolName="Moar Market"
+      />
     </div>
   );
 }
