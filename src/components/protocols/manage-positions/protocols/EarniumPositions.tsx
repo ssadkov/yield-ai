@@ -114,16 +114,18 @@ export function EarniumPositionsManaging() {
       const pairSet: { logo?: string; symbol: string }[] = [];
       (p.balances || []).forEach((b: any) => {
         const t = findToken(b.asset_type);
-        const decimals = typeof t?.decimals === 'number' ? t.decimals : 8;
-        const addrA = (t?.faAddress || '').toLowerCase();
-        const addrB = (t?.tokenAddress || '').toLowerCase();
+        // Skip tokens that are not in tokenList
+        if (!t) return;
+        const decimals = typeof t.decimals === 'number' ? t.decimals : 8;
+        const addrA = (t.faAddress || '').toLowerCase();
+        const addrB = (t.tokenAddress || '').toLowerCase();
         const price = addrA ? (priceMap[addrA] || 0) : (priceMap[addrB] || 0);
         const poolAmountRaw = (() => { try { return BigInt(b.amount || '0'); } catch { return BigInt(0); } })();
         const userAmountRaw = totalSupplyRaw > BigInt(0) ? (poolAmountRaw * stakedRaw) / totalSupplyRaw : BigInt(0);
         const userAmount = Number(userAmountRaw) / Math.pow(10, decimals);
         const usd = userAmount * price;
         poolUserUSD += usd;
-        const sym = t?.symbol || b.asset_type; const logo = t?.logoUrl;
+        const sym = t.symbol; const logo = t.logoUrl;
         if (sym && !pairSet.find((x) => x.symbol === sym)) pairSet.push({ logo, symbol: sym });
       });
              const pairSymbols = pairSet.map((x) => x.symbol).slice(0, 3);
