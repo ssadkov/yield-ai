@@ -42,9 +42,15 @@ export function ClaimAllRewardsEchelonModal({ isOpen, onClose, rewards, tokenPri
 
   // Фильтруем награды с положительным количеством
   const claimableRewards = rewards.filter(reward => reward.amount > 0);
-
-  const totalRewards = claimableRewards.length;
-  const progress = totalRewards > 0 ? ((currentIndex + 1) / totalRewards) * 100 : 0;
+  
+  // Separate rewards for progress calculation
+  const rewardsPoolRewards = claimableRewards.filter(r => r.farmingId === 'rewards_pool' && r.amount > 0);
+  const farmingRewards = claimableRewards.filter(r => r.farmingId !== 'rewards_pool' && r.farmingId && r.tokenType && r.amount > 0);
+  
+  // Total transactions: 1 for rewards_pool (if any) + N for farming rewards
+  const totalTransactions = (rewardsPoolRewards.length > 0 ? 1 : 0) + farmingRewards.length;
+  const totalRewards = claimableRewards.length; // Total rewards count for display
+  const progress = totalTransactions > 0 ? ((currentIndex + 1) / totalTransactions) * 100 : 0;
 
   // Функция для получения цены токена
   const getTokenPrice = (tokenAddress: string): string => {
@@ -106,9 +112,79 @@ export function ClaimAllRewardsEchelonModal({ isOpen, onClose, rewards, tokenPri
     setResults([]);
     setCurrentHash("");
 
-    for (let i = 0; i < totalRewards; i++) {
-      const reward = claimableRewards[i];
-      setCurrentIndex(i);
+    // Use already separated rewards
+
+    let transactionIndex = 0;
+
+    // Claim rewards_pool rewards with single claim_all_rewards transaction
+    if (rewardsPoolRewards.length > 0) {
+      setCurrentIndex(transactionIndex);
+      setCurrentHash("");
+
+      try {
+        const REWARDS_POOL_ADDRESS = "0xfdb653ffa48e91f39396ce87c656406f9b5e7a6686475446d92e79b098f0f4b5";
+        
+        const txResponse = await signAndSubmitTransaction({
+          data: {
+            function: `${REWARDS_POOL_ADDRESS}::rewards_pool::claim_all_rewards` as `${string}::${string}::${string}`,
+            typeArguments: [],
+            functionArguments: []
+          },
+          options: { maxGasAmount: 20000 },
+        });
+
+        setCurrentHash(txResponse.hash);
+
+        // Wait for transaction confirmation
+        const maxAttempts = 10;
+        const delay = 2000;
+        let success = false;
+
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          try {
+            const txStatusResponse = await fetch(`https://fullnode.mainnet.aptoslabs.com/v1/transactions/by_hash/${txResponse.hash}`);
+            const txData = await txStatusResponse.json();
+            
+            if (txData.success && txData.vm_status === 'Executed successfully') {
+              success = true;
+              break;
+            } else if (txData.vm_status && txData.vm_status !== 'Executed successfully') {
+              throw new Error(`Transaction failed: ${txData.vm_status}`);
+            }
+          } catch (error) {
+            // Continue trying
+          }
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+
+        if (success) {
+          rewardsPoolRewards.forEach(reward => {
+            setResults(prev => [...prev, {
+              rewardKey: `${reward.farmingId}-${reward.token}`,
+              success: true,
+              hash: txResponse.hash
+            }]);
+          });
+        } else {
+          throw new Error('Transaction timeout');
+        }
+      } catch (error) {
+        rewardsPoolRewards.forEach(reward => {
+          setResults(prev => [...prev, {
+            rewardKey: `${reward.farmingId}-${reward.token}`,
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          }]);
+        });
+      }
+      
+      transactionIndex++;
+    }
+
+    // Claim farming rewards separately (old mechanism)
+    for (let i = 0; i < farmingRewards.length; i++) {
+      const reward = farmingRewards[i];
+      setCurrentIndex(transactionIndex);
       setCurrentHash("");
 
       try {
@@ -185,6 +261,8 @@ export function ClaimAllRewardsEchelonModal({ isOpen, onClose, rewards, tokenPri
 
       // Небольшая пауза между транзакциями
       await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      transactionIndex++;
     }
 
     setIsClaiming(false);
@@ -235,14 +313,26 @@ export function ClaimAllRewardsEchelonModal({ isOpen, onClose, rewards, tokenPri
   };
 
   const getCurrentRewardInfo = () => {
-    if (currentIndex < totalRewards) {
-      const reward = claimableRewards[currentIndex];
+    // If claiming rewards_pool (transaction 0)
+    if (currentIndex === 0 && rewardsPoolRewards.length > 0) {
+      return {
+        token: `${rewardsPoolRewards.length} rewards`,
+        amount: rewardsPoolRewards.reduce((sum, r) => sum + r.amount, 0),
+        farmingId: 'rewards_pool'
+      };
+    }
+    
+    // If claiming farming rewards
+    const farmingIndex = rewardsPoolRewards.length > 0 ? currentIndex - 1 : currentIndex;
+    if (farmingIndex >= 0 && farmingIndex < farmingRewards.length) {
+      const reward = farmingRewards[farmingIndex];
       return {
         token: reward.token,
         amount: reward.amount,
         farmingId: reward.farmingId
       };
     }
+    
     return null;
   };
 
@@ -308,7 +398,7 @@ export function ClaimAllRewardsEchelonModal({ isOpen, onClose, rewards, tokenPri
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Claiming rewards...</span>
-                <span>{currentIndex + 1} / {totalRewards}</span>
+                <span>{currentIndex + 1} / {totalTransactions}</span>
               </div>
               <Progress value={progress} className="w-full" />
               {currentReward && (

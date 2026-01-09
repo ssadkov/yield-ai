@@ -43,7 +43,7 @@ interface EchelonReward {
 }
 
 export function EchelonPositions() {
-  const { account } = useWallet();
+  const { account, signAndSubmitTransaction } = useWallet();
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -301,8 +301,26 @@ export function EchelonPositions() {
     if (!account?.address || rewardsData.length === 0) return;
     
     try {
-      // Для Echelon нужно вызывать claim для каждого reward отдельно
-      for (const reward of rewardsData) {
+      // Separate rewards into rewards_pool and farming rewards
+      const rewardsPoolRewards = rewardsData.filter(r => r.farmingId === 'rewards_pool' && r.amount > 0);
+      const farmingRewards = rewardsData.filter(r => r.farmingId !== 'rewards_pool' && r.farmingId && r.tokenType && r.amount > 0);
+
+      // Claim rewards_pool rewards with single claim_all_rewards transaction
+      if (rewardsPoolRewards.length > 0 && signAndSubmitTransaction) {
+        const REWARDS_POOL_ADDRESS = "0xfdb653ffa48e91f39396ce87c656406f9b5e7a6686475446d92e79b098f0f4b5";
+        
+        await signAndSubmitTransaction({
+          data: {
+            function: `${REWARDS_POOL_ADDRESS}::rewards_pool::claim_all_rewards` as `${string}::${string}::${string}`,
+            typeArguments: [],
+            functionArguments: []
+          },
+          options: { maxGasAmount: 20000 },
+        });
+      }
+
+      // Claim farming rewards separately (old mechanism)
+      for (const reward of farmingRewards) {
         await claimRewards('echelon', [reward.farmingId], [reward.tokenType]);
       }
       
