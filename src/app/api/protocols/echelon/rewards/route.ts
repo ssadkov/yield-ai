@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import tokenList from '@/lib/data/tokenList.json';
 
 const ECHELON_FARMING_ADDRESS = "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba";
+const REWARDS_POOL_ADDRESS = "0xfdb653ffa48e91f39396ce87c656406f9b5e7a6686475446d92e79b098f0f4b5";
 const APTOS_API_KEY = process.env.APTOS_API_KEY;
 
 // Simple in-memory cache to reduce duplicate requests within short window
@@ -18,6 +20,25 @@ function getCache(key: string) {
 
 function setCache(key: string, response: any) {
   echelonRewardsCache.set(key, { timestamp: Date.now(), response });
+}
+
+// Normalize address by removing leading zeros after 0x prefix
+function normalizeAddress(addr: string): string {
+  if (!addr || !addr.startsWith('0x')) return addr;
+  const normalized = '0x' + addr.slice(2).replace(/^0+/, '');
+  return normalized === '0x' ? '0x0' : normalized;
+}
+
+// Find token in tokenList by address (faAddress or tokenAddress)
+function findTokenInList(tokenAddress: string) {
+  const normalizedSearch = normalizeAddress(tokenAddress);
+  
+  return (tokenList as any).data.data.find((token: any) => {
+    const normalizedTokenAddr = normalizeAddress(token.tokenAddress || '');
+    const normalizedFaAddr = normalizeAddress(token.faAddress || '');
+    
+    return normalizedTokenAddr === normalizedSearch || normalizedFaAddr === normalizedSearch;
+  });
 }
 
 export async function GET(request: NextRequest) {
@@ -65,21 +86,15 @@ export async function GET(request: NextRequest) {
 
     const resources = await resourcesResponse.json();
 
+    const rewards = [];
+
     // Find farming::Staker resource
     const stakerResource = resources.find(
       (resource: any) => resource.type === `${ECHELON_FARMING_ADDRESS}::farming::Staker`
     );
 
-    if (!stakerResource) {
-      return NextResponse.json({
-        success: true,
-        data: [],
-        message: 'No farming staker resource found for this address'
-      });
-    }
-
-    const userPools = stakerResource.data.user_pools.data;
-    const rewards = [];
+    if (stakerResource) {
+      const userPools = stakerResource.data.user_pools.data;
 
     // Map reward names to token types and symbols
     const REWARD_TOKEN_TYPES: { [key: string]: string } = {
@@ -164,6 +179,106 @@ export async function GET(request: NextRequest) {
           }
         }
       }
+    }
+    }
+
+    // Fetch rewards from rewards_pool::user_total_claimable
+    try {
+      const rewardsPoolViewPayload = {
+        function: `${REWARDS_POOL_ADDRESS}::rewards_pool::user_total_claimable`,
+        type_arguments: [],
+        arguments: [address]
+      };
+      
+      const rewardsPoolViewResponse = await fetch(
+        'https://fullnode.mainnet.aptoslabs.com/v1/view',
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${APTOS_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(rewardsPoolViewPayload)
+        }
+      );
+
+      if (rewardsPoolViewResponse.ok) {
+        const rewardsPoolResult = await rewardsPoolViewResponse.json();
+        
+        // Process OrderedMap result
+        // Structure can be:
+        // 1. { __variant__: "SortedVectorMap", entries: [{ key: { inner: "0x..." }, value: "54934" }] }
+        // 2. Direct array: [{ key: { inner: "0x..." }, value: "54934" }]
+        // 3. Wrapped in array: [{ __variant__: "SortedVectorMap", entries: [...] }]
+        
+        let entries: any[] = [];
+        
+        if (rewardsPoolResult && rewardsPoolResult.__variant__ === 'SortedVectorMap' && Array.isArray(rewardsPoolResult.entries)) {
+          entries = rewardsPoolResult.entries;
+        } else if (Array.isArray(rewardsPoolResult)) {
+          // Check if it's an array of entries or array with variant
+          if (rewardsPoolResult.length > 0 && rewardsPoolResult[0]?.__variant__ === 'SortedVectorMap') {
+            entries = rewardsPoolResult[0].entries || [];
+          } else if (rewardsPoolResult.length > 0 && rewardsPoolResult[0]?.key) {
+            entries = rewardsPoolResult;
+          }
+        }
+        
+        if (entries.length > 0) {
+          for (const entry of entries) {
+            const tokenAddress = entry.key?.inner;
+            const rawAmount = entry.value;
+
+            if (!tokenAddress || !rawAmount) {
+              continue;
+            }
+
+            // Normalize token address
+            const normalizedTokenAddress = normalizeAddress(tokenAddress);
+
+            // Find token in tokenList
+            const tokenInfo = findTokenInList(normalizedTokenAddress);
+
+            if (!tokenInfo) {
+              // Skip unknown/test tokens
+              continue;
+            }
+
+            // Check if token has price (usdPrice should be available)
+            if (!tokenInfo.usdPrice || tokenInfo.usdPrice === '0' || tokenInfo.usdPrice === '') {
+              // Skip tokens without price
+              continue;
+            }
+
+            // Get decimals (default to 8 if not specified)
+            const decimals = tokenInfo.decimals || 8;
+            const divisor = Math.pow(10, decimals);
+            const formattedAmount = Number(rawAmount) / divisor;
+
+            if (formattedAmount > 0) {
+              rewards.push({
+                token: tokenInfo.symbol,
+                tokenType: tokenInfo.faAddress || tokenInfo.tokenAddress || normalizedTokenAddress,
+                rewardName: tokenInfo.symbol, // Use symbol as rewardName for compatibility
+                amount: formattedAmount,
+                rawAmount: rawAmount,
+                farmingId: 'rewards_pool', // Special identifier for this type of rewards
+                stakeAmount: 0 // Not applicable for this reward type
+              });
+            }
+          }
+        }
+      } else {
+        const errorText = await rewardsPoolViewResponse.text();
+        console.warn('[Echelon Rewards] Failed to fetch rewards_pool rewards:', {
+          status: rewardsPoolViewResponse.status,
+          statusText: rewardsPoolViewResponse.statusText,
+          error: errorText
+        });
+      }
+    } catch (error) {
+      console.error('[Echelon Rewards] Error fetching rewards_pool rewards:', error);
+      // Continue even if this fails - we still return farming rewards
     }
 
     const result = {
