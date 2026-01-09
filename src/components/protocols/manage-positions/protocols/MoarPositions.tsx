@@ -191,6 +191,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
             amount: reward.amount,
             usdValue: reward.usdValue,
             logoUrl: reward.logoUrl || reward.token_info?.logoUrl,
+            tokenAddress: reward.tokenAddress, // Add tokenAddress for aggregation
             claimable_amount: reward.claimable_amount,
             decimals: reward.decimals || reward.token_info?.decimals || 8
           });
@@ -233,7 +234,8 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
             symbol: reward.symbol,
             amount: reward.amount,
             usdValue: reward.usdValue,
-            logoUrl: reward.logoUrl
+            logoUrl: reward.logoUrl,
+            tokenAddress: reward.tokenAddress // Add tokenAddress for aggregation
           });
         });
         
@@ -241,8 +243,45 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
 
-      // Show success modal
-      setClaimedRewards(claimedRewardsList);
+      // Aggregate rewards by tokenAddress (sum same tokens)
+      // Normalize address for grouping: Move addresses (with ::) stay as-is, regular addresses are normalized
+      const normalizeKey = (addr: string | undefined, symbol: string): string => {
+        if (!addr) return symbol.toLowerCase();
+        // For Move addresses (e.g., "0x1::aptos_coin::AptosCoin"), use as-is
+        if (addr.includes('::')) return addr.toLowerCase();
+        // For regular addresses, normalize by removing leading zeros
+        if (addr.startsWith('0x')) {
+          const normalized = '0x' + addr.slice(2).replace(/^0+/, '');
+          return (normalized === '0x' ? '0x0' : normalized).toLowerCase();
+        }
+        return addr.toLowerCase();
+      };
+
+      const aggregatedRewards = claimedRewardsList.reduce((acc, reward) => {
+        // Use normalized tokenAddress as key, fallback to symbol if tokenAddress is missing
+        const key = normalizeKey(reward.tokenAddress, reward.symbol);
+        
+        if (!acc[key]) {
+          acc[key] = {
+            symbol: reward.symbol,
+            amount: 0,
+            usdValue: 0,
+            logoUrl: reward.logoUrl,
+            tokenAddress: reward.tokenAddress
+          };
+        }
+        
+        acc[key].amount += reward.amount || 0;
+        acc[key].usdValue += reward.usdValue || 0;
+        
+        return acc;
+      }, {} as Record<string, { symbol: string; amount: number; usdValue: number; logoUrl?: string | null; tokenAddress?: string }>);
+
+      // Convert aggregated object to array
+      const aggregatedRewardsArray = Object.values(aggregatedRewards);
+
+      // Show success modal with aggregated rewards
+      setClaimedRewards(aggregatedRewardsArray);
       setClaimTransactionHash(lastTransactionHash);
       setShowClaimSuccessModal(true);
 
