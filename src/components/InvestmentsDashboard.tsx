@@ -695,7 +695,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     }
 
     // Фильтруем по стабильным пулам, если включен чекбокс
-    if (showOnlyStablePools && !isStablePool(item) && item.protocol !== 'Tapp Exchange') {
+    if (showOnlyStablePools && !isStablePool(item)) {
       return false;
     }
 
