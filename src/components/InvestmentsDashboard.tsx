@@ -859,7 +859,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                           <CardTitle className="flex items-center gap-2 w-full flex-wrap">
                             <TooltipProvider>
                               <Tooltip>
-                                <TooltipTrigger>
+                                <TooltipTrigger className="cursor-default">
                                   <div className="flex items-center gap-2">
                                     {isDex ? (
                                       // DEX pool display with up to three tokens
@@ -907,34 +907,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                     )}
                                   </div>
                                 </TooltipTrigger>
-                                <TooltipContent>
-                                  <div className="space-y-1">
-                                    <p className="font-medium">Token Info</p>
-                                    <p className="text-xs">Address: {item.token}</p>
-                                    {isDex ? (
-                                      // DEX tooltip content
-                                      <>
-                                        <p className="text-xs">Type: DEX Pool</p>
-                                        <p className="text-xs">Token 1: {item.token1Info?.symbol} ({item.token1Info?.name})</p>
-                                        <p className="text-xs">Token 2: {item.token2Info?.symbol} ({item.token2Info?.name})</p>
-                                        {item.dailyVolumeUSD && (
-                                          <p className="text-xs">Volume: ${item.dailyVolumeUSD.toLocaleString()}</p>
-                                        )}
-                                        {item.tvlUSD && (
-                                          <p className="text-xs">TVL: ${item.tvlUSD.toLocaleString()}</p>
-                                        )}
-                                      </>
-                                    ) : (
-                                      tokenInfo && (
-                                        <>
-                                          <p className="text-xs">Name: {tokenInfo.name}</p>
-                                          <p className="text-xs">Symbol: {tokenInfo.symbol}</p>
-                                        </>
-                                      )
-                                    )}
-                                    <p className="text-xs">Provider: {getProvider(item)}</p>
-                                  </div>
-                                </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
                             <div className="ml-auto shrink-0 flex items-center gap-2">
@@ -1016,7 +988,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                         <CardTitle className="flex items-center gap-2 w-full flex-wrap">
                           <TooltipProvider>
                             <Tooltip>
-                              <TooltipTrigger>
+                              <TooltipTrigger className="cursor-default">
                                 <div className="flex items-center gap-2">
                                   {isDex ? (
                                     // DEX pool display with up to three tokens
@@ -1064,34 +1036,6 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                   )}
                                 </div>
                               </TooltipTrigger>
-                              <TooltipContent>
-                                <div className="space-y-1">
-                                  <p className="font-medium">Token Info</p>
-                                  <p className="text-xs">Address: {bestPool.token}</p>
-                                  {isDex ? (
-                                    // DEX tooltip content
-                                    <>
-                                      <p className="text-xs">Type: DEX Pool</p>
-                                      <p className="text-xs">Token 1: {bestPool.token1Info?.symbol} ({bestPool.token1Info?.name})</p>
-                                      <p className="text-xs">Token 2: {bestPool.token2Info?.symbol} ({bestPool.token2Info?.name})</p>
-                                      {bestPool.dailyVolumeUSD && (
-                                        <p className="text-xs">Volume: ${bestPool.dailyVolumeUSD.toLocaleString()}</p>
-                                      )}
-                                      {bestPool.tvlUSD && (
-                                        <p className="text-xs">TVL: ${bestPool.tvlUSD.toLocaleString()}</p>
-                                      )}
-                                    </>
-                                  ) : (
-                                    tokenInfo && (
-                                      <>
-                                        <p className="text-xs">Name: {tokenInfo.name}</p>
-                                        <p className="text-xs">Symbol: {tokenInfo.symbol}</p>
-                                      </>
-                                    )
-                                  )}
-                                  <p className="text-xs">Provider: {getProvider(bestPool)}</p>
-                                </div>
-                              </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
                           <div className="ml-auto shrink-0 flex items-center gap-2">
