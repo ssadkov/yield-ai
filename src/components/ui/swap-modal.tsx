@@ -153,7 +153,7 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
       )
       .sort((a, b) => Number(b.amount) - Number(a.amount));
 
-    // 2) Ensure only native tokens are always present: APT, USDt, USDC (native), USD1, WBTC (native), USDA
+    // 2) Ensure only native tokens are always present: APT, USDt, USDC (native), USD1, WBTC (native)
     // Native faAddresses (lowercase)
     const requiredFaAddresses = [
       '0xa', // APT
@@ -161,7 +161,6 @@ export function SwapModal({ isOpen, onClose }: SwapModalProps) {
       '0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b', // USDC (native)
       '0x05fabd1b12e39967a3c24e91b7b8f67719a6dacee74f3c8b9fb7d93e855437d2', // USD1 (native)
       '0x68844a0d7f2587e726ad0579f3d640865bb4162c08a4589eeda3f9689ec52a3d', // WBTC (native)
-      '0x534e4c3dc0f038dab1a8259e89301c4da58779a5d482fb354a41c08147e6b9ec', // USDA
     ];
 
     const requiredTokens = (tokenList.data.data as Token[])
