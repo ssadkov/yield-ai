@@ -389,6 +389,24 @@ export function ClaimSuccessModal({
                 </div>
               )}
 
+              {/* Transaction Link - Less prominent, above swap */}
+              {transactionHash && (
+                <div className="text-center">
+                  <button
+                    onClick={() => {
+                      window.open(
+                        `https://explorer.aptoslabs.com/txn/${transactionHash}?network=mainnet`,
+                        "_blank"
+                      )
+                    }}
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors underline-offset-4 hover:underline flex items-center justify-center gap-1 mx-auto"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    View Claim Transaction
+                  </button>
+                </div>
+              )}
+
               {/* Swap Section */}
               {fromReward && fromReward.tokenAddress && (
                 <>
@@ -544,25 +562,6 @@ export function ClaimSuccessModal({
                     </Button>
                   </div>
                 </>
-              )}
-
-              {/* Transaction Link */}
-              {transactionHash && (
-                <div className="pt-4 border-t">
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => {
-                      window.open(
-                        `https://explorer.aptoslabs.com/txn/${transactionHash}?network=mainnet`,
-                        "_blank"
-                      )
-                    }}
-                  >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    View Transaction
-                  </Button>
-                </div>
               )}
 
               {/* Close Button */}
