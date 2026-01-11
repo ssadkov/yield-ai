@@ -125,10 +125,11 @@ export const useWalletStore = create<WalletState>()(
         setAddress: (address: string | null) => {
           const currentAddress = get().address;
           if (currentAddress !== address) {
-            set({ address });
-            if (!address) {
+            // Clear data when switching to a different address (including null)
+            if (currentAddress !== null) {
               get().clearData();
             }
+            set({ address });
           }
         },
         setTotalAssets: (value: number) => {
@@ -139,6 +140,12 @@ export const useWalletStore = create<WalletState>()(
         
         fetchBalance: async (address: string, forceRefresh = false) => {
           const state = get();
+          
+          // Check if cached data belongs to a different address
+          if (state.address !== address) {
+            console.log('[WalletStore] Address mismatch, ignoring cache for balance');
+            forceRefresh = true;
+          }
           
           // Check if data is fresh
           if (!forceRefresh && state.lastBalanceUpdate && 
@@ -158,12 +165,13 @@ export const useWalletStore = create<WalletState>()(
             
             if (response.ok) {
               const data = await response.json();
-              set({
-                balance: data.balances || [],
-                balanceLoading: false,
-                lastBalanceUpdate: Date.now(),
-                balanceError: null
-              });
+            set({
+              address: address,
+              balance: data.balances || [],
+              balanceLoading: false,
+              lastBalanceUpdate: Date.now(),
+              balanceError: null
+            });
               console.log('[WalletStore] Balance fetched successfully:', data.balances.length);
             } else {
               console.warn('[WalletStore] Failed to fetch balance:', response.status, response.statusText);
@@ -182,6 +190,12 @@ export const useWalletStore = create<WalletState>()(
         
         fetchPositions: async (address: string, protocols?: string[], forceRefresh = false) => {
           const state = get();
+          
+          // Check if cached data belongs to a different address
+          if (state.address !== address) {
+            console.log('[WalletStore] Address mismatch, ignoring cache for positions');
+            forceRefresh = true;
+          }
           
           // Check if data is fresh
           if (!forceRefresh && state.lastPositionsUpdate && 
@@ -245,6 +259,7 @@ export const useWalletStore = create<WalletState>()(
             });
             
             set({
+              address: address,
               positions: newPositions,
               positionsLoading: false,
               lastPositionsUpdate: Date.now(),
@@ -263,6 +278,12 @@ export const useWalletStore = create<WalletState>()(
         
         fetchRewards: async (address: string, protocols?: string[], forceRefresh = false) => {
           const state = get();
+          
+          // Check if cached data belongs to a different address
+          if (state.address !== address) {
+            console.log('[WalletStore] Address mismatch, ignoring cache for rewards');
+            forceRefresh = true;
+          }
           
           // Check if data is fresh
           if (!forceRefresh && state.lastRewardsUpdate && 
@@ -544,6 +565,7 @@ export const useWalletStore = create<WalletState>()(
             }
             
             set({
+              address: address,
               rewards: newRewards,
               rewardsLoading: false,
               lastRewardsUpdate: Date.now(),

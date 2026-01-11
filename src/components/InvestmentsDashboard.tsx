@@ -241,12 +241,13 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 
         // Define protocol endpoints
         const protocolEndpoints = [
-          {
-            name: 'Joule',
-            url: '/api/protocols/primary-yield?protocol=Joule',
-			logoUrl: '/protocol_ico/joule.png',
-            transform: (data: any) => data.data || []
-          },
+          // Joule disabled - data loading moved to positions component
+          // {
+          //   name: 'Joule',
+          //   url: '/api/protocols/primary-yield?protocol=Joule',
+          //   logoUrl: '/protocol_ico/joule.png',
+          //   transform: (data: any) => data.data || []
+          // },
           {
             name: 'Hyperion',
             url: '/api/protocols/hyperion/pools',
