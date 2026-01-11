@@ -1622,46 +1622,48 @@ function Bridge2PageContent() {
 
 
   return (
-    <div className="w-full min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-gray-50 via-white to-gray-100">
-      <div className="w-full max-w-2xl space-y-4">
-        {/* Back to Dashboard button */}
-        <div className="flex items-center mb-4">
-          <button
-            onClick={() => router.push('/')}
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
-          </button>
+    <div className="w-full h-screen overflow-y-auto bg-gradient-to-br from-gray-50 via-white to-gray-100">
+      <div className="w-full min-h-full flex items-start justify-center p-4 md:items-center">
+        <div className="w-full max-w-2xl space-y-4 py-4">
+          {/* Back to Dashboard button */}
+          <div className="flex items-center mb-4">
+            <button
+              onClick={() => router.push('/')}
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Dashboard
+            </button>
+          </div>
+          
+          <BridgeView
+            sourceChain={sourceChain}
+            sourceToken={sourceToken}
+            destChain={destChain}
+            destToken={destToken}
+            amount={transferAmount}
+            destinationAddress={destinationAddress}
+            onSourceChainSelect={setSourceChain}
+            onSourceTokenSelect={setSourceToken}
+            onDestChainSelect={setDestChain}
+            onDestTokenSelect={setDestToken}
+            onAmountChange={setTransferAmount}
+            onDestinationAddressChange={setDestinationAddress}
+            onTransfer={handleTransfer}
+            onRefund={handleRefund}
+            hasFundedSigners={fundedSigners.length > 0}
+            isTransferring={isTransferring}
+            transferStatus={transferStatus}
+            chains={CHAINS}
+            tokens={TOKENS}
+            showSwapButton={false}
+            disableAssetSelection={true}
+            availableBalance={availableUsdcBalance}
+          />
+
+          <ActionLog items={actionLog} />
+
         </div>
-        
-        <BridgeView
-          sourceChain={sourceChain}
-          sourceToken={sourceToken}
-          destChain={destChain}
-          destToken={destToken}
-          amount={transferAmount}
-          destinationAddress={destinationAddress}
-          onSourceChainSelect={setSourceChain}
-          onSourceTokenSelect={setSourceToken}
-          onDestChainSelect={setDestChain}
-          onDestTokenSelect={setDestToken}
-          onAmountChange={setTransferAmount}
-          onDestinationAddressChange={setDestinationAddress}
-          onTransfer={handleTransfer}
-          onRefund={handleRefund}
-          hasFundedSigners={fundedSigners.length > 0}
-          isTransferring={isTransferring}
-          transferStatus={transferStatus}
-          chains={CHAINS}
-          tokens={TOKENS}
-          showSwapButton={false}
-          disableAssetSelection={true}
-          availableBalance={availableUsdcBalance}
-        />
-
-        <ActionLog items={actionLog} />
-
       </div>
     </div>
   );
