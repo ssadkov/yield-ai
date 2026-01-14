@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useMediaQuery } from "react-responsive";
 import { cn } from "@/lib/utils";
 import styles from "./PieChart.module.css";
@@ -33,10 +33,6 @@ export interface PieChartProps {
   onSectorHover?: (item: PieChartDatum | null) => void;
   /** Активный (hovered) сектор (опционально, для контролируемого режима) */
   hoveredItem?: PieChartDatum | null;
-  /** Цвета из темы. Если не переданы, будут получены автоматически */
-  themeColors?: Record<string, string>;
-  /** Маппинг имен на ключи цветов из палитры */
-  colorMap?: Record<string, string>;
   /** Показывать ли тень при hover */
   showShadowOnHover?: boolean;
   /** Показывать ли анимацию увеличения при hover */
@@ -51,79 +47,39 @@ export interface PieChartProps {
   formatTooltipValue?: (value: number) => string;
   /** Показывать ли tooltip */
   showTooltip?: boolean;
-  /** Кастомный компонент tooltip (если не передан, используется встроенный) */
-  tooltipRenderer?: (item: PieChartDatum | null, total: number, themeColors: Record<string, string>) => React.ReactNode;
 }
 
-// Хук для получения цветов из CSS переменных палитры
-function useThemeColors() {
-  const [colors, setColors] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    const getComputedColor = (cssVar: string): string => {
-      if (typeof window === 'undefined') return '#000000';
-      const value = getComputedStyle(document.documentElement)
-        .getPropertyValue(cssVar)
-        .trim();
-      return value || '#000000';
-    };
-
-    setColors({
-      'chart-1': getComputedColor('--chart-1'),
-      'chart-2': getComputedColor('--chart-2'),
-      'chart-3': getComputedColor('--chart-3'),
-      'chart-4': getComputedColor('--chart-4'),
-      'chart-5': getComputedColor('--chart-5'),
-      'primary': getComputedColor('--primary'),
-      'secondary': getComputedColor('--secondary'),
-      'accent': getComputedColor('--accent'),
-      'warning': getComputedColor('--warning'),
-      'error': getComputedColor('--error'),
-      'success': getComputedColor('--success'),
-    });
-  }, []);
-
-  return colors;
-}
-
-// Палитра по умолчанию (используем chart цвета)
-function getDefaultColors(themeColors: Record<string, string>) {
-  return [
-    themeColors['chart-1'] || '#9eb1ff',
-    themeColors['chart-2'] || '#6f8fff',
-    themeColors['chart-3'] || '#5a7dff',
-    themeColors['chart-4'] || '#4a6ef7',
-    themeColors['chart-5'] || '#3d5ce6',
-    themeColors['primary'] || '#2f4bd6',
-    themeColors['secondary'] || '#2a43c0',
-    themeColors['accent'] || '#243aa8',
-    themeColors['warning'] || '#1f3292',
-    themeColors['error'] || '#1a2a7b',
-  ];
-}
+// Палитра CSS переменных для цветов (используем напрямую через var())
+const COLOR_PALETTE = [
+  'var(--chart-1)',
+  'var(--chart-2)',
+  'var(--chart-3)',
+  'var(--chart-4)',
+  'var(--chart-5)',
+  'var(--chart-6)',
+  'var(--chart-7)',
+  'var(--chart-8)',
+  'var(--chart-9)',
+  'var(--chart-10)',
+];
 
 // Встроенный Tooltip компонент
 function DefaultTooltip({
   item,
   total,
-  themeColors,
-  colorMap,
+  itemIndex,
   formatValue,
 }: {
   item: PieChartDatum | null;
   total: number;
-  themeColors: Record<string, string>;
-  colorMap?: Record<string, string>;
+  itemIndex: number;
   formatValue?: (value: number) => string;
 }) {
   if (!item) return null;
 
   const percentage = total > 0 ? (item.value / total) * 100 : 0;
-  const defaultColors = getDefaultColors(themeColors);
-  const colorKey = colorMap?.[item.name];
-  const color = colorKey && themeColors[colorKey]
-    ? themeColors[colorKey]
-    : defaultColors[0];
+  const safeIndex = itemIndex >= 0 ? itemIndex : 0;
+  const color = item.color || COLOR_PALETTE[safeIndex % COLOR_PALETTE.length];
 
   const defaultFormatValue = (value: number) =>
     `$${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
@@ -210,8 +166,6 @@ export const PieChart = React.forwardRef<HTMLDivElement, PieChartProps>(
       gapAngle = 1.5,
       onSectorHover,
       hoveredItem,
-      themeColors: providedThemeColors,
-      colorMap,
       showShadowOnHover = true,
       enableHoverScale = true,
       total: providedTotal,
@@ -219,13 +173,10 @@ export const PieChart = React.forwardRef<HTMLDivElement, PieChartProps>(
       formatCenterValue,
       formatTooltipValue,
       showTooltip = true,
-      tooltipRenderer,
       ...props
     },
     ref
   ) => {
-    const autoThemeColors = useThemeColors();
-    const themeColors = providedThemeColors || autoThemeColors;
     const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
     const [internalHoveredItem, setInternalHoveredItem] = useState<PieChartDatum | null>(null);
     
@@ -248,7 +199,6 @@ export const PieChart = React.forwardRef<HTMLDivElement, PieChartProps>(
     const center = chartSize / 2;
     const outerRadiusPx = chartSize * outerRadius;
     const innerRadiusPx = innerRadius !== undefined ? chartSize * innerRadius : chartSize * 0.2;
-    const defaultColors = getDefaultColors(themeColors);
 
     const calculatedTotal = data.reduce((sum, d) => sum + d.value, 0);
     const total = providedTotal ?? calculatedTotal;
@@ -260,13 +210,8 @@ export const PieChart = React.forwardRef<HTMLDivElement, PieChartProps>(
         return item.color;
       }
 
-      // Если есть colorMap - используем его
-      if (colorMap && colorMap[item.name] && themeColors[colorMap[item.name]]) {
-        return themeColors[colorMap[item.name]];
-      }
-
-      // Иначе используем дефолтную палитру
-      return defaultColors[index % defaultColors.length];
+      // Используем палитру CSS переменных по порядку (индекс)
+      return COLOR_PALETTE[index % COLOR_PALETTE.length];
     };
 
     const defaultFormatValue = (value: number) => 
@@ -381,17 +326,12 @@ export const PieChart = React.forwardRef<HTMLDivElement, PieChartProps>(
               marginTop: '-12px',
             }}
           >
-            {tooltipRenderer ? (
-              tooltipRenderer(currentHoveredItem, total, themeColors)
-            ) : (
-              <DefaultTooltip
-                item={currentHoveredItem}
-                total={total}
-                themeColors={themeColors}
-                colorMap={colorMap}
-                formatValue={formatTooltipValue}
-              />
-            )}
+            <DefaultTooltip
+              item={currentHoveredItem}
+              total={total}
+              itemIndex={currentHoveredItem ? data.findIndex(d => d.name === currentHoveredItem.name) : 0}
+              formatValue={formatTooltipValue}
+            />
           </div>
         )}
       </div>

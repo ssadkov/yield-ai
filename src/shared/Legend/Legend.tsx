@@ -16,10 +16,6 @@ export interface LegendProps {
   hoveredItem?: PieChartDatum | null;
   /** Callback при наведении на элемент */
   onItemHover?: (item: PieChartDatum | null) => void;
-  /** Цвета из темы */
-  themeColors: Record<string, string>;
-  /** Маппинг имен на ключи цветов из палитры */
-  colorMap?: Record<string, string>;
   /** Общая сумма для расчета процентов (если не передана, будет вычислена из данных) */
   total?: number;
   /** Сортировать ли элементы по значению (по убыванию) */
@@ -32,21 +28,19 @@ export interface LegendProps {
   className?: string;
 }
 
-// Палитра по умолчанию (используем chart цвета)
-function getDefaultColors(themeColors: Record<string, string>) {
-  return [
-    themeColors['chart-1'] || '#9eb1ff',
-    themeColors['chart-2'] || '#6f8fff',
-    themeColors['chart-3'] || '#5a7dff',
-    themeColors['chart-4'] || '#4a6ef7',
-    themeColors['chart-5'] || '#3d5ce6',
-    themeColors['primary'] || '#2f4bd6',
-    themeColors['secondary'] || '#2a43c0',
-    themeColors['accent'] || '#243aa8',
-    themeColors['warning'] || '#1f3292',
-    themeColors['error'] || '#1a2a7b',
-  ];
-}
+// Палитра CSS переменных для цветов (используем напрямую через var())
+const COLOR_PALETTE = [
+  'var(--chart-1)',
+  'var(--chart-2)',
+  'var(--chart-3)',
+  'var(--chart-4)',
+  'var(--chart-5)',
+  'var(--chart-6)',
+  'var(--chart-7)',
+  'var(--chart-8)',
+  'var(--chart-9)',
+  'var(--chart-10)',
+];
 
 export const Legend = React.forwardRef<HTMLDivElement, LegendProps>(
   (
@@ -54,8 +48,6 @@ export const Legend = React.forwardRef<HTMLDivElement, LegendProps>(
       data,
       hoveredItem,
       onItemHover,
-      themeColors,
-      colorMap,
       total,
       sortByValue = true,
       formatPercent,
@@ -65,7 +57,6 @@ export const Legend = React.forwardRef<HTMLDivElement, LegendProps>(
     },
     ref
   ) => {
-    const defaultColors = getDefaultColors(themeColors);
     const calculatedTotal = total ?? data.reduce((sum, d) => sum + d.value, 0);
 
     const getColor = (item: LegendItem, index: number): string => {
@@ -74,13 +65,8 @@ export const Legend = React.forwardRef<HTMLDivElement, LegendProps>(
         return item.color;
       }
 
-      // Если есть colorMap - используем его
-      if (colorMap && colorMap[item.name] && themeColors[colorMap[item.name]]) {
-        return themeColors[colorMap[item.name]];
-      }
-
-      // Иначе используем дефолтную палитру
-      return defaultColors[index % defaultColors.length];
+      // Используем палитру CSS переменных по порядку (индекс)
+      return COLOR_PALETTE[index % COLOR_PALETTE.length];
     };
 
     const defaultFormatPercent = (percent: number) => `${Math.round(percent)}%`;
