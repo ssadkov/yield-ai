@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { PieChart, PieChartDatum } from '@/shared/PieChart/PieChart';
 import { Legend } from '@/shared/Legend/Legend';
+import { formatCurrency } from '@/lib/utils/numberFormat';
 
 // Тип данных для сектора: имя и значение в долларах
 type SectorDatum = { name: string; value: number }
 
-export function PortfolioChart({ data }: { data: SectorDatum[] }) {
+export function PortfolioChart({ data, totalValue }: { data: SectorDatum[]; totalValue?: string }) {
   const [hoveredItem, setHoveredItem] = useState<PieChartDatum | null>(null);
 
   const allData = (data || []).filter((d) => d && d.value > 0)
@@ -46,8 +47,9 @@ export function PortfolioChart({ data }: { data: SectorDatum[] }) {
           gapAngle={1.5}
           onSectorHover={handleSectorHover}
           hoveredItem={hoveredItem}
-          total={sum}
+          total={totalValue || sum}
           centerLabel="Total Portfolio"
+          formatCenterValue={(value) => formatCurrency(value, 2)}
         />
       </div>
 

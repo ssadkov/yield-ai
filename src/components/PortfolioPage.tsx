@@ -380,7 +380,7 @@ export default function PortfolioPage() {
 
 				    <div className="block lg:hidden mb-4">
 				      <div className="h-58 flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded p-20">
-				        <PortfolioChart data={chartSectors} />
+				        <PortfolioChart data={chartSectors} totalValue={totalAssets.toString()} />
 				      </div>
 			      </div>
 
@@ -530,7 +530,7 @@ export default function PortfolioPage() {
             
 			<div className="hidden lg:block mb-4 mt-17">
 			  <div className="h-[500px] flex items-center justify-center to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded p-8">
-				<PortfolioChart data={chartSectors} />
+				<PortfolioChart data={chartSectors} totalValue={totalAssets.toString()} />
 		      </div>
 			
 			</div>

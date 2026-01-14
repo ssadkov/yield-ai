@@ -38,7 +38,7 @@ export interface PieChartProps {
   /** Показывать ли анимацию увеличения при hover */
   enableHoverScale?: boolean;
   /** Общая сумма для отображения в центре и tooltip */
-  total?: number;
+  total?: number | string;
   /** Лейбл для центрального текста */
   centerLabel?: string;
   /** Форматирование значения в центре */
@@ -201,7 +201,10 @@ export const PieChart = React.forwardRef<HTMLDivElement, PieChartProps>(
     const innerRadiusPx = innerRadius !== undefined ? chartSize * innerRadius : chartSize * 0.2;
 
     const calculatedTotal = data.reduce((sum, d) => sum + d.value, 0);
-    const total = providedTotal ?? calculatedTotal;
+    // Преобразуем total в число, если передана строка
+    const total = providedTotal !== undefined 
+      ? (typeof providedTotal === 'string' ? parseFloat(providedTotal) || calculatedTotal : providedTotal)
+      : calculatedTotal;
     let currentAngle = -90; // Начинаем сверху
 
     const getColor = (item: PieChartDatum, index: number): string => {
