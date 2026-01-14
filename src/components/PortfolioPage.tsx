@@ -27,6 +27,7 @@ import { CardTitle } from '@/components/ui/card';
 import { useAptosAddressResolver } from '@/lib/hooks/useAptosAddressResolver';
 import { YieldCalculatorModal } from '@/components/ui/yield-calculator-modal';
 import { useWalletStore } from "@/lib/stores/walletStore";
+import { ProtocolIcon } from "@/shared/ProtocolIcon/ProtocolIcon";
 
 
 export default function PortfolioPage() {
@@ -405,14 +406,14 @@ export default function PortfolioPage() {
                               <div className="flex items-center gap-1">
                                 {checkingProtocols.map((name) => {
                                   const proto = getProtocolByName(name);
-                                  const logo = proto?.logoUrl;
+                                  const logo = proto?.logoUrl || "/favicon.ico";
                                   return (
-                                    <img
+                                    <ProtocolIcon
                                       key={name}
-                                      src={logo || "/favicon.ico"}
-                                      alt={name}
-                                      title={name}
-                                      className="w-4 h-4 rounded-sm object-contain opacity-80"
+                                      logoUrl={logo}
+                                      name={name}
+                                      size="sm"
+                                      isLoading={true}
                                     />
                                   );
                                 })}
