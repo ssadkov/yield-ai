@@ -1,72 +1,70 @@
 import React, { useState, useEffect } from 'react';
-import { Pie, PieChart, Tooltip, Cell } from "recharts"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { PieChart, PieChartDatum } from '@/shared/PieChart/PieChart';
+import { Legend } from '@/shared/Legend/Legend';
 
 // Тип данных для сектора: имя и значение в долларах
 type SectorDatum = { name: string; value: number }
 
-// Палитра по умолчанию
-const defaultColors = [
-  "#9eb1ff", "#6f8fff", "#5a7dff", "#4a6ef7", "#3d5ce6",
-  "#2f4bd6", "#2a43c0", "#243aa8", "#1f3292", "#1a2a7b",
-]
+// Хук для получения цветов из CSS переменных палитры
+function useThemeColors() {
+  const [colors, setColors] = useState<Record<string, string>>({});
 
-// Фиксированные цвета для протоколов
-const protocolColors: Record<string, string> = {
-  "Hyperion": "#ce688c",
-  "Echelon": "#77fbfd", 
-  "Aries": "#000000",
-  "Joule": "#f06500",
-  "Tapp Exchange": "#a367e7",
-  "Meso Finance": "#675bd8",
-  "Auro Finance": "#016d4e",
-  "Amnis Finance": "#2069fa",
-  "Earnium": "#023697",
-  "Aave": "#5998bb",
-  "Moar Market": "#00ff7c",
+  useEffect(() => {
+    const getComputedColor = (cssVar: string): string => {
+      if (typeof window === 'undefined') return '#000000';
+      const value = getComputedStyle(document.documentElement)
+        .getPropertyValue(cssVar)
+        .trim();
+      return value || '#000000';
+    };
+
+    setColors({
+      'chart-1': getComputedColor('--chart-1'),
+      'chart-2': getComputedColor('--chart-2'),
+      'chart-3': getComputedColor('--chart-3'),
+      'chart-4': getComputedColor('--chart-4'),
+      'chart-5': getComputedColor('--chart-5'),
+      'primary': getComputedColor('--primary'),
+      'secondary': getComputedColor('--secondary'),
+      'accent': getComputedColor('--accent'),
+      'warning': getComputedColor('--warning'),
+      'error': getComputedColor('--error'),
+      'success': getComputedColor('--success'),
+    });
+  }, []);
+
+  return colors;
 }
 
-// Кастомный Tooltip компонент
-const CustomTooltip = ({ active, payload }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-background border rounded-lg p-3 shadow-md">
-        <p className="font-medium">{`${payload[0].payload.name}: $${payload[0].value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`}</p>
-      </div>
-    )
-  }
-  return null
+// Маппинг протоколов на цвета из палитры
+const protocolColorMap: Record<string, string> = {
+  "Hyperion": "chart-1",
+  "Echelon": "chart-2", 
+  "Aries": "chart-3",
+  "Joule": "chart-4",
+  "Tapp Exchange": "chart-5",
+  "Meso Finance": "primary",
+  "Auro Finance": "chart-1",
+  "Amnis Finance": "chart-2",
+  "Earnium": "chart-3",
+  "Aave": "chart-4",
+  "Moar Market": "chart-5",
+  "Wallet": "accent",
 }
+
 
 export function PortfolioChart({ data }: { data: SectorDatum[] }) {
-  const [isDesktop, setIsDesktop] = useState(false);
-  
-  useEffect(() => {
-    const checkScreenSize = () => {
-      setIsDesktop(window.innerWidth >= 1024);
-    };
-    
-    checkScreenSize();
-    window.addEventListener('resize', checkScreenSize);
-    
-    return () => window.removeEventListener('resize', checkScreenSize);
-  }, []);
+  const [hoveredItem, setHoveredItem] = useState<PieChartDatum | null>(null);
+  const themeColors = useThemeColors();
 
   const allData = (data || []).filter((d) => d && d.value > 0)
   const sum = allData.reduce((acc, d) => acc + d.value, 0)
   
   // Фильтруем по процентам (скрываем менее 1%)
-  const chartData = allData.filter((d) => {
+  const chartData: PieChartDatum[] = allData.filter((d) => {
     const percent = sum > 0 ? (d.value / sum) * 100 : 0
     return percent >= 1
-  })
+  }).map((d) => ({ name: d.name, value: d.value }))
 
   // Если нет данных, не рендерим чарт
   if (chartData.length === 0) {
@@ -79,60 +77,41 @@ export function PortfolioChart({ data }: { data: SectorDatum[] }) {
     )
   }
 
-  // Определяем размер чарта в зависимости от экрана
-  const chartSize = isDesktop ? 384 : 256;
+  const handleSectorHover = (item: PieChartDatum | null) => {
+    setHoveredItem(item);
+  };
 
   return (
-    <div className="flex flex-col lg:flex-row items-center gap-4">
-      <div className="w-64 h-64 lg:w-96 lg:h-96 focus:outline-none" style={{ minWidth: '200px', minHeight: '200px' }}>
+    <div className="flex flex-col lg:flex-row items-center gap-4 relative">
+      <div className="w-64 h-64 lg:w-96 lg:h-96 focus:outline-none">
         <PieChart 
-          width={chartSize} 
-          height={chartSize}
-        >
-          <Tooltip content={<CustomTooltip />} />
-          <Pie 
-            data={chartData} 
-            dataKey="value" 
-            nameKey="name"
-            cx="50%" 
-            cy="50%"
-            outerRadius="80%"
-            stroke="none"
-            strokeWidth={0}
-            strokeOpacity={0}
-            isAnimationActive={ false }
-          >
-            {chartData.map((item, index) => {
-              const color = protocolColors[item.name] || defaultColors[index % defaultColors.length];
-              return <Cell key={`cell-${index}`} fill={color} />;
-            })}
-          </Pie>
-        </PieChart>
+          data={chartData} 
+          size={256}
+          desktopSize={384}
+          mobileSize={256}
+          breakpoint={1024}
+          innerRadius={0.2}
+          outerRadius={0.4}
+          gapAngle={1.5}
+          onSectorHover={handleSectorHover}
+          hoveredItem={hoveredItem}
+          themeColors={themeColors}
+          colorMap={protocolColorMap}
+          total={sum}
+          centerLabel="Total Portfolio"
+        />
       </div>
-      
 
       {/* Десктопная версия - вертикальная легенда справа от чарта */}
-      <div className="hidden lg:flex flex-col justify-center gap-2 min-w-[200px]">
-        {chartData
-          .map((item, index) => ({
-            ...item,
-            originalIndex: index,
-            percent: sum > 0 ? (item.value / sum) * 100 : 0
-          }))
-          .sort((a, b) => b.value - a.value)
-          .map((item) => (
-            <div key={item.name} className="flex items-center gap-2">
-              <div 
-                className="w-3 h-3 rounded-full flex-shrink-0" 
-                style={{ backgroundColor: protocolColors[item.name] || defaultColors[item.originalIndex % defaultColors.length] }}
-              />
-              <span className="text-sm font-medium">{item.name}</span>
-              <span className="text-sm text-muted-foreground ml-auto">
-                {Math.round(item.percent)}%
-              </span>
-            </div>
-          ))}
-      </div>
+      <Legend
+        data={chartData}
+        hoveredItem={hoveredItem}
+        onItemHover={handleSectorHover}
+        themeColors={themeColors}
+        colorMap={protocolColorMap}
+        total={sum}
+        desktopOnly
+      />
     </div>
   )
 }
