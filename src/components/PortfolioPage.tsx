@@ -1,17 +1,13 @@
 "use client";
-import { WalletSelector } from "./WalletSelector";
 import { PortfolioPageCard } from "./portfolio/PortfolioPageCard";
-import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { AptosPortfolioService } from "@/lib/services/aptos/portfolio";
 import { Token } from "@/lib/types/token";
-import { Logo } from "./ui/logo";
-import { AlphaBadge } from "./ui/alpha-badge";
 import { Input } from "@/components/ui/input";
 import { Button } from '@/components/ui/button';
 import { PortfolioChart } from './chart/PortfolioChart';
-import {  ArrowLeft, Wallet, DollarSign, RefreshCw, Search, Copy, ExternalLink } from 'lucide-react';
+import {  ArrowLeft, Wallet, Search, Copy, ExternalLink } from 'lucide-react';
 import { CollapsibleProvider } from "@/contexts/CollapsibleContext";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import { PositionsList as HyperionPositionsList } from "./protocols/hyperion/PositionsList";
@@ -25,13 +21,11 @@ import { PositionsList as AmnisPositionsList } from "./protocols/amnis/Positions
 import { PositionsList as EarniumPositionsList } from "./protocols/earnium/PositionsList";
 import { PositionsList as AavePositionsList } from "./protocols/aave/PositionsList";
 import { PositionsList as MoarPositionsList } from "./protocols/moar/PositionsList";
-
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardTitle } from '@/components/ui/card';
 import { useAptosAddressResolver } from '@/lib/hooks/useAptosAddressResolver';
 import { YieldCalculatorModal } from '@/components/ui/yield-calculator-modal';
 import { useWalletStore } from "@/lib/stores/walletStore";
 
-//import { styled } from 'styled-components';
 
 export default function PortfolioPage() {
 
@@ -41,17 +35,14 @@ export default function PortfolioPage() {
         document.body.style.overflowY = 'auto';
       }
     };
-    
+
     forceScroll();
     window.addEventListener('resize', forceScroll);
-    
+
     return () => window.removeEventListener('resize', forceScroll);
   }, []);
 
-
-  //const { account } = useWallet();
   const [tokens, setTokens] = useState<Token[]>([]);
-  const [totalValue, setTotalValue] = useState(0);
   const [hyperionValue, setHyperionValue] = useState(0);
   const [echelonValue, setEchelonValue] = useState(0);
   const [ariesValue, setAriesValue] = useState(0);
@@ -74,13 +65,8 @@ export default function PortfolioPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const input = params?.address as string;
-  
-  const { resolvedAddress, resolvedName, isLoading, error } = useAptosAddressResolver(input);
-  
 
-  let account = null;
-  // Позже присвойте значение
-  account = { address: resolvedAddress };
+  const { resolvedAddress, resolvedName, isLoading, error } = useAptosAddressResolver(input);
 
   const allProtocolNames = [
     "Hyperion",
@@ -99,11 +85,11 @@ export default function PortfolioPage() {
   const resetChecking = useCallback(() => {
     setCheckingProtocols(allProtocolNames);
   }, []);
-  
+
   const formatAddress = (addr: string) => {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
-  
+
   const handleSearch = () => {
     if (addressInput.trim()) {
       router.push(`/portfolio/${addressInput}`);
@@ -119,7 +105,6 @@ export default function PortfolioPage() {
   const loadPortfolio = useCallback(async () => {
     if (!resolvedAddress) {
       setTokens([]);
-      setTotalValue(0);
       return;
     }
 
@@ -128,16 +113,10 @@ export default function PortfolioPage() {
       const portfolioService = new AptosPortfolioService();
       const portfolio = await portfolioService.getPortfolio(resolvedAddress);
       setTokens(portfolio.tokens);
-      
-      // Вычисляем общую стоимость из токенов
-      const total = portfolio.tokens.reduce((sum, token) => {
-        return sum + (token.value ? parseFloat(token.value) : 0);
-      }, 0);
-      setTotalValue(total);
+
     } catch (error) {
       console.error('Error loading portfolio:', error);
       setTokens([]);
-      setTotalValue(0);
     } finally {
       setIsRefreshing(false);
     }
@@ -274,7 +253,7 @@ export default function PortfolioPage() {
           <div className="w-full">
 
 	        <div className="max-w-4xl mx-auto space-y-6">
-              
+
 			  <div className="container mx-auto">
                 <div className="mx-auto">
                   <div className="flex items-left">
@@ -291,10 +270,10 @@ export default function PortfolioPage() {
 
               <div className="min-h-screen to-slate-100 dark:from-slate-900 dark:to-slate-800">
                 <div className="flex-1 overflow-y-auto m-4">
-                  {resolvedAddress ? ( 
+                  {resolvedAddress ? (
                     <>
-                    
-					<div className="mt-4 space-y-4"> 
+
+					<div className="mt-4 space-y-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
                           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
@@ -304,8 +283,8 @@ export default function PortfolioPage() {
                             <CardTitle className="text-xl pt-2 ml-2">Portfolio</CardTitle>
                           </div>
                         </div>
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           onClick={() => setIsYieldCalcOpen(true)}
                           className="flex items-center gap-2"
                         >
@@ -316,20 +295,20 @@ export default function PortfolioPage() {
                         </Button>
                       </div>
 			        </div>
-					
+
 					<div className="w-full mb-4 mt-2">
 				      <div className="relative w-full">
-			            <Input
-				          value={addressInput}
-					      onChange={(e) => setAddressInput(e.target.value)}
-					      onKeyDown={handleKeyDown}
-					      placeholder={input}
-					      className="font-mono text-sm h-10 pr-10 w-full truncate"
+                <Input
+                  value={addressInput}
+					        onChange={(e) => setAddressInput(e.target.value)}
+					        onKeyDown={handleKeyDown}
+					        placeholder={input}
+					        className="font-mono text-sm h-10 pr-10 w-full truncate"
 				        />
 					    <div className="absolute right-1 top-1 flex gap-1 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 overflow-hidden h-8">
-					      <Button 
-					        size="sm" 
-					        variant="ghost" 
+					      <Button
+					        size="sm"
+					        variant="ghost"
 					        onClick={() => {
 					          if (resolvedAddress) {
 					            window.open(`https://explorer.aptoslabs.com/account/${resolvedAddress}`, '_blank');
@@ -340,9 +319,9 @@ export default function PortfolioPage() {
 					      >
 					        <ExternalLink className="h-4 w-4" />
 					      </Button>
-					      <Button 
-					        size="sm" 
-					        variant="ghost" 
+					      <Button
+					        size="sm"
+					        variant="ghost"
 					        onClick={() => {
 					          if (resolvedAddress) {
 					            navigator.clipboard.writeText(resolvedAddress);
@@ -353,9 +332,9 @@ export default function PortfolioPage() {
 					      >
 					        <Copy className="h-4 w-4" />
 					      </Button>
-					      <Button 
-					        size="sm" 
-					        variant="ghost" 
+					      <Button
+					        size="sm"
+					        variant="ghost"
 					        onClick={handleSearch}
 					        className="h-8 w-8 p-0 pb-3 cursor-pointer"
 					        title="Search"
@@ -387,9 +366,9 @@ export default function PortfolioPage() {
 				    <div className="flex flex-col lg:flex-row gap-4">
 				      <div className="flex-1">
                         <div className="mt-4 space-y-4">
-                          <PortfolioPageCard 
-                            totalValue={totalAssets.toString()} 
-                            tokens={tokens} 
+                          <PortfolioPageCard
+                            totalValue={totalAssets.toString()}
+                            tokens={tokens}
                             onRefresh={handleRefresh}
                             isRefreshing={isRefreshing}
                           />
@@ -414,69 +393,69 @@ export default function PortfolioPage() {
                             </div>
                           )}
                           {[
-                            { 
-					          component: HyperionPositionsList, 
-					          value: hyperionValue, 
+                            {
+					          component: HyperionPositionsList,
+					          value: hyperionValue,
 					          name: 'Hyperion',
 					          showManageButton: false
 					        },
-                            { 
-					          component: EchelonPositionsList, 
-					          value: echelonValue, 
+                            {
+					          component: EchelonPositionsList,
+					          value: echelonValue,
 					          name: 'Echelon',
 					          showManageButton: false
 					        },
-                            { 
-					          component: AriesPositionsList, 
-					          value: ariesValue, 
+                            {
+					          component: AriesPositionsList,
+					          value: ariesValue,
 					          name: 'Aries',
 					          showManageButton: false
 					        },
-                            { 
-					          component: JoulePositionsList, 
-					          value: jouleValue, 
+                            {
+					          component: JoulePositionsList,
+					          value: jouleValue,
 					          name: 'Joule',
 					          showManageButton: false
 					        },
-                            { 
-					          component: TappPositionsList, 
-					          value: tappValue, 
+                            {
+					          component: TappPositionsList,
+					          value: tappValue,
 					          name: 'Tapp Exchange',
 					          showManageButton: false
 					        },
-                            { 
-					          component: MesoPositionsList, 
-					          value: mesoValue, 
+                            {
+					          component: MesoPositionsList,
+					          value: mesoValue,
 					          name: 'Meso Finance',
 					          showManageButton: false
 					        },
-                            { 
-					          component: AuroPositionsList, 
-					          value: auroValue, 
+                            {
+					          component: AuroPositionsList,
+					          value: auroValue,
 					          name: 'Auro Finance',
 					          showManageButton: false
 					        },
-                            { 
-					          component: AmnisPositionsList, 
-					          value: amnisValue, 
+                            {
+					          component: AmnisPositionsList,
+					          value: amnisValue,
 					          name: 'Amnis Finance',
 					          showManageButton: false
 					        },
-                            { 
-					          component: EarniumPositionsList, 
-					          value: earniumValue, 
+                            {
+					          component: EarniumPositionsList,
+					          value: earniumValue,
 					          name: 'Earnium',
 					          showManageButton: false
 					        },
-                            { 
-					          component: AavePositionsList, 
-					          value: aaveValue, 
+                            {
+					          component: AavePositionsList,
+					          value: aaveValue,
 					          name: 'Aave',
 					          showManageButton: false
 					        },
-                            { 
-					          component: MoarPositionsList, 
-					          value: moarValue, 
+                            {
+					          component: MoarPositionsList,
+					          value: moarValue,
 					          name: 'Moar Market',
 					          showManageButton: false
 					        },
@@ -521,25 +500,25 @@ export default function PortfolioPage() {
                   )}
                 </div>
               </div>
-			  
+
 	        </div>
 
 		  </div>
- 
+
           <div className="w-full">
-            
+
 			<div className="hidden lg:block mb-4 mt-17">
 			  <div className="h-[500px] flex items-center justify-center to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded p-8">
 				<PortfolioChart data={chartSectors} totalValue={totalAssets.toString()} />
 		      </div>
-			
+
 			</div>
-			
+
           </div>
-          
+
         </div>
 	  </div>
-      <YieldCalculatorModal 
+      <YieldCalculatorModal
         isOpen={isYieldCalcOpen}
         onClose={handleCloseCalculator}
         tokens={tokens}
@@ -560,4 +539,4 @@ export default function PortfolioPage() {
       />
     </CollapsibleProvider>
   );
-} 
+}
