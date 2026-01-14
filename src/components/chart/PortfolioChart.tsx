@@ -2,11 +2,18 @@ import React, { useState } from 'react';
 import { PieChart, PieChartDatum } from '@/shared/PieChart/PieChart';
 import { Legend } from '@/shared/Legend/Legend';
 import { formatCurrency } from '@/lib/utils/numberFormat';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Тип данных для сектора: имя и значение в долларах
 type SectorDatum = { name: string; value: number }
 
-export function PortfolioChart({ data, totalValue }: { data: SectorDatum[]; totalValue?: string }) {
+interface PortfolioChartProps {
+  data: SectorDatum[];
+  totalValue?: string;
+  isLoading?: boolean;
+}
+
+export function PortfolioChart({ data, totalValue, isLoading = false }: PortfolioChartProps) {
   const [hoveredItem, setHoveredItem] = useState<PieChartDatum | null>(null);
 
   const allData = (data || []).filter((d) => d && d.value > 0)
@@ -18,49 +25,62 @@ export function PortfolioChart({ data, totalValue }: { data: SectorDatum[]; tota
     return percent >= 1
   }).map((d) => ({ name: d.name, value: d.value }))
 
-  // Если нет данных, не рендерим чарт
-  if (chartData.length === 0) {
+  // Если есть данные, показываем их (даже если идет загрузка)
+  if (chartData.length > 0) {
+    const handleSectorHover = (item: PieChartDatum | null) => {
+      setHoveredItem(item);
+    };
+
+    return (
+      <div className="flex flex-col lg:flex-row items-center gap-4 relative">
+        <div className="w-64 h-64 lg:w-96 lg:h-96 focus:outline-none">
+          <PieChart 
+            data={chartData} 
+            size={256}
+            desktopSize={384}
+            mobileSize={256}
+            breakpoint={1024}
+            innerRadius={0.2}
+            outerRadius={0.4}
+            gapAngle={1.5}
+            onSectorHover={handleSectorHover}
+            hoveredItem={hoveredItem}
+            total={totalValue || sum}
+            centerLabel="Total Portfolio"
+            formatCenterValue={(value) => formatCurrency(value, 2)}
+          />
+        </div>
+
+        {/* Десктопная версия - вертикальная легенда справа от чарта */}
+        <Legend
+          data={chartData}
+          hoveredItem={hoveredItem}
+          onItemHover={handleSectorHover}
+          total={sum}
+          desktopOnly
+        />
+      </div>
+    )
+  }
+
+  // Если нет данных и идет загрузка, показываем скелетон
+  if (isLoading) {
     return (
       <div className="flex flex-col lg:flex-row items-center gap-4">
-        <div className="w-64 h-64 lg:w-96 lg:h-96 flex items-center justify-center text-muted-foreground">
-          No data available
+        <div className="w-64 h-64 lg:w-96 lg:h-96 flex items-center justify-center">
+          <Skeleton className="h-64 w-64 lg:h-96 lg:w-96 rounded-full" />
         </div>
       </div>
     )
   }
 
-  const handleSectorHover = (item: PieChartDatum | null) => {
-    setHoveredItem(item);
-  };
-
+  // Если нет данных и загрузка завершена, показываем сообщение
   return (
-    <div className="flex flex-col lg:flex-row items-center gap-4 relative">
-      <div className="w-64 h-64 lg:w-96 lg:h-96 focus:outline-none">
-        <PieChart 
-          data={chartData} 
-          size={256}
-          desktopSize={384}
-          mobileSize={256}
-          breakpoint={1024}
-          innerRadius={0.2}
-          outerRadius={0.4}
-          gapAngle={1.5}
-          onSectorHover={handleSectorHover}
-          hoveredItem={hoveredItem}
-          total={totalValue || sum}
-          centerLabel="Total Portfolio"
-          formatCenterValue={(value) => formatCurrency(value, 2)}
-        />
+    <div className="flex flex-col lg:flex-row items-center gap-4">
+      <div className="w-64 h-64 lg:w-96 lg:h-96 flex items-center justify-center text-muted-foreground">
+        No data available
       </div>
-
-      {/* Десктопная версия - вертикальная легенда справа от чарта */}
-      <Legend
-        data={chartData}
-        hoveredItem={hoveredItem}
-        onItemHover={handleSectorHover}
-        total={sum}
-        desktopOnly
-      />
     </div>
   )
+
 }
