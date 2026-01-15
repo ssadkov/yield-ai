@@ -14,10 +14,10 @@ export async function GET(request: NextRequest) {
 
     console.log('Fetching Amnis positions for address:', address);
 
-    // Get base URL from environment or use default
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.VERCEL_URL || 'http://localhost:3000';
+    // Get base URL for internal API calls
+    const baseUrl = request.nextUrl.origin;
     
-    // Get AMI staking pools using our existing API
+    // Get AMI staking pools using our existing API (using relative URL for internal API call)
     console.log('Fetching AMI staking pools...');
     const stakingPoolsResponse = await fetch(`${baseUrl}/api/protocols/amnis/staking-pools`);
     
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     const pools = stakingPoolsData.pools || [];
     console.log('Staking pools data received:', pools.length, 'pools');
     
-    // Get AMI token price from our existing Panora API
+    // Get AMI token price from our existing Panora API (using relative URL for internal API call)
     console.log('Fetching AMI price from Panora...');
     const amiPriceResponse = await fetch(`${baseUrl}/api/panora/tokenPrices?chainId=1&tokenAddress=0xb36527754eb54d7ff55daf13bcb54b42b88ec484bd6f0e3b2e0d1db169de6451`);
     

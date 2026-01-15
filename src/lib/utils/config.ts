@@ -4,14 +4,10 @@
 
 /**
  * Get the base URL for API calls
- * Priority: NEXT_PUBLIC_API_URL > VERCEL_URL > localhost:3000
+ * Priority: VERCEL_URL > localhost:3000
+ * Note: For client-side, use getClientBaseUrl() instead
  */
 export function getBaseUrl(): string {
-  // Check for explicit API URL first
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
-  }
-  
   // Check for Vercel URL (automatically set by Vercel)
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL}`;

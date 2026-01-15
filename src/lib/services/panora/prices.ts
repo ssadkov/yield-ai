@@ -48,12 +48,12 @@ export class PanoraPricesService {
         queryParams.append('tokenAddress', addresses.join(','));
       }
 
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL;
-      if (!baseUrl) {
-        throw new Error('NEXT_PUBLIC_API_URL is not set');
-      }
-
-      const response = await fetch(`${baseUrl}/api/panora/tokenPrices?${queryParams.toString()}`);
+      // Use relative URL for client-side, full URL for server-side
+      const baseUrl = typeof window === 'undefined' 
+        ? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+        : '';
+      const apiUrl = `${baseUrl}/api/panora/tokenPrices?${queryParams.toString()}`;
+      const response = await fetch(apiUrl);
       
       if (!response.ok) {
         throw new Error('Failed to fetch prices');

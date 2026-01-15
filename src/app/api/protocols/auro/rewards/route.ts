@@ -66,11 +66,8 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Get base URL from environment or use default
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.VERCEL_URL || 'http://localhost:3000';
-    
-    // Fetch positions for the address
-    const positionsResponse = await fetch(`${baseUrl}/api/protocols/auro/userPositions?address=${encodeURIComponent(address)}`);
+    // Fetch positions for the address (using relative URL for internal API call)
+    const positionsResponse = await fetch(`${request.nextUrl.origin}/api/protocols/auro/userPositions?address=${encodeURIComponent(address)}`);
     const positionsData = await positionsResponse.json();
     
     if (!positionsResponse.ok || !positionsData.success) {
@@ -80,8 +77,8 @@ export async function GET(request: NextRequest) {
       }, { status: 500 });
     }
 
-    // Fetch pools data
-    const poolsResponse = await fetch(`${baseUrl}/api/protocols/auro/pools`);
+    // Fetch pools data (using relative URL for internal API call)
+    const poolsResponse = await fetch(`${request.nextUrl.origin}/api/protocols/auro/pools`);
     const poolsData = await poolsResponse.json();
     
     if (!poolsResponse.ok || !poolsData.success) {

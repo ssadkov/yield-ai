@@ -3,9 +3,6 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function GET(request: NextRequest) {
   console.log('Auro Finance - API endpoint called');
   try {
-    // Get base URL from environment or use default
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.VERCEL_URL || 'http://localhost:3000';
-    
     // Fetch data from Auro Finance API with realistic browser headers
     const response = await fetch('https://api.auro.finance/api/v1/pool', {
       method: 'GET',

@@ -70,7 +70,7 @@ export class TokenInfoService {
     try {
       // Determine base URL (server-side needs full URL)
       const baseUrl = typeof window === 'undefined' 
-        ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000')
+        ? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
         : '';
       const apiUrl = `${baseUrl}/api/tokens/info?address=${encodeURIComponent(address)}`;
       
