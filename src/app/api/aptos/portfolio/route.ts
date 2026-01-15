@@ -368,8 +368,8 @@ export async function GET(request: Request) {
 
     let protocolsValue = 0;
 
-    // Get base URL from environment or use default
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.VERCEL_URL || 'http://localhost:3000';
+    // Get base URL for internal API calls (using request origin)
+    const baseUrl = new URL(request.url).origin;
     
     // Fetch positions from all protocols using correct port
     try {

@@ -47,7 +47,7 @@ export function getOptimizedImageUrl(src: string, fallback?: string): string {
  */
 export function getOptimizedBaseUrl(): string {
   if (typeof window === 'undefined') {
-    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+    return process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
   }
   
   const origin = window.location.origin;
