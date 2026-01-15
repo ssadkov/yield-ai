@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import { useMediaQuery } from 'react-responsive';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Gift } from "lucide-react";
 import { AirdropInfoMobile } from "./airdrop-info-mobile";
@@ -22,18 +23,7 @@ interface AirdropInfoTooltipProps {
 }
 
 export function AirdropInfoTooltip({ airdropInfo, children, size = 'sm' }: AirdropInfoTooltipProps) {
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768 || 'ontouchstart' in window);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  const isMobile = useMediaQuery({ maxWidth: 767 });
 
   // Use mobile component for mobile devices
   if (isMobile) {

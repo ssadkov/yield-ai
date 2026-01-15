@@ -1,0 +1,47 @@
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  transition-property: background-color, transform;
+  transition-duration: 200ms;
+  transition-timing-function: ease-out;
+  cursor: pointer;
+  background-color: transparent;
+  transform: translateX(0);
+}
+
+.legendItemHovered {
+  background-color: rgba(0, 0, 0, 0.05);
+  transform: translateX(4px);
+}
+
+.legendDot {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 9999px;
+  flex-shrink: 0;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  transition-property: transform;
+  transition-duration: 200ms;
+  transition-timing-function: ease-out;
+  transform: scale(1);
+}
+
+.legendDotHovered {
+  transform: scale(1.2);
+}
+
+.legendLabel {
+  font-size: 0.875rem;
+  font-weight: 500;
+  flex: 1;
+}
+
+.legendPercent {
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+  font-weight: 600;
+}
+
