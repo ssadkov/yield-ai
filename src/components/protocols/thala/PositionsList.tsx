@@ -8,9 +8,8 @@ import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import Image from "next/image";
 import { ManagePositionsButton } from "../ManagePositionsButton";
 import { useCollapsible } from "@/contexts/CollapsibleContext";
-import { formatNumber, formatCurrency } from "@/lib/utils/numberFormat";
+import { formatCurrency } from "@/lib/utils/numberFormat";
 import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface PositionsListProps {
   address?: string;
@@ -56,112 +55,45 @@ interface ThalaPosition {
   totalValueUSD: number;
 }
 
-function formatCurrencyValue(value: number) {
-  if (value === 0) return '$0.00';
-  if (value > 0 && value < 0.01) return '< $0.01';
-  return formatCurrency(value);
-}
-
 function ThalaPositionCard({ position }: { position: ThalaPosition }) {
-  const tokenEntries = [
-    { symbol: position.token0.symbol, amount: position.token0.amount, value: position.token0.valueUSD },
-    { symbol: position.token1.symbol, amount: position.token1.amount, value: position.token1.valueUSD }
-  ];
-
   return (
-    <div className="mt-2 pb-2 border-b last:border-b-0">
-      <div className="flex flex-wrap justify-between items-center mb-2">
+    <Card className="w-full mb-3">
+      <CardHeader className="flex flex-row items-center justify-between py-2">
         <div className="flex items-center gap-2">
-          <div className="flex -space-x-2 mr-2">
-            {position.token0.logoUrl && (
-              <img
-                src={position.token0.logoUrl}
-                alt={position.token0.symbol}
-                className="w-8 h-8 rounded-full border-2 border-white object-contain"
-              />
-            )}
-            {position.token1.logoUrl && (
-              <img
-                src={position.token1.logoUrl}
-                alt={position.token1.symbol}
-                className="w-8 h-8 rounded-full border-2 border-white object-contain"
-              />
+          <div className="flex flex-col items-center">
+            <div className="flex">
+              {position.token0.logoUrl && (
+                <div className="w-6 h-6 rounded-full overflow-hidden border border-white">
+                  <img src={position.token0.logoUrl} alt={position.token0.symbol} className="w-full h-full object-contain" />
+                </div>
+              )}
+              {position.token1.logoUrl && (
+                <div className="w-6 h-6 -ml-2 rounded-full overflow-hidden border border-white">
+                  <img src={position.token1.logoUrl} alt={position.token1.symbol} className="w-full h-full object-contain" />
+                </div>
+              )}
+            </div>
+            {position.inRange ? (
+              <Badge variant="outline" className="mt-1 py-0 h-5 bg-green-500/10 text-green-600 border-green-500/20 text-xs">
+                Active
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="mt-1 py-0 h-5 bg-red-500/10 text-red-600 border-red-500/20 text-xs">
+                Inactive
+              </Badge>
             )}
           </div>
-          <span className="text-lg font-semibold">
-            {position.token0.symbol} / {position.token1.symbol}
-          </span>
-          {position.inRange ? (
-            <span className="px-2 py-1 rounded bg-green-500/10 text-green-600 text-xs font-semibold ml-2">Active</span>
-          ) : (
-            <span className="px-2 py-1 rounded bg-yellow-500/10 text-yellow-700 text-xs font-semibold ml-2">Out of range</span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-lg font-bold">{formatCurrencyValue(position.positionValueUSD)}</span>
-        </div>
-      </div>
-      <div className="flex flex-wrap justify-between items-start">
-        <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-          {tokenEntries.map((te) => (
-            <div key={`amt-${te.symbol}`}>
-              <div className="text-gray-500">{te.symbol} Amount</div>
-              <div className="font-medium">{formatNumber(te.amount, 6)}</div>
+          <div className="flex flex-col ml-1">
+            <div className="text-sm font-medium">
+              {position.token0.symbol}/{position.token1.symbol}
             </div>
-          ))}
-          {tokenEntries.map((te) => (
-            <div key={`val-${te.symbol}`}>
-              <div className="text-gray-500">{te.symbol} Value</div>
-              <div className="font-medium">{formatCurrencyValue(te.value)}</div>
-            </div>
-          ))}
+          </div>
         </div>
-        <div className="flex flex-col items-end gap-2 text-sm">
-          {position.rewards.length > 0 && (
-            <div className="mt-2 text-right">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="text-gray-500 mb-1 cursor-help">
-                      Rewards: {formatCurrencyValue(position.rewardsValueUSD)}
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">
-                    <div className="space-y-1 text-xs max-h-48 overflow-auto">
-                      {position.rewards.map((reward, rewardIndex) => (
-                        <div key={rewardIndex} className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-2">
-                            {reward.logoUrl && (
-                              <img src={reward.logoUrl} alt={reward.symbol} className="w-4 h-4 rounded-full" />
-                            )}
-                            <span>{reward.symbol}</span>
-                          </div>
-                          <span className="font-semibold">{formatNumber(reward.amount, 6)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-          )}
-          {!position.inRange && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Badge variant="outline" className="bg-yellow-500/10 text-yellow-700 border-yellow-500/20 text-xs font-normal px-2 py-0.5 h-5 cursor-help">
-                    Out of range
-                  </Badge>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Liquidity is currently outside the active price range</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
+        <div className="flex flex-col items-end gap-2">
+          <div className="text-base font-medium">{formatCurrency(position.positionValueUSD, 2)}</div>
         </div>
-      </div>
-    </div>
+      </CardHeader>
+    </Card>
   );
 }
 
@@ -207,7 +139,7 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
     }
 
     loadPositions();
-  }, [walletAddress, refreshKey, onPositionsCheckComplete]);
+  }, [walletAddress, refreshKey]);
 
   const totalValue = positions.reduce((sum, position) => sum + (position.positionValueUSD || 0), 0);
   const totalRewardsValue = positions.reduce((sum, position) => sum + (position.rewardsValueUSD || 0), 0);
@@ -218,34 +150,16 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
     onPositionsValueChange?.(totalValue);
   }, [totalValue, onPositionsValueChange]);
 
-  if (loading && positions.length === 0) {
-    return (
-      <Card className="w-full">
-        <CardHeader className="py-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {protocol && (
-                <div className="w-5 h-5 relative">
-                  <Image
-                    src={protocol.logoUrl}
-                    alt={protocol.name}
-                    width={20}
-                    height={20}
-                    className="object-contain"
-                  />
-                </div>
-              )}
-              <CardTitle className="text-lg">Thala</CardTitle>
-            </div>
-            <div className="text-sm text-muted-foreground">Loading...</div>
-          </div>
-        </CardHeader>
-      </Card>
-    );
+  if (loading) {
+    return null;
   }
 
   if (error) {
-    return null;
+    return <div className="text-sm text-red-500">{error}</div>;
+  }
+
+  if (!walletAddress) {
+    return <div className="text-sm text-muted-foreground">Connect wallet to view positions</div>;
   }
 
   if (positions.length === 0) {
@@ -293,12 +207,12 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
               <div className="flex">
                 <div className="flex items-left">
                   <div className="text-sm text-muted-foreground text-right pl-3">
-                    Total rewards:
+                    {"💰 Total rewards:"}
                   </div>
                 </div>
                 <div className="flex-2 items-right">
                   <div className="text-sm font-medium text-right whitespace-nowrap">
-                    {formatCurrency(totalRewardsValue)}
+                    {formatCurrency(totalRewardsValue, 2)}
                   </div>
                 </div>
               </div>
