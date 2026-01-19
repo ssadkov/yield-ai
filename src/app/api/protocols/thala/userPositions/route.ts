@@ -123,37 +123,24 @@ async function buildPoolsMap(): Promise<Map<string, PoolInfo>> {
 }
 
 async function getClaimableRewardAmount(
-  address: string,
-  positionId: string,
-  rewardMeta: any,
-  rewardIndex: number
+  positionObjectAddress: string,
+  rewardMetadataAddress: string
 ): Promise<string | null> {
-  const rewardToken =
-    rewardMeta?.reward_token?.inner ||
-    rewardMeta?.reward_token ||
-    rewardMeta?.reward_coin?.inner ||
-    rewardMeta?.reward_coin ||
-    rewardMeta?.coin_type ||
-    rewardMeta?.token?.inner ||
-    rewardMeta?.token;
+  if (!positionObjectAddress || !rewardMetadataAddress) {
+    return null;
+  }
 
-  const candidates = [
-    [address, positionId, rewardIndex.toString()],
-    rewardMeta?.reward_id ? [address, positionId, rewardMeta.reward_id] : null,
-    rewardMeta?.id ? [address, positionId, rewardMeta.id] : null,
-    rewardToken ? [address, positionId, rewardToken] : null
-  ].filter(Boolean) as any[][];
-
-  for (const args of candidates) {
-    try {
-      const result = await callView(`${THALA_FARMING_ADDRESS}::farming::claimable_reward_amount`, args);
-      const claimable = unwrapSingle<string>(result);
-      if (claimable !== undefined && claimable !== null) {
-        return String(claimable);
-      }
-    } catch (error) {
-      continue;
+  try {
+    const result = await callView(`${THALA_FARMING_ADDRESS}::farming::claimable_reward_amount`, [
+      positionObjectAddress,
+      rewardMetadataAddress
+    ]);
+    const claimable = unwrapSingle<string>(result);
+    if (claimable !== undefined && claimable !== null) {
+      return String(claimable);
     }
+  } catch (error) {
+    return null;
   }
 
   return null;
@@ -220,6 +207,9 @@ export async function GET(request: NextRequest) {
 
     const rewardsMetadataResult = await callView(`${THALA_FARMING_ADDRESS}::farming::rewards_metadata`, []);
     const rewardsMetadata = unwrapArray(rewardsMetadataResult);
+    const rewardMetadataAddresses = rewardsMetadata
+      .map((meta: any) => meta?.inner || meta)
+      .filter((addr: string) => typeof addr === 'string' && addr.length > 0);
 
     const formattedPositions = [];
 
@@ -271,22 +261,13 @@ export async function GET(request: NextRequest) {
       const rewards = [];
       let rewardsValueUSD = 0;
 
-      for (let i = 0; i < rewardsMetadata.length; i++) {
-        const rewardMeta = rewardsMetadata[i];
-        const claimableRaw = await getClaimableRewardAmount(address, positionId, rewardMeta, i);
+      for (const rewardMetadataAddress of rewardMetadataAddresses) {
+        const claimableRaw = await getClaimableRewardAmount(positionObjectAddress, rewardMetadataAddress);
         if (!claimableRaw || claimableRaw === '0') continue;
 
-        const rewardTokenAddress =
-          rewardMeta?.reward_token?.inner ||
-          rewardMeta?.reward_token ||
-          rewardMeta?.reward_coin?.inner ||
-          rewardMeta?.reward_coin ||
-          rewardMeta?.coin_type ||
-          rewardMeta?.token?.inner ||
-          rewardMeta?.token ||
-          '';
-
-        const rewardTokenInfo = rewardTokenAddress ? await getTokenInfoWithFallback(rewardTokenAddress) : null;
+        const rewardTokenInfo = rewardMetadataAddress
+          ? await getTokenInfoWithFallback(rewardMetadataAddress)
+          : null;
         const rewardDecimals = rewardTokenInfo?.decimals ?? 8;
         const rewardAmount = parseTokenAmount(claimableRaw, rewardDecimals);
         const rewardPrice = parseFloat(rewardTokenInfo?.usdPrice || '0');
@@ -294,9 +275,9 @@ export async function GET(request: NextRequest) {
         rewardsValueUSD += rewardValue;
 
         rewards.push({
-          tokenAddress: rewardTokenAddress,
-          symbol: rewardTokenInfo?.symbol || rewardMeta?.symbol || 'Unknown',
-          name: rewardTokenInfo?.name || rewardMeta?.name || 'Unknown',
+          tokenAddress: rewardMetadataAddress,
+          symbol: rewardTokenInfo?.symbol || 'Unknown',
+          name: rewardTokenInfo?.name || 'Unknown',
           decimals: rewardDecimals,
           logoUrl: rewardTokenInfo?.logoUrl || null,
           amountRaw: claimableRaw,
@@ -308,6 +289,7 @@ export async function GET(request: NextRequest) {
 
       formattedPositions.push({
         positionId,
+        positionAddress: positionObjectAddress,
         poolAddress: poolObjInner,
         token0: {
           address: token0Address,
