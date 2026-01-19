@@ -37,12 +37,6 @@ export function PortfolioChart({ data, totalValue, isLoading = false }: Portfoli
           <PieChart 
             data={chartData} 
             size={256}
-            desktopSize={384}
-            mobileSize={256}
-            breakpoint={1024}
-            innerRadius={0.2}
-            outerRadius={0.4}
-            gapAngle={1.5}
             onSectorHover={handleSectorHover}
             hoveredItem={hoveredItem}
             total={totalValue || sum}

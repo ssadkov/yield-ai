@@ -15,20 +15,8 @@ export interface PieChartDatum {
 export interface PieChartProps {
   /** Данные для отрисовки графика */
   data: PieChartDatum[];
-  /** Базовый размер графика в пикселях (используется, если не заданы desktopSize/mobileSize) */
+  /** Базовый размер графика в пикселях */
   size: number;
-  /** Размер графика на десктопе (если указан вместе с mobileSize, size игнорируется) */
-  desktopSize?: number;
-  /** Размер графика на мобильных (если указан вместе с desktopSize, size игнорируется) */
-  mobileSize?: number;
-  /** Breakpoint для переключения desktop/mobile (по умолчанию 1024px) */
-  breakpoint?: number;
-  /** Внутренний радиус (для donut chart). Если 0 - будет обычный pie chart */
-  innerRadius?: number;
-  /** Внешний радиус (в процентах от размера, по умолчанию 40%) */
-  outerRadius?: number;
-  /** Gap между секторами в градусах */
-  gapAngle?: number;
   /** Callback при наведении на сектор (для синхронизации с внешними компонентами) */
   onSectorHover?: (item: PieChartDatum | null) => void;
   /** Активный (hovered) сектор (опционально, для контролируемого режима) */
@@ -48,6 +36,14 @@ export interface PieChartProps {
   /** Показывать ли tooltip */
   showTooltip?: boolean;
 }
+
+// Константы для размеров и параметров графика
+const DEFAULT_DESKTOP_SIZE = 384;
+const DEFAULT_MOBILE_SIZE = 256;
+const DEFAULT_BREAKPOINT = 1024;
+const DEFAULT_INNER_RADIUS = 0.2;
+const DEFAULT_OUTER_RADIUS = 0.4;
+const DEFAULT_GAP_ANGLE = 1.5;
 
 // Палитра CSS переменных для цветов (используем напрямую через var())
 const COLOR_PALETTE = [
@@ -118,7 +114,7 @@ function createDonutSector(
   // Учитываем gap между секторами
   const adjustedStartAngle = startAngle + gapAngle / 2;
   const adjustedEndAngle = endAngle - gapAngle / 2;
-  
+
   const startAngleRad = (adjustedStartAngle * Math.PI) / 180;
   const endAngleRad = (adjustedEndAngle * Math.PI) / 180;
 
@@ -158,12 +154,6 @@ export const PieChart = React.forwardRef<HTMLDivElement, PieChartProps>(
     {
       data,
       size,
-      desktopSize,
-      mobileSize,
-      breakpoint = 1024,
-      innerRadius,
-      outerRadius = 0.4,
-      gapAngle = 1.5,
       onSectorHover,
       hoveredItem,
       showShadowOnHover = true,
@@ -179,30 +169,27 @@ export const PieChart = React.forwardRef<HTMLDivElement, PieChartProps>(
   ) => {
     const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
     const [internalHoveredItem, setInternalHoveredItem] = useState<PieChartDatum | null>(null);
-    
+
     // Используем переданный hoveredItem или внутреннее состояние
     const currentHoveredItem = hoveredItem !== undefined ? hoveredItem : internalHoveredItem;
-    
+
     const handleSectorHover = (item: PieChartDatum | null) => {
       if (hoveredItem === undefined) {
         setInternalHoveredItem(item);
       }
       onSectorHover?.(item);
     };
-    // Определяем, десктоп это или мобильный, если заданы responsive размеры
-    const isDesktop = useMediaQuery({ minWidth: breakpoint });
-    const chartSize =
-      desktopSize !== undefined && mobileSize !== undefined
-        ? (isDesktop ? desktopSize : mobileSize)
-        : size;
+    // Определяем, десктоп это или мобильный
+    const isDesktop = useMediaQuery({ minWidth: DEFAULT_BREAKPOINT });
+    const chartSize = isDesktop ? DEFAULT_DESKTOP_SIZE : DEFAULT_MOBILE_SIZE;
 
     const center = chartSize / 2;
-    const outerRadiusPx = chartSize * outerRadius;
-    const innerRadiusPx = innerRadius !== undefined ? chartSize * innerRadius : chartSize * 0.2;
+    const outerRadiusPx = chartSize * DEFAULT_OUTER_RADIUS;
+    const innerRadiusPx = chartSize * DEFAULT_INNER_RADIUS;
 
     const calculatedTotal = data.reduce((sum, d) => sum + d.value, 0);
     // Преобразуем total в число, если передана строка
-    const total = providedTotal !== undefined 
+    const total = providedTotal !== undefined
       ? (typeof providedTotal === 'string' ? parseFloat(providedTotal) || calculatedTotal : providedTotal)
       : calculatedTotal;
     let currentAngle = -90; // Начинаем сверху
@@ -217,7 +204,7 @@ export const PieChart = React.forwardRef<HTMLDivElement, PieChartProps>(
       return COLOR_PALETTE[index % COLOR_PALETTE.length];
     };
 
-    const defaultFormatValue = (value: number) => 
+    const defaultFormatValue = (value: number) =>
       `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
     return (
@@ -289,7 +276,7 @@ export const PieChart = React.forwardRef<HTMLDivElement, PieChartProps>(
                   hoverRadius,
                   center,
                   center,
-                  gapAngle
+                  DEFAULT_GAP_ANGLE
                 )}
                 fill={color}
                 stroke="none"
