@@ -373,7 +373,7 @@
     "depositType": "external",
     "depositUrl": "https://app.thala.fi/pools",
     "isDepositEnabled": false,
-    "managedType": "external",
+    "managedType": "native",
     "socialMedia": {
       "twitter": "https://x.com/ThalaLabs"
     },
