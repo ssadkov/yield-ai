@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { normalizeAddress } from '@/lib/utils/addressNormalization';
 import { getTokenInfoWithFallback } from '@/lib/tokens/tokenRegistry';
 
 const THALA_FARMING_ADDRESS = '0xcb8365dc9f7ac6283169598aaad7db9c7b12f52da127007f37fa4565170ff59c';
@@ -146,6 +147,109 @@ async function getClaimableRewardAmount(
   return null;
 }
 
+async function getTokenInfoFromAPIOnly(address: string): Promise<{
+  symbol: string;
+  name: string;
+  decimals: number;
+  priceUSD: number | null;
+  logoUrl: string | null;
+} | null> {
+  if (!address) return null;
+
+  const normalizedAddress = normalizeAddress(address);
+
+  // 1. Try Echelon API
+  try {
+    const echelonResponse = await fetch('https://app.echelon.market/api/markets?network=aptos_mainnet', {
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'YieldAI/1.0',
+      },
+    });
+
+    if (echelonResponse.ok) {
+      const echelonData = await echelonResponse.json();
+      const asset = echelonData.data.assets?.find((a: any) => {
+        const assetAddr = a.address ? normalizeAddress(a.address) : null;
+        const assetFaAddr = a.faAddress ? normalizeAddress(a.faAddress) : null;
+        return assetAddr === normalizedAddress || assetFaAddr === normalizedAddress;
+      });
+
+      if (asset) {
+        console.log('[Thala] Found reward token in Echelon:', asset.symbol, 'at', normalizedAddress);
+        return {
+          symbol: asset.symbol,
+          name: asset.name,
+          decimals: asset.decimals || 8,
+          priceUSD: asset.price || null,
+          logoUrl: asset.icon ? `https://app.echelon.market${asset.icon}` : null,
+        };
+      }
+    }
+  } catch (error) {
+    console.warn('[Thala] Error checking Echelon API for reward token:', error);
+  }
+
+  // 2. Try Panora API
+  try {
+    const panoraResponse = await fetch(
+      `https://api.panora.exchange/tokens?chainId=1&address=${encodeURIComponent(address)}`,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (panoraResponse.ok) {
+      const panoraData = await panoraResponse.json();
+      if (panoraData.data && panoraData.data.length > 0) {
+        const token = panoraData.data[0];
+        console.log('[Thala] Found reward token in Panora:', token.symbol, 'at', normalizedAddress);
+        return {
+          symbol: token.symbol,
+          name: token.name,
+          decimals: token.decimals,
+          priceUSD: token.usdPrice ? parseFloat(token.usdPrice) : null,
+          logoUrl: token.logoUrl || null,
+        };
+      }
+    }
+  } catch (error) {
+    console.warn('[Thala] Error checking Panora API for reward token:', error);
+  }
+
+  // 3. Fallback: Try our internal API (which checks tokenList as last resort)
+  // Only use this if external APIs failed, to avoid "Unknown" tokens
+  try {
+    const baseUrl = typeof window === 'undefined' 
+      ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000')
+      : '';
+    const internalApiUrl = `${baseUrl}/api/tokens/info?address=${encodeURIComponent(address)}`;
+    const internalResponse = await fetch(internalApiUrl);
+    
+    if (internalResponse.ok) {
+      const internalData = await internalResponse.json();
+      if (internalData.success && internalData.data) {
+        const token = internalData.data;
+        console.log('[Thala] Found reward token via internal API (fallback):', token.symbol, 'at', normalizedAddress, 'source:', token.source);
+        return {
+          symbol: token.symbol,
+          name: token.name,
+          decimals: token.decimals,
+          priceUSD: token.price || null,
+          logoUrl: token.logoUrl || null,
+        };
+      }
+    }
+  } catch (error) {
+    console.warn('[Thala] Error checking internal API for reward token:', error);
+  }
+
+  console.warn('[Thala] Reward token not found in any API:', normalizedAddress);
+  return null;
+}
+
 /**
  * @swagger
  * /api/protocols/thala/userPositions:
@@ -265,12 +369,13 @@ export async function GET(request: NextRequest) {
         const claimableRaw = await getClaimableRewardAmount(positionObjectAddress, rewardMetadataAddress);
         if (!claimableRaw || claimableRaw === '0') continue;
 
+        // Get token info ONLY from API (Echelon/Panora), NOT from tokenList
         const rewardTokenInfo = rewardMetadataAddress
-          ? await getTokenInfoWithFallback(rewardMetadataAddress)
+          ? await getTokenInfoFromAPIOnly(rewardMetadataAddress)
           : null;
         const rewardDecimals = rewardTokenInfo?.decimals ?? 8;
         const rewardAmount = parseTokenAmount(claimableRaw, rewardDecimals);
-        const rewardPrice = parseFloat(rewardTokenInfo?.usdPrice || '0');
+        const rewardPrice = rewardTokenInfo?.priceUSD || 0;
         const rewardValue = rewardAmount * rewardPrice;
         rewardsValueUSD += rewardValue;
 
