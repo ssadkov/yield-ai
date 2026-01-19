@@ -87,6 +87,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   const [protocolsLoading, setProtocolsLoading] = useState<Record<string, boolean>>({
     'Joule': true,
     'Hyperion': true,
+    'Thala': true,
     'Tapp Exchange': true,
     'Auro Finance': true,
     'Amnis Finance': true,
@@ -100,6 +101,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   const [protocolsLogos, setProtocolsLogos] = useState<Record<string, string>>({
     'Joule': '/protocol_ico/joule.png',
     'Hyperion': '/protocol_ico/hyperion.png',
+    'Thala': '/protocol_ico/thala.png',
     'Tapp Exchange': '/protocol_ico/tappexchange.png',
     'Auro Finance': '/protocol_ico/auro.png',
     'Amnis Finance': '/protocol_ico/amnis.png',
@@ -340,6 +342,66 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   poolType: 'DEX',
                   feeTier: parseFloat(pool.fee_tier || "0"),
                   volume7d: parseFloat(pool.volume_7d || "0")
+                };
+              });
+            }
+          },
+          {
+            name: 'Thala',
+            url: '/api/protocols/thala/pools',
+            logoUrl: '/protocol_ico/thala.png',
+            transform: (data: any) => {
+              const pools = data.data || [];
+
+              return pools.map((pool: any) => {
+                const totalAPY = parseFloat(pool.apr || "0") * 100;
+                const coinAddresses = Array.isArray(pool.coinAddresses) ? pool.coinAddresses : [];
+                const tokenAAddress = coinAddresses[0] || '';
+                const tokenBAddress = coinAddresses[1] || '';
+                const tokenAInfo = getTokenInfo('', tokenAAddress);
+                const tokenBInfo = getTokenInfo('', tokenBAddress);
+
+                const token1Info = tokenAInfo ? {
+                  symbol: tokenAInfo.symbol,
+                  name: tokenAInfo.name,
+                  logoUrl: tokenAInfo.logoUrl,
+                  decimals: tokenAInfo.decimals
+                } : {
+                  symbol: pool.token_a || 'Unknown',
+                  name: pool.token_a || 'Unknown',
+                  logoUrl: undefined,
+                  decimals: 8
+                };
+
+                const token2Info = tokenBInfo ? {
+                  symbol: tokenBInfo.symbol,
+                  name: tokenBInfo.name,
+                  logoUrl: tokenBInfo.logoUrl,
+                  decimals: tokenBInfo.decimals
+                } : {
+                  symbol: pool.token_b || 'Unknown',
+                  name: pool.token_b || 'Unknown',
+                  logoUrl: undefined,
+                  decimals: 8
+                };
+
+                return {
+                  asset: `${token1Info.symbol}/${token2Info.symbol}`,
+                  provider: 'Thala',
+                  totalAPY: totalAPY,
+                  depositApy: totalAPY,
+                  borrowAPY: 0,
+                  token: pool.pool_id || pool.lptAddress || '',
+                  protocol: 'Thala',
+                  dailyVolumeUSD: parseFloat(pool.volume1d || "0"),
+                  tvlUSD: parseFloat(pool.tvl || "0"),
+                  token1Info,
+                  token2Info,
+                  poolType: pool.poolType || 'DEX',
+                  swapFee: pool.swapFee,
+                  aprSources: pool.aprSources,
+                  lptAddress: pool.lptAddress,
+                  originalPool: pool
                 };
               });
             }

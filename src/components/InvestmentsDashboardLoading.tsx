@@ -97,42 +97,70 @@ export function InvestmentsDashboardLoading({
                 ))}
               </div>
             </div>
-
-            {/* Protocol loading status with spinning icons */}
-            {loadingProtocols.length > 0 && (
-              <div className="mt-6 flex flex-col items-center">
-                <h4 className="text-sm font-medium mb-3 flex items-center gap-1">
-                  Checking pools
-                  <span className="inline-flex gap-0.5 ml-1">
-                    <span className="loading-dot">.</span>
-                    <span className="loading-dot">.</span>
-                    <span className="loading-dot">.</span>
-                  </span>
-                </h4>
-                <div className="flex flex-wrap items-center justify-center gap-4">
-                  {loadingProtocols.map((protocol) => (
-                    <TooltipProvider key={protocol.name} delayDuration={100}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div>
-                            <ProtocolIcon
-                              logoUrl={protocol.logoUrl}
-                              name={protocol.name}
-                              size="md"
-                              isLoading={true}
-                              className="hover:border-primary/40 hover:shadow-lg"
-                            />
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" sideOffset={5}>
-                          <p>{protocol.name}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  ))}
-                </div>
+          </div>
+        )}
+        {activeTab === "pro" && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-9 w-64" />
+              <Skeleton className="h-9 w-32" />
+              <Skeleton className="h-9 w-24" />
+            </div>
+            <div className="border rounded-md">
+              <div className="grid grid-cols-5 gap-4 p-4 border-b">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 w-12 ml-auto" />
               </div>
-            )}
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="grid grid-cols-5 gap-4 p-4 border-b last:border-b-0">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-6 w-6 rounded-full" />
+                    <Skeleton className="h-4 w-20" />
+                  </div>
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-4 w-12" />
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-4 w-16 ml-auto" />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {loadingProtocols.length > 0 && (
+          <div className="mt-6 flex flex-col items-center">
+            <h4 className="text-sm font-medium mb-3 flex items-center gap-1">
+              Checking pools
+              <span className="inline-flex gap-0.5 ml-1">
+                <span className="loading-dot">.</span>
+                <span className="loading-dot">.</span>
+                <span className="loading-dot">.</span>
+              </span>
+            </h4>
+            <div className="flex flex-wrap items-center justify-center gap-4">
+              {loadingProtocols.map((protocol) => (
+                <TooltipProvider key={protocol.name} delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div>
+                        <ProtocolIcon
+                          logoUrl={protocol.logoUrl}
+                          name={protocol.name}
+                          size="md"
+                          isLoading={true}
+                          className="hover:border-primary/40 hover:shadow-lg"
+                        />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" sideOffset={5}>
+                      <p>{protocol.name}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              ))}
+            </div>
           </div>
         )}
       </Box>
