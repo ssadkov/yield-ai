@@ -352,8 +352,12 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
             logoUrl: '/protocol_ico/thala.png',
             transform: (data: any) => {
               const pools = data.data || [];
+              const filtered = pools.filter((pool: any) => {
+                const tvl = parseFloat(pool.tvl || "0");
+                return tvl > 1000;
+              });
 
-              return pools.map((pool: any) => {
+              return filtered.map((pool: any) => {
                 const totalAPY = parseFloat(pool.apr || "0") * 100;
                 const coinAddresses = Array.isArray(pool.coinAddresses) ? pool.coinAddresses : [];
                 const tokenAAddress = coinAddresses[0] || '';
