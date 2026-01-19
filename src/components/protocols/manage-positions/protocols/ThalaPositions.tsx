@@ -1,0 +1,257 @@
+'use client';
+
+import { useEffect, useState } from "react";
+import { useWallet } from "@aptos-labs/wallet-adapter-react";
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { formatNumber, formatCurrency } from "@/lib/utils/numberFormat";
+
+interface ThalaTokenAmount {
+  address: string;
+  symbol: string;
+  name: string;
+  decimals: number;
+  logoUrl?: string | null;
+  amountRaw: string;
+  amount: number;
+  priceUSD: number;
+  valueUSD: number;
+}
+
+interface ThalaRewardItem {
+  tokenAddress: string;
+  symbol: string;
+  name: string;
+  decimals: number;
+  logoUrl?: string | null;
+  amountRaw: string;
+  amount: number;
+  priceUSD: number;
+  valueUSD: number;
+}
+
+interface ThalaPosition {
+  positionId: string;
+  poolAddress: string;
+  token0: ThalaTokenAmount;
+  token1: ThalaTokenAmount;
+  inRange: boolean;
+  rewards: ThalaRewardItem[];
+  positionValueUSD: number;
+  rewardsValueUSD: number;
+  totalValueUSD: number;
+}
+
+interface ThalaPositionProps {
+  position: ThalaPosition;
+  index: number;
+}
+
+function formatCurrencyValue(value: number) {
+  if (value === 0) return '$0.00';
+  if (value > 0 && value < 0.01) return '< $0.01';
+  return formatCurrency(value);
+}
+
+function ThalaPositionCard({ position, index }: ThalaPositionProps) {
+  const tokenEntries = [
+    {
+      symbol: position.token0.symbol,
+      amount: position.token0.amount,
+      value: position.token0.valueUSD
+    },
+    {
+      symbol: position.token1.symbol,
+      amount: position.token1.amount,
+      value: position.token1.valueUSD
+    }
+  ];
+
+  return (
+    <div key={`${position.positionId}-${index}`} className="mt-2 pb-2 border-b last:border-b-0">
+      <div className="flex flex-wrap justify-between items-center mb-2">
+        <div className="flex items-center gap-2">
+          <div className="flex -space-x-2 mr-2">
+            {position.token0.logoUrl && (
+              <img
+                src={position.token0.logoUrl}
+                alt={position.token0.symbol}
+                className="w-8 h-8 rounded-full border-2 border-white object-contain"
+              />
+            )}
+            {position.token1.logoUrl && (
+              <img
+                src={position.token1.logoUrl}
+                alt={position.token1.symbol}
+                className="w-8 h-8 rounded-full border-2 border-white object-contain"
+              />
+            )}
+          </div>
+          <span className="text-lg font-semibold">
+            {position.token0.symbol} / {position.token1.symbol}
+          </span>
+          {position.inRange ? (
+            <span className="px-2 py-1 rounded bg-green-500/10 text-green-600 text-xs font-semibold ml-2">Active</span>
+          ) : (
+            <span className="px-2 py-1 rounded bg-yellow-500/10 text-yellow-700 text-xs font-semibold ml-2">Out of range</span>
+          )}
+        </div>
+        <div className="flex items-centern gap-2">
+          <span className="text-lg font-bold">{formatCurrencyValue(position.positionValueUSD)}</span>
+        </div>
+      </div>
+      <div className="flex flex-wrap justify-between items-start">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+          {tokenEntries.map((te) => (
+            <div key={`amt-${te.symbol}`}>
+              <div className="text-gray-500">{te.symbol} Amount</div>
+              <div className="font-medium">{formatNumber(te.amount, 6)}</div>
+            </div>
+          ))}
+          {tokenEntries.map((te) => (
+            <div key={`val-${te.symbol}`}>
+              <div className="text-gray-500">{te.symbol} Value</div>
+              <div className="font-medium">{formatCurrencyValue(te.value)}</div>
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-col items-end gap-2 text-sm">
+          {position.rewards.length > 0 && (
+            <div className="mt-2 text-right">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="text-gray-500 mb-1 cursor-help">
+                      🎁 Rewards: {formatCurrencyValue(position.rewardsValueUSD)}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <div className="space-y-1 text-xs max-h-48 overflow-auto">
+                      {position.rewards.map((reward, rewardIndex) => (
+                        <div key={rewardIndex} className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            {reward.logoUrl && (
+                              <img src={reward.logoUrl} alt={reward.symbol} className="w-4 h-4 rounded-full" />
+                            )}
+                            <span>{reward.symbol}</span>
+                          </div>
+                          <span className="font-semibold">{formatNumber(reward.amount, 6)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          )}
+          {!position.inRange && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="outline" className="bg-yellow-500/10 text-yellow-700 border-yellow-500/20 text-xs font-normal px-2 py-0.5 h-5 cursor-help">
+                    Out of range
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Liquidity is currently outside the active price range</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ThalaPositions() {
+  const { account } = useWallet();
+  const [positions, setPositions] = useState<ThalaPosition[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadPositions = async () => {
+    if (!account?.address) {
+      setPositions([]);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch(`/api/protocols/thala/userPositions?address=${account.address}`);
+
+      if (!response.ok) {
+        throw new Error(`API returned status ${response.status}`);
+      }
+
+      const rawData = await response.json();
+      if (rawData.success && Array.isArray(rawData.data)) {
+        const sortedPositions = [...rawData.data].sort((a, b) => (b.positionValueUSD || 0) - (a.positionValueUSD || 0));
+        setPositions(sortedPositions);
+      } else {
+        setPositions([]);
+      }
+    } catch (err) {
+      console.error('Error loading Thala positions:', err);
+      setError('Failed to load positions');
+      setPositions([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPositions();
+
+    const handleRefresh = async (event: CustomEvent) => {
+      if (event.detail.protocol === 'thala') {
+        if (event.detail.data && Array.isArray(event.detail.data)) {
+          setPositions(event.detail.data);
+        } else {
+          loadPositions();
+        }
+      }
+    };
+
+    window.addEventListener('refreshPositions', handleRefresh as EventListener);
+    return () => {
+      window.removeEventListener('refreshPositions', handleRefresh as EventListener);
+    };
+  }, [account?.address]);
+
+  if (loading) {
+    return <div>Loading positions...</div>;
+  }
+
+  if (error) {
+    return <div className="text-red-500">{error}</div>;
+  }
+
+  if (positions.length === 0) {
+    return null;
+  }
+
+  const totalValue = positions.reduce((sum, position) => sum + (position.positionValueUSD || 0), 0);
+  const totalRewards = positions.reduce((sum, position) => sum + (position.rewardsValueUSD || 0), 0);
+
+  return (
+    <div className="p-4">
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <div className="text-sm text-gray-500">Total Positions</div>
+          <div className="text-lg font-semibold">{formatCurrencyValue(totalValue)}</div>
+        </div>
+        {totalRewards > 0 && (
+          <div className="text-right">
+            <div className="text-sm text-gray-500">Total Rewards</div>
+            <div className="text-lg font-semibold">{formatCurrencyValue(totalRewards)}</div>
+          </div>
+        )}
+      </div>
+      {positions.map((position, index) => (
+        <ThalaPositionCard key={`${position.positionId}-${index}`} position={position} index={index} />
+      ))}
+    </div>
+  );
+}
