@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useToast } from "@/components/ui/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import { formatNumber, formatCurrency } from "@/lib/utils/numberFormat";
 
 interface ThalaTokenAmount {
@@ -32,6 +34,7 @@ interface ThalaRewardItem {
 
 interface ThalaPosition {
   positionId: string;
+  positionAddress: string;
   poolAddress: string;
   token0: ThalaTokenAmount;
   token1: ThalaTokenAmount;
@@ -54,6 +57,10 @@ function formatCurrencyValue(value: number) {
 }
 
 function ThalaPositionCard({ position, index }: ThalaPositionProps) {
+  const [isClaiming, setIsClaiming] = useState(false);
+  const { signAndSubmitTransaction, account } = useWallet();
+  const { toast } = useToast();
+
   const tokenEntries = [
     {
       symbol: position.token0.symbol,
@@ -66,6 +73,49 @@ function ThalaPositionCard({ position, index }: ThalaPositionProps) {
       value: position.token1.valueUSD
     }
   ];
+
+  const handleClaimRewards = async () => {
+    if (!signAndSubmitTransaction || !account?.address || position.rewards.length === 0) return;
+
+    try {
+      setIsClaiming(true);
+      const THALA_FARMING_ADDRESS = "0xcb8365dc9f7ac6283169598aaad7db9c7b12f52da127007f37fa4565170ff59c";
+
+      for (const reward of position.rewards) {
+        const payload = {
+          function: `${THALA_FARMING_ADDRESS}::farming::claim_token_reward_entry` as `${string}::${string}::${string}`,
+          typeArguments: [],
+          functionArguments: [
+            position.positionAddress, // position address
+            reward.tokenAddress // reward token object address
+          ]
+        };
+
+        const response = await signAndSubmitTransaction({
+          data: payload,
+          options: { maxGasAmount: 20000 },
+        });
+
+        toast({
+          title: "Success",
+          description: `Claim transaction hash: ${response.hash.slice(0, 6)}...${response.hash.slice(-4)}`,
+          action: (
+            <ToastAction altText="View in Explorer" onClick={() => window.open(`https://explorer.aptoslabs.com/txn/${response.hash}?network=mainnet`, '_blank')}>
+              View in Explorer
+            </ToastAction>
+          ),
+        });
+      }
+
+      // Refresh positions after claiming
+      window.dispatchEvent(new CustomEvent('refreshPositions', { detail: { protocol: 'thala' } }));
+    } catch (error) {
+      console.error('Error claiming Thala rewards:', error);
+      toast({ title: "Error", description: "Failed to claim rewards", variant: "destructive" });
+    } finally {
+      setIsClaiming(false);
+    }
+  };
 
   return (
     <div key={`${position.positionId}-${index}`} className="mt-2 pb-2 border-b last:border-b-0">
@@ -154,6 +204,15 @@ function ThalaPositionCard({ position, index }: ThalaPositionProps) {
                 </Tooltip>
               </TooltipProvider>
             </div>
+          )}
+          {position.rewards.length > 0 && position.rewardsValueUSD > 0 && (
+            <button
+              className="px-3 py-1 bg-success text-success-foreground rounded text-sm font-semibold disabled:opacity-60"
+              onClick={handleClaimRewards}
+              disabled={isClaiming}
+            >
+              {isClaiming ? 'Claiming...' : 'Claim'}
+            </button>
           )}
         </div>
       </div>
