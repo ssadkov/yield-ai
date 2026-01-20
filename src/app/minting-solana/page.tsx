@@ -338,7 +338,10 @@ function MintingSolanaPageContent() {
       const discriminators: Array<{ seed: string; discriminator: Buffer }> = [];
       for (const seed of possibleSeeds) {
         const seedBytes = encoder.encode(seed);
-        const hashBuffer = await crypto.subtle.digest("SHA-256", seedBytes);
+        // Convert Uint8Array to ArrayBuffer for crypto.subtle.digest
+        // Create a new ArrayBuffer to avoid SharedArrayBuffer issues
+        const seedArray = new Uint8Array(seedBytes);
+        const hashBuffer = await crypto.subtle.digest("SHA-256", seedArray);
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         const discriminator = Buffer.from(hashArray.slice(0, 8));
         discriminators.push({ seed, discriminator });
@@ -371,16 +374,20 @@ function MintingSolanaPageContent() {
         totalLength: instructionData.length,
       });
 
+      // According to Circle CCTP documentation:
+      // receiveMessage is called on MessageTransmitter, not TokenMessengerMinter
+      // MessageTransmitter then calls TokenMessengerMinter via CPI (Cross-Program Invocation)
+      
       // Find PDAs for Circle CCTP programs
-      // TokenMessenger PDA: seeds = ["token_messenger"]
-      const [tokenMessengerPDA] = PublicKey.findProgramAddressSync(
-        [Buffer.from("token_messenger")],
-        TOKEN_MESSENGER_MINTER_PROGRAM_ID
+      // MessageTransmitter PDA: seeds = ["message_transmitter"] (owned by MessageTransmitter program)
+      const [messageTransmitterPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from("message_transmitter")],
+        MESSAGE_TRANSMITTER_PROGRAM_ID
       );
 
       // MessageTransmitter authority PDA - try different seed patterns
       // Common patterns: "authority_pda", "authority", "pda"
-      let messageTransmitterAuthorityPDA: PublicKey;
+      let messageTransmitterAuthorityPDA: InstanceType<typeof PublicKey>;
       try {
         [messageTransmitterAuthorityPDA] = PublicKey.findProgramAddressSync(
           [Buffer.from("authority_pda")],
@@ -394,38 +401,113 @@ function MintingSolanaPageContent() {
         );
       }
 
+      // TokenMessenger PDA: seeds = ["token_messenger"] (owned by TokenMessengerMinter program)
+      const [tokenMessengerPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from("token_messenger")],
+        TOKEN_MESSENGER_MINTER_PROGRAM_ID
+      );
+
+      // For CCTP v1, we also need remote_token_messenger PDA
+      // seeds = ["remote_token_messenger", sourceDomainId as u32 (4 bytes, little-endian)]
+      const domainBuffer = Buffer.allocUnsafe(4);
+      domainBuffer.writeUInt32LE(domain, 0);
+      const [remoteTokenMessengerPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from("remote_token_messenger"), domainBuffer],
+        TOKEN_MESSENGER_MINTER_PROGRAM_ID
+      );
+
+      // Token minter PDA: seeds = ["token_minter"]
+      const [tokenMinterPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from("token_minter")],
+        TOKEN_MESSENGER_MINTER_PROGRAM_ID
+      );
+
+      // Local token PDA: seeds = ["local_token", USDC_MINT]
+      const [localTokenPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from("local_token"), USDC_MINT.toBuffer()],
+        TOKEN_MESSENGER_MINTER_PROGRAM_ID
+      );
+
       console.log('[Minting Solana] PDAs:', {
-        tokenMessengerPDA: tokenMessengerPDA.toBase58(),
+        messageTransmitterPDA: messageTransmitterPDA.toBase58(),
         messageTransmitterAuthorityPDA: messageTransmitterAuthorityPDA.toBase58(),
+        tokenMessengerPDA: tokenMessengerPDA.toBase58(),
+        remoteTokenMessengerPDA: remoteTokenMessengerPDA.toBase58(),
+        tokenMinterPDA: tokenMinterPDA.toBase58(),
+        localTokenPDA: localTokenPDA.toBase58(),
       });
 
-      // Create receiveMessage instruction on TokenMessengerMinter
-      // Accounts order based on typical Circle CCTP v1 structure
-      // This might need adjustment - if it fails, we'll need to check actual program IDL
+      // Create receiveMessage instruction on MessageTransmitter
+      // According to Circle docs, receiveMessage is on MessageTransmitter
+      // It takes message and attestation, then calls TokenMessengerMinter via CPI
+      // For CCTP v1, the discriminator might be different - let's try "receive_message" on MessageTransmitter
+      const messageTransmitterDiscriminatorSeed = "global:receive_message";
+      const mtSeedBytes = encoder.encode(messageTransmitterDiscriminatorSeed);
+      // Convert to ArrayBuffer for crypto.subtle.digest
+      // Create a new Uint8Array to avoid SharedArrayBuffer issues
+      const mtSeedArray = new Uint8Array(mtSeedBytes);
+      const mtHashBuffer = await crypto.subtle.digest("SHA-256", mtSeedArray);
+      const mtHashArray = Array.from(new Uint8Array(mtHashBuffer));
+      const messageTransmitterDiscriminator = Buffer.from(mtHashArray.slice(0, 8));
+      
+      // MessageTransmitter receiveMessage data format for Anchor:
+      // discriminator (8 bytes) + message length (4 bytes, u32 le) + message bytes + attestation length (4 bytes, u32 le) + attestation bytes
+      // OR just: discriminator + message + attestation (no length prefixes)
+      // Let's try with length prefixes first (Anchor Vec<u8> format)
+      const messageLengthBuffer = Buffer.allocUnsafe(4);
+      messageLengthBuffer.writeUInt32LE(messageBytes.length, 0);
+      const attestationLengthBuffer = Buffer.allocUnsafe(4);
+      attestationLengthBuffer.writeUInt32LE(attestationBytes.length, 0);
+      
+      const messageTransmitterData = Buffer.concat([
+        messageTransmitterDiscriminator,
+        messageLengthBuffer,
+        Buffer.from(messageBytes),
+        attestationLengthBuffer,
+        Buffer.from(attestationBytes),
+      ]);
+      
+      console.log('[Minting Solana] MessageTransmitter data format (with length prefixes):', {
+        discriminatorLength: messageTransmitterDiscriminator.length,
+        messageLength: messageBytes.length,
+        attestationLength: attestationBytes.length,
+        totalLength: messageTransmitterData.length,
+      });
+
+      // Create receiveMessage instruction on MessageTransmitter
+      // According to Circle CCTP v1 docs, receiveMessage on MessageTransmitter needs:
+      // 1. caller (must be signer - the account calling receiveMessage)
+      // 2. payer (must be signer - pays for transaction fees)
+      // 3. message_transmitter (PDA owned by MessageTransmitter program, must be writable)
+      // 4. authority_pda
+      // 5. remaining accounts for TokenMessengerMinter CPI
       const receiveMessageIx = new TransactionInstruction({
-        programId: TOKEN_MESSENGER_MINTER_PROGRAM_ID,
+        programId: MESSAGE_TRANSMITTER_PROGRAM_ID,
         keys: [
-          { pubkey: tokenMessengerPDA, isSigner: false, isWritable: true },
-          { pubkey: messageTransmitterAuthorityPDA, isSigner: false, isWritable: false },
-          { pubkey: MESSAGE_TRANSMITTER_PROGRAM_ID, isSigner: false, isWritable: false },
-          { pubkey: recipientTokenAccount, isSigner: false, isWritable: true },
-          { pubkey: recipientPubkey, isSigner: false, isWritable: false },
-          { pubkey: USDC_MINT, isSigner: false, isWritable: true },
+          // Caller must be first signer (required by MessageTransmitter.receiveMessage)
+          { pubkey: solanaPublicKey, isSigner: true, isWritable: false }, // caller
+          // Payer (can be same as caller, but must be signer and writable)
           { pubkey: solanaPublicKey, isSigner: true, isWritable: true }, // payer
+          // MessageTransmitter PDA (owned by MessageTransmitter program, must be writable)
+          { pubkey: messageTransmitterPDA, isSigner: false, isWritable: true },
+          // Core MessageTransmitter accounts
+          { pubkey: messageTransmitterAuthorityPDA, isSigner: false, isWritable: false },
+          // Remaining accounts for TokenMessengerMinter (as per Circle CCTP docs)
+          { pubkey: tokenMessengerPDA, isSigner: false, isWritable: false },
+          { pubkey: remoteTokenMessengerPDA, isSigner: false, isWritable: false },
+          { pubkey: tokenMinterPDA, isSigner: false, isWritable: true },
+          { pubkey: localTokenPDA, isSigner: false, isWritable: true },
+          { pubkey: recipientTokenAccount, isSigner: false, isWritable: true },
+          { pubkey: USDC_MINT, isSigner: false, isWritable: true },
           { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-          { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+          { pubkey: TOKEN_MESSENGER_MINTER_PROGRAM_ID, isSigner: false, isWritable: false },
         ],
-        data: instructionData,
+        data: messageTransmitterData,
       });
       
-      console.log('[Minting Solana] Instruction created with TokenMessengerMinter program');
+      console.log('[Minting Solana] Instruction created with MessageTransmitter program (will CPI to TokenMessengerMinter)');
 
       transaction.add(receiveMessageIx);
-
-      // Get recent blockhash
-      const { blockhash, lastValidBlockHeight } = await solanaConnection.getLatestBlockhash('confirmed');
-      transaction.recentBlockhash = blockhash;
       transaction.feePayer = solanaPublicKey;
 
       console.log('[Minting Solana] Transaction prepared:', {
@@ -434,7 +516,7 @@ function MintingSolanaPageContent() {
         needsTokenAccount,
         messageLength: messageBytes.length,
         attestationLength: attestationBytes.length,
-        instructionDataLength: instructionData.length,
+        instructionDataLength: messageTransmitterData.length,
       });
 
       // Step 4: Sign and submit transaction
@@ -443,6 +525,11 @@ function MintingSolanaPageContent() {
       if (!signTransaction) {
         throw new Error('Wallet does not support signTransaction');
       }
+
+      // Get fresh blockhash right before signing to avoid "Blockhash not found" error
+      // This ensures the blockhash is as fresh as possible
+      const { blockhash, lastValidBlockHeight } = await solanaConnection.getLatestBlockhash('confirmed');
+      transaction.recentBlockhash = blockhash;
 
       const signedTransaction = await signTransaction(transaction);
       console.log('[Minting Solana] Transaction signed');
@@ -460,21 +547,44 @@ function MintingSolanaPageContent() {
           }
         );
       } catch (sendError: any) {
-        // If we get InstructionFallbackNotFound, it means discriminator is wrong
-        if (sendError?.message?.includes('InstructionFallbackNotFound') || 
-            sendError?.message?.includes('0x65') ||
-            sendError?.logs?.some((log: string) => log.includes('InstructionFallbackNotFound'))) {
-          console.error('[Minting Solana] InstructionFallbackNotFound - discriminator is incorrect');
-          console.error('[Minting Solana] Tried discriminator seed:', discriminatorSeed);
-          console.error('[Minting Solana] Available alternative seeds:', possibleSeeds.slice(1));
+        // Check for different error types
+        const errorMessage = sendError?.message || '';
+        const errorLogs = sendError?.logs || [];
+        const hasMemoryError = errorMessage.includes('memory allocation') || 
+                               errorMessage.includes('out of memory') ||
+                               errorLogs.some((log: string) => log.includes('memory allocation') || log.includes('out of memory'));
+        const hasInstructionError = errorMessage.includes('InstructionFallbackNotFound') || 
+                                    errorMessage.includes('0x65') ||
+                                    errorLogs.some((log: string) => log.includes('InstructionFallbackNotFound'));
+        
+        if (hasMemoryError) {
+          console.error('[Minting Solana] Memory allocation error - data format might be incorrect');
+          console.error('[Minting Solana] Tried format: discriminator + message_length + message + attestation_length + attestation');
+          console.error('[Minting Solana] Error details:', {
+            message: errorMessage,
+            logs: errorLogs,
+          });
           
           throw new Error(
-            `Instruction discriminator incorrect. Tried "${discriminatorSeed}". ` +
+            `Data format error: The instruction data format might be incorrect. ` +
+            `Tried format with length prefixes. ` +
+            `Possible issues: 1) Wrong data format (try without length prefixes), ` +
+            `2) Wrong account order, 3) Wrong PDA seeds. ` +
+            `Error: ${errorMessage}`
+          );
+        }
+        
+        if (hasInstructionError) {
+          console.error('[Minting Solana] InstructionFallbackNotFound - discriminator is incorrect');
+          console.error('[Minting Solana] Tried discriminator seed:', messageTransmitterDiscriminatorSeed);
+          
+          throw new Error(
+            `Instruction discriminator incorrect. Tried "${messageTransmitterDiscriminatorSeed}". ` +
             `This likely means Circle CCTP v1 uses a different instruction format. ` +
             `Possible solutions: 1) Use Wormhole SDK to create instruction, ` +
             `2) Find correct discriminator from Circle CCTP IDL, ` +
-            `3) Check if instruction should be called on MessageTransmitter instead of TokenMessengerMinter. ` +
-            `Error: ${sendError.message}`
+            `3) Check if instruction should be called on TokenMessengerMinter instead of MessageTransmitter. ` +
+            `Error: ${errorMessage}`
           );
         }
         throw sendError;
