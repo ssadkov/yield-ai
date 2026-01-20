@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -53,6 +53,9 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
   const [showClaimSuccessModal, setShowClaimSuccessModal] = useState(false);
   const [claimedRewards, setClaimedRewards] = useState<any[]>([]);
   const [claimTransactionHash, setClaimTransactionHash] = useState<string>('');
+  
+  // Protect modal state from re-renders
+  const isModalOpeningRef = useRef(false);
 
   const walletAddress = address || account?.address;
 
@@ -280,10 +283,17 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
       // Convert aggregated object to array
       const aggregatedRewardsArray = Object.values(aggregatedRewards);
 
-      // Show success modal with aggregated rewards
+      // Set rewards data first
       setClaimedRewards(aggregatedRewardsArray);
       setClaimTransactionHash(lastTransactionHash);
-      setShowClaimSuccessModal(true);
+      
+      // Mark that modal is opening to protect from re-renders
+      isModalOpeningRef.current = true;
+      
+      // Show success modal with aggregated rewards after delay (to let toast appear first)
+      setTimeout(() => {
+        setShowClaimSuccessModal(true);
+      }, 250);
 
       // Refresh rewards data after successful claim
       setTimeout(() => {
@@ -291,6 +301,8 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
       }, 2000);
     } catch (error) {
       console.error('Error claiming all rewards:', error);
+      // Reset ref on error
+      isModalOpeningRef.current = false;
       toast({
         title: "Error",
         description: "Failed to claim rewards. Please try again.",
@@ -449,6 +461,12 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
     const handleRefresh = (event: CustomEvent) => {
       console.log('MoarPositions - Received refreshPositions event:', event.detail);
       
+      // Don't refresh if modal is opening/opened - protect modal state
+      if (isModalOpeningRef.current || showClaimSuccessModal) {
+        console.log('MoarPositions - Modal is open, skipping refresh to prevent flicker');
+        return;
+      }
+      
       if (event.detail?.protocol === 'moar') {
         console.log('MoarPositions - Protocol matches moar, refreshing data');
         // Перезагружаем данные
@@ -529,7 +547,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
     return () => {
       window.removeEventListener('refreshPositions', handleRefresh as unknown as EventListener);
     };
-  }, [walletAddress, onPositionsValueChange]);
+  }, [walletAddress, onPositionsValueChange, showClaimSuccessModal]);
 
   if (loading) {
     return <div>Loading Moar Market positions...</div>;
@@ -1020,6 +1038,8 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
           setShowClaimSuccessModal(false);
           setClaimedRewards([]);
           setClaimTransactionHash('');
+          // Reset ref when modal closes
+          isModalOpeningRef.current = false;
         }}
         transactionHash={claimTransactionHash}
         rewards={claimedRewards}

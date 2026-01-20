@@ -273,7 +273,7 @@ export function ClaimSuccessModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] p-8">
+      <DialogContent className="sm:max-w-[350px] p-6">
         <DialogHeader className="text-center">
           <div className="flex justify-center mb-4">
             <div className="rounded-full bg-green-100 p-4">

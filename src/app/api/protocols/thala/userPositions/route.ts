@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { normalizeAddress } from '@/lib/utils/addressNormalization';
 import { getTokenInfoWithFallback } from '@/lib/tokens/tokenRegistry';
+import { PanoraPricesService } from '@/lib/services/panora/prices';
 
 const THALA_FARMING_ADDRESS = '0xcb8365dc9f7ac6283169598aaad7db9c7b12f52da127007f37fa4565170ff59c';
 const THALA_POOL_ADDRESS = '0x075b4890de3e312d9425408c43d9a9752b64ab3562a30e89a55bdc568c645920';
