@@ -18,6 +18,8 @@ export function PortfolioChart({ data, totalValue, isLoading = false }: Portfoli
 
   const allData = (data || []).filter((d) => d && d.value > 0)
   const sum = allData.reduce((acc, d) => acc + d.value, 0)
+  const displayTotalValue =
+    typeof totalValue === "string" ? (parseFloat(totalValue) || sum) : sum
   
   // Фильтруем по процентам (скрываем менее 1%)
   const chartData: PieChartDatum[] = allData.filter((d) => {
@@ -32,8 +34,12 @@ export function PortfolioChart({ data, totalValue, isLoading = false }: Portfoli
     };
 
     return (
-      <div className="flex flex-col lg:flex-row items-center lg:items-center gap-4 relative">
-        {/* PieChart: сверху на мобилке, слева на десктопе */}
+      <div className="flex flex-col lg:flex-row items-center lg:items-center relative">
+        {/* Total on mobile (on desktop it's shown in the chart center) */}
+        <div className="flex items-center justify-center my-2 text-2xl font-semibold lg:hidden">
+          {formatCurrency(displayTotalValue, 2)}
+        </div>
+
         <div className="order-1 w-64 h-64 lg:w-96 lg:h-96 focus:outline-none">
           <PieChart 
             data={chartData} 

@@ -33,8 +33,12 @@ export function PortfolioPageSkeleton() {
 
                 {/* Mobile chart skeleton */}
                 <div className="block lg:hidden mb-4">
-                  <div className="flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded p-20">
+                  <div className="flex items-center justify-center from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded p-20">
                     <div className="flex flex-col lg:flex-row items-center gap-4">
+                      {/* Total value skeleton (moved above chart) */}
+                      <div className="flex items-center justify-center mb-2">
+                        <Skeleton className="h-8 w-48" />
+                      </div>
                       <div className="w-64 h-64 lg:w-96 lg:h-96 flex items-center justify-center">
                         <Skeleton className="h-64 w-64 lg:h-96 lg:w-96 rounded-full" />
                       </div>
@@ -45,11 +49,6 @@ export function PortfolioPageSkeleton() {
                 <div className="flex flex-col lg:flex-row gap-4">
                   <div className="flex-1">
                     <div className="mt-4 space-y-4">
-                      {/* Total value skeleton */}
-                      <div className="flex items-center justify-center mb-2">
-                        <Skeleton className="h-8 w-48" />
-                      </div>
-
                       {/* Checkbox and refresh button skeleton */}
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center space-x-2">

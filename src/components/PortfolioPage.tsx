@@ -269,7 +269,7 @@ export default function PortfolioPage() {
 
   return (
 	<CollapsibleProvider>
-	  <div className="container mx-auto px-4 py-8">
+	  <div className="container mx-auto px-4 py-4">
 
 	    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="w-full">
@@ -291,11 +291,11 @@ export default function PortfolioPage() {
               </div>
 
               <div className="min-h-screen to-slate-100 dark:from-slate-900 dark:to-slate-800">
-                <div className="flex-1 overflow-y-auto m-4">
+                <div className="flex-1 overflow-y-auto mt-1 mx-4 mb-4">
                   {resolvedAddress ? (
                     <>
 
-					<div className="mt-4 space-y-4">
+					<div className="mt-2 space-y-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
                           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900">
@@ -380,7 +380,7 @@ export default function PortfolioPage() {
 				    )}
 
 				    <div className="block lg:hidden mb-4">
-				      <div className="flex items-center justify-center p-4">
+				      <div className="flex items-center justify-center">
 				        <PortfolioChart
 				          data={chartSectors}
 				          totalValue={totalAssets.toString()}
@@ -391,7 +391,7 @@ export default function PortfolioPage() {
 
 				    <div className="flex flex-col lg:flex-row gap-4">
 				      <div className="flex-1">
-                        <div className="mt-4 space-y-4">
+                        <div className="mt-2 space-y-4">
                           <PortfolioPageCard
                             totalValue={totalAssets.toString()}
                             tokens={tokens}
