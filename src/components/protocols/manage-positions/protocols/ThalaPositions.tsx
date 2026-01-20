@@ -239,7 +239,7 @@ function ThalaPositionCard({ position, index }: ThalaPositionProps) {
               </TooltipProvider>
             </div>
           )}
-          {position.rewards.length > 0 && position.rewardsValueUSD > 0 && (
+          {position.rewards.length > 0 && position.rewardsValueUSD >= 0.01 && (
             <button
               className="px-3 py-1 bg-success text-success-foreground rounded text-sm font-semibold disabled:opacity-60"
               onClick={handleClaimRewards}
