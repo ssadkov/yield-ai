@@ -404,6 +404,47 @@ export async function GET(request: NextRequest) {
         .filter((addr: string) => typeof addr === 'string' && addr.length > 0);
     }
 
+    // Get reward token prices from Panora API (like other protocols)
+    let rewardPrices: Record<string, string> = {};
+    if (rewardMetadataAddresses.length > 0) {
+      try {
+        console.log('[Thala] Fetching reward token prices for', rewardMetadataAddresses.length, 'tokens from Panora API');
+        const pricesService = PanoraPricesService.getInstance();
+        const pricesResponse = await pricesService.getPrices(1, rewardMetadataAddresses);
+        const pricesData = pricesResponse.data || pricesResponse;
+        
+        // Build prices lookup with all possible address variations
+        if (Array.isArray(pricesData)) {
+          pricesData.forEach((priceData: any) => {
+            const tokenAddress = priceData.tokenAddress;
+            const faAddress = priceData.faAddress;
+            
+            if (priceData.usdPrice) {
+              // Store price under all possible address variations
+              if (tokenAddress) {
+                rewardPrices[tokenAddress] = priceData.usdPrice;
+              }
+              if (faAddress) {
+                rewardPrices[faAddress] = priceData.usdPrice;
+              }
+              // Also store under normalized versions
+              if (faAddress && faAddress.startsWith('0x')) {
+                const shortAddress = faAddress.slice(2);
+                rewardPrices[shortAddress] = priceData.usdPrice;
+              }
+              if (tokenAddress && tokenAddress.startsWith('0x')) {
+                const shortAddress = tokenAddress.slice(2);
+                rewardPrices[shortAddress] = priceData.usdPrice;
+              }
+            }
+          });
+        }
+        console.log('[Thala] Got prices for', Object.keys(rewardPrices).length, 'reward tokens');
+      } catch (error) {
+        console.warn('[Thala] Error fetching reward token prices from Panora API:', error);
+      }
+    }
+
     const formattedPositions = [];
 
     for (let index = 0; index < positions.length; index++) {
@@ -475,7 +516,7 @@ export async function GET(request: NextRequest) {
         if (totalRewardAmountRaw && totalRewardAmountRaw !== '0') {
           const rewardMetadataAddress = rewardMetadataAddresses[0]; // Use first (and usually only) reward token
           
-          // Get token info ONLY from API (Echelon/Panora), NOT from tokenList
+          // Get token metadata (symbol, name, decimals, logoUrl) from API
           const rewardTokenInfo = rewardMetadataAddress
             ? await getTokenInfoFromAPIOnly(rewardMetadataAddress)
             : null;
@@ -483,7 +524,16 @@ export async function GET(request: NextRequest) {
           if (rewardTokenInfo) {
             const rewardDecimals = rewardTokenInfo.decimals ?? 8;
             const rewardAmount = parseTokenAmount(totalRewardAmountRaw, rewardDecimals);
-            const rewardPrice = rewardTokenInfo.priceUSD || 0;
+            
+            // Get price from PanoraPricesService (like other protocols)
+            const normalizedRewardAddr = rewardMetadataAddress.startsWith('0x') ? rewardMetadataAddress : `0x${rewardMetadataAddress}`;
+            const shortRewardAddr = rewardMetadataAddress.startsWith('0x') ? rewardMetadataAddress.slice(2) : rewardMetadataAddress;
+            
+            const rewardPriceStr = rewardPrices[rewardMetadataAddress] || 
+                                  rewardPrices[normalizedRewardAddr] || 
+                                  rewardPrices[shortRewardAddr] || 
+                                  '0';
+            const rewardPrice = parseFloat(rewardPriceStr);
             const rewardValue = rewardAmount * rewardPrice;
             rewardsValueUSD += rewardValue;
 
