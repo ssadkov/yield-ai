@@ -260,19 +260,20 @@ export function ThalaPositions() {
   useEffect(() => {
     loadPositions();
 
-    const handleRefresh = async (event: CustomEvent) => {
-      if (event.detail.protocol === 'thala') {
+    const handleRefresh: EventListener = (evt) => {
+      const event = evt as CustomEvent<any>;
+      if (event?.detail?.protocol === 'thala') {
         if (event.detail.data && Array.isArray(event.detail.data)) {
           setPositions(event.detail.data);
         } else {
-          loadPositions();
+          void loadPositions();
         }
       }
     };
 
-    window.addEventListener('refreshPositions', handleRefresh as EventListener);
+    window.addEventListener('refreshPositions', handleRefresh);
     return () => {
-      window.removeEventListener('refreshPositions', handleRefresh as EventListener);
+      window.removeEventListener('refreshPositions', handleRefresh);
     };
   }, [account?.address]);
 
