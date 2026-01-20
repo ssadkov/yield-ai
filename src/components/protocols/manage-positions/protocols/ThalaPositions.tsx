@@ -35,6 +35,7 @@ interface ThalaRewardItem {
 interface ThalaPosition {
   positionId: string;
   positionAddress: string;
+  staked: boolean;
   poolAddress: string;
   token0: ThalaTokenAmount;
   token1: ThalaTokenAmount;
@@ -156,12 +157,21 @@ function ThalaPositionCard({ position, index }: ThalaPositionProps) {
               </Tooltip>
             </TooltipProvider>
           )}
-          <Badge
-            variant="outline"
-            className="bg-warning-muted text-warning border-warning/20 text-xs font-normal px-2 py-0.5 h-5 ml-2"
-          >
-            Staked
-          </Badge>
+          {position.staked ? (
+            <Badge
+              variant="outline"
+              className="bg-warning-muted text-warning border-warning/20 text-xs font-normal px-2 py-0.5 h-5 ml-2"
+            >
+              Staked
+            </Badge>
+          ) : (
+            <Badge
+              variant="outline"
+              className="bg-muted text-muted-foreground border-border/40 text-xs font-normal px-2 py-0.5 h-5 ml-2"
+            >
+              Not staked
+            </Badge>
+          )}
         </div>
         <div className="flex items-centern gap-2">
           <span className="text-lg font-bold">{formatCurrencyValue(position.positionValueUSD)}</span>

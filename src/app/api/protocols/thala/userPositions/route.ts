@@ -6,6 +6,7 @@ const THALA_FARMING_ADDRESS = '0xcb8365dc9f7ac6283169598aaad7db9c7b12f52da127007
 const THALA_POOL_ADDRESS = '0x075b4890de3e312d9425408c43d9a9752b64ab3562a30e89a55bdc568c645920';
 const THALA_POOLS_API_URL = 'https://app.thala.fi/api/liquidity-pools';
 const FULLNODE_VIEW_URL = 'https://fullnode.mainnet.aptoslabs.com/v1/view';
+const INDEXER_GRAPHQL_URL = 'https://indexer.mainnet.aptoslabs.com/v1/graphql';
 const APTOS_API_KEY = process.env.APTOS_API_KEY;
 
 type PoolInfo = {
@@ -84,6 +85,51 @@ function parseTokenAmount(rawAmount: string, decimals: number): number {
   const amount = parseFloat(rawAmount || '0');
   if (!decimals) return amount;
   return amount / Math.pow(10, decimals);
+}
+
+async function getNonStakedThalaPositionAddresses(ownerAddress: string): Promise<string[]> {
+  if (!ownerAddress) return [];
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (APTOS_API_KEY) {
+    headers['Authorization'] = `Bearer ${APTOS_API_KEY}`;
+  }
+
+  const query = `
+    query GetThalaCLTokens($owner: String!) {
+      current_token_ownerships_v2(
+        where: {
+          owner_address: { _eq: $owner }
+          amount: { _gt: "0" }
+          current_token_data: { token_name: { _like: "ThalaSwapCLToken:%" } }
+        }
+      ) {
+        storage_id
+        current_token_data { token_name }
+      }
+    }
+  `;
+
+  try {
+    const resp = await fetch(INDEXER_GRAPHQL_URL, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ query, variables: { owner: ownerAddress } })
+    });
+    if (!resp.ok) {
+      const text = await resp.text();
+      console.warn('[Thala] Indexer GraphQL error:', resp.status, resp.statusText, text);
+      return [];
+    }
+    const json = await resp.json();
+    const rows = json?.data?.current_token_ownerships_v2 || [];
+    return rows
+      .map((r: any) => String(r?.storage_id || ''))
+      .filter((x: string) => !!x);
+  } catch (e) {
+    console.warn('[Thala] Failed to query indexer for non-staked positions:', e);
+    return [];
+  }
 }
 
 async function buildPoolsMap(): Promise<Map<string, PoolInfo>> {
@@ -296,24 +342,27 @@ export async function GET(request: NextRequest) {
     const existsResult = await callView(`${THALA_FARMING_ADDRESS}::farming::exists_user_deposit`, [address]);
     const hasDeposits = unwrapSingle<boolean>(existsResult);
 
-    if (!hasDeposits) {
-      return NextResponse.json({ success: true, data: [] }, { status: 200 });
-    }
-
     const poolsMap = await buildPoolsMap();
 
-    const depositsAndPositionsResult = await callView(
-      `${THALA_FARMING_ADDRESS}::farming::user_deposits_and_position_info`,
-      [address]
-    );
+    let deposits: any[] = [];
+    let positions: any[] = [];
+    let rewardMetadataAddresses: string[] = [];
 
-    const { deposits, positions } = parseDepositsAndPositions(depositsAndPositionsResult);
+    if (hasDeposits) {
+      const depositsAndPositionsResult = await callView(
+        `${THALA_FARMING_ADDRESS}::farming::user_deposits_and_position_info`,
+        [address]
+      );
+      const parsed = parseDepositsAndPositions(depositsAndPositionsResult);
+      deposits = parsed.deposits;
+      positions = parsed.positions;
 
-    const rewardsMetadataResult = await callView(`${THALA_FARMING_ADDRESS}::farming::rewards_metadata`, []);
-    const rewardsMetadata = unwrapArray(rewardsMetadataResult);
-    const rewardMetadataAddresses = rewardsMetadata
-      .map((meta: any) => meta?.inner || meta)
-      .filter((addr: string) => typeof addr === 'string' && addr.length > 0);
+      const rewardsMetadataResult = await callView(`${THALA_FARMING_ADDRESS}::farming::rewards_metadata`, []);
+      const rewardsMetadata = unwrapArray(rewardsMetadataResult);
+      rewardMetadataAddresses = rewardsMetadata
+        .map((meta: any) => meta?.inner || meta)
+        .filter((addr: string) => typeof addr === 'string' && addr.length > 0);
+    }
 
     const formattedPositions = [];
 
@@ -395,6 +444,7 @@ export async function GET(request: NextRequest) {
       formattedPositions.push({
         positionId,
         positionAddress: positionObjectAddress,
+        staked: true,
         poolAddress: poolObjInner,
         token0: {
           address: token0Address,
@@ -425,6 +475,91 @@ export async function GET(request: NextRequest) {
         totalValueUSD: positionValueUSD + rewardsValueUSD,
         rawPosition: position
       });
+    }
+
+    // Non-staked positions: Thala CL position NFTs held in wallet (no rewards)
+    const stakedSet = new Set<string>(
+      formattedPositions.map((p: any) => String(p?.positionAddress || '')).filter(Boolean)
+    );
+    const nonStakedAddresses = (await getNonStakedThalaPositionAddresses(address)).filter((a) => !stakedSet.has(a));
+
+    for (const positionAddress of nonStakedAddresses) {
+      try {
+        const positionInfoResult = await callView(`${THALA_POOL_ADDRESS}::pool::position_info`, [positionAddress]);
+        const positionInfo = unwrapSingle<any>(positionInfoResult);
+        const poolObjInner = positionInfo?.pool_obj?.inner || '';
+        const normalizedPool = normalizeTokenAddress(poolObjInner);
+        const poolInfo = poolsMap.get(normalizedPool);
+        const coinAddresses = poolInfo?.coinAddresses || [];
+        const token0Address = coinAddresses[0] || '';
+        const token1Address = coinAddresses[1] || '';
+
+        const [token0Info, token1Info] = await Promise.all([
+          token0Address ? getTokenInfoWithFallback(token0Address) : Promise.resolve(null),
+          token1Address ? getTokenInfoWithFallback(token1Address) : Promise.resolve(null)
+        ]);
+
+        let rawAmount0 = '0';
+        let rawAmount1 = '0';
+        try {
+          const principalValueResult = await callView(
+            `${THALA_POOL_ADDRESS}::pool::position_principal_value`,
+            [positionAddress]
+          );
+          const principalValues = unwrapArray(principalValueResult);
+          rawAmount0 = String(principalValues?.[0] ?? '0');
+          rawAmount1 = String(principalValues?.[1] ?? '0');
+        } catch (e) {
+          console.warn('[Thala] position_principal_value failed (non-staked)', { positionAddress });
+        }
+
+        const token0Decimals = token0Info?.decimals ?? 8;
+        const token1Decimals = token1Info?.decimals ?? 8;
+        const token0Amount = parseTokenAmount(rawAmount0, token0Decimals);
+        const token1Amount = parseTokenAmount(rawAmount1, token1Decimals);
+        const token0Price = parseFloat(token0Info?.usdPrice || '0');
+        const token1Price = parseFloat(token1Info?.usdPrice || '0');
+        const token0Value = token0Amount * token0Price;
+        const token1Value = token1Amount * token1Price;
+        const positionValueUSD = token0Value + token1Value;
+
+        formattedPositions.push({
+          positionId: String(positionInfo?.position_id || ''),
+          positionAddress,
+          staked: false,
+          poolAddress: poolObjInner,
+          token0: {
+            address: token0Address,
+            symbol: token0Info?.symbol || poolInfo?.tokenASymbol || 'Unknown',
+            name: token0Info?.name || poolInfo?.tokenASymbol || 'Unknown',
+            decimals: token0Decimals,
+            logoUrl: token0Info?.logoUrl || null,
+            amountRaw: rawAmount0,
+            amount: token0Amount,
+            priceUSD: token0Price,
+            valueUSD: token0Value
+          },
+          token1: {
+            address: token1Address,
+            symbol: token1Info?.symbol || poolInfo?.tokenBSymbol || 'Unknown',
+            name: token1Info?.name || poolInfo?.tokenBSymbol || 'Unknown',
+            decimals: token1Decimals,
+            logoUrl: token1Info?.logoUrl || null,
+            amountRaw: rawAmount1,
+            amount: token1Amount,
+            priceUSD: token1Price,
+            valueUSD: token1Value
+          },
+          inRange: token0Amount > 0 && token1Amount > 0,
+          rewards: [],
+          positionValueUSD,
+          rewardsValueUSD: 0,
+          totalValueUSD: positionValueUSD,
+          rawPosition: positionInfo
+        });
+      } catch (e) {
+        console.warn('[Thala] Failed to load non-staked position', { positionAddress });
+      }
     }
 
     return NextResponse.json(

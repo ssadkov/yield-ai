@@ -46,6 +46,7 @@ interface RewardItem {
 interface ThalaPosition {
   positionId: string;
   poolAddress: string;
+  staked?: boolean;
   token0: TokenAmount;
   token1: TokenAmount;
   inRange: boolean;
@@ -80,6 +81,15 @@ function ThalaPositionCard({ position }: { position: ThalaPosition }) {
             ) : (
               <Badge variant="outline" className="mt-1 py-0 h-5 bg-red-500/10 text-red-600 border-red-500/20 text-xs">
                 Inactive
+              </Badge>
+            )}
+            {position.staked === false ? (
+              <Badge variant="outline" className="mt-1 py-0 h-5 bg-muted text-muted-foreground border-border/40 text-xs">
+                Not staked
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="mt-1 py-0 h-5 bg-warning-muted text-warning border-warning/20 text-xs">
+                Staked
               </Badge>
             )}
           </div>
