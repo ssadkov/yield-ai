@@ -267,7 +267,7 @@ async function getTokenInfoFromAPIOnly(address: string): Promise<{
           name: asset.name,
           decimals: asset.decimals || 8,
           priceUSD: asset.price || null,
-          logoUrl: asset.icon ? `https://app.echelon.market${asset.icon}` : null,
+          logoUrl: asset.icon || null,
         };
       }
     }
