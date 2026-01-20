@@ -293,8 +293,8 @@ export const PieChart = React.forwardRef<HTMLDivElement, PieChartProps>(
         })}
         </svg>
 
-        {/* Центральный текст с общей суммой */}
-        {(centerLabel !== undefined || providedTotal !== undefined) && (
+        {/* Центральный текст с общей суммой (только на десктопе) */}
+        {isDesktop && (centerLabel !== undefined || providedTotal !== undefined) && (
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
             {centerLabel && (
               <p className="text-xs text-muted-foreground font-medium mb-1">{centerLabel}</p>
