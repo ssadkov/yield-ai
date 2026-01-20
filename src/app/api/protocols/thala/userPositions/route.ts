@@ -178,24 +178,54 @@ async function buildPoolsMap(): Promise<Map<string, PoolInfo>> {
   return poolMap;
 }
 
-async function getClaimableRewardAmount(
-  positionObjectAddress: string,
-  rewardMetadataAddress: string
-): Promise<string | null> {
-  if (!positionObjectAddress || !rewardMetadataAddress) {
-    return null;
-  }
+/**
+ * Get active incentives for a position
+ * @param positionAddress - Position object address
+ * @returns Array of incentive addresses
+ */
+async function getActiveIncentivesByToken(positionAddress: string): Promise<string[]> {
+  if (!positionAddress) return [];
 
   try {
-    const result = await callView(`${THALA_FARMING_ADDRESS}::farming::claimable_reward_amount`, [
-      positionObjectAddress,
-      rewardMetadataAddress
+    const result = await callView(`${THALA_FARMING_ADDRESS}::farming::active_incentives_by_token`, [
+      positionAddress
     ]);
-    const claimable = unwrapSingle<string>(result);
-    if (claimable !== undefined && claimable !== null) {
-      return String(claimable);
+    const incentives = unwrapArray(result);
+    return incentives
+      .map((inc: any) => inc?.inner || inc)
+      .filter((addr: string) => typeof addr === 'string' && addr.length > 0);
+  } catch (error) {
+    console.warn('[Thala] Failed to get active incentives for position:', positionAddress, error);
+    return [];
+  }
+}
+
+/**
+ * Get pending reward info for a position and incentive
+ * @param positionAddress - Position object address
+ * @param incentiveAddress - Incentive address
+ * @returns Object with rewardAmount (first number) and secondNumber (second number, unused)
+ */
+async function getPendingRewardInfo(
+  positionAddress: string,
+  incentiveAddress: string
+): Promise<{ rewardAmount: string; secondNumber: string } | null> {
+  if (!positionAddress || !incentiveAddress) return null;
+
+  try {
+    const result = await callView(`${THALA_FARMING_ADDRESS}::farming::pending_reward_info`, [
+      positionAddress,
+      incentiveAddress
+    ]);
+    const values = unwrapArray(result);
+    if (Array.isArray(values) && values.length >= 2) {
+      return {
+        rewardAmount: String(values[0] || '0'),
+        secondNumber: String(values[1] || '0')
+      };
     }
   } catch (error) {
+    console.warn('[Thala] Failed to get pending reward info:', { positionAddress, incentiveAddress }, error);
     return null;
   }
 
@@ -423,31 +453,52 @@ export async function GET(request: NextRequest) {
       const rewards = [];
       let rewardsValueUSD = 0;
 
-      for (const rewardMetadataAddress of rewardMetadataAddresses) {
-        const claimableRaw = await getClaimableRewardAmount(positionObjectAddress, rewardMetadataAddress);
-        if (!claimableRaw || claimableRaw === '0') continue;
+      // New rewards mechanism: use active_incentives_by_token + pending_reward_info
+      if (positionObjectAddress && rewardMetadataAddresses.length > 0) {
+        // Get active incentives for this position
+        const incentiveAddresses = await getActiveIncentivesByToken(positionObjectAddress);
+        
+        // Sum up rewards from all incentives
+        let totalRewardAmountRaw = '0';
+        for (const incentiveAddress of incentiveAddresses) {
+          const rewardInfo = await getPendingRewardInfo(positionObjectAddress, incentiveAddress);
+          if (rewardInfo && rewardInfo.rewardAmount && rewardInfo.rewardAmount !== '0') {
+            // Sum up reward amounts from all incentives
+            const currentTotal = BigInt(totalRewardAmountRaw || '0');
+            const newAmount = BigInt(rewardInfo.rewardAmount || '0');
+            totalRewardAmountRaw = String(currentTotal + newAmount);
+          }
+        }
 
-        // Get token info ONLY from API (Echelon/Panora), NOT from tokenList
-        const rewardTokenInfo = rewardMetadataAddress
-          ? await getTokenInfoFromAPIOnly(rewardMetadataAddress)
-          : null;
-        const rewardDecimals = rewardTokenInfo?.decimals ?? 8;
-        const rewardAmount = parseTokenAmount(claimableRaw, rewardDecimals);
-        const rewardPrice = rewardTokenInfo?.priceUSD || 0;
-        const rewardValue = rewardAmount * rewardPrice;
-        rewardsValueUSD += rewardValue;
+        // If we have rewards, get token info from the first reward metadata address
+        if (totalRewardAmountRaw && totalRewardAmountRaw !== '0') {
+          const rewardMetadataAddress = rewardMetadataAddresses[0]; // Use first (and usually only) reward token
+          
+          // Get token info ONLY from API (Echelon/Panora), NOT from tokenList
+          const rewardTokenInfo = rewardMetadataAddress
+            ? await getTokenInfoFromAPIOnly(rewardMetadataAddress)
+            : null;
+          
+          if (rewardTokenInfo) {
+            const rewardDecimals = rewardTokenInfo.decimals ?? 8;
+            const rewardAmount = parseTokenAmount(totalRewardAmountRaw, rewardDecimals);
+            const rewardPrice = rewardTokenInfo.priceUSD || 0;
+            const rewardValue = rewardAmount * rewardPrice;
+            rewardsValueUSD += rewardValue;
 
-        rewards.push({
-          tokenAddress: rewardMetadataAddress,
-          symbol: rewardTokenInfo?.symbol || 'Unknown',
-          name: rewardTokenInfo?.name || 'Unknown',
-          decimals: rewardDecimals,
-          logoUrl: rewardTokenInfo?.logoUrl || null,
-          amountRaw: claimableRaw,
-          amount: rewardAmount,
-          priceUSD: rewardPrice,
-          valueUSD: rewardValue
-        });
+            rewards.push({
+              tokenAddress: rewardMetadataAddress,
+              symbol: rewardTokenInfo.symbol || 'Unknown',
+              name: rewardTokenInfo.name || 'Unknown',
+              decimals: rewardDecimals,
+              logoUrl: rewardTokenInfo.logoUrl || null,
+              amountRaw: totalRewardAmountRaw,
+              amount: rewardAmount,
+              priceUSD: rewardPrice,
+              valueUSD: rewardValue
+            });
+          }
+        }
       }
 
       formattedPositions.push({
