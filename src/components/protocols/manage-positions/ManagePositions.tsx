@@ -13,6 +13,7 @@ import { AmnisPositions } from "./protocols/AmnisPositions";
 import { EarniumPositionsManaging } from "./protocols/EarniumPositions";
 import { AavePositions } from "./protocols/AavePositions";
 import { MoarPositions } from "./protocols/MoarPositions";
+import { ThalaPositions } from "./protocols/ThalaPositions";
 import { RefreshCw, Info, ExternalLink, Gift } from "lucide-react";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useState } from "react";
@@ -125,6 +126,8 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
         return <AavePositions />;
       case 'moar market':
         return <MoarPositions />;
+      case 'thala':
+        return <ThalaPositions />;
       default:
         return (
           <div className="text-sm text-muted-foreground">

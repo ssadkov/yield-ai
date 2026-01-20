@@ -22,6 +22,7 @@ import { PositionsList as AmnisPositionsList } from "./protocols/amnis/Positions
 import { PositionsList as EarniumPositionsList } from "./protocols/earnium/PositionsList";
 import { PositionsList as AavePositionsList } from "./protocols/aave/PositionsList";
 import { PositionsList as MoarPositionsList } from "./protocols/moar/PositionsList";
+import { PositionsList as ThalaPositionsList } from "./protocols/thala/PositionsList";
 import { CardTitle } from '@/components/ui/card';
 import { useAptosAddressResolver } from '@/lib/hooks/useAptosAddressResolver';
 import { YieldCalculatorModal } from '@/components/ui/yield-calculator-modal';
@@ -56,6 +57,7 @@ export default function PortfolioPage() {
   const [earniumValue, setEarniumValue] = useState(0);
   const [aaveValue, setAaveValue] = useState(0);
   const [moarValue, setMoarValue] = useState(0);
+  const [thalaValue, setThalaValue] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [checkingProtocols, setCheckingProtocols] = useState<string[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -85,6 +87,7 @@ export default function PortfolioPage() {
     "Earnium",
     "Aave",
     "Moar Market",
+    "Thala",
   ];
 
   const resetChecking = useCallback(() => {
@@ -140,6 +143,7 @@ export default function PortfolioPage() {
     setAmnisValue(0);
     setEarniumValue(0);
     setAaveValue(0);
+    setThalaValue(0);
     resetChecking();
     setRefreshKey((k) => k + 1);
   }, [loadPortfolio, resetChecking]);
@@ -217,6 +221,9 @@ export default function PortfolioPage() {
   const handleMoarValueChange = useCallback((value: number) => {
     setMoarValue(value);
   }, []);
+  const handleThalaValueChange = useCallback((value: number) => {
+    setThalaValue(value);
+  }, []);
 
   // Считаем сумму по кошельку
   const walletTotal = tokens.reduce((sum, token) => {
@@ -225,7 +232,7 @@ export default function PortfolioPage() {
   }, 0);
 
   // Считаем сумму по всем протоколам
-  const totalProtocolsValue = hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + amnisValue + earniumValue + aaveValue + moarValue;
+  const totalProtocolsValue = hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + amnisValue + earniumValue + aaveValue + moarValue + thalaValue;
 
   // Итоговая сумма
   const totalAssets = walletTotal + totalProtocolsValue;
@@ -248,6 +255,7 @@ export default function PortfolioPage() {
     { name: 'Earnium', value: earniumValue },
     { name: 'Aave', value: aaveValue },
     { name: 'Moar Market', value: moarValue },
+    { name: 'Thala', value: thalaValue },
   ];
 
   // Показываем скелетон во время начальной загрузки
@@ -477,6 +485,12 @@ export default function PortfolioPage() {
 					          name: 'Moar Market',
 					          showManageButton: false
 					        },
+                            { 
+					          component: ThalaPositionsList, 
+					          value: thalaValue, 
+					          name: 'Thala',
+					          showManageButton: false
+					        },
                           ]
                           .sort((a, b) => b.value - a.value)
                           .map(({ component: Component, name }) => (
@@ -498,6 +512,7 @@ export default function PortfolioPage() {
                                 name === 'Earnium' ? handleEarniumValueChange :
                                 name === 'Aave' ? handleAaveValueChange :
                                 name === 'Moar Market' ? handleMoarValueChange :
+                                name === 'Thala' ? handleThalaValueChange :
                                 undefined
                               }
                               onPositionsCheckComplete={() =>
