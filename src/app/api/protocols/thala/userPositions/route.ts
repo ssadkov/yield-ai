@@ -14,6 +14,8 @@ type PoolInfo = {
   coinAddresses: string[];
   tokenASymbol?: string;
   tokenBSymbol?: string;
+  apr?: number; // decimal (e.g. 0.05 = 5%)
+  aprSources?: any[];
 };
 
 function normalizeTokenAddress(address: string): string {
@@ -155,12 +157,19 @@ async function buildPoolsMap(): Promise<Map<string, PoolInfo>> {
         pool?.poolAddress;
       const coinAddresses = metadata?.coinAddresses || pool?.coinAddresses || [];
       if (!lptAddress) return;
+
+      // Pools API may return APR sources array; compute total APR as decimal
+      const aprSources = Array.isArray(pool?.apr) ? pool.apr : [];
+      const totalApr = aprSources.reduce((sum: number, s: any) => sum + (Number(s?.apr) || 0), 0);
+
       const normalized = normalizeTokenAddress(lptAddress);
       poolMap.set(normalized, {
         poolAddress: lptAddress,
         coinAddresses: Array.isArray(coinAddresses) ? coinAddresses : [],
         tokenASymbol: pool?.token_a,
-        tokenBSymbol: pool?.token_b
+        tokenBSymbol: pool?.token_b,
+        apr: totalApr,
+        aprSources
       });
     });
   } catch (error) {
@@ -445,6 +454,7 @@ export async function GET(request: NextRequest) {
         positionId,
         positionAddress: positionObjectAddress,
         staked: true,
+        apr: typeof poolInfo?.apr === 'number' ? poolInfo.apr * 100 : 0,
         poolAddress: poolObjInner,
         token0: {
           address: token0Address,
@@ -527,6 +537,7 @@ export async function GET(request: NextRequest) {
           positionId: String(positionInfo?.position_id || ''),
           positionAddress,
           staked: false,
+          apr: typeof poolInfo?.apr === 'number' ? poolInfo.apr * 100 : 0,
           poolAddress: poolObjInner,
           token0: {
             address: token0Address,

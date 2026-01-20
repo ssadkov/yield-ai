@@ -36,6 +36,7 @@ interface ThalaPosition {
   positionId: string;
   positionAddress: string;
   staked: boolean;
+  apr?: number; // percent (e.g. 5 = 5%)
   poolAddress: string;
   token0: ThalaTokenAmount;
   token1: ThalaTokenAmount;
@@ -174,6 +175,23 @@ function ThalaPositionCard({ position, index }: ThalaPositionProps) {
           )}
         </div>
         <div className="flex items-centern gap-2">
+          {typeof position.apr === 'number' && position.apr > 0 && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge
+                    variant="outline"
+                    className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs font-normal px-2 py-0.5 h-5 cursor-help"
+                  >
+                    APR: {formatNumber(position.apr, 2)}%
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">Pool APR (total)</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
           <span className="text-lg font-bold">{formatCurrencyValue(position.positionValueUSD)}</span>
         </div>
       </div>
