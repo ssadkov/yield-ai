@@ -7,6 +7,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useToast } from "@/components/ui/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { formatNumber, formatCurrency } from "@/lib/utils/numberFormat";
+import { ClaimSuccessModal } from '@/components/ui/claim-success-modal';
 
 interface ThalaTokenAmount {
   address: string;
@@ -50,6 +51,13 @@ interface ThalaPosition {
 interface ThalaPositionProps {
   position: ThalaPosition;
   index: number;
+  onClaimSuccess?: (rewards: Array<{
+    symbol: string;
+    amount: number;
+    usdValue: number;
+    logoUrl?: string | null;
+    tokenAddress?: string;
+  }>, transactionHash: string) => void;
 }
 
 function formatCurrencyValue(value: number) {
@@ -58,7 +66,7 @@ function formatCurrencyValue(value: number) {
   return formatCurrency(value);
 }
 
-function ThalaPositionCard({ position, index }: ThalaPositionProps) {
+function ThalaPositionCard({ position, index, onClaimSuccess }: ThalaPositionProps) {
   const [isClaiming, setIsClaiming] = useState(false);
   const { signAndSubmitTransaction, account } = useWallet();
   const { toast } = useToast();
@@ -82,6 +90,15 @@ function ThalaPositionCard({ position, index }: ThalaPositionProps) {
     try {
       setIsClaiming(true);
       const THALA_FARMING_ADDRESS = "0xcb8365dc9f7ac6283169598aaad7db9c7b12f52da127007f37fa4565170ff59c";
+      
+      const claimedRewardsList: Array<{
+        symbol: string;
+        amount: number;
+        usdValue: number;
+        logoUrl?: string | null;
+        tokenAddress?: string;
+      }> = [];
+      let lastTransactionHash: string | undefined;
 
       for (const reward of position.rewards) {
         const payload = {
@@ -98,19 +115,31 @@ function ThalaPositionCard({ position, index }: ThalaPositionProps) {
           options: { maxGasAmount: 20000 },
         });
 
-        toast({
-          title: "Success",
-          description: `Claim transaction hash: ${response.hash.slice(0, 6)}...${response.hash.slice(-4)}`,
-          action: (
-            <ToastAction altText="View in Explorer" onClick={() => window.open(`https://explorer.aptoslabs.com/txn/${response.hash}?network=mainnet`, '_blank')}>
-              View in Explorer
-            </ToastAction>
-          ),
-        });
+        lastTransactionHash = response.hash;
+
+        // Add claimed reward to list (only first token for swap)
+        if (claimedRewardsList.length === 0) {
+          claimedRewardsList.push({
+            symbol: reward.symbol,
+            amount: reward.amount,
+            usdValue: reward.valueUSD,
+            logoUrl: reward.logoUrl,
+            tokenAddress: reward.tokenAddress
+          });
+        }
+      }
+
+      // Call parent callback to show success modal
+      if (onClaimSuccess && lastTransactionHash && claimedRewardsList.length > 0) {
+        setTimeout(() => {
+          onClaimSuccess(claimedRewardsList, lastTransactionHash);
+        }, 250);
       }
 
       // Refresh positions after claiming
-      window.dispatchEvent(new CustomEvent('refreshPositions', { detail: { protocol: 'thala' } }));
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('refreshPositions', { detail: { protocol: 'thala' } }));
+      }, 2000);
     } catch (error) {
       console.error('Error claiming Thala rewards:', error);
       toast({ title: "Error", description: "Failed to claim rewards", variant: "destructive" });
@@ -259,6 +288,15 @@ export function ThalaPositions() {
   const [positions, setPositions] = useState<ThalaPosition[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showClaimSuccessModal, setShowClaimSuccessModal] = useState(false);
+  const [claimedRewards, setClaimedRewards] = useState<Array<{
+    symbol: string;
+    amount: number;
+    usdValue: number;
+    logoUrl?: string | null;
+    tokenAddress?: string;
+  }>>([]);
+  const [claimTransactionHash, setClaimTransactionHash] = useState<string | undefined>();
 
   const loadPositions = async () => {
     if (!account?.address) {
@@ -330,7 +368,16 @@ export function ThalaPositions() {
     <div className="w-full mb-6 py-2">
       <div className="space-y-4 text-base">
         {positions.map((position, index) => (
-          <ThalaPositionCard key={`${position.positionId}-${index}`} position={position} index={index} />
+          <ThalaPositionCard 
+            key={`${position.positionId}-${index}`} 
+            position={position} 
+            index={index}
+            onClaimSuccess={(rewards, hash) => {
+              setClaimedRewards(rewards);
+              setClaimTransactionHash(hash);
+              setShowClaimSuccessModal(true);
+            }}
+          />
         ))}
         <div className="pt-6 pb-6">
           {/* Desktop layout */}
@@ -367,6 +414,17 @@ export function ThalaPositions() {
           </div>
         </div>
       </div>
+      <ClaimSuccessModal
+        isOpen={showClaimSuccessModal}
+        onClose={() => {
+          setShowClaimSuccessModal(false);
+          setClaimedRewards([]);
+          setClaimTransactionHash(undefined);
+        }}
+        transactionHash={claimTransactionHash}
+        rewards={claimedRewards}
+        protocolName="Thala"
+      />
     </div>
   );
 }

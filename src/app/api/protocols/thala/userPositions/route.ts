@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { normalizeAddress } from '@/lib/utils/addressNormalization';
-import { getTokenInfoWithFallback } from '@/lib/tokens/tokenRegistry';
 import { PanoraPricesService } from '@/lib/services/panora/prices';
 
 const THALA_FARMING_ADDRESS = '0xcb8365dc9f7ac6283169598aaad7db9c7b12f52da127007f37fa4565170ff59c';
@@ -404,13 +403,30 @@ export async function GET(request: NextRequest) {
         .filter((addr: string) => typeof addr === 'string' && addr.length > 0);
     }
 
-    // Get reward token prices from Panora API (like other protocols)
-    let rewardPrices: Record<string, string> = {};
-    if (rewardMetadataAddresses.length > 0) {
+    // Collect all token addresses (token0, token1, and rewards) for batch price fetching
+    const allTokenAddresses = new Set<string>();
+    
+    // Collect token0 and token1 addresses from all positions
+    for (let index = 0; index < positions.length; index++) {
+      const position = positions[index];
+      const poolObjInner = position?.pool_obj?.inner || '';
+      const normalizedPool = normalizeTokenAddress(poolObjInner);
+      const poolInfo = poolsMap.get(normalizedPool);
+      const coinAddresses = poolInfo?.coinAddresses || [];
+      if (coinAddresses[0]) allTokenAddresses.add(coinAddresses[0]);
+      if (coinAddresses[1]) allTokenAddresses.add(coinAddresses[1]);
+    }
+    
+    // Add reward token addresses
+    rewardMetadataAddresses.forEach(addr => allTokenAddresses.add(addr));
+    
+    // Get prices for all tokens from Panora API (like other protocols)
+    const allTokenPrices: Record<string, string> = {};
+    if (allTokenAddresses.size > 0) {
       try {
-        console.log('[Thala] Fetching reward token prices for', rewardMetadataAddresses.length, 'tokens from Panora API');
+        console.log('[Thala] Fetching token prices for', allTokenAddresses.size, 'tokens from Panora API');
         const pricesService = PanoraPricesService.getInstance();
-        const pricesResponse = await pricesService.getPrices(1, rewardMetadataAddresses);
+        const pricesResponse = await pricesService.getPrices(1, Array.from(allTokenAddresses));
         const pricesData = pricesResponse.data || pricesResponse;
         
         // Build prices lookup with all possible address variations
@@ -422,28 +438,34 @@ export async function GET(request: NextRequest) {
             if (priceData.usdPrice) {
               // Store price under all possible address variations
               if (tokenAddress) {
-                rewardPrices[tokenAddress] = priceData.usdPrice;
+                allTokenPrices[tokenAddress] = priceData.usdPrice;
               }
               if (faAddress) {
-                rewardPrices[faAddress] = priceData.usdPrice;
+                allTokenPrices[faAddress] = priceData.usdPrice;
               }
               // Also store under normalized versions
               if (faAddress && faAddress.startsWith('0x')) {
                 const shortAddress = faAddress.slice(2);
-                rewardPrices[shortAddress] = priceData.usdPrice;
+                allTokenPrices[shortAddress] = priceData.usdPrice;
               }
               if (tokenAddress && tokenAddress.startsWith('0x')) {
                 const shortAddress = tokenAddress.slice(2);
-                rewardPrices[shortAddress] = priceData.usdPrice;
+                allTokenPrices[shortAddress] = priceData.usdPrice;
               }
             }
           });
         }
-        console.log('[Thala] Got prices for', Object.keys(rewardPrices).length, 'reward tokens');
+        console.log('[Thala] Got prices for', Object.keys(allTokenPrices).length, 'tokens');
       } catch (error) {
-        console.warn('[Thala] Error fetching reward token prices from Panora API:', error);
+        console.warn('[Thala] Error fetching token prices from Panora API:', error);
       }
     }
+    
+    // Separate reward prices for backward compatibility
+    const rewardPrices: Record<string, string> = {};
+    rewardMetadataAddresses.forEach(addr => {
+      if (allTokenPrices[addr]) rewardPrices[addr] = allTokenPrices[addr];
+    });
 
     const formattedPositions = [];
 
@@ -458,9 +480,10 @@ export async function GET(request: NextRequest) {
       const token0Address = coinAddresses[0] || '';
       const token1Address = coinAddresses[1] || '';
 
+      // Get token metadata from API only (no tokenList.json)
       const [token0Info, token1Info] = await Promise.all([
-        token0Address ? getTokenInfoWithFallback(token0Address) : Promise.resolve(null),
-        token1Address ? getTokenInfoWithFallback(token1Address) : Promise.resolve(null)
+        token0Address ? getTokenInfoFromAPIOnly(token0Address) : Promise.resolve(null),
+        token1Address ? getTokenInfoFromAPIOnly(token1Address) : Promise.resolve(null)
       ]);
 
       let rawAmount0 = '0';
@@ -486,8 +509,24 @@ export async function GET(request: NextRequest) {
       const token1Decimals = token1Info?.decimals ?? 8;
       const token0Amount = parseTokenAmount(rawAmount0, token0Decimals);
       const token1Amount = parseTokenAmount(rawAmount1, token1Decimals);
-      const token0Price = parseFloat(token0Info?.usdPrice || '0');
-      const token1Price = parseFloat(token1Info?.usdPrice || '0');
+      
+      // Get prices from PanoraPricesService (already fetched in batch)
+      const normalizedToken0Addr = token0Address.startsWith('0x') ? token0Address : `0x${token0Address}`;
+      const shortToken0Addr = token0Address.startsWith('0x') ? token0Address.slice(2) : token0Address;
+      const token0PriceStr = allTokenPrices[token0Address] || 
+                            allTokenPrices[normalizedToken0Addr] || 
+                            allTokenPrices[shortToken0Addr] || 
+                            (token0Info?.priceUSD ? String(token0Info.priceUSD) : '0');
+      const token0Price = parseFloat(token0PriceStr);
+      
+      const normalizedToken1Addr = token1Address.startsWith('0x') ? token1Address : `0x${token1Address}`;
+      const shortToken1Addr = token1Address.startsWith('0x') ? token1Address.slice(2) : token1Address;
+      const token1PriceStr = allTokenPrices[token1Address] || 
+                            allTokenPrices[normalizedToken1Addr] || 
+                            allTokenPrices[shortToken1Addr] || 
+                            (token1Info?.priceUSD ? String(token1Info.priceUSD) : '0');
+      const token1Price = parseFloat(token1PriceStr);
+      
       const token0Value = token0Amount * token0Price;
       const token1Value = token1Amount * token1Price;
       const positionValueUSD = token0Value + token1Value;
@@ -595,6 +634,61 @@ export async function GET(request: NextRequest) {
     );
     const nonStakedAddresses = (await getNonStakedThalaPositionAddresses(address)).filter((a) => !stakedSet.has(a));
 
+    // Collect token addresses from non-staked positions for batch price fetching
+    const nonStakedTokenAddresses = new Set<string>();
+    for (const positionAddress of nonStakedAddresses) {
+      try {
+        const positionInfoResult = await callView(`${THALA_POOL_ADDRESS}::pool::position_info`, [positionAddress]);
+        const positionInfo = unwrapSingle<any>(positionInfoResult);
+        const poolObjInner = positionInfo?.pool_obj?.inner || '';
+        const normalizedPool = normalizeTokenAddress(poolObjInner);
+        const poolInfo = poolsMap.get(normalizedPool);
+        const coinAddresses = poolInfo?.coinAddresses || [];
+        if (coinAddresses[0]) nonStakedTokenAddresses.add(coinAddresses[0]);
+        if (coinAddresses[1]) nonStakedTokenAddresses.add(coinAddresses[1]);
+      } catch (e) {
+        // Skip if we can't get position info
+      }
+    }
+    
+    // Add non-staked token addresses to allTokenAddresses and fetch prices if needed
+    nonStakedTokenAddresses.forEach(addr => allTokenAddresses.add(addr));
+    if (nonStakedTokenAddresses.size > 0) {
+      try {
+        console.log('[Thala] Fetching additional token prices for', nonStakedTokenAddresses.size, 'non-staked tokens from Panora API');
+        const pricesService = PanoraPricesService.getInstance();
+        const pricesResponse = await pricesService.getPrices(1, Array.from(nonStakedTokenAddresses));
+        const pricesData = pricesResponse.data || pricesResponse;
+        
+        // Add to allTokenPrices
+        if (Array.isArray(pricesData)) {
+          pricesData.forEach((priceData: any) => {
+            const tokenAddress = priceData.tokenAddress;
+            const faAddress = priceData.faAddress;
+            
+            if (priceData.usdPrice) {
+              if (tokenAddress) {
+                allTokenPrices[tokenAddress] = priceData.usdPrice;
+              }
+              if (faAddress) {
+                allTokenPrices[faAddress] = priceData.usdPrice;
+              }
+              if (faAddress && faAddress.startsWith('0x')) {
+                const shortAddress = faAddress.slice(2);
+                allTokenPrices[shortAddress] = priceData.usdPrice;
+              }
+              if (tokenAddress && tokenAddress.startsWith('0x')) {
+                const shortAddress = tokenAddress.slice(2);
+                allTokenPrices[shortAddress] = priceData.usdPrice;
+              }
+            }
+          });
+        }
+      } catch (error) {
+        console.warn('[Thala] Error fetching non-staked token prices from Panora API:', error);
+      }
+    }
+
     for (const positionAddress of nonStakedAddresses) {
       try {
         const positionInfoResult = await callView(`${THALA_POOL_ADDRESS}::pool::position_info`, [positionAddress]);
@@ -606,9 +700,10 @@ export async function GET(request: NextRequest) {
         const token0Address = coinAddresses[0] || '';
         const token1Address = coinAddresses[1] || '';
 
+        // Get token metadata from API only (no tokenList.json)
         const [token0Info, token1Info] = await Promise.all([
-          token0Address ? getTokenInfoWithFallback(token0Address) : Promise.resolve(null),
-          token1Address ? getTokenInfoWithFallback(token1Address) : Promise.resolve(null)
+          token0Address ? getTokenInfoFromAPIOnly(token0Address) : Promise.resolve(null),
+          token1Address ? getTokenInfoFromAPIOnly(token1Address) : Promise.resolve(null)
         ]);
 
         let rawAmount0 = '0';
@@ -629,8 +724,24 @@ export async function GET(request: NextRequest) {
         const token1Decimals = token1Info?.decimals ?? 8;
         const token0Amount = parseTokenAmount(rawAmount0, token0Decimals);
         const token1Amount = parseTokenAmount(rawAmount1, token1Decimals);
-        const token0Price = parseFloat(token0Info?.usdPrice || '0');
-        const token1Price = parseFloat(token1Info?.usdPrice || '0');
+        
+        // Get prices from PanoraPricesService (already fetched in batch)
+        const normalizedToken0Addr = token0Address.startsWith('0x') ? token0Address : `0x${token0Address}`;
+        const shortToken0Addr = token0Address.startsWith('0x') ? token0Address.slice(2) : token0Address;
+        const token0PriceStr = allTokenPrices[token0Address] || 
+                              allTokenPrices[normalizedToken0Addr] || 
+                              allTokenPrices[shortToken0Addr] || 
+                              (token0Info?.priceUSD ? String(token0Info.priceUSD) : '0');
+        const token0Price = parseFloat(token0PriceStr);
+        
+        const normalizedToken1Addr = token1Address.startsWith('0x') ? token1Address : `0x${token1Address}`;
+        const shortToken1Addr = token1Address.startsWith('0x') ? token1Address.slice(2) : token1Address;
+        const token1PriceStr = allTokenPrices[token1Address] || 
+                              allTokenPrices[normalizedToken1Addr] || 
+                              allTokenPrices[shortToken1Addr] || 
+                              (token1Info?.priceUSD ? String(token1Info.priceUSD) : '0');
+        const token1Price = parseFloat(token1PriceStr);
+        
         const token0Value = token0Amount * token0Price;
         const token1Value = token1Amount * token1Price;
         const positionValueUSD = token0Value + token1Value;
