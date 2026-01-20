@@ -156,6 +156,12 @@ function ThalaPositionCard({ position, index }: ThalaPositionProps) {
               </Tooltip>
             </TooltipProvider>
           )}
+          <Badge
+            variant="outline"
+            className="bg-warning-muted text-warning border-warning/20 text-xs font-normal px-2 py-0.5 h-5 ml-2"
+          >
+            Staked
+          </Badge>
         </div>
         <div className="flex items-centern gap-2">
           <span className="text-lg font-bold">{formatCurrencyValue(position.positionValueUSD)}</span>
