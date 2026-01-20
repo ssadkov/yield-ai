@@ -1,7 +1,6 @@
 "use client";
 import { PortfolioPageCard } from "./portfolio/PortfolioPageCard";
 import { PortfolioPageSkeleton } from "./portfolio/PortfolioPageSkeleton";
-import { ProtocolCardSkeleton } from "./portfolio/ProtocolCardSkeleton";
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { AptosPortfolioService } from "@/lib/services/aptos/portfolio";
@@ -58,7 +57,6 @@ export default function PortfolioPage() {
   const [aaveValue, setAaveValue] = useState(0);
   const [moarValue, setMoarValue] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [checkingProtocols, setCheckingProtocols] = useState<string[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [addressInput, setAddressInput] = useState('');
@@ -73,8 +71,7 @@ export default function PortfolioPage() {
   const { resolvedAddress, resolvedName, isLoading, error } = useAptosAddressResolver(input);
 
   // Определяем, нужно ли показывать скелетон
-  // Показываем скелетон только при резолве адреса или при первой загрузке портфолио
-  const isInitialLoading = isLoading || (isRefreshing && !hasLoadedOnce);
+  const isInitialLoading = isLoading || isRefreshing;
 
   const allProtocolNames = [
     "Hyperion",
@@ -113,7 +110,6 @@ export default function PortfolioPage() {
   const loadPortfolio = useCallback(async () => {
     if (!resolvedAddress) {
       setTokens([]);
-      setHasLoadedOnce(false);
       return;
     }
 
@@ -122,12 +118,10 @@ export default function PortfolioPage() {
       const portfolioService = new AptosPortfolioService();
       const portfolio = await portfolioService.getPortfolio(resolvedAddress);
       setTokens(portfolio.tokens);
-      setHasLoadedOnce(true);
 
     } catch (error) {
       console.error('Error loading portfolio:', error);
       setTokens([]);
-      setHasLoadedOnce(true); // Помечаем как загруженное даже при ошибке, чтобы не показывать скелетон
     } finally {
       setIsRefreshing(false);
     }
@@ -151,10 +145,6 @@ export default function PortfolioPage() {
   }, [loadPortfolio, resetChecking]);
 
   useEffect(() => {
-    // Сбрасываем флаг загрузки при смене адреса
-    if (resolvedAddress) {
-      setHasLoadedOnce(false);
-    }
     loadPortfolio();
     // Initialize checking list when account changes
     if (resolvedAddress) {
@@ -489,41 +479,32 @@ export default function PortfolioPage() {
 					        },
                           ]
                           .sort((a, b) => b.value - a.value)
-                          .map(({ component: Component, name }) => {
-                            // Показываем скелетон для протоколов, которые еще загружаются
-                            const isLoading = checkingProtocols.includes(name);
-                            
-                            if (isLoading) {
-                              return <ProtocolCardSkeleton key={name} protocolName={name} />;
-                            }
-                            
-                            return (
-                              <Component
-                                key={name}
-                                address={resolvedAddress ?? ""}
-                                walletTokens={tokens}
-                                refreshKey={refreshKey}
-						        showManageButton={false}
-                                onPositionsValueChange={
-                                  name === 'Hyperion' ? handleHyperionValueChange :
-                                  name === 'Echelon' ? handleEchelonValueChange :
-                                  name === 'Aries' ? handleAriesValueChange :
-                                  name === 'Joule' ? handleJouleValueChange :
-                                  name === 'Tapp Exchange' ? handleTappValueChange :
-                                  name === 'Meso Finance' ? handleMesoValueChange :
-                                  name === 'Auro Finance' ? handleAuroValueChange :
-                                  name === 'Amnis Finance' ? handleAmnisValueChange :
-                                  name === 'Earnium' ? handleEarniumValueChange :
-                                  name === 'Aave' ? handleAaveValueChange :
-                                  name === 'Moar Market' ? handleMoarValueChange :
-                                  undefined
-                                }
-                                onPositionsCheckComplete={() =>
-                                  setCheckingProtocols((prev) => prev.filter((p) => p !== name))
-                                }
-                              />
-                            );
-                          })}
+                          .map(({ component: Component, name }) => (
+                            <Component
+                              key={name}
+                              address={resolvedAddress ?? ""}
+                              walletTokens={tokens}
+                              refreshKey={refreshKey}
+						      showManageButton={false}
+                              onPositionsValueChange={
+                                name === 'Hyperion' ? handleHyperionValueChange :
+                                name === 'Echelon' ? handleEchelonValueChange :
+                                name === 'Aries' ? handleAriesValueChange :
+                                name === 'Joule' ? handleJouleValueChange :
+                                name === 'Tapp Exchange' ? handleTappValueChange :
+                                name === 'Meso Finance' ? handleMesoValueChange :
+                                name === 'Auro Finance' ? handleAuroValueChange :
+                                name === 'Amnis Finance' ? handleAmnisValueChange :
+                                name === 'Earnium' ? handleEarniumValueChange :
+                                name === 'Aave' ? handleAaveValueChange :
+                                name === 'Moar Market' ? handleMoarValueChange :
+                                undefined
+                              }
+                              onPositionsCheckComplete={() =>
+                                setCheckingProtocols((prev) => prev.filter((p) => p !== name))
+                              }
+                            />
+                          ))}
                         </div>
 				      </div>
                     </div>
