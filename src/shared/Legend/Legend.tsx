@@ -87,7 +87,10 @@ export const Legend = React.forwardRef<HTMLDivElement, LegendProps>(
       <div
         ref={ref}
         className={cn(
-          'flex flex-col justify-center gap-2 min-w-[200px]',
+          // Мобильная версия: компактная сетка в несколько колонок
+          'grid grid-cols-2 sm:grid-cols-3 gap-1 text-xs',
+          // На десктопе возвращаем вертикальную колонку
+          'lg:flex lg:flex-col lg:justify-center lg:gap-2 lg:text-sm lg:min-w-[200px]',
           desktopOnly && 'hidden lg:flex',
           className
         )}

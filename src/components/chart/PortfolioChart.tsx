@@ -32,8 +32,9 @@ export function PortfolioChart({ data, totalValue, isLoading = false }: Portfoli
     };
 
     return (
-      <div className="flex flex-col lg:flex-row items-center gap-4 relative">
-        <div className="w-64 h-64 lg:w-96 lg:h-96 focus:outline-none">
+      <div className="flex flex-col lg:flex-row items-center lg:items-center gap-4 relative">
+        {/* PieChart: сверху на мобилке, слева на десктопе */}
+        <div className="order-1 w-64 h-64 lg:w-96 lg:h-96 focus:outline-none">
           <PieChart 
             data={chartData} 
             size={256}
@@ -45,13 +46,15 @@ export function PortfolioChart({ data, totalValue, isLoading = false }: Portfoli
           />
         </div>
 
-        {/* Десктопная версия - вертикальная легенда справа от чарта */}
+        {/* Одна и та же легенда:
+            - на мобильных под графиком (занимает всю ширину)
+            - на десктопе справа от PieChart и по центру по вертикали */}
         <Legend
           data={chartData}
           hoveredItem={hoveredItem}
           onItemHover={handleSectorHover}
           total={sum}
-          desktopOnly
+          className="order-2 w-full mt-4 lg:mt-0 lg:w-auto"
         />
       </div>
     )

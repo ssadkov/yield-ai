@@ -380,10 +380,10 @@ export default function PortfolioPage() {
 				    )}
 
 				    <div className="block lg:hidden mb-4">
-				      <div className="h-58 flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded p-20">
-				        <PortfolioChart 
-				          data={chartSectors} 
-				          totalValue={totalAssets.toString()} 
+				      <div className="flex items-center justify-center p-4">
+				        <PortfolioChart
+				          data={chartSectors}
+				          totalValue={totalAssets.toString()}
 				          isLoading={checkingProtocols.length > 0 || isRefreshing}
 				        />
 				      </div>
@@ -485,9 +485,9 @@ export default function PortfolioPage() {
 					          name: 'Moar Market',
 					          showManageButton: false
 					        },
-                            { 
-					          component: ThalaPositionsList, 
-					          value: thalaValue, 
+                            {
+					          component: ThalaPositionsList,
+					          value: thalaValue,
 					          name: 'Thala',
 					          showManageButton: false
 					        },
@@ -542,9 +542,9 @@ export default function PortfolioPage() {
 
 			<div className="hidden lg:block mb-4 mt-17">
 			  <div className="h-[500px] flex items-center justify-center to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded p-8">
-				<PortfolioChart 
-				  data={chartSectors} 
-				  totalValue={totalAssets.toString()} 
+				<PortfolioChart
+				  data={chartSectors}
+				  totalValue={totalAssets.toString()}
 				  isLoading={checkingProtocols.length > 0 || isRefreshing}
 				/>
 		      </div>
