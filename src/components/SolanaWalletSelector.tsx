@@ -9,6 +9,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
@@ -30,10 +31,10 @@ export function SolanaWalletSelector({ onWalletChange }: SolanaWalletSelectorPro
   }, [publicKey, onWalletChange]);
 
   const availableWallets = useMemo(() => {
+    // Include all wallets except those that are not detected
+    // This includes Standard Wallets (Phantom, Trust) which are automatically detected
     const filtered = wallets.filter(
-      (wallet) =>
-        wallet.readyState === WalletReadyState.Installed ||
-        wallet.readyState === WalletReadyState.Loadable
+      (wallet) => wallet.readyState !== WalletReadyState.NotDetected
     );
     
     // Remove duplicates by name (keep first occurrence)
@@ -111,6 +112,9 @@ export function SolanaWalletSelector({ onWalletChange }: SolanaWalletSelectorPro
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Select Solana Wallet</DialogTitle>
+                <DialogDescription>
+                  Choose a wallet to connect to your Solana account
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-2 mt-4">
                 {availableWallets.map((w, index) => (
@@ -155,6 +159,9 @@ export function SolanaWalletSelector({ onWalletChange }: SolanaWalletSelectorPro
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Select Solana Wallet</DialogTitle>
+          <DialogDescription>
+            Choose a wallet to connect to your Solana account
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-2 mt-4">
           {availableWallets.length === 0 ? (

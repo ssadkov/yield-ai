@@ -10,6 +10,7 @@
     "update-tokens": "node scripts/update-token-list.js"
   },
   "dependencies": {
+    "@aptos-labs/cross-chain-core": "^5.5.0",
     "@aptos-labs/derived-wallet-ethereum": "^0.3.0",
     "@aptos-labs/derived-wallet-solana": "^0.8.1",
     "@aptos-labs/gas-station-client": "^2.0.3",
