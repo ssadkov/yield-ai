@@ -25,6 +25,7 @@ import { PositionsList as MoarPositionsList } from "./protocols/moar/PositionsLi
 import { PositionsList as AavePositionsList } from "./protocols/aave/PositionsList";
 import { PositionsList as ThalaPositionsList } from "./protocols/thala/PositionsList";
 import { useSolanaPortfolio } from "@/hooks/useSolanaPortfolio";
+import { ProtocolIcon } from "@/shared/ProtocolIcon/ProtocolIcon";
 
 export default function Sidebar() {
   const { account } = useWallet();
@@ -232,14 +233,14 @@ export default function Sidebar() {
                   <div className="flex items-center gap-1">
                     {checkingProtocols.map((name) => {
                       const proto = getProtocolByName(name);
-                      const logo = proto?.logoUrl;
+                      const logo = proto?.logoUrl || "/favicon.ico";
                       return (
-                        <img
+                        <ProtocolIcon
                           key={name}
-                          src={logo || "/favicon.ico"}
-                          alt={name}
-                          title={name}
-                          className="w-4 h-4 rounded-sm object-contain opacity-80"
+                          logoUrl={logo}
+                          name={name}
+                          size="sm"
+                          isLoading={true}
                         />
                       );
                     })}

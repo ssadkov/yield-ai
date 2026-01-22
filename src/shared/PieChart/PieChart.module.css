@@ -1,0 +1,12 @@
+.sector {
+  cursor: pointer;
+  transition-property: opacity, transform, filter;
+  transition-duration: 300ms;
+  transition-timing-function: ease-out;
+}
+
+.sectorDimmed {
+  opacity: 0.6;
+}
+
+

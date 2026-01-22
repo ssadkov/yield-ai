@@ -84,9 +84,6 @@ export function PortfolioPageCard({ totalValue, tokens, onRefresh, isRefreshing 
 
   return (
     <div>
-      <div className="flex items-center justify-center mb-2 text-2xl font-semibold">
-        {formatCurrency(displayTotalValue, 2)}
-      </div>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center space-x-2">
           <Checkbox 
