@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { useWallet as useSolanaWallet } from "@solana/wallet-adapter-react";
+import { useWallet as useSolanaWallet, useConnection } from "@solana/wallet-adapter-react";
 import { useWallet as useAptosWallet } from "@aptos-labs/wallet-adapter-react";
 import bs58 from "bs58";
 
@@ -12,6 +12,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { SolanaWalletProviderWrapper } from "../bridge3/SolanaWalletProvider";
 import { useAptosClient } from "@/contexts/AptosClientContext";
 import { WalletSelector } from "@/components/WalletSelector";
+import { performMintOnSolana } from "@/lib/cctp-mint-core";
+import { ActionLog, type ActionLogItem } from "@/components/bridge/ActionLog";
 import {
   Account,
   AccountAddress,
@@ -50,11 +52,33 @@ const TOKENS = [
 
 // Domain IDs for CCTP
 const DOMAIN_SOLANA = 5;
+const DOMAIN_APTOS = 9;
 
 // Helper to convert Solana address to hex bytes (for CCTP mint_recipient)
 function solanaAddressToHexBytes(solanaAddress: string): Uint8Array {
   const decoded = bs58.decode(solanaAddress);
   return new Uint8Array(decoded);
+}
+
+// Helper to get Associated Token Account (ATA) address for Solana
+// For Solana destination, mint_recipient must be the token account address (ATA), not the public key
+async function getSolanaTokenAccountAddress(
+  ownerPublicKey: string,
+  mintAddress: string
+): Promise<string> {
+  const { getAssociatedTokenAddress } = await import("@solana/spl-token");
+  const { PublicKey } = await import("@solana/web3.js");
+  
+  const ownerPubkey = new PublicKey(ownerPublicKey);
+  const mintPubkey = new PublicKey(mintAddress);
+  
+  const ataAddress = await getAssociatedTokenAddress(
+    mintPubkey,
+    ownerPubkey,
+    false // allowOwnerOffCurve
+  );
+  
+  return ataAddress.toBase58();
 }
 
 // Helper function to create fee payer Account from env vars
@@ -151,7 +175,8 @@ function Bridge5PageContent() {
   const { toast } = useToast();
   const aptosClient = useAptosClient();
 
-  const { publicKey: solanaPublicKey } = useSolanaWallet();
+  const { publicKey: solanaPublicKey, wallet: solanaWallet, signTransaction } = useSolanaWallet();
+  const { connection: solanaConnection } = useConnection();
   const {
     account: aptosAccount,
     connected: aptosConnected,
@@ -175,6 +200,7 @@ function Bridge5PageContent() {
   const [destinationAddress, setDestinationAddress] = useState<string>("");
   const [isTransferring, setIsTransferring] = useState(false);
   const [transferStatus, setTransferStatus] = useState<string>("");
+  const [actionLog, setActionLog] = useState<ActionLogItem[]>([]);
 
   const solanaAddress = solanaPublicKey?.toBase58() || null;
 
@@ -194,9 +220,219 @@ function Bridge5PageContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Helper function to add action to log
+  const addAction = (message: string, status: 'pending' | 'success' | 'error', link?: string, linkText?: string, startTime?: number) => {
+    const now = Date.now();
+    const newAction: ActionLogItem = {
+      id: now.toString() + Math.random().toString(36).substr(2, 9),
+      message,
+      status,
+      timestamp: new Date(),
+      link,
+      linkText,
+      startTime: startTime || now,
+      duration: startTime ? now - startTime : undefined,
+    };
+    setActionLog(prev => [...prev, newAction]);
+    console.log(`[Bridge5 Action] ${status.toUpperCase()}: ${message}`, link ? `Link: ${link}` : '');
+    return newAction.id;
+  };
+
+  // Helper function to update last action
+  const updateLastAction = (message: string, status: 'pending' | 'success' | 'error', link?: string, linkText?: string) => {
+    const now = Date.now();
+    setActionLog(prev => {
+      const newLog = [...prev];
+      if (newLog.length > 0) {
+        const lastAction = newLog[newLog.length - 1];
+        const startTime = lastAction.startTime || lastAction.timestamp.getTime();
+        newLog[newLog.length - 1] = {
+          ...lastAction,
+          message,
+          status,
+          link,
+          linkText,
+          startTime,
+          duration: status !== 'pending' ? now - startTime : undefined,
+        };
+      }
+      return newLog;
+    });
+  };
+
+  // Helper: Fetch attestation with pending check (like in minting-solana)
+  const fetchAttestationWithPendingCheck = async (
+    sourceDomain: number,
+    signature: string,
+    onProgress?: (attempt: number, maxAttempts: number) => void
+  ) => {
+    const irisApiUrl = process.env.NEXT_PUBLIC_CIRCLE_CCTP_ATTESTATION_URL;
+    
+    if (!irisApiUrl) {
+      throw new Error('NEXT_PUBLIC_CIRCLE_CCTP_ATTESTATION_URL environment variable is not set');
+    }
+
+    const maxAttempts = 15;
+    const initialDelay = 10000; // 10 seconds
+    const maxDelay = 60000; // 60 seconds
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      if (onProgress) {
+        onProgress(attempt, maxAttempts);
+      }
+
+      const delay = Math.min(initialDelay * Math.pow(2, attempt - 1), maxDelay);
+      if (attempt > 1) {
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+
+      try {
+        const url = `${irisApiUrl}/${sourceDomain}/${signature.trim()}`;
+        console.log(`[Bridge5] Fetching attestation, attempt ${attempt}/${maxAttempts}:`, url);
+
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            console.log(`[Bridge5] Attestation not ready yet (404), attempt ${attempt}/${maxAttempts}`);
+            if (attempt === maxAttempts) {
+              throw new Error(`Attestation not ready after ${maxAttempts} attempts. Please wait and try again.`);
+            }
+            continue;
+          }
+
+          const errorText = await response.text();
+          console.error('[Bridge5] Circle API error:', response.status, errorText);
+          throw new Error(`Circle API error: ${response.status} ${response.statusText}. ${errorText}`);
+        }
+
+        const attestationData = await response.json();
+
+        // Validate attestation data
+        if (!attestationData.messages || attestationData.messages.length === 0) {
+          throw new Error('No messages found in attestation data');
+        }
+
+        const firstMessage = attestationData.messages[0];
+        
+        if (!firstMessage.message) {
+          throw new Error('Message field is missing');
+        }
+        
+        if (!firstMessage.attestation) {
+          throw new Error('Attestation field is missing');
+        }
+
+        // Check if attestation is still pending
+        const attestationValue = firstMessage.attestation;
+        if (typeof attestationValue === 'string') {
+          const upperAttestation = attestationValue.toUpperCase().trim();
+          if (upperAttestation === 'PENDING' || upperAttestation === 'PENDING...') {
+            console.log('[Bridge5] Attestation still pending:', {
+              attestationValue: attestationValue.substring(0, 50),
+            });
+            if (attempt === maxAttempts) {
+              throw new Error(`Attestation not ready yet. Status: ${attestationValue.substring(0, 50)}`);
+            }
+            continue;
+          }
+        }
+
+        console.log('[Bridge5] Attestation received successfully:', {
+          messageLength: firstMessage.message.length,
+          attestationLength: firstMessage.attestation.length,
+          eventNonce: firstMessage.eventNonce,
+        });
+
+        return attestationData;
+      } catch (error: any) {
+        if (attempt === maxAttempts) {
+          throw error;
+        }
+        // Continue retrying for network errors
+        if (error.message?.includes('Attestation not ready')) {
+          continue;
+        }
+        // For other errors, wait a bit and retry
+        console.warn(`[Bridge5] Error on attempt ${attempt}, retrying:`, error.message);
+      }
+    }
+
+    throw new Error(`Failed to fetch attestation after ${maxAttempts} attempts`);
+  };
+
+  // Helper: Wait for Aptos transaction confirmation
+  const waitForAptosConfirmation = async (txHash: string): Promise<void> => {
+    const maxAttempts = 30; // 30 attempts * 2s = 60 seconds max
+    const confirmationDelay = 2000; // 2 seconds
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const txResponse = await fetch(`https://fullnode.mainnet.aptoslabs.com/v1/transactions/by_hash/${txHash}`);
+        
+        if (!txResponse.ok) {
+          if (txResponse.status === 404) {
+            // Transaction not found yet, continue waiting
+            if (attempt % 5 === 0) {
+              updateLastAction(
+                `Waiting for Aptos transaction confirmation... (${attempt}/${maxAttempts})`,
+                'pending',
+                `https://explorer.aptoslabs.com/txn/${txHash}?network=mainnet`,
+                'View transaction on Aptos Explorer'
+              );
+            }
+            await new Promise(resolve => setTimeout(resolve, confirmationDelay));
+            continue;
+          }
+          throw new Error(`Failed to fetch transaction: ${txResponse.status} ${txResponse.statusText}`);
+        }
+
+        const txData = await txResponse.json();
+        
+        if (txData.success && txData.vm_status === "Executed successfully") {
+          updateLastAction(
+            'Aptos transaction confirmed',
+            'success',
+            `https://explorer.aptoslabs.com/txn/${txHash}?network=mainnet`,
+            'View transaction on Aptos Explorer'
+          );
+          return;
+        } else if (txData.vm_status) {
+          throw new Error(`Transaction failed: ${txData.vm_status}`);
+        }
+        
+        // Update status periodically
+        if (attempt % 5 === 0) {
+          updateLastAction(
+            `Waiting for Aptos transaction confirmation... (${attempt}/${maxAttempts})`,
+            'pending',
+            `https://explorer.aptoslabs.com/txn/${txHash}?network=mainnet`,
+            'View transaction on Aptos Explorer'
+          );
+        }
+      } catch (error: any) {
+        if (attempt === maxAttempts) {
+          throw new Error(`Failed to confirm transaction: ${error.message}`);
+        }
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, confirmationDelay));
+    }
+    
+    throw new Error('Transaction confirmation timeout');
+  };
+
   const handleTransfer = async () => {
     setIsTransferring(true);
     setTransferStatus("Initializing CCTP burn...");
+    setActionLog([]); // Clear previous actions
+    const transferStartTime = Date.now();
+    addAction('Initializing CCTP burn...', 'pending', undefined, undefined, transferStartTime);
 
     try {
       if (!solanaAddress) {
@@ -245,8 +481,20 @@ function Bridge5PageContent() {
         aptosAccount: aptosAccount.address.toString(),
       });
 
-      // Convert Solana address to bytes and wrap as Aptos address for mint_recipient
-      const mintRecipientBytes = solanaAddressToHexBytes(solanaAddress);
+      // ВАЖНО: Для Solana destination mint_recipient должен быть адресом токен-аккаунта (ATA),
+      // а НЕ публичным ключом владельца!
+      // Программа на Solana сравнивает recipient_token_account.key() с mint_recipient из message_body
+      setTransferStatus("Computing Solana token account address (ATA)...");
+      const tokenAccountAddress = await getSolanaTokenAccountAddress(
+        destinationAddress || solanaAddress,
+        USDC_SOLANA
+      );
+      
+      console.log("[Bridge5] Solana token account (ATA) address:", tokenAccountAddress);
+      console.log("[Bridge5] Solana owner public key:", destinationAddress || solanaAddress);
+      
+      // Convert Solana token account address (ATA) to bytes and wrap as Aptos address for mint_recipient
+      const mintRecipientBytes = solanaAddressToHexBytes(tokenAccountAddress);
       const mintRecipientAddress = AccountAddress.from(mintRecipientBytes);
 
       setTransferStatus("Loading bytecode for deposit_for_burn...");
@@ -354,21 +602,113 @@ function Bridge5PageContent() {
         throw new Error(`Transaction submission failed: no hash returned`);
       }
 
-      console.log("[Bridge5] Transaction submitted:", response.hash);
+      const aptosTxHash = response.hash;
+      console.log("[Bridge5] Transaction submitted:", aptosTxHash);
+      
+      updateLastAction(
+        `Burn transaction submitted`,
+        'success',
+        `https://explorer.aptoslabs.com/txn/${aptosTxHash}?network=mainnet`,
+        'View transaction on Aptos Explorer'
+      );
+
       setTransferStatus(
-        `Burn transaction submitted! Hash: ${response.hash.slice(
+        `Burn transaction submitted! Hash: ${aptosTxHash.slice(
           0,
           8,
-        )}...${response.hash.slice(-8)}`,
+        )}...${aptosTxHash.slice(-8)}`,
       );
 
       toast({
         title: "Burn Transaction Submitted",
-        description: `Transaction hash: ${response.hash.slice(
+        description: `Transaction hash: ${aptosTxHash.slice(
           0,
           8,
-        )}...${response.hash.slice(-8)}`,
+        )}...${aptosTxHash.slice(-8)}`,
       });
+
+      // Step 2: Wait for Aptos transaction confirmation
+      setTransferStatus("Waiting for Aptos transaction confirmation...");
+      addAction('Waiting for Aptos transaction confirmation...', 'pending', 
+        `https://explorer.aptoslabs.com/txn/${aptosTxHash}?network=mainnet`,
+        'View transaction on Aptos Explorer'
+      );
+      
+      await waitForAptosConfirmation(aptosTxHash);
+
+      // Step 3: Wait for attestation from Circle
+      setTransferStatus("Waiting for attestation from Circle...");
+      
+      if (!solanaConnection || !solanaPublicKey || !signTransaction) {
+        throw new Error("Solana wallet connection required for minting");
+      }
+
+      // Fetch attestation with pending check
+      addAction('Requesting attestation from Circle...', 'pending',
+        `https://iris-api.circle.com/v1/messages/${DOMAIN_APTOS}/${aptosTxHash}`,
+        'View attestation request'
+      );
+
+      const attestationData = await fetchAttestationWithPendingCheck(
+        DOMAIN_APTOS,
+        aptosTxHash,
+        (attempt, maxAttempts) => {
+          setTransferStatus(`Waiting for attestation... (attempt ${attempt}/${maxAttempts})`);
+          updateLastAction(
+            `Requesting attestation from Circle... (attempt ${attempt}/${maxAttempts})`,
+            'pending',
+            `https://iris-api.circle.com/v1/messages/${DOMAIN_APTOS}/${aptosTxHash}`,
+            'View attestation request'
+          );
+        }
+      );
+
+      updateLastAction(
+        'Attestation received from Circle',
+        'success',
+        `https://iris-api.circle.com/v1/messages/${DOMAIN_APTOS}/${aptosTxHash}`,
+        'View attestation'
+      );
+
+      setTransferStatus("Attestation received! Preparing mint transaction on Solana...");
+      addAction('Preparing mint transaction on Solana...', 'pending');
+
+      // Step 4: Mint on Solana
+      const recipientAddress = destinationAddress || solanaAddress;
+      if (!recipientAddress) {
+        throw new Error("Recipient address is required");
+      }
+
+      const mintTxSignature = await performMintOnSolana(
+        attestationData,
+        recipientAddress,
+        solanaConnection,
+        solanaPublicKey,
+        signTransaction,
+        (status) => {
+          setTransferStatus(status);
+        }
+      );
+
+      updateLastAction(
+        'USDC minted successfully on Solana',
+        'success',
+        `https://solscan.io/tx/${mintTxSignature}`,
+        'View transaction on Solscan'
+      );
+
+      addAction(
+        'Bridge complete!',
+        'success'
+      );
+
+      setTransferStatus(`✅ Bridge complete! Mint transaction: ${mintTxSignature.slice(0, 8)}...${mintTxSignature.slice(-8)}`);
+
+      toast({
+        title: "Bridge Complete!",
+        description: `USDC minted successfully on Solana! Transaction: ${mintTxSignature.slice(0, 8)}...${mintTxSignature.slice(-8)}. View on Solscan: https://solscan.io/tx/${mintTxSignature}`,
+      });
+      
     } catch (e: any) {
       console.error("[Bridge5] Transfer error:", e);
       try {
@@ -380,6 +720,10 @@ function Bridge5PageContent() {
         });
       } catch {}
       setTransferStatus(`Error: ${e?.message || "Unknown error"}`);
+      addAction(
+        `Transfer failed: ${e?.message || "Unknown error"}`,
+        'error'
+      );
       toast({
         variant: "destructive",
         title: "Transfer Failed",
@@ -443,6 +787,8 @@ function Bridge5PageContent() {
             hideSourceWallet={true}
             hideDestinationAddress={true}
           />
+
+          <ActionLog items={actionLog} />
         </div>
       </div>
     </div>
