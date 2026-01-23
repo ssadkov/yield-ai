@@ -23,8 +23,12 @@ import {
   Ed25519Signature,
   AnyPublicKey,
   AnySignature,
-  AccountAuthenticatorSingleKey
+  AccountAuthenticatorSingleKey,
+  AccountAuthenticatorAbstraction
 } from "@aptos-labs/ts-sdk";
+import { signAptosTransactionWithSolana } from "@aptos-labs/derived-wallet-solana";
+import { StandardWalletAdapter as SolanaWalletAdapter } from "@solana/wallet-standard-wallet-adapter-base";
+import { UserResponseStatus } from "@aptos-labs/wallet-standard";
 
 // USDC token addresses
 const USDC_SOLANA = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"; // USDC on Solana
@@ -66,6 +70,27 @@ const DOMAIN_APTOS = 9;
 function solanaAddressToHexBytes(solanaAddress: string): Uint8Array {
   const decoded = bs58.decode(solanaAddress);
   return new Uint8Array(decoded);
+}
+
+// Helper to get Associated Token Account (ATA) address for Solana
+// For Solana destination, mint_recipient must be the token account address (ATA), not the public key
+async function getSolanaTokenAccountAddress(
+  ownerPublicKey: string,
+  mintAddress: string
+): Promise<string> {
+  const { getAssociatedTokenAddress } = await import("@solana/spl-token");
+  const { PublicKey } = await import("@solana/web3.js");
+  
+  const ownerPubkey = new PublicKey(ownerPublicKey);
+  const mintPubkey = new PublicKey(mintAddress);
+  
+  const ataAddress = await getAssociatedTokenAddress(
+    mintPubkey,
+    ownerPubkey,
+    false // allowOwnerOffCurve
+  );
+  
+  return ataAddress.toBase58();
 }
 
 // Helper function to create fee payer Account from env vars
@@ -228,11 +253,90 @@ function Bridge4PageContent() {
         aptosAccount: aptosAccount.address.toString(),
       });
 
+      // Check USDC balance on Aptos account (optional check, transaction will fail if insufficient)
+      setTransferStatus("Checking USDC balance...");
+      try {
+        // Use direct REST API call (more reliable than aptosClient.getAccountResources)
+        const response = await fetch(
+          `https://api.mainnet.aptoslabs.com/v1/accounts/${aptosAccount.address.toString()}/resources`
+        );
+        
+        if (!response.ok) {
+          console.warn('[Bridge4] Could not fetch account resources:', response.status, response.statusText);
+          // Continue anyway
+        } else {
+          const resources: any[] = await response.json();
+          console.log('[Bridge4] Account resources fetched:', resources.length);
+          
+          // USDC on Aptos can be in different formats:
+          // 1. 0x1::coin::CoinStore<0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b::coin::USDC>
+          // 2. 0x1::coin::CoinStore<0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b>
+          // Try to find USDC coin resource
+          const usdcResource = resources.find((resource: any) => {
+            const resourceType = resource.type || '';
+            // Check if it's a CoinStore and contains USDC address
+            if (!resourceType.includes('0x1::coin::CoinStore<')) return false;
+            // Check for USDC address (with or without 0x prefix)
+            const usdcAddress = USDC_APTOS.startsWith('0x') ? USDC_APTOS.slice(2) : USDC_APTOS;
+            return resourceType.includes(usdcAddress);
+          });
+          
+          if (usdcResource && usdcResource.data?.coin?.value) {
+            const balance = BigInt(usdcResource.data.coin.value);
+            console.log('[Bridge4] USDC balance found:', {
+              balance: balance.toString(),
+              balanceFormatted: (Number(balance) / 1_000_000).toFixed(6),
+              required: amountOctas.toString(),
+              requiredFormatted: (Number(amountOctas) / 1_000_000).toFixed(6),
+              hasEnough: balance >= amountOctas,
+              resourceType: usdcResource.type,
+            });
+            
+            if (balance < amountOctas) {
+              throw new Error(
+                `Insufficient USDC balance. Required: ${(Number(amountOctas) / 1_000_000).toFixed(6)} USDC, ` +
+                `Available: ${(Number(balance) / 1_000_000).toFixed(6)} USDC`
+              );
+            }
+          } else {
+            console.warn('[Bridge4] USDC coin resource not found');
+            console.log('[Bridge4] Available CoinStore resources:', 
+              resources
+                .filter((r: any) => r.type?.includes('CoinStore'))
+                .map((r: any) => r.type)
+                .slice(0, 5)
+            );
+            // Don't throw - let transaction proceed, it will fail with better error if balance is insufficient
+            setTransferStatus(`Warning: USDC balance not found. Transaction may fail if balance is insufficient.`);
+          }
+        }
+      } catch (balanceError: any) {
+        // If it's an explicit insufficient balance error, throw it
+        if (balanceError.message?.includes('Insufficient USDC balance')) {
+          throw balanceError;
+        }
+        // Otherwise, just warn and continue
+        console.warn('[Bridge4] Could not check USDC balance:', balanceError.message);
+        // Continue anyway, transaction will fail if balance is insufficient
+      }
+
       // Note: Gas Station doesn't support bytecode transactions
       // We'll use fee payer Account instead for sponsoring the transaction
 
-      // Convert Solana address to bytes and wrap as Aptos address for mint_recipient
-      const mintRecipientBytes = solanaAddressToHexBytes(solanaAddress);
+      // ВАЖНО: Для Solana destination mint_recipient должен быть адресом токен-аккаунта (ATA),
+      // а НЕ публичным ключом владельца!
+      // Программа на Solana сравнивает recipient_token_account.key() с mint_recipient из message_body
+      setTransferStatus("Computing Solana token account address (ATA)...");
+      const tokenAccountAddress = await getSolanaTokenAccountAddress(
+        destinationAddress || solanaAddress,
+        USDC_SOLANA
+      );
+      
+      console.log("[Bridge4] Solana token account (ATA) address:", tokenAccountAddress);
+      console.log("[Bridge4] Solana owner public key:", destinationAddress || solanaAddress);
+      
+      // Convert Solana token account address (ATA) to bytes and wrap as Aptos address for mint_recipient
+      const mintRecipientBytes = solanaAddressToHexBytes(tokenAccountAddress);
       const mintRecipientAddress = AccountAddress.from(mintRecipientBytes);
       
       setTransferStatus("Loading bytecode for deposit_for_burn...");
@@ -250,40 +354,74 @@ function Bridge4PageContent() {
       
       setTransferStatus("Building bytecode transaction with fee payer...");
 
-      // Build bytecode transaction with fee payer
-      // For bytecode transactions, we need to use the correct format
-      // Function arguments for deposit_for_burn:
-      // - amount: u64
-      // - destination_domain: u32 (5 for Solana)
-      // - mint_recipient: vector<u8> (Solana address as bytes)
-      // - burn_token: address (USDC token address on Aptos)
-      
-      // IMPORTANT: For bytecode Script payloads, Aptos TS-SDK expects *ScriptFunctionArgumentTypes*
-      // (BCS-serializable objects), not raw bigint/number/arrays/strings.
       // См. официальный пример Circle: depositForBurn.ts
       // https://github.com/circlefin/aptos-cctp/blob/master/typescript/example/depositForBurn.ts
       // Порядок и типы аргументов:
       // [ amount: u64, destinationDomain: u32, mintRecipient: address, burnToken: address ]
       const scriptFunctionArguments = [
-        new U64(amountOctas),                // amount: u64
-        new U32(DOMAIN_SOLANA),             // destination_domain: u32
-        mintRecipientAddress,               // mint_recipient: address (derived from Solana pubkey bytes)
+        new U64(amountOctas), // amount: u64
+        new U32(DOMAIN_SOLANA), // destination_domain: u32
+        mintRecipientAddress, // mint_recipient: address (derived from Solana ATA address bytes)
         AccountAddress.fromString(USDC_APTOS), // burn_token: address (USDC on Aptos)
       ];
 
-      // Build a proper sponsored bytecode transaction.
-      // Key detail: `feePayerAddress` must be provided to `build.simple` (top-level), otherwise
-      // `getSigningMessage()` can crash trying to read it from the internal raw transaction.
+      console.log('[Bridge4] Script function arguments:', {
+        amount: amountOctas.toString(),
+        amountFormatted: (Number(amountOctas) / 1_000_000).toFixed(6),
+        destinationDomain: DOMAIN_SOLANA,
+        mintRecipient: mintRecipientAddress.toString(),
+        mintRecipientHex: Array.from(mintRecipientBytes).map(b => b.toString(16).padStart(2, '0')).join(''),
+        burnToken: USDC_APTOS,
+        tokenAccountAddress: tokenAccountAddress,
+        solanaOwner: destinationAddress || solanaAddress,
+      });
+
+      // Build bytecode transaction WITHOUT fee payer - derived wallet will pay gas
       const isDerivedWallet = aptosWallet && !aptosWallet.isAptosNativeWallet;
+
+      // Check APT balance on derived wallet to ensure it can pay for gas
+      if (isDerivedWallet) {
+        try {
+          const accountResources = await aptosClient.getAccountResources({
+            accountAddress: aptosAccount.address,
+          });
+          
+          const aptCoinResource = accountResources.find(
+            (r: any) => r.type === "0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>"
+          );
+          
+          const aptBalance = aptCoinResource 
+            ? BigInt((aptCoinResource.data as any).coin.value)
+            : BigInt(0);
+          
+          const minRequiredApt = BigInt(100000) * BigInt(100) / BigInt(1e8); // maxGasAmount * gasUnitPrice / octas per APT
+          
+          console.log('[Bridge4] Derived wallet APT balance check:', {
+            balance: aptBalance.toString(),
+            balanceFormatted: (Number(aptBalance) / 1e8).toFixed(8),
+            minRequired: minRequiredApt.toString(),
+            minRequiredFormatted: (Number(minRequiredApt) / 1e8).toFixed(8),
+            hasEnoughBalance: aptBalance >= minRequiredApt,
+          });
+          
+          if (aptBalance < minRequiredApt) {
+            throw new Error(
+              `Insufficient APT balance for gas. Required: ${(Number(minRequiredApt) / 1e8).toFixed(8)} APT, ` +
+              `Available: ${(Number(aptBalance) / 1e8).toFixed(8)} APT`
+            );
+          }
+        } catch (balanceErr: any) {
+          console.warn('[Bridge4] Failed to check APT balance (may be new account):', balanceErr?.message);
+          // Continue anyway - transaction will fail if balance is insufficient
+        }
+      }
 
       // Ставим expireTimestamp по времени сети Aptos, чтобы транзакция не протухала во время подписи
       const expireTimestamp = await getAptosExpireTimestampSecs(1800); // 30 минут
 
       const transaction = await aptosClient.transaction.build.simple({
         sender: aptosAccount.address,
-        withFeePayer: true,
-        // TS types sometimes don't expose this yet; runtime supports it.
-        feePayerAddress: feePayerAccount.accountAddress,
+        withFeePayer: false, // No fee payer - derived wallet pays gas
         data: {
           bytecode: bytecode,
           typeArguments: [],
@@ -294,66 +432,118 @@ function Bridge4PageContent() {
           gasUnitPrice: 100,
           ...(expireTimestamp ? { expireTimestamp } : {}),
         },
-      } as any);
+      });
 
-      console.log('[Bridge4] Sponsored bytecode transaction built (with feePayerAddress)');
+      console.log('[Bridge4] Bytecode transaction built (NO fee payer - derived wallet pays gas)');
+      console.log('[Bridge4] Transaction details:', {
+        sender: aptosAccount.address.toString(),
+        senderHex: aptosAccount.address.toString(),
+        bytecodeSize: bytecode.length,
+        scriptArgs: scriptFunctionArguments,
+        mintRecipient: scriptFunctionArguments[2],
+        isDerivedWallet,
+      });
 
       let senderAuthenticator;
 
       if (isDerivedWallet) {
         console.log('[Bridge4] Derived wallet detected');
+        console.log('[Bridge4] Derived wallet address:', aptosAccount.address.toString());
+        console.log('[Bridge4] Derived wallet capabilities:', {
+          hasSignAndSubmitTransaction: !!signAndSubmitTransaction,
+          hasSignTransaction: !!signTransaction,
+          hasAptosSignTransaction: !!aptosWallet?.features?.["aptos:signTransaction"],
+        });
 
-        // Prefer the Aptos wallet adapter signing path first.
-        // Now that Script args are proper BCS types, many derived wallets can sign successfully.
-        if (aptosWallet?.features?.["aptos:signTransaction"]) {
-          try {
-            setTransferStatus("Please approve the transaction in your wallet...");
-            const walletSignResult = await aptosWallet.features["aptos:signTransaction"].signTransaction(transaction as any);
-            if (walletSignResult.status === "rejected") {
-              throw new Error("User rejected the transaction");
-            }
-            senderAuthenticator = walletSignResult.args;
-            console.log("[Bridge4] Sender signed via aptos:signTransaction (derived wallet)");
-          } catch (e: any) {
-            console.warn("[Bridge4] aptos:signTransaction failed for derived wallet, falling back to Solana signMessage:", e?.message || e);
-          }
+        // Note: signAndSubmitTransaction doesn't support bytecode transactions with fee payer
+        // So we must use manual signing path for derived wallets with bytecode + fee payer
+
+        // For derived wallets with Account Abstraction, we MUST use signAptosTransactionWithSolana
+        // to get the correct AccountAuthenticatorAbstraction type.
+        // aptos:signTransaction may return wrong authenticator type for bytecode transactions.
+        console.log("[Bridge4] Using signAptosTransactionWithSolana for derived wallet (required for Account Abstraction)");
+
+        // Get authentication function and domain from wallet if available, otherwise use defaults
+        const authenticationFunction = (aptosWallet as any)?.authenticationFunction || 
+          "0x1::solana_derivable_account::authenticate";
+        const domain = (aptosWallet as any)?.domain || 
+          (typeof window !== "undefined" ? window.location.host : "localhost");
+
+        console.log('[Bridge4] Using authentication function:', authenticationFunction);
+        console.log('[Bridge4] Using domain:', domain);
+
+        // For signAptosTransactionWithSolana, we need to pass the transaction object itself
+        // The transaction object from build.simple is already an AnyRawTransaction
+        // It has a nested rawTransaction property that contains the actual RawTransaction
+        const rawTransaction = transaction as any;
+        
+        console.log('[Bridge4] Raw transaction details:', {
+          transactionType: transaction?.constructor?.name,
+          hasRawTransaction: !!(rawTransaction as any).rawTransaction,
+          rawTransactionNestedType: (rawTransaction as any).rawTransaction?.constructor?.name,
+          hasFeePayerAddress: !!transaction.feePayerAddress,
+          feePayerAddress: transaction.feePayerAddress?.toString(),
+        });
+
+        if (!solanaWallet || !solanaPublicKey) {
+          throw new Error('Solana wallet not connected. Please connect a Solana wallet.');
         }
 
-        // Fallback: sign Aptos signing message via Solana signMessage (not supported by all Solana wallets).
-        if (!senderAuthenticator) {
-          console.log('[Bridge4] Using Solana signMessage fallback for derived wallet');
+        // Create adapter object with publicKey and signMessage for signAptosTransactionWithSolana
+        // signAptosTransactionWithSolana expects solanaWallet.publicKey and solanaWallet.signMessage to exist
+        // Note: solanaWallet from useSolanaWallet() has signMessage in the hook, not directly on wallet
+        // We need to create an adapter-like object that has both publicKey and signMessage
+        const solanaWalletAdapter = {
+          ...solanaWallet,
+          publicKey: solanaPublicKey,
+          signMessage: signMessage || (solanaWallet as any)?.adapter?.signMessage,
+          name: (solanaWallet as any)?.adapter?.name || (solanaWallet as any)?.name || 'Solana Wallet',
+        } as unknown as SolanaWalletAdapter;
+        
+        console.log('[Bridge4] Solana wallet adapter prepared:', {
+          hasPublicKey: !!solanaWalletAdapter.publicKey,
+          publicKeyBase58: solanaPublicKey?.toBase58(),
+          hasSignMessage: !!solanaWalletAdapter.signMessage,
+          walletName: solanaWalletAdapter.name,
+        });
 
-          const signingMessage = aptosClient.transaction.getSigningMessage({ transaction });
-          console.log('[Bridge4] Signing message obtained, length:', signingMessage.length);
+        setTransferStatus('Please sign the transaction in your Solana wallet...');
+        
+        try {
+          const signResult = await signAptosTransactionWithSolana({
+            solanaWallet: solanaWalletAdapter,
+            authenticationFunction,
+            rawTransaction,
+            domain,
+          });
 
-          if (!solanaWallet?.signMessage) {
-            throw new Error('Solana wallet does not support signMessage. Please use a Solana wallet that supports message signing (e.g. Phantom/Solflare) or a native Aptos wallet.');
+          if (signResult.status === UserResponseStatus.REJECTED) {
+            throw new Error("User rejected the transaction");
           }
 
-          setTransferStatus('Please sign the message in your Solana wallet...');
-          const signatureResult = await solanaWallet.signMessage(new Uint8Array(signingMessage));
-
-          if (!signatureResult?.signature) {
-            throw new Error('Failed to get signature from Solana wallet');
+          if (signResult.status !== UserResponseStatus.APPROVED || !signResult.args) {
+            throw new Error("Transaction signing failed or was rejected");
           }
 
-          const signatureBytes = signatureResult.signature;
-          if (signatureBytes.length !== 64) {
-            throw new Error(`Invalid signature length: expected 64 bytes, got ${signatureBytes.length}`);
-          }
-
-          const publicKey = aptosAccount.publicKey;
-          const publicKeyBytes =
-            publicKey instanceof Ed25519PublicKey ? publicKey.toUint8Array() : publicKey.toUint8Array();
-
-          const ed25519PublicKey = new Ed25519PublicKey(publicKeyBytes);
-          const ed25519Signature = new Ed25519Signature(new Uint8Array(signatureBytes));
-          senderAuthenticator = new AccountAuthenticatorSingleKey(
-            new AnyPublicKey(ed25519PublicKey),
-            new AnySignature(ed25519Signature),
-          );
-
-          console.log('[Bridge4] Sender authenticator built from Solana signature');
+          senderAuthenticator = signResult.args;
+          console.log('[Bridge4] Sender authenticator built via signAptosTransactionWithSolana');
+          console.log('[Bridge4] Sender authenticator:', senderAuthenticator);
+          console.log('[Bridge4] Sender authenticator type:', senderAuthenticator?.constructor?.name);
+          console.log('[Bridge4] Sender authenticator instanceof AccountAuthenticatorAbstraction:', senderAuthenticator instanceof AccountAuthenticatorAbstraction);
+          console.log('[Bridge4] Sender authenticator details:', {
+            type: senderAuthenticator?.constructor?.name,
+            functionInfo: (senderAuthenticator as any)?.functionInfo,
+            hasAbstractionSignature: !!(senderAuthenticator as any)?.abstractionSignature,
+            hasSigningMessageDigest: !!(senderAuthenticator as any)?.signingMessageDigest,
+            hasAccountIdentity: !!(senderAuthenticator as any)?.accountIdentity,
+            abstractionSignatureLength: (senderAuthenticator as any)?.abstractionSignature?.length,
+            signingMessageDigestLength: (senderAuthenticator as any)?.signingMessageDigest?.length,
+            accountIdentityLength: (senderAuthenticator as any)?.accountIdentity?.length,
+            isAccountAuthenticatorAbstraction: senderAuthenticator instanceof AccountAuthenticatorAbstraction,
+          });
+        } catch (e: any) {
+          console.error('[Bridge4] signAptosTransactionWithSolana failed:', e);
+          throw new Error(`Failed to sign transaction with Solana wallet: ${e?.message || e}`);
         }
       } else {
         console.log('[Bridge4] Native Aptos wallet detected, requesting aptos:signTransaction');
@@ -364,51 +554,64 @@ function Bridge4PageContent() {
         }
 
         const walletSignResult = await aptosWallet.features['aptos:signTransaction'].signTransaction(transaction);
-        if (walletSignResult.status === 'rejected') {
+        if (walletSignResult.status === UserResponseStatus.REJECTED) {
           throw new Error('User rejected the transaction');
+        }
+        if (walletSignResult.status !== UserResponseStatus.APPROVED || !walletSignResult.args) {
+          throw new Error('Transaction signing failed or was rejected');
         }
         senderAuthenticator = walletSignResult.args;
       }
 
-      console.log('[Bridge4] User transaction signed, signing as fee payer...');
-      setTransferStatus("Fee payer is signing the transaction...");
-
-      // Sign as fee payer (service wallet pays for gas)
-      const feePayerAuthenticator = aptosClient.transaction.signAsFeePayer({
-        signer: feePayerAccount,
-        transaction: transaction,
-      });
-
-      // Simulate before submit to получить vm_status (но не блокировать отправку,
-      // если симуляция не поддерживает наш тип ключей, как в случае derived кошельков).
+      // Simulate before submit to получить vm_status
+      // Для derived кошельков симуляция может не работать, но попробуем
       try {
         setTransferStatus("Simulating transaction (debug)...");
         const sim = await aptosClient.transaction.simulate.simple({
           transaction,
-          // signerPublicKey / feePayerPublicKey опускаем — для debug нам важен vm_status,
-          // а не корректная подпись симуляции.
+          // Для derived кошельков симуляция может требовать правильные ключи
+          // но мы пропускаем их, так как симуляция может не поддерживать derived ключи
         });
         const first = sim?.[0];
-        console.log("[Bridge4] Simulation result:", first);
+        console.log("[Bridge4] Simulation result:", {
+          success: first?.success,
+          vm_status: first?.vm_status,
+          gas_used: first?.gas_used,
+          hash: first?.hash,
+        });
+        
         if (first && first.success === false) {
-          console.warn("[Bridge4] Simulation vm_status:", first.vm_status);
-          // Пока только логируем vm_status, но не блокируем отправку — так мы увидим
-          // причину abort в логах, не ломая UX.
+          console.warn("[Bridge4] Simulation failed with vm_status:", first.vm_status);
+          // Если симуляция показывает ошибку, это может быть реальная проблема
+          // Но для derived кошельков симуляция может быть неточной
+        } else if (first && first.success === true) {
+          console.log("[Bridge4] Simulation passed - transaction should succeed");
         }
       } catch (simErr: any) {
-        console.warn("[Bridge4] Simulation failed (still may submit):", simErr?.message || simErr);
-        // Ошибка "Unsupported PublicKey used for simulations" для derived кошельков — нормальная,
-        // просто игнорируем и продолжаем отправку.
+        console.warn("[Bridge4] Simulation failed (may be normal for derived wallets):", simErr?.message || simErr);
+        // Ошибка "Unsupported PublicKey used for simulations" для derived кошельков — нормальная
       }
 
-      console.log('[Bridge4] Fee payer signed, submitting transaction...');
-      setTransferStatus("Submitting transaction with fee payer...");
+      console.log('[Bridge4] Submitting transaction (derived wallet pays gas)...');
+      setTransferStatus("Submitting transaction...");
 
-      // Submit transaction with both authenticators (user + fee payer)
+      // Log transaction details before submission
+      console.log('[Bridge4] Transaction details before submission:', {
+        sender: aptosAccount.address.toString(),
+        hasSenderAuthenticator: !!senderAuthenticator,
+        transactionHash: (transaction as any).hash?.toString(),
+        isDerivedWallet,
+        senderAuthenticatorType: senderAuthenticator?.constructor?.name,
+        hasFeePayer: false,
+      });
+
+      // Transaction sender is already set correctly when building (aptosAccount.address)
+      // No need to verify - we control the sender when building the transaction
+
+      // Submit transaction WITHOUT fee payer - derived wallet pays gas
       const response = await aptosClient.transaction.submit.simple({
         transaction: transaction,
         senderAuthenticator: senderAuthenticator,
-        feePayerAuthenticator: feePayerAuthenticator,
       });
 
       if (!response || !response.hash) {
@@ -434,19 +637,41 @@ function Bridge4PageContent() {
       console.error('[Bridge4] Transfer error:', e);
       // Print AptosApiError payload when available (contains vm_status / details)
       try {
-        console.error("[Bridge4] AptosApiError details:", {
+        const errorDetails: any = {
           message: e?.message,
           status: e?.status,
           data: e?.data,
           response: e?.response,
+        };
+        
+        // Extract vm_error_code if available
+        if (e?.data?.vm_error_code) {
+          errorDetails.vm_error_code = e.data.vm_error_code;
+          errorDetails.vm_error_type = e.data.error_code;
+        }
+        
+        // Extract error message from data if available
+        if (e?.data?.message) {
+          errorDetails.dataMessage = e.data.message;
+        }
+        
+        console.error("[Bridge4] AptosApiError details:", errorDetails);
+        
+        // Provide more helpful error message for common errors
+        let userMessage = e?.message || "Failed to initiate burn transaction";
+        if (e?.data?.vm_error_code === 4016) {
+          userMessage = "Transaction aborted. This usually means insufficient USDC balance or invalid transaction parameters. Please check your USDC balance and try again.";
+        } else if (e?.data?.vm_error_code) {
+          userMessage = `Transaction failed with error code ${e.data.vm_error_code}. ${e?.data?.message || e?.message || "Please try again."}`;
+        }
+        
+        setTransferStatus(`Error: ${userMessage}`);
+        toast({
+          variant: "destructive",
+          title: "Transfer Failed",
+          description: userMessage,
         });
       } catch {}
-      setTransferStatus(`Error: ${e?.message || "Unknown error"}`);
-      toast({
-        variant: "destructive",
-        title: "Transfer Failed",
-        description: e?.message || "Failed to initiate burn transaction",
-      });
     } finally {
       setIsTransferring(false);
     }

@@ -47,6 +47,23 @@ export function useSolanaPortfolio(): SolanaPortfolioState {
 
       const data = await response.json();
       
+      console.log(`[useSolanaPortfolio] 📥 API response received:`, {
+        ok: response.ok,
+        status: response.status,
+        tokensCount: data.tokens?.length || 0,
+        totalValueUsd: data.totalValueUsd,
+        tokens: data.tokens?.map((t: any) => ({
+          address: t.address,
+          symbol: t.symbol,
+          name: t.name,
+          decimals: t.decimals,
+          price: t.price,
+          value: t.value,
+          hasLogoUrl: !!t.logoUrl,
+          logoUrl: t.logoUrl,
+        })) || [],
+      });
+      
       if (addressRef.current !== currentAddress) {
         return;
       }
@@ -63,6 +80,11 @@ export function useSolanaPortfolio(): SolanaPortfolioState {
         return;
       }
 
+      console.log(`[useSolanaPortfolio] ✅ Setting tokens and totalValueUsd:`, {
+        tokensCount: data.tokens?.length || 0,
+        totalValueUsd: data.totalValueUsd,
+      });
+      
       setTokens(data.tokens ?? []);
       setTotalValueUsd(
         typeof data.totalValueUsd === "number" ? data.totalValueUsd : null,

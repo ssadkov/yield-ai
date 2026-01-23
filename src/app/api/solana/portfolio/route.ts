@@ -13,8 +13,25 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    console.log(`[API /api/solana/portfolio] 📡 Request received for address: ${address}`);
     const portfolioService = SolanaPortfolioService.getInstance();
     const portfolio = await portfolioService.getPortfolio(address);
+    
+    console.log(`[API /api/solana/portfolio] ✅ Portfolio fetched successfully:`, {
+      tokensCount: portfolio.tokens.length,
+      totalValueUsd: portfolio.totalValueUsd,
+      tokens: portfolio.tokens.map(t => ({
+        address: t.address,
+        symbol: t.symbol,
+        name: t.name,
+        decimals: t.decimals,
+        price: t.price,
+        value: t.value,
+        hasLogoUrl: !!t.logoUrl,
+        logoUrl: t.logoUrl,
+      })),
+    });
+    
     return NextResponse.json(portfolio);
   } catch (error: any) {
     console.error("Failed to load Solana portfolio:", error);

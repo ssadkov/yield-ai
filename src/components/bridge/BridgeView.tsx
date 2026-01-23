@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, type ReactNode } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -51,6 +51,11 @@ interface BridgeViewProps {
   availableBalance?: string | null;
   hideSourceWallet?: boolean;
   hideDestinationAddress?: boolean;
+  walletSection?: ReactNode;
+  bothWalletsConnected?: boolean;
+  missingWalletAlert?: ReactNode;
+  bridgeButtonDisabled?: boolean;
+  bridgeButtonAlert?: ReactNode;
 }
 
 export function BridgeView({
@@ -78,6 +83,11 @@ export function BridgeView({
   availableBalance,
   hideSourceWallet = false,
   hideDestinationAddress = false,
+  walletSection,
+  bothWalletsConnected = false,
+  missingWalletAlert,
+  bridgeButtonDisabled = false,
+  bridgeButtonAlert,
 }: BridgeViewProps) {
   const searchParams = useSearchParams();
   const { publicKey: solanaPublicKey, connected: solanaConnected } = useSolanaWallet();
@@ -118,6 +128,22 @@ export function BridgeView({
             </p>
           </div>
 
+          {/* Wallet Section */}
+          {walletSection && (
+            <div className="pt-2 flex justify-end">
+              <div className="w-auto">
+                {walletSection}
+              </div>
+            </div>
+          )}
+
+          {/* Missing Wallet Alert */}
+          {missingWalletAlert && (
+            <div className="pt-2">
+              {missingWalletAlert}
+            </div>
+          )}
+
           {/* Source Asset */}
           <div className="space-y-4">
             <AssetPicker
@@ -128,7 +154,7 @@ export function BridgeView({
               tokens={tokens}
               onChainSelect={onSourceChainSelect}
               onTokenSelect={onSourceTokenSelect}
-              disabled={disableAssetSelection}
+              disabled={disableAssetSelection || !bothWalletsConnected}
             />
 
             {/* Swap Button */}
@@ -154,7 +180,7 @@ export function BridgeView({
               tokens={tokens}
               onChainSelect={onDestChainSelect}
               onTokenSelect={onDestTokenSelect}
-              disabled={disableAssetSelection}
+              disabled={disableAssetSelection || !bothWalletsConnected}
             />
           </div>
 
@@ -166,6 +192,7 @@ export function BridgeView({
                 onChange={onAmountChange}
                 tokenSymbol={sourceToken.symbol}
                 maxAmount={10}
+                disabled={!bothWalletsConnected}
               />
               {availableBalance !== null && availableBalance !== undefined && (
                 <p className="text-sm text-muted-foreground text-right">
@@ -175,78 +202,11 @@ export function BridgeView({
             </div>
           )}
 
-          {/* Wallets */}
-          {(!hideSourceWallet || !hideDestinationAddress || (hideDestinationAddress && destChain?.id === 'Solana')) && (
-            <div className="space-y-4 pt-4 border-t">
-              {!hideSourceWallet && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">
-                    Source Wallet
-                  </label>
-                  {sourceChain?.id === 'Solana' ? (
-                    <SolanaWalletSelector onWalletChange={() => {}} />
-                  ) : (
-                    <div className="p-3 border rounded text-sm text-muted-foreground">
-                      Connect {sourceChain?.name || 'source'} wallet
-                    </div>
-                  )}
-                </div>
-              )}
 
-              {!hideDestinationAddress && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">
-                    Destination Wallet Address
-                  </label>
-                  <div className="relative">
-                    <Input
-                      type="text"
-                      value={destinationAddress}
-                      onChange={(e) => onDestinationAddressChange(e.target.value)}
-                      placeholder={`Enter ${destChain?.name || 'destination'} wallet address`}
-                      className="font-mono text-sm pr-10"
-                    />
-                    {isGeneratedWallet && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                              <CheckCircle2 className="h-5 w-5 text-green-500" />
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Generated Aptos wallet for this Solana address</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Show connected Solana wallet when destination is Solana and address field is hidden */}
-              {hideDestinationAddress && destChain?.id === 'Solana' && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">
-                    Destination Wallet (Solana)
-                  </label>
-                  {solanaConnected && solanaAddress ? (
-                    <div className="p-3 border rounded bg-muted/50">
-                      <div className="flex items-center justify-between">
-                        <div className="font-mono text-sm">{solanaAddress}</div>
-                        <CheckCircle2 className="h-4 w-4 text-green-500" />
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Funds will be sent to your connected Solana wallet
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="p-3 border rounded">
-                      <SolanaWalletSelector onWalletChange={() => {}} />
-                    </div>
-                  )}
-                </div>
-              )}
+          {/* Bridge Button Alert */}
+          {bridgeButtonAlert && (
+            <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded text-sm text-yellow-800 dark:text-yellow-200">
+              {bridgeButtonAlert}
             </div>
           )}
 
@@ -260,19 +220,7 @@ export function BridgeView({
           {/* Transfer Button */}
           <Button
             onClick={onTransfer}
-            disabled={
-              !sourceChain ||
-              !sourceToken ||
-              !destChain ||
-              !destToken ||
-              !amount ||
-              !amount.trim() ||
-              isNaN(parseFloat(amount)) ||
-              parseFloat(amount) <= 0 ||
-              (!hideDestinationAddress && !destinationAddress.trim()) ||
-              (hideDestinationAddress && destChain?.id === 'Solana' && !solanaConnected) ||
-              isTransferring
-            }
+            disabled={bridgeButtonDisabled || isTransferring}
             className="w-full h-12 text-lg font-semibold"
           >
             {isTransferring ? 'Transferring...' : 'Bridge'}
