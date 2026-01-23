@@ -1576,6 +1576,11 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                       window.open(`https://hyperion.xyz/pool/${item.token}`, '_blank');
                                     } else if (item.protocol === 'Tapp Exchange') {
                                       window.open(`https://tapp.exchange/pool`, '_blank');
+                                    } else if (item.protocol === 'Thala') {
+                                      const poolAddress = (item as any).lptAddress || item.token;
+                                      if (poolAddress) {
+                                        window.open(`https://app.thala.fi/pools/${poolAddress}`, '_blank');
+                                      }
                                     }
                                   }}
                                   className="w-full"
