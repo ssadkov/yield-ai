@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { formatNumber, formatCurrency } from "@/lib/utils/numberFormat";
 import { ClaimSuccessModal } from '@/components/ui/claim-success-modal';
+import { ExternalLink } from "lucide-react";
 
 interface ThalaTokenAmount {
   address: string;
@@ -268,15 +269,38 @@ function ThalaPositionCard({ position, index, onClaimSuccess }: ThalaPositionPro
               </TooltipProvider>
             </div>
           )}
-          {position.rewards.length > 0 && position.rewardsValueUSD >= 0.01 && (
-            <button
-              className="px-3 py-1 bg-success text-success-foreground rounded text-sm font-semibold disabled:opacity-60"
-              onClick={handleClaimRewards}
-              disabled={isClaiming}
-            >
-              {isClaiming ? 'Claiming...' : 'Claim'}
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {position.rewards.length > 0 && position.rewardsValueUSD >= 0.01 && (
+              <button
+                className="px-3 py-1 bg-success text-success-foreground rounded text-sm font-semibold disabled:opacity-60"
+                onClick={handleClaimRewards}
+                disabled={isClaiming}
+              >
+                {isClaiming ? 'Claiming...' : 'Claim'}
+              </button>
+            )}
+            {position.poolAddress && position.positionAddress && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      className="px-3 py-1 bg-secondary text-secondary-foreground rounded text-sm font-semibold hover:bg-secondary/80 transition-colors flex items-center gap-1.5"
+                      onClick={() => {
+                        const manageUrl = `https://app.thala.fi/pools/${position.poolAddress}/positions/${position.positionAddress}`;
+                        window.open(manageUrl, '_blank');
+                      }}
+                    >
+                      Manage
+                      <ExternalLink className="h-3 w-3" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Position management is performed on the Thala website</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
         </div>
       </div>
     </div>
