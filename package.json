@@ -81,6 +81,10 @@
     "tw-animate-css": "^1.3.4",
     "typescript": "^5"
   },
+  "optionalDependencies": {
+    "@tailwindcss/oxide-linux-x64-gnu": "^4.1.11",
+    "lightningcss-linux-x64-gnu": "^1.30.1"
+  },
   "overrides": {
     "@wormhole-foundation/sdk-connect": "4.7.1",
     "@wormhole-foundation/sdk-definitions": "4.7.1",
