@@ -77,7 +77,7 @@ function BridgePageContent() {
   // Wallet connections
   const { publicKey: solanaPublicKey, connected: solanaConnected, disconnect: disconnectSolana, wallet: solanaWallet, wallets, select, connect: connectSolana, signTransaction: signSolanaTransaction, signMessage: signSolanaMessage } = useSolanaWallet();
   const { connection: solanaConnection } = useConnection();
-  const { account: aptosAccount, connected: aptosConnected, wallet: aptosWallet, disconnect: disconnectAptos, connecting: aptosConnecting } = useAptosWallet();
+  const { account: aptosAccount, connected: aptosConnected, wallet: aptosWallet, disconnect: disconnectAptos } = useAptosWallet();
   
   // Solana wallet selector state
   const [isSolanaDialogOpen, setIsSolanaDialogOpen] = useState(false);
@@ -132,7 +132,7 @@ function BridgePageContent() {
   const DOMAIN_APTOS = 9;
 
   // Check if both wallets are connected
-  const bothWalletsConnected = solanaConnected && aptosConnected && aptosAccount;
+  const bothWalletsConnected = Boolean(solanaConnected && aptosConnected && aptosAccount);
 
   // Determine missing wallet for alert
   const missingWallet = useMemo(() => {
@@ -738,12 +738,12 @@ function BridgePageContent() {
           burnTxHash = await executeAptosToSolanaBridge({
             amount: transferAmount,
             aptosAccount,
-            aptosWallet,
+            aptosWallet: aptosWallet as any,
             aptosClient,
             solanaPublicKey,
             solanaWallet,
             signMessage: signSolanaMessage ?? undefined,
-            transactionSubmitter: aptosTransactionSubmitter,
+            transactionSubmitter: aptosTransactionSubmitter as any,
             destinationSolanaAddress: destSolana,
             onStatusUpdate: (s) => {
               setTransferStatus(s);
@@ -758,7 +758,7 @@ function BridgePageContent() {
           burnTxHash = await executeAptosNativeToSolanaBridge({
             amount: transferAmount,
             aptosAccount,
-            aptosWallet,
+            aptosWallet: aptosWallet as any,
             aptosClient,
             destinationSolanaAddress: destSolana,
             onStatusUpdate: (s) => {
@@ -1053,7 +1053,7 @@ function BridgePageContent() {
                       <Button 
                         size="sm" 
                         className="w-full"
-                        disabled={isAptosConnecting || aptosConnecting}
+                        disabled={isAptosConnecting}
                         onClick={(e) => {
                           e.stopPropagation();
                           // Find and click the hidden WalletSelector button
@@ -1064,7 +1064,7 @@ function BridgePageContent() {
                           }
                         }}
                       >
-                        {(isAptosConnecting || aptosConnecting) ? (
+                        {isAptosConnecting ? (
                           <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             Connecting...

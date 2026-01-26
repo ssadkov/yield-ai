@@ -610,8 +610,8 @@ function MintingSolanaPageContent() {
       // Вариант 1: ["message_transmitter"]
       // Вариант 2: ["state"] 
       // Вариант 3: использовать сам program ID
-      let messageTransmitterStateAccount: PublicKey;
-      let messageTransmitterBump: number;
+      let messageTransmitterStateAccount: any;
+      let messageTransmitterBump: number = 0;
       let messageTransmitterAccountInfo: any = null;
       
       // Пробуем разные варианты seeds для message_transmitter PDA
@@ -679,7 +679,7 @@ function MintingSolanaPageContent() {
         { name: '["authority", message_transmitter_state]', seeds: [Buffer.from("authority"), messageTransmitterStateAccount.toBuffer()] },
       ];
       
-      let messageTransmitterAuthorityPDA: PublicKey | null = null;
+      let messageTransmitterAuthorityPDA: any = null;
       let authoritySeedsName = '';
       
       for (const variant of possibleAuthoritySeeds) {
@@ -737,7 +737,7 @@ function MintingSolanaPageContent() {
         { name: '["event_authority", message_transmitter_state]', seeds: [Buffer.from("event_authority"), messageTransmitterStateAccount.toBuffer()] },
       ];
 
-      let eventAuthorityPDA: PublicKey | null = null;
+      let eventAuthorityPDA: any = null;
       let eventAuthoritySeedsName = '';
 
       // Пробуем с MESSAGE_TRANSMITTER_PROGRAM_ID (так как ошибка приходит от MessageTransmitter)
@@ -843,7 +843,7 @@ function MintingSolanaPageContent() {
         { name: '["remote_token_messenger", source_domain (as u8)]', seeds: [Buffer.from("remote_token_messenger"), Buffer.from([SOURCE_DOMAIN])] },
       ];
 
-      let remoteTokenMessengerPDA: PublicKey | null = null;
+      let remoteTokenMessengerPDA: any = null;
       let remoteTokenMessengerSeedsName = '';
 
       for (const variant of possibleRemoteTokenMessengerSeeds) {
@@ -1042,7 +1042,7 @@ function MintingSolanaPageContent() {
         },
       ];
       
-      let usedNoncesPDA: PublicKey | null = null;
+      let usedNoncesPDA: any = null;
       let usedSeedsName = '';
       
       for (const variant of possibleUsedNoncesSeeds) {
@@ -1289,7 +1289,7 @@ function MintingSolanaPageContent() {
         { name: '["token_pair", source_domain (as string), burn_token (32 bytes)]', seeds: [Buffer.from("token_pair"), Buffer.from(SOURCE_DOMAIN.toString()), Buffer.from(burnTokenBytes)] },
       ];
       
-      let tokenPairPDA: PublicKey | null = null;
+      let tokenPairPDA: any = null;
       let tokenPairSeedsName = '';
       
       // Ищем правильный вариант
@@ -1500,7 +1500,7 @@ function MintingSolanaPageContent() {
       console.log('[Minting Solana] Transaction signed');
       // Проверяем подписи транзакции
       try {
-        const accountKeys = signedTransaction.message?.accountKeys || signedTransaction.message?.staticAccountKeys || [];
+        const accountKeys = (signedTransaction as any).message?.accountKeys || (signedTransaction as any).message?.staticAccountKeys || [];
         console.log('[Minting Solana] Signed transaction signatures:', signedTransaction.signatures.map((sig, idx) => ({
           index: idx,
           publicKey: accountKeys[idx]?.toBase58() || 'unknown',

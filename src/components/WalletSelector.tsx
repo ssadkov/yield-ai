@@ -48,15 +48,13 @@ import { useToast } from "./ui/use-toast";
 import { getSolanaWalletAddress } from "@/lib/wallet/getSolanaWalletAddress";
 
 export function WalletSelector(walletSortingOptions: WalletSortingOptions) {
-  const { account, connected, disconnect, wallet, connecting } = useWallet();
+  const { account, connected, disconnect, wallet } = useWallet();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
   const { toast } = useToast();
 
   const solanaAddress = useMemo(() => getSolanaWalletAddress(wallet), [wallet]);
-  
-  // Use connecting state from wallet adapter
-  const isConnecting = connecting || false;
 
   useEffect(() => {
     setMounted(true);

@@ -19,19 +19,19 @@ const MESSAGE_TRANSMITTER_PROGRAM_ID = new PublicKey("CCTPmbSD7gX1bxKPAmg77w8oFz
  * Find PDA using Anchor's utils
  */
 function findProgramAddress(label: string, programId: PublicKey, extraSeeds?: (string | Buffer | PublicKey | Uint8Array)[]): { publicKey: PublicKey; bump: number } {
-  const seeds = [Buffer.from(utils.bytes.utf8.encode(label))];
+  const seeds: Buffer[] = [Buffer.from(utils.bytes.utf8.encode(label))];
   if (extraSeeds) {
     for (const extraSeed of extraSeeds) {
       if (typeof extraSeed === 'string') {
         seeds.push(Buffer.from(utils.bytes.utf8.encode(extraSeed)));
       } else if (Array.isArray(extraSeed)) {
-        seeds.push(Buffer.from(extraSeed));
+        seeds.push(Buffer.from(extraSeed as unknown as ArrayBuffer));
       } else if (Buffer.isBuffer(extraSeed)) {
-        seeds.push(extraSeed);
+        seeds.push(extraSeed as any);
       } else if (extraSeed instanceof PublicKey) {
         seeds.push(extraSeed.toBuffer());
       } else if (extraSeed instanceof Uint8Array) {
-        seeds.push(Buffer.from(extraSeed));
+        seeds.push(Buffer.from(extraSeed as unknown as ArrayBuffer));
       }
     }
   }
@@ -263,7 +263,7 @@ export async function executeSolanaToAptosBridge(
     } catch (compileError: any) {
       console.warn('[SolanaToAptosBridge] Could not compile message after wallet signing:', compileError.message);
       // Fallback: try to get from message directly
-      finalAccountKeys = signed.message?.accountKeys || signed.message?.staticAccountKeys || [];
+      finalAccountKeys = (signed as any).message?.accountKeys || (signed as any).message?.staticAccountKeys || [];
       messageSendEventDataIndex = finalAccountKeys.findIndex((key: PublicKey) => 
         key && key.toBase58() === eventDataKeypair.publicKey.toBase58()
       );
@@ -273,7 +273,7 @@ export async function executeSolanaToAptosBridge(
     console.log('[SolanaToAptosBridge] All account keys after wallet signing:', finalAccountKeys.map((k: PublicKey, i: number) => ({
       index: i,
       pubkey: k.toBase58(),
-      isSigner: signed.message?.header?.numRequiredSignatures ? i < signed.message.header.numRequiredSignatures : false,
+        isSigner: (signed as any).message?.header?.numRequiredSignatures ? i < (signed as any).message.header.numRequiredSignatures : false,
       hasSignature: !!signed.signatures[i]?.signature,
     })));
     
@@ -363,7 +363,7 @@ export async function executeSolanaToAptosBridge(
     
     // Safely log signature details
     try {
-      const accountKeys = signed.message?.accountKeys || signed.message?.staticAccountKeys || [];
+        const accountKeys = (signed as any).message?.accountKeys || (signed as any).message?.staticAccountKeys || [];
       console.log('[SolanaToAptosBridge] Signatures:', signed.signatures.map((sig, idx) => ({
         index: idx,
         publicKey: accountKeys[idx]?.toBase58() || 'unknown',

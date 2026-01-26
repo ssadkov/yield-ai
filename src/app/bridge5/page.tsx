@@ -22,6 +22,7 @@ import {
   U64,
   Ed25519PrivateKey,
 } from "@aptos-labs/ts-sdk";
+import { UserResponseStatus } from "@aptos-labs/wallet-standard";
 
 // USDC token addresses
 const USDC_SOLANA = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"; // USDC on Solana
@@ -555,8 +556,11 @@ function Bridge5PageContent() {
         await aptosWallet.features["aptos:signTransaction"].signTransaction(
           transaction,
         );
-      if (walletSignResult.status === "rejected") {
+      if (walletSignResult.status === UserResponseStatus.REJECTED) {
         throw new Error("User rejected the transaction");
+      }
+      if (walletSignResult.status !== UserResponseStatus.APPROVED || !walletSignResult.args) {
+        throw new Error("Transaction signing failed or was rejected");
       }
       const senderAuthenticator = walletSignResult.args;
       console.log("[Bridge5] Sender signed via native Aptos wallet");

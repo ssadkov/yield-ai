@@ -2,12 +2,10 @@
 
 import { WalletProvider as SolanaWalletProvider } from '@solana/wallet-adapter-react';
 import { ConnectionProvider } from '@solana/wallet-adapter-react';
-import { 
-  SolflareWalletAdapter,
-  CoinbaseWalletAdapter,
-  TorusWalletAdapter,
-  LedgerWalletAdapter,
-} from '@solana/wallet-adapter-wallets';
+import { SolflareWalletAdapter } from '@solana/wallet-adapter-solflare';
+import { CoinbaseWalletAdapter } from '@solana/wallet-adapter-coinbase';
+import { TorusWalletAdapter } from '@solana/wallet-adapter-torus';
+import { LedgerWalletAdapter } from '@solana/wallet-adapter-ledger';
 import { useMemo, ReactNode } from 'react';
 
 // RPC endpoint for Solana
