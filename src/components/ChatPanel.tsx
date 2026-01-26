@@ -73,7 +73,7 @@ export default function ChatPanel() {
       toast({
         variant: "destructive",
         title: "Wallet Not Connected",
-        description: "Please connect your Aptos wallet to bridge USDC",
+        description: "Please connect your native Aptos wallet to bridge USDC",
       });
     }
   };
