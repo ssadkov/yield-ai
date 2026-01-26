@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Copy, LogOut, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Copy, LogOut, ChevronDown, Loader2 } from 'lucide-react';
 import { BridgeView } from '@/components/bridge/BridgeView';
 import { SolanaWalletProviderWrapper } from '../bridge2/SolanaWalletProvider';
 import { useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
@@ -28,7 +28,12 @@ import { formatCurrency } from '@/lib/utils/numberFormat';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { executeSolanaToAptosBridge } from '@/components/bridge/SolanaToAptosBridge';
+import { executeAptosToSolanaBridge } from '@/components/bridge/AptosToSolanaBridge';
+import { executeAptosNativeToSolanaBridge } from '@/components/bridge/AptosNativeToSolanaBridge';
 import { ActionLog, type ActionLogItem } from '@/components/bridge/ActionLog';
+import { useAptosClient } from '@/contexts/AptosClientContext';
+import { GasStationService } from '@/lib/services/gasStation';
+import { performMintOnSolana } from '@/lib/cctp-mint-core';
 import {
   Dialog,
   DialogContent,
@@ -70,14 +75,16 @@ function BridgePageContent() {
   const { toast } = useToast();
 
   // Wallet connections
-  const { publicKey: solanaPublicKey, connected: solanaConnected, disconnect: disconnectSolana, wallet: solanaWallet, wallets, select, connect: connectSolana, signTransaction: signSolanaTransaction } = useSolanaWallet();
+  const { publicKey: solanaPublicKey, connected: solanaConnected, disconnect: disconnectSolana, wallet: solanaWallet, wallets, select, connect: connectSolana, signTransaction: signSolanaTransaction, signMessage: signSolanaMessage } = useSolanaWallet();
   const { connection: solanaConnection } = useConnection();
-  const { account: aptosAccount, connected: aptosConnected, wallet: aptosWallet, disconnect: disconnectAptos } = useAptosWallet();
+  const { account: aptosAccount, connected: aptosConnected, wallet: aptosWallet, disconnect: disconnectAptos, connecting: aptosConnecting } = useAptosWallet();
   
   // Solana wallet selector state
   const [isSolanaDialogOpen, setIsSolanaDialogOpen] = useState(false);
+  const [isSolanaConnecting, setIsSolanaConnecting] = useState(false);
   // Aptos wallet selector state
   const [isAptosDialogOpen, setIsAptosDialogOpen] = useState(false);
+  const [isAptosConnecting, setIsAptosConnecting] = useState(false);
 
   // Balance expansion state
   const [isSolanaBalanceExpanded, setIsSolanaBalanceExpanded] = useState(false);
@@ -116,8 +123,13 @@ function BridgePageContent() {
     return aptosWallet && !aptosWallet.isAptosNativeWallet;
   }, [aptosWallet]);
 
+  const aptosClient = useAptosClient();
+  const aptosTransactionSubmitter = useMemo(() => GasStationService.getInstance().getTransactionSubmitter(), []);
+
   // Get Solana address
   const solanaAddress = solanaPublicKey?.toBase58() || null;
+
+  const DOMAIN_APTOS = 9;
 
   // Check if both wallets are connected
   const bothWalletsConnected = solanaConnected && aptosConnected && aptosAccount;
@@ -242,6 +254,7 @@ function BridgePageContent() {
 
   const handleSolanaWalletSelect = async (walletName: string) => {
     try {
+      setIsSolanaConnecting(true);
       select(walletName as WalletName);
       setIsSolanaDialogOpen(false);
       setTimeout(async () => {
@@ -257,9 +270,12 @@ function BridgePageContent() {
             title: "Connection Failed",
             description: error.message || "Failed to connect wallet",
           });
+        } finally {
+          setIsSolanaConnecting(false);
         }
       }, 100);
     } catch (error: any) {
+      setIsSolanaConnecting(false);
       toast({
         variant: "destructive",
         title: "Selection Failed",
@@ -418,6 +434,13 @@ function BridgePageContent() {
         );
 
         console.log('[Bridge] Burn transaction completed:', burnTxSignature);
+        // Last action is "Burn completed! Transaction: ..." (pending) from callback — mark it success
+        updateLastAction(
+          `Burn completed! Transaction: ${burnTxSignature.slice(0, 8)}...${burnTxSignature.slice(-8)}`,
+          'success',
+          `https://solscan.io/tx/${burnTxSignature}`,
+          'View transaction on Solscan'
+        );
         addAction(
           'Burn transaction sent on Solana',
           'success',
@@ -525,6 +548,20 @@ function BridgePageContent() {
               });
 
               const data = await response.json();
+
+              // 200 + pending = attestation not ready, retry (no 404 in console)
+              if (response.ok && data.data?.pending) {
+                if (attempt < maxAttempts) {
+                  updateLastAction(
+                    `Requesting attestation from Circle... (attempt ${attempt}/${maxAttempts}) — ${data.data?.message || 'waiting'}`,
+                    'pending',
+                    `https://iris-api.circle.com/v1/messages/5/${burnTxSignature}`,
+                    'View attestation request'
+                  );
+                  await new Promise(resolve => setTimeout(resolve, delay));
+                  continue;
+                }
+              }
 
               if (response.ok) {
                 // Success! Attestation received and minting completed
@@ -680,12 +717,167 @@ function BridgePageContent() {
         return; // Exit early, async operations will handle setIsTransferring(false)
 
       } else if (isAptosToSolana) {
-        // Aptos -> Solana: Use bridge5/bridge6 logic
+        // Aptos -> Solana: derived (Gas Station + Solana sign) или native (bytecode + Aptos sign, газ — кошелёк пользователя)
+        if (!aptosAccount || !aptosWallet || !solanaPublicKey || !signSolanaTransaction || !solanaConnection) {
+          throw new Error('Please connect both Solana and Aptos wallets');
+        }
+        const destSolana = destinationAddress || solanaAddress;
+        if (!destSolana) {
+          throw new Error('Solana destination address is required');
+        }
+
         setTransferStatus('Starting Aptos -> Solana bridge...');
-        console.log('[Bridge] Aptos -> Solana transfer initiated');
-        // TODO: Call AptosToSolanaBridge logic (from bridge5/bridge6)
-        setTransferStatus('Aptos -> Solana bridge: TODO - implement burn on Aptos');
+        updateLastAction('Starting Aptos -> Solana bridge...', 'pending');
+
+        let burnTxHash: string;
+        if (isDerivedWallet) {
+          if (!solanaWallet || !signSolanaMessage) {
+            throw new Error('Please connect Solana wallet (required for derived Aptos).');
+          }
+          console.log('[Bridge] Aptos -> Solana (derived wallet)');
+          burnTxHash = await executeAptosToSolanaBridge({
+            amount: transferAmount,
+            aptosAccount,
+            aptosWallet,
+            aptosClient,
+            solanaPublicKey,
+            solanaWallet,
+            signMessage: signSolanaMessage ?? undefined,
+            transactionSubmitter: aptosTransactionSubmitter,
+            destinationSolanaAddress: destSolana,
+            onStatusUpdate: (s) => {
+              setTransferStatus(s);
+              updateLastAction(s, 'pending');
+            },
+          });
+        } else {
+          if (!aptosWallet.isAptosNativeWallet) {
+            throw new Error('Use a native Aptos wallet (e.g. Petra) or connect via Solana for derived wallet.');
+          }
+          console.log('[Bridge] Aptos -> Solana (native wallet, bytecode, user pays gas)');
+          burnTxHash = await executeAptosNativeToSolanaBridge({
+            amount: transferAmount,
+            aptosAccount,
+            aptosWallet,
+            aptosClient,
+            destinationSolanaAddress: destSolana,
+            onStatusUpdate: (s) => {
+              setTransferStatus(s);
+              updateLastAction(s, 'pending');
+            },
+          });
+        }
+
+        updateLastAction(
+          `Burn completed! Transaction: ${burnTxHash.slice(0, 8)}...${burnTxHash.slice(-8)}`,
+          'success',
+          `https://explorer.aptoslabs.com/txn/${burnTxHash}?network=mainnet`,
+          'View transaction on Aptos Explorer'
+        );
+        addAction(
+          'Burn transaction sent on Aptos',
+          'success',
+          `https://explorer.aptoslabs.com/txn/${burnTxHash}?network=mainnet`,
+          'View transaction on Aptos Explorer'
+        );
+
+        setTransferStatus('Waiting for Aptos transaction confirmation...');
+        addAction('Waiting for Aptos transaction confirmation...', 'pending', `https://explorer.aptoslabs.com/txn/${burnTxHash}?network=mainnet`, 'View on Aptos Explorer');
+
+        const waitForAptosConfirmation = async (): Promise<void> => {
+          const maxAttempts = 30;
+          const delay = 2000;
+          for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            const res = await fetch(`https://fullnode.mainnet.aptoslabs.com/v1/transactions/by_hash/${burnTxHash}`);
+            if (res.ok) {
+              const txData = await res.json();
+              if (txData.success && txData.vm_status === 'Executed successfully') {
+                updateLastAction('Aptos transaction confirmed', 'success', `https://explorer.aptoslabs.com/txn/${burnTxHash}?network=mainnet`, 'View on Aptos Explorer');
+                return;
+              }
+              if (txData.vm_status) throw new Error(`Transaction failed: ${txData.vm_status}`);
+            }
+            if (attempt % 5 === 0) {
+              updateLastAction(`Waiting for Aptos confirmation... (${attempt}/${maxAttempts})`, 'pending', `https://explorer.aptoslabs.com/txn/${burnTxHash}?network=mainnet`, 'View on Aptos Explorer');
+            }
+            await new Promise((r) => setTimeout(r, delay));
+          }
+          throw new Error('Aptos transaction confirmation timeout');
+        };
+        await waitForAptosConfirmation();
+
+        // Circle API: GET /v1/messages/{sourceDomainId}/{transactionHash} — в пути обязательно "messages"
+        const irisBase = typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_CIRCLE_CCTP_ATTESTATION_URL
+          ? process.env.NEXT_PUBLIC_CIRCLE_CCTP_ATTESTATION_URL
+          : 'https://iris-api.circle.com/v1';
+        const maxAttestationAttempts = 15;
+        const initialAttestationDelay = 10000;
+        const maxAttestationDelay = 60000;
+        let attestationData: { messages: Array<{ message?: string; attestation?: string; eventNonce?: string }> } | null = null;
+        const attestationUrl = `${irisBase}/messages/${DOMAIN_APTOS}/${burnTxHash.trim()}`;
+
+        setTransferStatus('Waiting for attestation from Circle...');
+        addAction('Requesting attestation from Circle...', 'pending', attestationUrl, 'View attestation request');
+
+        for (let att = 1; att <= maxAttestationAttempts; att++) {
+          updateLastAction(
+            `Requesting attestation from Circle... (attempt ${att}/${maxAttestationAttempts})`,
+            'pending',
+            attestationUrl,
+            'View attestation request'
+          );
+          setTransferStatus(`Waiting for attestation... (attempt ${att}/${maxAttestationAttempts})`);
+          const attDelay = Math.min(initialAttestationDelay * Math.pow(2, att - 1), maxAttestationDelay);
+          if (att > 1) await new Promise((r) => setTimeout(r, attDelay));
+          const ar = await fetch(attestationUrl, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+          if (!ar.ok) {
+            if (ar.status === 404) continue;
+            throw new Error(`Circle API error: ${ar.status} ${ar.statusText}`);
+          }
+          const data = await ar.json();
+          if (!data?.messages?.length || !data.messages[0].message || !data.messages[0].attestation) continue;
+          const attVal = (data.messages[0].attestation || '').toUpperCase().trim();
+          if (attVal === 'PENDING' || attVal === 'PENDING...') continue;
+          attestationData = data;
+          break;
+        }
+        if (!attestationData) throw new Error('Attestation not ready after max attempts. Please try again later.');
+
+        updateLastAction('Attestation received from Circle', 'success', attestationUrl, 'View attestation');
+        setTransferStatus('Attestation received! Preparing mint on Solana (sign in wallet)...');
+        addAction('Preparing mint transaction on Solana...', 'pending');
+
+        let mintTxSignature: string;
+        try {
+          mintTxSignature = await performMintOnSolana(
+            attestationData as any,
+            destSolana,
+            solanaConnection,
+            solanaPublicKey,
+            signSolanaTransaction,
+            (s) => { setTransferStatus(s); updateLastAction(s, 'pending'); }
+          );
+        } catch (mintErr: any) {
+          updateLastAction(`Minting on Solana failed: ${mintErr?.message || 'Unknown error'}`, 'error');
+          setTransferStatus(`Minting failed: ${mintErr?.message || 'Unknown error'}`);
+          toast({
+            variant: 'destructive',
+            title: 'Minting on Solana Failed',
+            description: mintErr?.message || 'Please sign the mint transaction in your Solana wallet. You can retry or mint manually later.',
+          });
+          setIsTransferring(false);
+          return;
+        }
+
+        updateLastAction('USDC minted successfully on Solana', 'success', `https://solscan.io/tx/${mintTxSignature}`, 'View transaction on Solscan');
+        addAction('Bridge complete!', 'success');
+        setTransferStatus(`Transfer complete! USDC minted on Solana. Transaction: ${mintTxSignature.slice(0, 8)}...${mintTxSignature.slice(-8)}`);
+        toast({
+          title: 'USDC Minted on Solana',
+          description: `USDC has been minted on Solana. Transaction: ${mintTxSignature.slice(0, 8)}...${mintTxSignature.slice(-8)}`,
+        });
         setIsTransferring(false);
+        return;
       } else {
         throw new Error('Invalid bridge direction. Please select different chains for source and destination.');
       }
@@ -861,6 +1053,7 @@ function BridgePageContent() {
                       <Button 
                         size="sm" 
                         className="w-full"
+                        disabled={isAptosConnecting || aptosConnecting}
                         onClick={(e) => {
                           e.stopPropagation();
                           // Find and click the hidden WalletSelector button
@@ -871,7 +1064,14 @@ function BridgePageContent() {
                           }
                         }}
                       >
-                        Connect Aptos Wallet
+                        {(isAptosConnecting || aptosConnecting) ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Connecting...
+                          </>
+                        ) : (
+                          'Connect Aptos Wallet'
+                        )}
                       </Button>
                     </div>
                   )}
@@ -880,7 +1080,16 @@ function BridgePageContent() {
                 <div className="flex justify-end">
                   <Dialog open={isSolanaDialogOpen} onOpenChange={setIsSolanaDialogOpen}>
                     <DialogTrigger asChild>
-                      <Button size="sm">Connect Solana Wallet</Button>
+                      <Button size="sm" disabled={isSolanaConnecting}>
+                        {isSolanaConnecting ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Connecting...
+                          </>
+                        ) : (
+                          'Connect Solana Wallet'
+                        )}
+                      </Button>
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
@@ -901,6 +1110,7 @@ function BridgePageContent() {
                               variant="outline"
                               className="w-full justify-start"
                               onClick={() => handleSolanaWalletSelect(w.adapter.name)}
+                              disabled={isSolanaConnecting}
                             >
                               <div className="flex items-center gap-2">
                                 {w.adapter.icon && (

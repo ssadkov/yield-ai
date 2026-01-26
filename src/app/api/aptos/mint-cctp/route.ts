@@ -72,12 +72,12 @@ export async function POST(request: NextRequest) {
     if (!response.ok) {
       const errorText = await response.text();
       
-      // 404 means attestation not ready yet - return specific error for client retry logic
+      // Circle 404 = attestation not ready yet — return 200 + pending so client retries without console error
       if (response.status === 404) {
-        console.log('[Mint CCTP API] Attestation not ready yet (404)');
+        console.log('[Mint CCTP API] Attestation not ready yet (Circle 404)');
         return NextResponse.json(
-          createErrorResponse(new Error(`Attestation not ready yet. Please wait and try again.`)),
-          { status: 404 }
+          createSuccessResponse({ pending: true, message: 'Attestation not ready yet' }),
+          { status: 200 }
         );
       }
       
@@ -128,9 +128,10 @@ export async function POST(request: NextRequest) {
           length: attestationValue.length,
           isPending: upperAttestation === 'PENDING',
         });
+        // 200 + pending so client retries without console 404; no thrown error
         return NextResponse.json(
-          createErrorResponse(new Error(`Attestation not ready yet. Status: ${attestationValue.substring(0, 50)}`)),
-          { status: 404 } // Return 404 to trigger retry
+          createSuccessResponse({ pending: true, message: 'Attestation not ready yet' }),
+          { status: 200 }
         );
       }
     }

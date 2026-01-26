@@ -13,6 +13,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
+import { Loader2 } from 'lucide-react';
 
 interface SolanaWalletSelectorProps {
   onWalletChange?: (address: string | null) => void;
@@ -22,6 +23,7 @@ export function SolanaWalletSelector({ onWalletChange }: SolanaWalletSelectorPro
   const { wallet, wallets, select, connect, disconnect, connected, publicKey } = useWallet();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
 
   // Notify parent when wallet changes
   useEffect(() => {
@@ -29,6 +31,13 @@ export function SolanaWalletSelector({ onWalletChange }: SolanaWalletSelectorPro
       onWalletChange(publicKey?.toBase58() || null);
     }
   }, [publicKey, onWalletChange]);
+
+  // Reset connecting state when wallet connects
+  useEffect(() => {
+    if (connected) {
+      setIsConnecting(false);
+    }
+  }, [connected]);
 
   const availableWallets = useMemo(() => {
     // Include all wallets except those that are not detected
@@ -51,6 +60,7 @@ export function SolanaWalletSelector({ onWalletChange }: SolanaWalletSelectorPro
 
   const handleWalletSelect = async (walletName: string) => {
     try {
+      setIsConnecting(true);
       select(walletName as WalletName);
       setIsDialogOpen(false);
       
@@ -68,9 +78,12 @@ export function SolanaWalletSelector({ onWalletChange }: SolanaWalletSelectorPro
             title: "Connection Failed",
             description: error.message || "Failed to connect wallet",
           });
+        } finally {
+          setIsConnecting(false);
         }
       }, 100);
     } catch (error: any) {
+      setIsConnecting(false);
       toast({
         variant: "destructive",
         title: "Selection Failed",
@@ -175,6 +188,7 @@ export function SolanaWalletSelector({ onWalletChange }: SolanaWalletSelectorPro
                 variant="outline"
                 className="w-full justify-start"
                 onClick={() => handleWalletSelect(w.adapter.name)}
+                disabled={isConnecting}
               >
                 <div className="flex items-center gap-2">
                   {w.adapter.icon && (
