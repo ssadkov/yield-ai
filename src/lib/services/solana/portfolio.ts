@@ -138,47 +138,104 @@ export class SolanaPortfolioService {
       });
     }
 
+    console.log(`[SolanaPortfolio] 📊 Processing ${tokens.length} tokens before metadata`);
+    tokens.forEach((token, idx) => {
+      console.log(`[SolanaPortfolio] Token ${idx + 1}:`, {
+        address: token.address,
+        symbol: token.symbol,
+        name: token.name,
+        decimals: token.decimals,
+        amount: token.amount,
+        hasLogoUrl: !!token.logoUrl,
+      });
+    });
+
     const metadataService = JupiterTokenMetadataService.getInstance();
-    const metadataMap = await metadataService.getMetadataMap(
-      tokens.map((token) => token.address),
+    const requestedMints = tokens.map((token) => token.address);
+    console.log(`[SolanaPortfolio] 🔍 Requesting metadata for ${requestedMints.length} mints:`, requestedMints);
+    
+    const metadataMap = await metadataService.getMetadataMap(requestedMints);
+    
+    console.log(`[SolanaPortfolio] 📦 Received metadataMap with ${Object.keys(metadataMap).length} entries:`, 
+      Object.keys(metadataMap).map(mint => ({
+        mint,
+        hasMetadata: !!metadataMap[mint],
+        symbol: metadataMap[mint]?.symbol,
+        name: metadataMap[mint]?.name,
+        hasLogoUrl: !!metadataMap[mint]?.logoUrl,
+        logoUrl: metadataMap[mint]?.logoUrl,
+      }))
     );
 
     for (const token of tokens) {
       const metadata = metadataMap[token.address];
+      console.log(`[SolanaPortfolio] 🔄 Processing token ${token.address}:`, {
+        before: {
+          symbol: token.symbol,
+          name: token.name,
+          decimals: token.decimals,
+          logoUrl: token.logoUrl,
+        },
+        metadata: metadata ? {
+          symbol: metadata.symbol,
+          name: metadata.name,
+          decimals: metadata.decimals,
+          logoUrl: metadata.logoUrl,
+        } : null,
+      });
+
       if (!metadata) {
-        console.log(`[SolanaPortfolio] No metadata found for token: ${token.address}`);
+        console.warn(`[SolanaPortfolio] ⚠️ No metadata found for token: ${token.address} (symbol: ${token.symbol})`);
         continue;
       }
 
       if (metadata.symbol) {
+        const oldSymbol = token.symbol;
         token.symbol = metadata.symbol;
+        console.log(`[SolanaPortfolio] ✅ Updated symbol: "${oldSymbol}" -> "${token.symbol}"`);
       }
       if (metadata.name) {
+        const oldName = token.name;
         token.name = metadata.name;
+        console.log(`[SolanaPortfolio] ✅ Updated name: "${oldName}" -> "${token.name}"`);
       }
       if (metadata.logoUrl) {
         token.logoUrl = metadata.logoUrl;
-        console.log(`[SolanaPortfolio] Set logoUrl for ${token.symbol || token.address}: ${metadata.logoUrl}`);
+        console.log(`[SolanaPortfolio] ✅ Set logoUrl for ${token.symbol || token.address}: ${metadata.logoUrl}`);
       } else {
-        console.log(`[SolanaPortfolio] No logoUrl in metadata for ${token.symbol || token.address}`);
+        console.warn(`[SolanaPortfolio] ⚠️ No logoUrl in metadata for ${token.symbol || token.address} (address: ${token.address})`);
       }
       if (
         typeof metadata.decimals === "number" &&
         Number.isFinite(metadata.decimals)
       ) {
+        const oldDecimals = token.decimals;
         token.decimals = metadata.decimals;
+        console.log(`[SolanaPortfolio] ✅ Updated decimals: ${oldDecimals} -> ${token.decimals}`);
       }
     }
 
     const uniqueMints = Array.from(new Set(tokens.map((token) => token.address)));
+    console.log(`[SolanaPortfolio] 💰 Fetching prices for ${uniqueMints.length} unique mints:`, uniqueMints);
 
     const priceMap = await this.fetchUsdPrices(uniqueMints);
+    console.log(`[SolanaPortfolio] 💰 Received priceMap with ${Object.keys(priceMap).length} prices:`, 
+      Object.entries(priceMap).map(([mint, price]) => ({ mint, price }))
+    );
 
     let totalValueUsd = 0;
 
     for (const token of tokens) {
       const price = priceMap[token.address];
+      console.log(`[SolanaPortfolio] 💵 Processing price for ${token.symbol || token.address} (${token.address}):`, {
+        hasPrice: typeof price === "number",
+        price: price,
+        amount: token.amount,
+        decimals: token.decimals,
+      });
+
       if (typeof price !== "number") {
+        console.warn(`[SolanaPortfolio] ⚠️ No price found for ${token.symbol || token.address} (${token.address}), skipping value calculation`);
         continue;
       }
 
@@ -188,6 +245,14 @@ export class SolanaPortfolioService {
       token.price = price.toString();
       token.value = usdValue.toString();
       totalValueUsd += usdValue;
+
+      console.log(`[SolanaPortfolio] ✅ Calculated values for ${token.symbol || token.address}:`, {
+        amountInUnits: amountInUnits.toFixed(6),
+        price: price,
+        usdValue: usdValue.toFixed(2),
+        tokenPrice: token.price,
+        tokenValue: token.value,
+      });
     }
 
     tokens.sort((a, b) => {
@@ -195,6 +260,22 @@ export class SolanaPortfolioService {
       const valueB = b.value ? parseFloat(b.value) : 0;
       return valueB - valueA;
     });
+
+    console.log(`[SolanaPortfolio] 📋 Final tokens after processing:`, 
+      tokens.map((token, idx) => ({
+        index: idx + 1,
+        address: token.address,
+        symbol: token.symbol,
+        name: token.name,
+        decimals: token.decimals,
+        amount: token.amount,
+        price: token.price,
+        value: token.value,
+        logoUrl: token.logoUrl,
+        hasLogoUrl: !!token.logoUrl,
+      }))
+    );
+    console.log(`[SolanaPortfolio] 💰 Total value USD: ${totalValueUsd.toFixed(2)}`);
 
     return {
       tokens,
@@ -225,8 +306,18 @@ export class SolanaPortfolioService {
         
         // Добавляем API ключ, если он есть
         const apiKey = process.env.NEXT_PUBLIC_JUP_API_KEY || process.env.JUP_API_KEY;
+        console.log(`[SolanaPortfolio] 💰 Price API - API Key check:`, {
+          hasNextPublicKey: !!process.env.NEXT_PUBLIC_JUP_API_KEY,
+          hasJupApiKey: !!process.env.JUP_API_KEY,
+          finalApiKey: apiKey ? `${apiKey.substring(0, 8)}...` : 'NOT FOUND',
+          apiKeyLength: apiKey?.length || 0,
+        });
+        
         if (apiKey) {
           headers['x-api-key'] = apiKey;
+          console.log(`[SolanaPortfolio] ✅ Price API key added to headers`);
+        } else {
+          console.warn(`[SolanaPortfolio] ⚠️ No Price API key found! Check JUP_API_KEY or NEXT_PUBLIC_JUP_API_KEY env variable`);
         }
 
         // TODO: proxy Jupiter Price API through our backend service to avoid direct client calls.
@@ -245,9 +336,22 @@ export class SolanaPortfolioService {
           { usdPrice?: number }
         >;
 
+        console.log(`[SolanaPortfolio] 💰 Price API response for chunk:`, {
+          requestedIds: idsChunk.length,
+          responseKeys: Object.keys(data).length,
+          responseData: Object.entries(data).map(([mint, value]) => ({
+            mint,
+            usdPrice: value?.usdPrice,
+            hasPrice: typeof value?.usdPrice === "number",
+          })),
+        });
+
         for (const [mint, value] of Object.entries(data)) {
           if (typeof value?.usdPrice === "number") {
             result[mint] = value.usdPrice;
+            console.log(`[SolanaPortfolio] ✅ Price found for ${mint}: $${value.usdPrice}`);
+          } else {
+            console.warn(`[SolanaPortfolio] ⚠️ No valid price for ${mint}:`, value);
           }
         }
       } catch (error) {

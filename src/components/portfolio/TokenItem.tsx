@@ -58,13 +58,34 @@ export function TokenItem({ token, stakingAprs = {}, disableDrag = false }: Toke
   const logoUrl = token.logoUrl || tokenInfo?.logoUrl;
   
   // Debug logging for Solana tokens
-  if (isSolanaToken && !logoUrl) {
-    console.warn('[TokenItem] Solana token missing logoUrl:', {
+  if (isSolanaToken) {
+    console.log('[TokenItem] 🎨 Rendering Solana token:', {
       address: token.address,
       symbol: token.symbol,
       name: token.name,
+      decimals: token.decimals,
+      amount: token.amount,
+      price: token.price,
+      value: token.value,
       hasTokenLogoUrl: !!token.logoUrl,
+      tokenLogoUrl: token.logoUrl,
+      hasTokenInfoLogoUrl: !!tokenInfo?.logoUrl,
+      tokenInfoLogoUrl: tokenInfo?.logoUrl,
+      finalLogoUrl: logoUrl,
+      formattedAmount,
+      formattedPrice,
+      formattedValue,
     });
+    
+    if (!logoUrl) {
+      console.warn('[TokenItem] ⚠️ Solana token missing logoUrl:', {
+        address: token.address,
+        symbol: token.symbol,
+        name: token.name,
+        hasTokenLogoUrl: !!token.logoUrl,
+        tokenLogoUrl: token.logoUrl,
+      });
+    }
   }
 
   // Infer staking protocol name from token metadata (websiteUrl/name/symbol)

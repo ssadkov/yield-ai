@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, type ReactNode } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { SolanaWalletSelector } from '@/components/SolanaWalletSelector';
 import { Input } from '@/components/ui/input';
 import { ArrowLeftRight, CheckCircle2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
 
 interface Chain {
   id: string;
@@ -48,6 +49,13 @@ interface BridgeViewProps {
   showSwapButton?: boolean;
   disableAssetSelection?: boolean;
   availableBalance?: string | null;
+  hideSourceWallet?: boolean;
+  hideDestinationAddress?: boolean;
+  walletSection?: ReactNode;
+  bothWalletsConnected?: boolean;
+  missingWalletAlert?: ReactNode;
+  bridgeButtonDisabled?: boolean;
+  bridgeButtonAlert?: ReactNode;
 }
 
 export function BridgeView({
@@ -73,8 +81,16 @@ export function BridgeView({
   showSwapButton = true,
   disableAssetSelection = false,
   availableBalance,
+  hideSourceWallet = false,
+  hideDestinationAddress = false,
+  walletSection,
+  bothWalletsConnected = false,
+  missingWalletAlert,
+  bridgeButtonDisabled = false,
+  bridgeButtonAlert,
 }: BridgeViewProps) {
   const searchParams = useSearchParams();
+  const { publicKey: solanaPublicKey, connected: solanaConnected } = useSolanaWallet();
   
   // Check if destination address matches the URL parameter
   const isGeneratedWallet = useMemo(() => {
@@ -83,6 +99,9 @@ export function BridgeView({
     // Compare addresses (case-insensitive, trim whitespace)
     return urlDestination.trim().toLowerCase() === destinationAddress.trim().toLowerCase();
   }, [searchParams, destinationAddress]);
+
+  // Get Solana address for destination display
+  const solanaAddress = solanaPublicKey?.toBase58() || null;
 
   const handleSwap = () => {
     if (sourceChain && destChain) {
@@ -109,6 +128,22 @@ export function BridgeView({
             </p>
           </div>
 
+          {/* Wallet Section */}
+          {walletSection && (
+            <div className="pt-2 flex justify-end">
+              <div className="w-auto">
+                {walletSection}
+              </div>
+            </div>
+          )}
+
+          {/* Missing Wallet Alert */}
+          {missingWalletAlert && (
+            <div className="pt-2">
+              {missingWalletAlert}
+            </div>
+          )}
+
           {/* Source Asset */}
           <div className="space-y-4">
             <AssetPicker
@@ -119,7 +154,7 @@ export function BridgeView({
               tokens={tokens}
               onChainSelect={onSourceChainSelect}
               onTokenSelect={onSourceTokenSelect}
-              disabled={disableAssetSelection}
+              disabled={disableAssetSelection || !bothWalletsConnected}
             />
 
             {/* Swap Button */}
@@ -145,7 +180,7 @@ export function BridgeView({
               tokens={tokens}
               onChainSelect={onDestChainSelect}
               onTokenSelect={onDestTokenSelect}
-              disabled={disableAssetSelection}
+              disabled={disableAssetSelection || !bothWalletsConnected}
             />
           </div>
 
@@ -157,6 +192,7 @@ export function BridgeView({
                 onChange={onAmountChange}
                 tokenSymbol={sourceToken.symbol}
                 maxAmount={10}
+                disabled={!bothWalletsConnected}
               />
               {availableBalance !== null && availableBalance !== undefined && (
                 <p className="text-sm text-muted-foreground text-right">
@@ -166,50 +202,13 @@ export function BridgeView({
             </div>
           )}
 
-          {/* Wallets */}
-          <div className="space-y-4 pt-4 border-t">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">
-                Source Wallet
-              </label>
-              {sourceChain?.id === 'Solana' ? (
-                <SolanaWalletSelector onWalletChange={() => {}} />
-              ) : (
-                <div className="p-3 border rounded text-sm text-muted-foreground">
-                  Connect {sourceChain?.name || 'source'} wallet
-                </div>
-              )}
-            </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">
-                Destination Wallet Address
-              </label>
-              <div className="relative">
-                <Input
-                  type="text"
-                  value={destinationAddress}
-                  onChange={(e) => onDestinationAddressChange(e.target.value)}
-                  placeholder={`Enter ${destChain?.name || 'destination'} wallet address`}
-                  className="font-mono text-sm pr-10"
-                />
-                {isGeneratedWallet && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <CheckCircle2 className="h-5 w-5 text-green-500" />
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Generated Aptos wallet for this Solana address</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
-              </div>
+          {/* Bridge Button Alert */}
+          {bridgeButtonAlert && (
+            <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded text-sm text-yellow-800 dark:text-yellow-200">
+              {bridgeButtonAlert}
             </div>
-          </div>
+          )}
 
           {/* Transfer Status */}
           {transferStatus && (
@@ -221,15 +220,7 @@ export function BridgeView({
           {/* Transfer Button */}
           <Button
             onClick={onTransfer}
-            disabled={
-              !sourceChain ||
-              !sourceToken ||
-              !destChain ||
-              !destToken ||
-              !amount ||
-              !destinationAddress.trim() ||
-              isTransferring
-            }
+            disabled={bridgeButtonDisabled || isTransferring}
             className="w-full h-12 text-lg font-semibold"
           >
             {isTransferring ? 'Transferring...' : 'Bridge'}

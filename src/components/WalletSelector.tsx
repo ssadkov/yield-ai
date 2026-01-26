@@ -22,6 +22,7 @@ import {
   Copy,
   LogOut,
   User,
+  Loader2,
 } from "lucide-react";
 import { useCallback, useState, useEffect, useMemo } from "react";
 import { Button } from "./ui/button";
@@ -50,6 +51,7 @@ export function WalletSelector(walletSortingOptions: WalletSortingOptions) {
   const { account, connected, disconnect, wallet } = useWallet();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
   const { toast } = useToast();
 
   const solanaAddress = useMemo(() => getSolanaWalletAddress(wallet), [wallet]);
@@ -57,6 +59,13 @@ export function WalletSelector(walletSortingOptions: WalletSortingOptions) {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Reset connecting state when wallet connects
+  useEffect(() => {
+    if (connected) {
+      // connecting state from wallet adapter will be reset automatically
+    }
+  }, [connected]);
 
   const closeDialog = useCallback(() => setIsDialogOpen(false), []);
 
@@ -170,9 +179,18 @@ export function WalletSelector(walletSortingOptions: WalletSortingOptions) {
   ) : (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
       <DialogTrigger asChild>
-        <Button>Connect Wallet</Button>
+        <Button disabled={isConnecting}>
+          {isConnecting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Connecting...
+            </>
+          ) : (
+            'Connect Wallet'
+          )}
+        </Button>
       </DialogTrigger>
-      <ConnectWalletDialog close={closeDialog} {...walletSortingOptions} />
+      <ConnectWalletDialog close={closeDialog} isConnecting={isConnecting} {...walletSortingOptions} />
     </Dialog>
 
     
@@ -181,10 +199,12 @@ export function WalletSelector(walletSortingOptions: WalletSortingOptions) {
 
 interface ConnectWalletDialogProps extends WalletSortingOptions {
   close: () => void;
+  isConnecting?: boolean;
 }
 
 function ConnectWalletDialog({
   close,
+  isConnecting = false,
   ...walletSortingOptions
 }: ConnectWalletDialogProps) {
   const { wallets = [], notDetectedWallets = [] } = useWallet();
@@ -220,6 +240,7 @@ function ConnectWalletDialog({
                 key={wallet.name}
                 wallet={wallet}
                 onConnect={close}
+                isConnecting={isConnecting}
               />
             ))}
             <p className="flex gap-1 justify-center items-center text-muted-foreground text-sm">
@@ -246,7 +267,7 @@ function ConnectWalletDialog({
 
         <div className="flex flex-col gap-3 pt-3">
           {availableWallets.map((wallet) => (
-            <WalletRow key={wallet.name} wallet={wallet} onConnect={close} />
+            <WalletRow key={wallet.name} wallet={wallet} onConnect={close} isConnecting={isConnecting} />
           ))}
           {!!installableWallets.length && (
             <Collapsible className="flex flex-col gap-3">
@@ -261,6 +282,7 @@ function ConnectWalletDialog({
                     key={wallet.name}
                     wallet={wallet}
                     onConnect={close}
+                    isConnecting={isConnecting}
                   />
                 ))}
               </CollapsibleContent>
@@ -277,7 +299,13 @@ interface WalletRowProps {
   onConnect?: () => void;
 }
 
-function WalletRow({ wallet, onConnect }: WalletRowProps) {
+interface WalletRowProps {
+  wallet: AdapterWallet | AdapterNotDetectedWallet;
+  onConnect?: () => void;
+  isConnecting?: boolean;
+}
+
+function WalletRow({ wallet, onConnect, isConnecting = false }: WalletRowProps) {
   return (
     <WalletItem
       wallet={wallet}
@@ -294,20 +322,38 @@ function WalletRow({ wallet, onConnect }: WalletRowProps) {
         </Button>
       ) : (
         <WalletItem.ConnectButton asChild>
-          <Button size="sm">Connect</Button>
+          <Button size="sm" disabled={isConnecting}>
+            {isConnecting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Connecting...
+              </>
+            ) : (
+              'Connect'
+            )}
+          </Button>
         </WalletItem.ConnectButton>
       )}
     </WalletItem>
   );
 }
 
-function AptosConnectWalletRow({ wallet, onConnect }: WalletRowProps) {
+function AptosConnectWalletRow({ wallet, onConnect, isConnecting = false }: WalletRowProps) {
   return (
     <WalletItem wallet={wallet} onConnect={onConnect}>
       <WalletItem.ConnectButton asChild>
-        <Button size="lg" variant="outline" className="w-full gap-4">
-          <WalletItem.Icon className="h-5 w-5" />
-          <WalletItem.Name className="text-base font-normal" />
+        <Button size="lg" variant="outline" className="w-full gap-4" disabled={isConnecting}>
+          {isConnecting ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span className="text-base font-normal">Connecting...</span>
+            </>
+          ) : (
+            <>
+              <WalletItem.Icon className="h-5 w-5" />
+              <WalletItem.Name className="text-base font-normal" />
+            </>
+          )}
         </Button>
       </WalletItem.ConnectButton>
     </WalletItem>

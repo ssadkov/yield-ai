@@ -119,8 +119,18 @@ export class JupiterTokenMetadataService {
         
         // Добавляем API ключ, если он есть
         const apiKey = process.env.NEXT_PUBLIC_JUP_API_KEY || process.env.JUP_API_KEY;
+        console.log(`[JupiterTokenMetadata] 🔑 API Key check:`, {
+          hasNextPublicKey: !!process.env.NEXT_PUBLIC_JUP_API_KEY,
+          hasJupApiKey: !!process.env.JUP_API_KEY,
+          finalApiKey: apiKey ? `${apiKey.substring(0, 8)}...` : 'NOT FOUND',
+          apiKeyLength: apiKey?.length || 0,
+        });
+        
         if (apiKey) {
           headers['x-api-key'] = apiKey;
+          console.log(`[JupiterTokenMetadata] ✅ API key added to headers`);
+        } else {
+          console.warn(`[JupiterTokenMetadata] ⚠️ No API key found! Check JUP_API_KEY or NEXT_PUBLIC_JUP_API_KEY env variable`);
         }
 
         console.log(`[JupiterTokenMetadata] Fetching batch for ${chunk.length} tokens (chunk ${chunks.indexOf(chunk) + 1}/${chunks.length})`);
@@ -203,14 +213,25 @@ export class JupiterTokenMetadataService {
     // Если указаны конкретные mint адреса, обновляем только их
     const mintsToUpdate = requestedMints || Array.from(dataMap.keys());
     
+    console.log(`[JupiterTokenMetadata] 🔄 updateIndividualCache:`, {
+      dataMapSize: dataMap.size,
+      requestedMintsCount: requestedMints?.length || 0,
+      mintsToUpdateCount: mintsToUpdate.length,
+      availableIds: Array.from(dataMap.keys()).slice(0, 5),
+      requestedMints: requestedMints?.slice(0, 5),
+    });
+    
     for (const mint of mintsToUpdate) {
       const token = dataMap.get(mint);
       
       if (token) {
-        console.log(`[JupiterTokenMetadata] ✅ Found metadata for ${mint}:`, {
+        console.log(`[JupiterTokenMetadata] ✅ Found metadata for mint ${mint}:`, {
+          jupiterId: token.id,
           symbol: token.symbol,
           name: token.name,
           icon: token.icon,
+          hasIcon: !!token.icon,
+          iconLength: token.icon?.length || 0,
           decimals: token.decimals,
         });
         
@@ -223,11 +244,17 @@ export class JupiterTokenMetadataService {
             decimals: token.decimals,
           },
         });
+        
+        console.log(`[JupiterTokenMetadata] 💾 Cached metadata for ${mint}:`, {
+          symbol: token.symbol,
+          logoUrl: token.icon,
+        });
       } else {
         console.warn(`[JupiterTokenMetadata] ❌ No match found for mint: ${mint}`, {
           requestedMint: mint,
-          availableIds: Array.from(dataMap.keys()).slice(0, 10),
+          availableIds: Array.from(dataMap.keys()),
           dataMapHasMint: dataMap.has(mint),
+          dataMapKeys: Array.from(dataMap.keys()).slice(0, 10),
         });
         this.markMissing([mint]);
       }

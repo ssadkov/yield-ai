@@ -9,9 +9,11 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
+import { Loader2 } from 'lucide-react';
 
 interface SolanaWalletSelectorProps {
   onWalletChange?: (address: string | null) => void;
@@ -21,6 +23,7 @@ export function SolanaWalletSelector({ onWalletChange }: SolanaWalletSelectorPro
   const { wallet, wallets, select, connect, disconnect, connected, publicKey } = useWallet();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
 
   // Notify parent when wallet changes
   useEffect(() => {
@@ -29,11 +32,18 @@ export function SolanaWalletSelector({ onWalletChange }: SolanaWalletSelectorPro
     }
   }, [publicKey, onWalletChange]);
 
+  // Reset connecting state when wallet connects
+  useEffect(() => {
+    if (connected) {
+      setIsConnecting(false);
+    }
+  }, [connected]);
+
   const availableWallets = useMemo(() => {
+    // Include all wallets except those that are not detected
+    // This includes Standard Wallets (Phantom, Trust) which are automatically detected
     const filtered = wallets.filter(
-      (wallet) =>
-        wallet.readyState === WalletReadyState.Installed ||
-        wallet.readyState === WalletReadyState.Loadable
+      (wallet) => wallet.readyState !== WalletReadyState.NotDetected
     );
     
     // Remove duplicates by name (keep first occurrence)
@@ -50,6 +60,7 @@ export function SolanaWalletSelector({ onWalletChange }: SolanaWalletSelectorPro
 
   const handleWalletSelect = async (walletName: string) => {
     try {
+      setIsConnecting(true);
       select(walletName as WalletName);
       setIsDialogOpen(false);
       
@@ -67,9 +78,12 @@ export function SolanaWalletSelector({ onWalletChange }: SolanaWalletSelectorPro
             title: "Connection Failed",
             description: error.message || "Failed to connect wallet",
           });
+        } finally {
+          setIsConnecting(false);
         }
       }, 100);
     } catch (error: any) {
+      setIsConnecting(false);
       toast({
         variant: "destructive",
         title: "Selection Failed",
@@ -111,6 +125,9 @@ export function SolanaWalletSelector({ onWalletChange }: SolanaWalletSelectorPro
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Select Solana Wallet</DialogTitle>
+                <DialogDescription>
+                  Choose a wallet to connect to your Solana account
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-2 mt-4">
                 {availableWallets.map((w, index) => (
@@ -155,6 +172,9 @@ export function SolanaWalletSelector({ onWalletChange }: SolanaWalletSelectorPro
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Select Solana Wallet</DialogTitle>
+          <DialogDescription>
+            Choose a wallet to connect to your Solana account
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-2 mt-4">
           {availableWallets.length === 0 ? (
@@ -168,6 +188,7 @@ export function SolanaWalletSelector({ onWalletChange }: SolanaWalletSelectorPro
                 variant="outline"
                 className="w-full justify-start"
                 onClick={() => handleWalletSelect(w.adapter.name)}
+                disabled={isConnecting}
               >
                 <div className="flex items-center gap-2">
                   {w.adapter.icon && (
