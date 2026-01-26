@@ -83,12 +83,11 @@ export async function POST(request: NextRequest) {
         withFeePayer: true,
       });
 
-      // For bytecode transactions, SDK requires withFeePayer: true and feePayerAddress
-      // Try to pass feePayerAddress in options if supported, otherwise set after building
+      // For bytecode transactions, SDK requires withFeePayer: true
+      // feePayerAddress should be set after building the transaction
       const transaction = await aptosClient.transaction.build.simple({
         sender,
         withFeePayer: true, // Required for bytecode transactions
-        feePayerAddress: feePayerAccountAddress,
         data: {
           bytecode: new Uint8Array(bytecode),
           typeArguments: [],
@@ -97,9 +96,7 @@ export async function POST(request: NextRequest) {
         options: {
           maxGasAmount,
           gasUnitPrice,
-          // Try to pass feePayerAddress in options (may not be supported, but worth trying)
-          feePayerAddress: feePayerAccountAddress,
-        } as any, // Cast to any to allow feePayerAddress in options
+        },
       });
 
       // Set feePayerAddress immediately after building, before getSigningMessage
