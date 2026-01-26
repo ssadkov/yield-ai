@@ -17,6 +17,7 @@
     "@aptos-labs/ts-sdk": "^5.1.1",
     "@aptos-labs/wallet-adapter-core": "^7.4.0",
     "@aptos-labs/wallet-adapter-react": "^7.1.0",
+    "@aptos-labs/wallet-standard": "^0.5.2",
     "@dnd-kit/core": "^6.3.1",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",

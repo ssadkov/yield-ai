@@ -65,8 +65,9 @@ export default function ChatPanel() {
 
   const handleBridgeUSDC = () => {
     if (account?.address) {
-      // Navigate to bridge2 page with destination address as query parameter
-      router.push(`/bridge2?destination=${encodeURIComponent(account.address.toString())}`);
+      // Navigate to bridge page with destination address as query parameter
+      // router.push(`/bridge?destination=${encodeURIComponent(account.address.toString())}`);
+      router.push(`/bridge`);
     } else {
       // Show toast if wallet is not connected
       toast({
