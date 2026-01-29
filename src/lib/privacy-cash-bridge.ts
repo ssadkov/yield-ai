@@ -20,12 +20,15 @@ import {
   TOKEN_MESSENGER_MINTER_PROGRAM_ID,
   MESSAGE_TRANSMITTER_PROGRAM_ID,
 } from "./cctp-mint-pdas";
-import { createDepositForBurnInstructionManual } from "@/components/bridge/SolanaToAptosBridge";
+import { createDepositForBurnInstructionManual } from "./cctp-deposit-for-burn";
 
 const DOMAIN_APTOS = 9;
 
 /**
- * Конвертирует Aptos адрес в 32 байта для mint_recipient
+ * Конвертирует Aptos адрес в 32 байта для mint_recipient.
+ * Доки Circle: https://developers.circle.com/cctp/v1/solana-programs
+ * Mint Recipient for Solana as SOURCE: при burn на Solana (mint на Aptos)
+ * mint_recipient = адрес получателя на destination chain (Aptos) — 32 байта, base58 как Pubkey.
  */
 function aptosAddressToBytes(aptosAddress: string): Uint8Array {
   const cleanAddress = aptosAddress.startsWith("0x")
@@ -91,7 +94,7 @@ export async function executePrivacyCashBridge(
     if (feePayerBalanceSol < 0.001) {
       throw new Error(
         `Fee payer has insufficient SOL (${feePayerBalanceSol.toFixed(4)} SOL). Need at least 0.001 SOL. ` +
-        `Check that NEXT_PUBLIC_SOLANA_PAYER_WALLET_PRIVATE_KEY corresponds to NEXT_PUBLIC_SOLANA_PAYER_WALLET_ADDRESS and the wallet is funded.`
+        `Check that SOLANA_PAYER_WALLET_PRIVATE_KEY corresponds to SOLANA_PAYER_WALLET_ADDRESS and the wallet is funded.`
       );
     }
   } catch (e: any) {
@@ -196,7 +199,7 @@ export async function executePrivacyCashBridge(
     }
   }
 
-  // Конвертируем Aptos адрес в 32 байта для mint_recipient
+  // mint_recipient при burn на Solana (destination Aptos) = Aptos-адрес получателя (32 байта)
   const mintRecipientBytes = aptosAddressToBytes(aptosRecipient);
 
   // Генерируем keypair для messageSendEventData account

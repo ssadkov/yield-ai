@@ -1,163 +1,39 @@
 "use client";
 
-import { PublicKey, Transaction, TransactionInstruction, Keypair, SystemProgram } from '@solana/web3.js';
-import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import { USDC_MINT, TOKEN_MESSENGER_MINTER_PROGRAM_ID } from '@/lib/cctp-mint-pdas';
-import { utils } from '@coral-xyz/anchor';
+import { PublicKey, Transaction, Keypair } from "@solana/web3.js";
+import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { USDC_MINT, TOKEN_MESSENGER_MINTER_PROGRAM_ID } from "@/lib/cctp-mint-pdas";
+import { createDepositForBurnInstructionManual } from "@/lib/cctp-deposit-for-burn";
 
 // CCTP Domain IDs
 const DOMAIN_SOLANA = 5;
 const DOMAIN_APTOS = 9;
 
 // USDC addresses
-const USDC_SOLANA = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
-const USDC_APTOS = '0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b';
+const USDC_SOLANA = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+const USDC_APTOS =
+  "0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b";
 
-const MESSAGE_TRANSMITTER_PROGRAM_ID = new PublicKey("CCTPmbSD7gX1bxKPAmg77w8oFzNFpaQiQUWD43TKaecd");
-
-/**
- * Find PDA using Anchor's utils
- */
-function findProgramAddress(label: string, programId: PublicKey, extraSeeds?: (string | Buffer | PublicKey | Uint8Array)[]): { publicKey: PublicKey; bump: number } {
-  const seeds: Buffer[] = [Buffer.from(utils.bytes.utf8.encode(label))];
-  if (extraSeeds) {
-    for (const extraSeed of extraSeeds) {
-      if (typeof extraSeed === 'string') {
-        seeds.push(Buffer.from(utils.bytes.utf8.encode(extraSeed)));
-      } else if (Array.isArray(extraSeed)) {
-        seeds.push(Buffer.from(extraSeed as unknown as ArrayBuffer));
-      } else if (Buffer.isBuffer(extraSeed)) {
-        seeds.push(extraSeed as any);
-      } else if (extraSeed instanceof PublicKey) {
-        seeds.push(extraSeed.toBuffer());
-      } else if (extraSeed instanceof Uint8Array) {
-        seeds.push(Buffer.from(extraSeed as unknown as ArrayBuffer));
-      }
-    }
-  }
-  const [publicKey, bump] = PublicKey.findProgramAddressSync(seeds, programId);
-  return { publicKey, bump };
-}
+const MESSAGE_TRANSMITTER_PROGRAM_ID = new PublicKey(
+  "CCTPmbSD7gX1bxKPAmg77w8oFzNFpaQiQUWD43TKaecd"
+);
 
 /**
- * Converts Aptos address (32 bytes hex) to bytes for mint_recipient
+ * Converts Aptos address (32 bytes hex) to bytes for mint_recipient.
  */
 function aptosAddressToBytes(aptosAddress: string): Uint8Array {
-  // Remove 0x prefix if present
-  const cleanAddress = aptosAddress.startsWith('0x') ? aptosAddress.slice(2) : aptosAddress;
-  
-  // Convert hex string to bytes
+  const cleanAddress = aptosAddress.startsWith("0x")
+    ? aptosAddress.slice(2)
+    : aptosAddress;
   const bytes = new Uint8Array(32);
   for (let i = 0; i < 32; i++) {
     bytes[i] = parseInt(cleanAddress.slice(i * 2, i * 2 + 2), 16);
   }
-  
   return bytes;
 }
 
-/**
- * Compute Anchor instruction discriminator
- * Discriminator = first 8 bytes of SHA256("global:instruction_name")
- * Uses Web Crypto API for browser compatibility
- */
-async function computeDiscriminator(instructionName: string): Promise<Buffer> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(`global:${instructionName}`);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = new Uint8Array(hashBuffer);
-  return Buffer.from(hashArray.slice(0, 8));
-}
-
-/**
- * Creates depositForBurn instruction manually (without Wormhole SDK)
- * Based on Circle CCTP TokenMessengerMinter program structure
- */
-export async function createDepositForBurnInstructionManual(
-  tokenMessengerProgramId: PublicKey,
-  messageTransmitterProgramId: PublicKey,
-  tokenMint: PublicKey,
-  destinationDomain: number,
-  senderAddress: PublicKey,
-  eventRentPayerAddress: PublicKey,
-  senderAssociatedTokenAccountAddress: PublicKey,
-  mintRecipientBytes: Uint8Array,
-  amount: bigint,
-  messageSendEventData: PublicKey,
-  messageSendEventDataKeypair: Keypair
-): Promise<{ instruction: TransactionInstruction; messageSendEventDataKeypair: Keypair }> {
-  // Find all required PDAs
-  const messageTransmitterAccount = findProgramAddress('message_transmitter', messageTransmitterProgramId);
-  const tokenMessenger = findProgramAddress('token_messenger', tokenMessengerProgramId);
-  const tokenMinter = findProgramAddress('token_minter', tokenMessengerProgramId);
-  const localToken = findProgramAddress('local_token', tokenMessengerProgramId, [tokenMint]);
-  const remoteTokenMessengerKey = findProgramAddress('remote_token_messenger', tokenMessengerProgramId, [destinationDomain.toString()]);
-  const authorityPda = findProgramAddress('sender_authority', tokenMessengerProgramId);
-  const eventAuthority = findProgramAddress('__event_authority', tokenMessengerProgramId);
-
-  // Compute instruction discriminator
-  const discriminator = await computeDiscriminator('deposit_for_burn');
-
-  // Build instruction data manually
-  // Format: discriminator (8) + amount (u64, 8 bytes LE) + destinationDomain (u32, 4 bytes LE) + mintRecipient (32 bytes)
-  
-  // Write amount as u64 little-endian (8 bytes)
-  const amountBuffer = Buffer.allocUnsafe(8);
-  // Convert bigint to bytes manually (little-endian)
-  let amountValue = amount;
-  for (let i = 0; i < 8; i++) {
-    amountBuffer[i] = Number(amountValue & BigInt(0xff));
-    amountValue = amountValue >> BigInt(8);
-  }
-  
-  // Write destinationDomain as u32 little-endian (4 bytes)
-  const domainBuffer = Buffer.allocUnsafe(4);
-  domainBuffer[0] = destinationDomain & 0xff;
-  domainBuffer[1] = (destinationDomain >> 8) & 0xff;
-  domainBuffer[2] = (destinationDomain >> 16) & 0xff;
-  domainBuffer[3] = (destinationDomain >> 24) & 0xff;
-  
-  const instructionData = Buffer.concat([
-    discriminator,
-    amountBuffer,
-    domainBuffer,
-    Buffer.from(mintRecipientBytes),
-  ]);
-
-  // Instruction accounts order: match Circle DepositForBurnContext + Anchor #[event_cpi] extra accounts.
-  // Struct: owner, event_rent_payer, sender_authority_pda, burn_token_account, message_transmitter,
-  // token_messenger, remote_token_messenger, token_minter, local_token, burn_token_mint,
-  // message_sent_event_data, message_transmitter_program, token_messenger_minter_program,
-  // token_program, system_program.
-  // #[event_cpi] adds: event_authority, then "program" (TokenMessengerMinter for self-CPI emit).
-  const instructionKeys = [
-    { pubkey: senderAddress, isSigner: true, isWritable: false }, // 0 owner
-    { pubkey: eventRentPayerAddress, isSigner: true, isWritable: true }, // 1 event_rent_payer (payer of rent/lamports)
-    { pubkey: authorityPda.publicKey, isSigner: false, isWritable: false }, // 2 sender_authority_pda
-    { pubkey: senderAssociatedTokenAccountAddress, isSigner: false, isWritable: true }, // 3 burn_token_account
-    { pubkey: messageTransmitterAccount.publicKey, isSigner: false, isWritable: true }, // 4 message_transmitter (mut)
-    { pubkey: tokenMessenger.publicKey, isSigner: false, isWritable: false }, // 5 token_messenger
-    { pubkey: remoteTokenMessengerKey.publicKey, isSigner: false, isWritable: false }, // 6 remote_token_messenger
-    { pubkey: tokenMinter.publicKey, isSigner: false, isWritable: false }, // 7 token_minter
-    { pubkey: localToken.publicKey, isSigner: false, isWritable: true }, // 8 local_token (mut)
-    { pubkey: tokenMint, isSigner: false, isWritable: true }, // 9 burn_token_mint (mut)
-    { pubkey: messageSendEventData, isSigner: true, isWritable: true }, // 10 message_sent_event_data
-    { pubkey: messageTransmitterProgramId, isSigner: false, isWritable: false }, // 11 message_transmitter_program
-    { pubkey: tokenMessengerProgramId, isSigner: false, isWritable: false }, // 12 token_messenger_minter_program
-    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }, // 13 token_program
-    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // 14 system_program (last in struct)
-    { pubkey: eventAuthority.publicKey, isSigner: false, isWritable: false }, // 15 event_authority (#[event_cpi])
-    { pubkey: tokenMessengerProgramId, isSigner: false, isWritable: false }, // 16 program (self-CPI for emit_cpi)
-  ];
-
-  return {
-    instruction: new TransactionInstruction({
-      programId: tokenMessengerProgramId,
-      keys: instructionKeys,
-      data: instructionData,
-    }),
-    messageSendEventDataKeypair,
-  };
-}
+// Re-export for callers that import from this component
+export { createDepositForBurnInstructionManual };
 
 export type SolanaToAptosBridgeTmpOptions = {
   mode: "tmp";

@@ -464,11 +464,29 @@ function MintingSolanaPageContent() {
       console.log('[Minting Solana] formRecipient (connected wallet):', formRecipient);
       console.log('[Minting Solana] Note: mint_recipient in messageBody is now ATA address, not public key. Transaction will fail if wallet is not the owner of this ATA.');
       
-      // ВАЖНО: Теперь mintRecipientFromMessage - это ATA адрес из messageBody
-      // Используем этот ATA адрес напрямую, а не вычисляем его заново
+      // Circle CCTP: receiveMessage remaining account "user_token_account" must match mint_recipient from source chain.
+      // When source is Aptos (mint on Solana): mint_recipient must be Solana USDC token account (ATA), not wallet.
+      // https://developers.circle.com/cctp/v1/solana-programs
       setStatus("Checking token account from messageBody...");
       const recipientTokenAccount = new PublicKey(mintRecipientFromMessage);
-      
+
+      // Если в сообщении в mint_recipient передан адрес кошелька, а не ATA — источник (burn на Aptos) указан неверно
+      const expectedATA = await getAssociatedTokenAddress(
+        USDC_MINT,
+        recipientPubkey,
+        false,
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+      if (mintRecipientFromMessage === formRecipient) {
+        throw new Error(
+          `В сообщении CCTP в mint_recipient указан адрес кошелька, а не токен-счёт USDC (ATA). ` +
+          `При burn на Aptos с направлением в Solana в mint_recipient должен быть адрес ATA. ` +
+          `Ожидаемый ATA для вашего кошелька: ${expectedATA.toBase58()}. ` +
+          `Используйте бридж, который при отправке в Solana подставляет ATA (см. https://developers.circle.com/cctp/v1/solana-programs).`
+        );
+      }
+
       console.log('[Minting Solana] recipientTokenAccount (ATA from messageBody):', recipientTokenAccount.toBase58());
       console.log('[Minting Solana] Connected wallet (should be owner of ATA):', recipientPubkey.toBase58());
 
@@ -606,18 +624,14 @@ function MintingSolanaPageContent() {
       // ============================================
       
       // MessageTransmitter state account PDA
-      // Попробуем разные варианты seeds для message_transmitter
-      // Вариант 1: ["message_transmitter"]
-      // Вариант 2: ["state"] 
-      // Вариант 3: использовать сам program ID
+      // Circle mainnet может использовать seed "state". Пробуем "state" первым.
       let messageTransmitterStateAccount: any;
       let messageTransmitterBump: number = 0;
       let messageTransmitterAccountInfo: any = null;
-      
-      // Пробуем разные варианты seeds для message_transmitter PDA
+
       const possiblePdaSeeds = [
-        [Buffer.from("message_transmitter")],
         [Buffer.from("state")],
+        [Buffer.from("message_transmitter")],
         [Buffer.from("message_transmitter_state")],
       ];
       
@@ -952,39 +966,50 @@ function MintingSolanaPageContent() {
       }
       
       const finalNonce = BigInt(firstMessage.eventNonce);
-      const finalNonceBlock = Number(finalNonce / BigInt(6400)); // номер блока (каждый блок = 6400 nonce)
-      
+      // Circle UsedNonces::first_nonce(nonce) = ((nonce - 1) / 6400) * 6400 + 1 (см. state.rs)
+      const firstNonce = (finalNonce - BigInt(1)) / BigInt(6400) * BigInt(6400) + BigInt(1);
+      const finalNonceBlock = Number(finalNonce / BigInt(6400));
+
       console.log('[Minting Solana] Using nonce from attestation (eventNonce):', finalNonce.toString());
-      console.log('[Minting Solana] Final nonce block (nonce / 6400):', finalNonceBlock);
-      
-      // Ожидаемый used_nonces PDA из успешной транзакции
-      const EXPECTED_USED_NONCES_PDA = 'FdRKSPEgTtZJodgKeWsPxd5nD2McN1qkgh16156VVMxp';
-      
-      // Пробуем разные варианты seeds для used_nonces PDA
-      // Вариант 1: ["used_nonces", message_transmitter_state_account, source_domain, nonce_block]
-      // Вариант 2: ["used_nonces", message_transmitter_state_account, source_domain, full_nonce]
-      // Вариант 3: ["used_nonces", message_transmitter_program_id, source_domain, nonce_block]
-      // Вариант 4: ["used_nonces", message_transmitter_program_id, source_domain, full_nonce]
-      
-      // Подготовим buffers для разных вариантов
+      console.log('[Minting Solana] first_nonce (Circle formula):', firstNonce.toString());
+
+      // Подготовим buffers: first_nonce (u64 LE) — как в Circle state.rs
+      const firstNonceBuffer = Buffer.allocUnsafe(8);
+      let firstNonceVal = firstNonce;
+      for (let i = 0; i < 8; i++) {
+        firstNonceBuffer[i] = Number(firstNonceVal & BigInt(0xff));
+        firstNonceVal = firstNonceVal >> BigInt(8);
+      }
+
       const nonceBlockBuffer = Buffer.allocUnsafe(8);
       let nonceBlockValue = BigInt(finalNonceBlock);
       for (let i = 0; i < 8; i++) {
         nonceBlockBuffer[i] = Number(nonceBlockValue & BigInt(0xff));
         nonceBlockValue = nonceBlockValue >> BigInt(8);
       }
-      
+
       const fullNonceBuffer = Buffer.allocUnsafe(8);
       let fullNonceValue = finalNonce;
       for (let i = 0; i < 8; i++) {
         fullNonceBuffer[i] = Number(fullNonceValue & BigInt(0xff));
         fullNonceValue = fullNonceValue >> BigInt(8);
       }
-      
-      // Пробуем все варианты seeds для used_nonces PDA
-      // Ожидаемый PDA: FdRKSPEgTtZJodgKeWsPxd5nD2McN1qkgh16156VVMxp
-      // Используем sourceDomainBufferLE для used_nonces (u32 little-endian)
+
+      // Circle receive_message.rs: seeds = [b"used_nonces", source_domain.to_string(), delimiter?, first_nonce.to_string()]
+      // НЕ message_transmitter и НЕ u32/u64 bytes — именно строки "9" и "89601"
+      const usedNoncesDelimiter = SOURCE_DOMAIN >= 11 ? Buffer.from("-") : Buffer.allocUnsafe(0);
+      const usedNoncesSeedsBase: Buffer[] = [
+        Buffer.from("used_nonces"),
+        Buffer.from(SOURCE_DOMAIN.toString(), "utf8"),
+      ];
+      if (usedNoncesDelimiter.length > 0) usedNoncesSeedsBase.push(usedNoncesDelimiter);
+      usedNoncesSeedsBase.push(Buffer.from(firstNonce.toString(), "utf8"));
+
       const possibleUsedNoncesSeeds = [
+        {
+          name: 'Circle: used_nonces + source_domain_str + delimiter + first_nonce_str',
+          seeds: usedNoncesSeedsBase,
+        },
         {
           name: 'state_account + nonce_block',
           seeds: [
@@ -1001,6 +1026,15 @@ function MintingSolanaPageContent() {
             messageTransmitterStateAccount.toBuffer(),
             sourceDomainBufferLE,
             fullNonceBuffer,
+          ],
+        },
+        {
+          name: 'program_id + first_nonce',
+          seeds: [
+            Buffer.from("used_nonces"),
+            MESSAGE_TRANSMITTER_PROGRAM_ID.toBuffer(),
+            sourceDomainBufferLE,
+            firstNonceBuffer,
           ],
         },
         {
@@ -1021,63 +1055,24 @@ function MintingSolanaPageContent() {
             fullNonceBuffer,
           ],
         },
-        // Попробуем другие варианты: может быть другой порядок или формат
         {
-          name: 'state_account + nonce_block (reversed order)',
+          name: 'state_account + first_nonce (reversed order)',
           seeds: [
             Buffer.from("used_nonces"),
             sourceDomainBufferLE,
             messageTransmitterStateAccount.toBuffer(),
-            nonceBlockBuffer,
-          ],
-        },
-        {
-          name: 'state_account + full_nonce (reversed order)',
-          seeds: [
-            Buffer.from("used_nonces"),
-            sourceDomainBufferLE,
-            messageTransmitterStateAccount.toBuffer(),
-            fullNonceBuffer,
+            firstNonceBuffer,
           ],
         },
       ];
-      
-      let usedNoncesPDA: any = null;
-      let usedSeedsName = '';
-      
-      for (const variant of possibleUsedNoncesSeeds) {
-        const [pda] = PublicKey.findProgramAddressSync(
-          variant.seeds,
-          MESSAGE_TRANSMITTER_PROGRAM_ID
-        );
-        
-        if (pda.toBase58() === EXPECTED_USED_NONCES_PDA) {
-          usedNoncesPDA = pda;
-          usedSeedsName = variant.name;
-          console.log('[Minting Solana] ✅ Found correct used_nonces PDA:', pda.toBase58());
-          console.log('[Minting Solana] ✅ Using seeds variant:', variant.name);
-          break;
-        }
-      }
-      
-      // Если не нашли правильный PDA, используем хардкоженное значение
-      // так как все транзакции идентичны и это значение из успешной транзакции
-      if (!usedNoncesPDA) {
-        console.warn('[Minting Solana] ⚠️ Could not find expected used_nonces PDA with any seed variant');
-        console.warn('[Minting Solana] Expected:', EXPECTED_USED_NONCES_PDA);
-        console.warn('[Minting Solana] Trying all variants:');
-        for (const variant of possibleUsedNoncesSeeds) {
-          const [pda] = PublicKey.findProgramAddressSync(
-            variant.seeds,
-            MESSAGE_TRANSMITTER_PROGRAM_ID
-          );
-          console.warn(`[Minting Solana]   ${variant.name}: ${pda.toBase58()}`);
-        }
-        // Используем хардкоженное значение из успешной транзакции
-        usedNoncesPDA = new PublicKey(EXPECTED_USED_NONCES_PDA);
-        usedSeedsName = 'hardcoded_from_successful_tx';
-        console.warn('[Minting Solana] Using hardcoded used_nonces PDA from successful transaction:', usedNoncesPDA.toBase58());
-      }
+
+      // Используем PDA из первого варианта (Circle formula) — для каждого nonce свой PDA, без хардкода
+      const [usedNoncesPDA] = PublicKey.findProgramAddressSync(
+        possibleUsedNoncesSeeds[0].seeds,
+        MESSAGE_TRANSMITTER_PROGRAM_ID
+      );
+      const usedSeedsName = possibleUsedNoncesSeeds[0].name;
+      console.log('[Minting Solana] used_nonces PDA (Circle first_nonce seeds):', usedNoncesPDA.toBase58());
       
       console.log('[Minting Solana] Final used_nonces PDA:', usedNoncesPDA.toBase58());
       console.log('[Minting Solana] Seeds variant used:', usedSeedsName);
@@ -1394,23 +1389,11 @@ function MintingSolanaPageContent() {
         console.warn('[Minting Solana]   Expected:', EXPECTED_EVENT_AUTHORITY_FOR_CPI);
       }
       
-      // ⚠️ КРИТИЧЕСКАЯ ПРОБЛЕМА:
-      // Программа на Solana сравнивает recipient_token_account.key() (адрес токен-аккаунта) 
-      // с mint_recipient из message_body (см. handle_receive_message.rs:145).
-      // Это означает, что в message_body mint_recipient ДОЛЖЕН быть адресом токен-аккаунта (ATA),
-      // а НЕ публичным ключом владельца!
-      // 
-      // Текущее сообщение было создано на Aptos с публичным ключом в mint_recipient,
-      // но программа ожидает адрес токен-аккаунта. Поэтому транзакция не проходит.
-      // 
-      // РЕШЕНИЕ: При создании сообщения на Aptos нужно вычислить адрес токен-аккаунта на Solana
-      // (ATA) и передать его в mint_recipient, а не публичный ключ получателя.
-      console.log('[Minting Solana] ⚠️ CRITICAL: Program validation check:');
-      console.log('[Minting Solana]   recipientTokenAccount (ATA):', recipientTokenAccount.toBase58());
-      console.log('[Minting Solana]   mintRecipient from messageBody (currently public key, but should be token account address):', recipientPubkey.toBase58());
-      console.log('[Minting Solana]   ❌ MISMATCH: Program expects mintRecipient to be token account address, but message contains public key');
-      console.log('[Minting Solana]   Expected mintRecipient in messageBody:', recipientTokenAccount.toBase58());
-      console.log('[Minting Solana]   Actual mintRecipient in messageBody:', recipientPubkey.toBase58());
+      // Circle CCTP: user_token_account must match mint_recipient from source chain depositForBurn.
+      // When source is Aptos (mint on Solana), mint_recipient must be Solana USDC ATA. https://developers.circle.com/cctp/v1/solana-programs
+      console.log('[Minting Solana] Program validation: user_token_account must match mint_recipient from message');
+      console.log('[Minting Solana]   user_token_account (recipientTokenAccount):', recipientTokenAccount.toBase58());
+      console.log('[Minting Solana]   mint_recipient from messageBody:', mintRecipientFromMessage);
       
       instructionKeys.push(
         { pubkey: tokenMessengerPDA, isSigner: false, isWritable: false }, // 1. token_messenger

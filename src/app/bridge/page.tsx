@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense, useMemo } from 'react';
+import { useState, useEffect, useRef, Suspense, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Copy, LogOut, ChevronDown, Loader2 } from 'lucide-react';
@@ -78,7 +78,21 @@ function BridgePageContent() {
   const { publicKey: solanaPublicKey, connected: solanaConnected, disconnect: disconnectSolana, wallet: solanaWallet, wallets, select, connect: connectSolana, signTransaction: signSolanaTransaction, signMessage: signSolanaMessage } = useSolanaWallet();
   const { connection: solanaConnection } = useConnection();
   const { account: aptosAccount, connected: aptosConnected, wallet: aptosWallet, disconnect: disconnectAptos } = useAptosWallet();
-  
+
+  // Re-check both wallets before mint (state may be lost during attestation wait)
+  const solanaConnectedRef = useRef(solanaConnected);
+  const solanaPublicKeyRef = useRef(solanaPublicKey);
+  const signSolanaTransactionRef = useRef(signSolanaTransaction);
+  const aptosConnectedRef = useRef(aptosConnected);
+  const aptosAccountRef = useRef(aptosAccount);
+  useEffect(() => {
+    solanaConnectedRef.current = solanaConnected;
+    solanaPublicKeyRef.current = solanaPublicKey;
+    signSolanaTransactionRef.current = signSolanaTransaction;
+    aptosConnectedRef.current = aptosConnected;
+    aptosAccountRef.current = aptosAccount;
+  }, [solanaConnected, solanaPublicKey, signSolanaTransaction, aptosConnected, aptosAccount]);
+
   // Solana wallet selector state
   const [isSolanaDialogOpen, setIsSolanaDialogOpen] = useState(false);
   const [isSolanaConnecting, setIsSolanaConnecting] = useState(false);
@@ -806,10 +820,11 @@ function BridgePageContent() {
         };
         await waitForAptosConfirmation();
 
-        // Circle API: GET /v1/messages/{sourceDomainId}/{transactionHash} — в пути обязательно "messages"
-        const irisBase = typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_CIRCLE_CCTP_ATTESTATION_URL
+        // Circle API: GET /v1/messages/{sourceDomainId}/{transactionHash} — без дублирования "messages"
+        let irisBase = typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_CIRCLE_CCTP_ATTESTATION_URL
           ? process.env.NEXT_PUBLIC_CIRCLE_CCTP_ATTESTATION_URL
           : 'https://iris-api.circle.com/v1';
+        irisBase = irisBase.replace(/\/messages\/?$/, '') || irisBase;
         const maxAttestationAttempts = 15;
         const initialAttestationDelay = 10000;
         const maxAttestationDelay = 60000;
@@ -847,23 +862,39 @@ function BridgePageContent() {
         setTransferStatus('Attestation received! Preparing mint on Solana (sign in wallet)...');
         addAction('Preparing mint transaction on Solana...', 'pending');
 
+        // Re-check both wallets — context can be lost during long attestation wait
+        if (!aptosConnectedRef.current || !aptosAccountRef.current) {
+          throw new Error(
+            'Aptos wallet no longer detected. Please reconnect your Aptos wallet and retry the mint (use the attestation link above on the manual minting page), or try again with both wallets connected from the start.'
+          );
+        }
+        if (!solanaConnectedRef.current || !solanaPublicKeyRef.current || !signSolanaTransactionRef.current) {
+          throw new Error(
+            'Solana wallet no longer detected. Please reconnect your Solana wallet (the one that will receive USDC and sign the mint tx) and retry, or use the manual minting page with the attestation link above.'
+          );
+        }
+
         let mintTxSignature: string;
         try {
           mintTxSignature = await performMintOnSolana(
             attestationData as any,
             destSolana,
             solanaConnection,
-            solanaPublicKey,
-            signSolanaTransaction,
+            solanaPublicKeyRef.current!,
+            signSolanaTransactionRef.current!,
             (s) => { setTransferStatus(s); updateLastAction(s, 'pending'); }
           );
         } catch (mintErr: any) {
-          updateLastAction(`Minting on Solana failed: ${mintErr?.message || 'Unknown error'}`, 'error');
-          setTransferStatus(`Minting failed: ${mintErr?.message || 'Unknown error'}`);
+          const msg = mintErr?.message || 'Unknown error';
+          const isNotConnected = typeof msg === 'string' && msg.toLowerCase().includes('not connected');
+          updateLastAction(`Minting on Solana failed: ${msg}`, 'error');
+          setTransferStatus(`Minting failed: ${msg}`);
           toast({
             variant: 'destructive',
             title: 'Minting on Solana Failed',
-            description: mintErr?.message || 'Please sign the mint transaction in your Solana wallet. You can retry or mint manually later.',
+            description: isNotConnected
+              ? 'Solana wallet reported "not connected" when signing the mint transaction (Aptos burn was successful). Keep the Solana wallet connected and unlocked during the whole flow, then retry, or use the manual minting page with the attestation link from the log above.'
+              : msg + (msg.includes('sign') ? ' You can retry or mint manually on the minting page.' : ''),
           });
           setIsTransferring(false);
           return;

@@ -6,7 +6,8 @@ const nextConfig = {
   // Optimize chunk loading for Vercel deployment
   webpack: (config, { isServer }) => {
     if (!isServer) {
-      // Optimize chunk splitting for better loading
+      // Chunk splitting without fixed names to avoid CSS being loaded as JS
+      // (named chunks like "vendor-js" get both .js and .css; runtime can request wrong one)
       config.optimization.splitChunks = {
         chunks: 'all',
         cacheGroups: {
@@ -17,21 +18,16 @@ const nextConfig = {
           },
           vendor: {
             test: /[\\/]node_modules[\\/]/,
-            name: 'vendors',
             priority: -10,
             chunks: 'all',
           },
-          // Group protocol-related modules together
           protocols: {
             test: /[\\/]lib[\\/]protocols[\\/]/,
-            name: 'protocols',
             priority: 10,
             chunks: 'all',
           },
-          // Group services together
           services: {
             test: /[\\/]lib[\\/]services[\\/]/,
-            name: 'services',
             priority: 5,
             chunks: 'all',
           },

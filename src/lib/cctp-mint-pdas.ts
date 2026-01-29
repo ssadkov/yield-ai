@@ -14,7 +14,6 @@ const EXPECTED_AUTHORITY_PDA = 'CFtn7PC5NsaFAuG65LwvhcGVD2MiqSpMJ7yvpyhsgJwW';
 const EXPECTED_EVENT_AUTHORITY_PDA = '6mH8scevHQJsyyp1qxu8kyAapHuzEE67mtjFDJZjSbQW';
 const EXPECTED_REMOTE_TOKEN_MESSENGER_PDA = '3CTbq3SF9gekPHiJwLsyivfVbuaRFAQwQ6eQgtNy8nP1';
 const EXPECTED_TOKEN_PAIR_PDA = 'C7XDQkHdr7omXt3Z4u3AuwQx9Za4AswzifnmKaoRhvLp';
-const EXPECTED_USED_NONCES_PDA = 'FdRKSPEgTtZJodgKeWsPxd5nD2McN1qkgh16156VVMxp';
 const EXPECTED_EVENT_AUTHORITY_FOR_CPI = 'CNfZLeeL4RUxwfPnjA3tLiQt4y43jp4V7bMpga673jf9';
 
 export interface CCTPPDAs {
@@ -38,9 +37,10 @@ export interface CCTPPDAs {
 export async function findMessageTransmitterStateAccount(
   connection: Connection
 ): Promise<{ pda: PublicKey; bump: number; accountInfo: any }> {
+  // Circle mainnet может использовать seed "state" для state account — пробуем первым
   const possiblePdaSeeds = [
-    [Buffer.from("message_transmitter")],
     [Buffer.from("state")],
+    [Buffer.from("message_transmitter")],
     [Buffer.from("message_transmitter_state")],
   ];
 
@@ -203,106 +203,42 @@ export function findRemoteTokenMessengerPDA(sourceDomain: number): PublicKey {
 }
 
 /**
+ * Circle state.rs: UsedNonces::used_nonces_seed_delimiter(source_domain) — for domain >= 11 add b"-", else b"".
+ */
+function usedNoncesSeedDelimiter(sourceDomain: number): Buffer {
+  return sourceDomain >= 11 ? Buffer.from("-") : Buffer.allocUnsafe(0);
+}
+
+/**
  * Find used nonces PDA
+ * Circle receive_message.rs: seeds = [
+ *   b"used_nonces",
+ *   source_domain.to_string().as_bytes(),   // строка "9", не u32 LE
+ *   used_nonces_seed_delimiter(source_domain),
+ *   first_nonce.to_string().as_bytes()       // строка "89601", не u64 LE
+ * ]
  */
 export function findUsedNoncesPDA(
-  messageTransmitterStateAccount: PublicKey,
+  _messageTransmitterStateAccount: PublicKey,
   sourceDomain: number,
   eventNonce: string
 ): PublicKey {
   const finalNonce = BigInt(eventNonce);
-  const finalNonceBlock = Number(finalNonce / BigInt(6400));
+  const firstNonce = (finalNonce - BigInt(1)) / BigInt(6400) * BigInt(6400) + BigInt(1);
 
-  const sourceDomainBufferLE = Buffer.allocUnsafe(4);
-  sourceDomainBufferLE.writeUInt32LE(sourceDomain, 0);
+  const sourceDomainStr = Buffer.from(sourceDomain.toString(), "utf8");
+  const firstNonceStr = Buffer.from(firstNonce.toString(), "utf8");
+  const delimiter = usedNoncesSeedDelimiter(sourceDomain);
 
-  const nonceBlockBuffer = Buffer.allocUnsafe(8);
-  let nonceBlockValue = BigInt(finalNonceBlock);
-  for (let i = 0; i < 8; i++) {
-    nonceBlockBuffer[i] = Number(nonceBlockValue & BigInt(0xff));
-    nonceBlockValue = nonceBlockValue >> BigInt(8);
-  }
-
-  const fullNonceBuffer = Buffer.allocUnsafe(8);
-  let fullNonceValue = finalNonce;
-  for (let i = 0; i < 8; i++) {
-    fullNonceBuffer[i] = Number(fullNonceValue & BigInt(0xff));
-    fullNonceValue = fullNonceValue >> BigInt(8);
-  }
-
-  const possibleUsedNoncesSeeds = [
-    {
-      name: 'state_account + nonce_block',
-      seeds: [
-        Buffer.from("used_nonces"),
-        messageTransmitterStateAccount.toBuffer(),
-        sourceDomainBufferLE,
-        nonceBlockBuffer,
-      ],
-    },
-    {
-      name: 'state_account + full_nonce',
-      seeds: [
-        Buffer.from("used_nonces"),
-        messageTransmitterStateAccount.toBuffer(),
-        sourceDomainBufferLE,
-        fullNonceBuffer,
-      ],
-    },
-    {
-      name: 'program_id + nonce_block',
-      seeds: [
-        Buffer.from("used_nonces"),
-        MESSAGE_TRANSMITTER_PROGRAM_ID.toBuffer(),
-        sourceDomainBufferLE,
-        nonceBlockBuffer,
-      ],
-    },
-    {
-      name: 'program_id + full_nonce',
-      seeds: [
-        Buffer.from("used_nonces"),
-        MESSAGE_TRANSMITTER_PROGRAM_ID.toBuffer(),
-        sourceDomainBufferLE,
-        fullNonceBuffer,
-      ],
-    },
-    {
-      name: 'state_account + nonce_block (reversed order)',
-      seeds: [
-        Buffer.from("used_nonces"),
-        sourceDomainBufferLE,
-        messageTransmitterStateAccount.toBuffer(),
-        nonceBlockBuffer,
-      ],
-    },
-    {
-      name: 'state_account + full_nonce (reversed order)',
-      seeds: [
-        Buffer.from("used_nonces"),
-        sourceDomainBufferLE,
-        messageTransmitterStateAccount.toBuffer(),
-        fullNonceBuffer,
-      ],
-    },
+  const seeds: Buffer[] = [
+    Buffer.from("used_nonces"),
+    sourceDomainStr,
   ];
+  if (delimiter.length > 0) seeds.push(delimiter);
+  seeds.push(firstNonceStr);
 
-  for (const variant of possibleUsedNoncesSeeds) {
-    const [pda] = PublicKey.findProgramAddressSync(
-      variant.seeds,
-      MESSAGE_TRANSMITTER_PROGRAM_ID
-    );
-
-    if (pda.toBase58() === EXPECTED_USED_NONCES_PDA) {
-      console.log('[CCTP PDAs] ✅ Found correct used_nonces PDA:', pda.toBase58());
-      console.log('[CCTP PDAs] ✅ Using seeds variant:', variant.name);
-      return pda;
-    }
-  }
-
-  // Fallback to hardcoded value
-  console.warn('[CCTP PDAs] ⚠️ Could not find expected used_nonces PDA, using hardcoded value');
-  return new PublicKey(EXPECTED_USED_NONCES_PDA);
+  const [pda] = PublicKey.findProgramAddressSync(seeds, MESSAGE_TRANSMITTER_PROGRAM_ID);
+  return pda;
 }
 
 /**

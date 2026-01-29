@@ -95,6 +95,8 @@ export async function executeAptosToSolanaBridge(
     throw new Error("Aptos → Solana bridge supports only derived (Solana-based) Aptos wallet. Please use the Aptos wallet linked to your Solana wallet.");
   }
 
+  // Circle CCTP: when Solana is DESTINATION (burn on Aptos, mint on Solana), mint_recipient = hex-encoded USDC token account (ATA), not wallet.
+  // https://developers.circle.com/cctp/v1/solana-programs (Mint Recipient for Solana as Destination Chain Transfers)
   onStatusUpdate("Computing Solana token account address (ATA)...");
   const tokenAccountAddress = await getSolanaTokenAccountAddress(
     destinationSolanaAddress,

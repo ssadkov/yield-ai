@@ -12,7 +12,7 @@ import {
   TOKEN_MESSENGER_MINTER_PROGRAM_ID,
   MESSAGE_TRANSMITTER_PROGRAM_ID,
 } from "./cctp-mint-pdas";
-import { createDepositForBurnInstructionManual } from "@/components/bridge/SolanaToAptosBridge";
+import { createDepositForBurnInstructionManual } from "./cctp-deposit-for-burn";
 
 const DOMAIN_APTOS = 9;
 
@@ -85,6 +85,7 @@ export async function burnUsdcFromTmpWalletAndReturnSignature(params: {
     `Building CCTP burn for ${Number(amountInBaseUnits) / 1_000_000} USDC from tmp wallet...`
   );
 
+  // mint_recipient при burn на Solana (destination Aptos) = Aptos-адрес получателя (32 байта). См. Circle CCTP Solana docs.
   const mintRecipientBytes = aptosAddressToBytes(aptosRecipient);
 
   // messageSendEventData account

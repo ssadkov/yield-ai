@@ -28,7 +28,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { WalletSelector } from "@/components/WalletSelector";
 import { Loader2, Eye, EyeOff, ArrowLeft, Copy, LogOut } from "lucide-react";
 import bs58 from "bs58";
-import { executePrivacyCashBridge } from "@/lib/privacy-cash-bridge";
 import { ActionLog, type ActionLogItem } from "@/components/bridge/ActionLog";
 
 const PRIVACY_SIGN_MESSAGE = "Privacy Money account sign in";
@@ -83,6 +82,7 @@ function PrivacyBridgeContent() {
   const [showTmpSecrets, setShowTmpSecrets] = useState(false);
   const [withdrawConfig, setWithdrawConfig] = useState<any | null>(null);
   const [withdrawConfigError, setWithdrawConfigError] = useState<string | null>(null);
+  const [isTmpBridgeRunning, setIsTmpBridgeRunning] = useState(false);
   /** Лог действий burn/mint как в основном бридже: крупно, со ссылками, не сбрасывается при автообновлении */
   const [actionLog, setActionLog] = useState<ActionLogItem[]>([]);
 
@@ -529,39 +529,30 @@ function PrivacyBridgeContent() {
     }
   };
 
-  /** Burn с tmp-кошелька на Solana + mint на Aptos. После успешного mint проверяет баланс tmp и при нуле удаляет кошелёк. */
+  /** Burn с tmp-кошелька на Solana (на сервере) + mint на Aptos. После успешного mint проверяет баланс tmp и при нуле удаляет кошелёк. */
   const runBurnAndMintToAptos = async (wallet: TmpWallet): Promise<void> => {
-    const payerPk = process.env.NEXT_PUBLIC_SOLANA_PAYER_WALLET_PRIVATE_KEY;
-    const payerAddressEnv = process.env.NEXT_PUBLIC_SOLANA_PAYER_WALLET_ADDRESS;
-    if (!payerPk || !aptosAccount) return;
+    if (!aptosAccount) return;
 
     const burnStartTime = Date.now();
     setActionLog([]);
     addAction("Starting burn + mint to Aptos...", "pending", undefined, undefined, burnStartTime);
 
     try {
-      const tmpKeypair = Keypair.fromSecretKey(bs58.decode(wallet.privateKey.trim()));
-      const feePayerKeypair = Keypair.fromSecretKey(bs58.decode(payerPk.trim()));
-
-      const derivedAddress = feePayerKeypair.publicKey.toBase58();
-      if (payerAddressEnv && derivedAddress !== payerAddressEnv.trim()) {
-        updateLastAction(`Fee payer address mismatch: env expects ${payerAddressEnv.slice(0, 8)}...`, "error");
-        toast({
-          variant: "destructive",
-          title: "Fee payer address mismatch",
-          description: `Private key → ${derivedAddress.slice(0, 8)}... Env address → ${payerAddressEnv.slice(0, 8)}...`,
-        });
-        return;
-      }
-
-      updateLastAction("Preparing burn transaction on Solana (tmp wallet)...", "pending");
-      const sig = await executePrivacyCashBridge({
-        tmpKeypair,
-        feePayerKeypair,
-        solanaConnection,
-        aptosRecipient: aptosAccount.address.toString(),
-        onStatusUpdate: (s) => updateLastAction(s, "pending"),
+      updateLastAction("Preparing burn transaction on Solana (server)...", "pending");
+      const burnResp = await fetch("/api/privacy-bridge/burn", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tmpWalletPrivateKey: wallet.privateKey.trim(),
+          aptosRecipient: aptosAccount.address.toString(),
+        }),
       });
+      const burnJson = await burnResp.json();
+      if (!burnResp.ok) {
+        throw new Error(burnJson?.error ?? `Burn failed: ${burnResp.status}`);
+      }
+      const sig = burnJson.signature as string;
+      if (!sig) throw new Error("Server did not return burn signature");
 
       const solscanUrl = `https://solscan.io/tx/${sig}`;
       updateLastAction(
@@ -757,16 +748,6 @@ function PrivacyBridgeContent() {
         description: "Connect an Aptos wallet to receive bridged USDC (withdraw → burn → mint to Aptos).",
       });
       pushLog("warning", "Cannot withdraw: Aptos wallet is not connected.");
-      return;
-    }
-    const payerPk = process.env.NEXT_PUBLIC_SOLANA_PAYER_WALLET_PRIVATE_KEY;
-    if (!payerPk) {
-      toast({
-        variant: "destructive",
-        title: "Solana payer not configured",
-        description: "NEXT_PUBLIC_SOLANA_PAYER_WALLET_PRIVATE_KEY is not set.",
-      });
-      pushLog("error", "Cannot withdraw: Solana payer private key is not configured.");
       return;
     }
     if (!privacyBalanceUsdc || privacyBalanceUsdc <= 0) {
@@ -1069,7 +1050,40 @@ function PrivacyBridgeContent() {
                 )}
               </div>
 
-              {/* Amount to withdraw USDC — заголовок, под ним поле и кнопка (как у deposit) */}
+              {/* Amount to deposit USDC — над блоком Withdraw */}
+              <div className="space-y-1">
+                <span className="text-sm text-muted-foreground block">
+                  Amount to deposit USDC
+                </span>
+                <div className="flex items-center gap-2 justify-between">
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.000001"
+                    placeholder="0.000000"
+                    value={depositAmount}
+                    onChange={(e) => setDepositAmount(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleSendToDeposit}
+                    disabled={isDepositing || !depositAmount || Number(depositAmount) <= 0}
+                  >
+                    {isDepositing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Preparing…
+                      </>
+                    ) : (
+                      "Deposit to private pool"
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Amount to withdraw USDC — под блоком Deposit */}
               {privacyBalanceUsdc !== null &&
                 !privacyBalanceUsdcLoading &&
                 !privacyBalanceUsdcError &&
@@ -1101,44 +1115,12 @@ function PrivacyBridgeContent() {
                             Withdrawing…
                           </>
                         ) : (
-                          "Withdraw USDC"
+                          "Withdraw from private pool and bridge"
                         )}
                       </Button>
                     </div>
                   </div>
                 )}
-
-              <div className="space-y-1">
-                <span className="text-sm text-muted-foreground block">
-                  Amount to deposit USDC
-                </span>
-                <div className="flex items-center gap-2 justify-between">
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.000001"
-                    placeholder="0.000000"
-                    value={depositAmount}
-                    onChange={(e) => setDepositAmount(e.target.value)}
-                    className="flex-1"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={handleSendToDeposit}
-                    disabled={isDepositing || !depositAmount || Number(depositAmount) <= 0}
-                  >
-                    {isDepositing ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Preparing…
-                      </>
-                    ) : (
-                      "Send to deposit"
-                    )}
-                  </Button>
-                </div>
-              </div>
 
               {tmpWallet && (
                 <div className="pt-2 border-t text-xs space-y-2">
@@ -1177,6 +1159,28 @@ function PrivacyBridgeContent() {
                       <div>
                         <span className="font-semibold">Private key (base58):</span>{" "}
                         <span>{tmpWallet.privateKey}</span>
+                      </div>
+                      <div className="pt-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={isTmpBridgeRunning || !aptosConnected || !aptosAccount}
+                          onClick={async () => {
+                            if (!tmpWallet || !aptosAccount) return;
+                            setIsTmpBridgeRunning(true);
+                            try {
+                              await runBurnAndMintToAptos(tmpWallet);
+                            } finally {
+                              setIsTmpBridgeRunning(false);
+                            }
+                          }}
+                        >
+                          {isTmpBridgeRunning ? "Bridging…" : "Withdraw from tmp wallet and bridge"}
+                        </Button>
+                        <span className="ml-2 text-muted-foreground text-xs">
+                          Use if funds are stuck on tmp wallet after a failed burn.
+                        </span>
                       </div>
                     </div>
                   )}
