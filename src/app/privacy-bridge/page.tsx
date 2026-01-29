@@ -67,7 +67,7 @@ function PrivacyBridgeContent() {
     account: aptosAccount,
     connected: aptosConnected,
     disconnect: disconnectAptos,
-    connecting: aptosConnecting,
+    isLoading: aptosConnecting,
   } = useAptosWallet();
 
   const [isSolanaDialogOpen, setIsSolanaDialogOpen] = useState(false);
@@ -333,9 +333,11 @@ function PrivacyBridgeContent() {
       let sig: Uint8Array;
       try {
         const raw = await solanaSignMessage(msg);
-        sig = (raw as { signature?: Uint8Array }).signature
-          ? ((raw as { signature: Uint8Array }).signature)
-          : (raw as Uint8Array);
+        if (typeof raw === "object" && raw !== null && "signature" in raw && raw.signature instanceof Uint8Array) {
+          sig = raw.signature;
+        } else {
+          sig = raw as Uint8Array;
+        }
       } catch (e: unknown) {
         if (e instanceof Error && e.message?.toLowerCase().includes("reject")) {
           throw new Error("User rejected the signature request");
@@ -445,9 +447,11 @@ function PrivacyBridgeContent() {
       let sig: Uint8Array;
       try {
         const raw = await solanaSignMessage(msg);
-        sig = (raw as { signature?: Uint8Array }).signature
-          ? ((raw as { signature: Uint8Array }).signature)
-          : (raw as Uint8Array);
+        if (typeof raw === "object" && raw !== null && "signature" in raw && raw.signature instanceof Uint8Array) {
+          sig = raw.signature;
+        } else {
+          sig = raw as Uint8Array;
+        }
       } catch (e: unknown) {
         if (e instanceof Error && e.message?.toLowerCase().includes("reject")) {
           throw new Error("User rejected the signature request");
@@ -795,9 +799,11 @@ function PrivacyBridgeContent() {
       let sig: Uint8Array;
       try {
         const raw = await solanaSignMessage(msg);
-        sig = (raw as { signature?: Uint8Array }).signature
-          ? ((raw as { signature: Uint8Array }).signature)
-          : (raw as Uint8Array);
+        if (typeof raw === "object" && raw !== null && "signature" in raw && raw.signature instanceof Uint8Array) {
+          sig = raw.signature;
+        } else {
+          sig = raw as Uint8Array;
+        }
       } catch (e: unknown) {
         if (e instanceof Error && e.message?.toLowerCase().includes("reject")) {
           throw new Error("User rejected the signature request");

@@ -107,8 +107,6 @@ const nextConfig = {
   output: 'standalone',
   // Add trailing slash for better routing
   trailingSlash: false,
-  // Optimize for production builds
-  swcMinify: true,
   // Add compression
   compress: true,
   // Add powered by header removal

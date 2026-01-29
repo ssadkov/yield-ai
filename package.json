@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "dev:turbo": "next dev --turbopack",
-    "build": "next build",
+    "build": "cross-env NEXT_IGNORE_INCORRECT_LOCKFILE=1 next build",
     "start": "next start",
     "lint": "next lint",
     "update-tokens": "node scripts/update-token-list.js",
@@ -75,6 +75,7 @@
     "zustand": "^5.0.6"
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20.19.0",
@@ -87,6 +88,8 @@
     "typescript": "^5"
   },
   "optionalDependencies": {
+    "@next/swc-linux-x64-gnu": "15.5.9",
+    "@next/swc-win32-x64-msvc": "15.5.9",
     "@tailwindcss/oxide-linux-x64-gnu": "^4.1.11",
     "lightningcss-linux-x64-gnu": "^1.30.1"
   },
