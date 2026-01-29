@@ -299,7 +299,6 @@ export const useWalletStore = create<WalletState>()(
             console.log('[WalletStore] Base URL:', getBaseUrl());
             console.log('[WalletStore] Environment check:', {
               NODE_ENV: process.env.NODE_ENV,
-              NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
               VERCEL_URL: process.env.VERCEL_URL
             });
             
