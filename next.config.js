@@ -37,12 +37,27 @@ const nextConfig = {
           },
         },
       };
+      // Handle WASM files from @lightprotocol/hasher.rs
+      config.module.rules.push({
+        test: /\.wasm$/,
+        type: 'asset/resource',
+        generator: {
+          filename: 'static/wasm/[name][ext]',
+        },
+      });
+      // Ensure WASM files are not processed as modules
+      config.resolve.extensionAlias = {
+        '.js': ['.js', '.ts', '.tsx'],
+        '.wasm': ['.wasm'],
+      };
     }
     return config;
   },
   // Add experimental features for better chunk handling
   experimental: {
     optimizePackageImports: ['@radix-ui/react-icons', 'lucide-react'],
+    // Disable Turbopack for WASM compatibility (can re-enable after testing)
+    // turbopack: undefined,
   },
   // Optimize images for better loading
   images: {

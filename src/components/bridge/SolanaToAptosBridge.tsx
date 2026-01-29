@@ -72,12 +72,13 @@ async function computeDiscriminator(instructionName: string): Promise<Buffer> {
  * Creates depositForBurn instruction manually (without Wormhole SDK)
  * Based on Circle CCTP TokenMessengerMinter program structure
  */
-async function createDepositForBurnInstructionManual(
+export async function createDepositForBurnInstructionManual(
   tokenMessengerProgramId: PublicKey,
   messageTransmitterProgramId: PublicKey,
   tokenMint: PublicKey,
   destinationDomain: number,
   senderAddress: PublicKey,
+  eventRentPayerAddress: PublicKey,
   senderAssociatedTokenAccountAddress: PublicKey,
   mintRecipientBytes: Uint8Array,
   amount: bigint,
@@ -130,7 +131,7 @@ async function createDepositForBurnInstructionManual(
   // #[event_cpi] adds: event_authority, then "program" (TokenMessengerMinter for self-CPI emit).
   const instructionKeys = [
     { pubkey: senderAddress, isSigner: true, isWritable: false }, // 0 owner
-    { pubkey: senderAddress, isSigner: true, isWritable: true }, // 1 event_rent_payer
+    { pubkey: eventRentPayerAddress, isSigner: true, isWritable: true }, // 1 event_rent_payer (payer of rent/lamports)
     { pubkey: authorityPda.publicKey, isSigner: false, isWritable: false }, // 2 sender_authority_pda
     { pubkey: senderAssociatedTokenAccountAddress, isSigner: false, isWritable: true }, // 3 burn_token_account
     { pubkey: messageTransmitterAccount.publicKey, isSigner: false, isWritable: true }, // 4 message_transmitter (mut)
@@ -158,10 +159,18 @@ async function createDepositForBurnInstructionManual(
   };
 }
 
+export type SolanaToAptosBridgeTmpOptions = {
+  mode: "tmp";
+  tmpKeypair: Keypair;
+  feePayerKeypair: Keypair;
+  onStatusUpdate?: (status: string) => void;
+};
+
 /**
  * Executes Solana -> Aptos bridge transfer
  * Uses CCTP depositForBurn on Solana (without Wormhole SDK)
- * Uses service wallet for gas payment (like bridge2)
+ * Default: connected wallet signs & pays fee.
+ * Tmp mode: tmpKeypair as owner, feePayerKeypair pays fee (no wallet adapter).
  */
 export async function executeSolanaToAptosBridge(
   amount: string,
@@ -169,8 +178,76 @@ export async function executeSolanaToAptosBridge(
   signTransaction: (tx: Transaction) => Promise<Transaction>,
   solanaConnection: any,
   aptosAddress: string,
-  onStatusUpdate: (status: string) => void
+  onStatusUpdateOrOptions: ((status: string) => void) | SolanaToAptosBridgeTmpOptions
 ): Promise<string> {
+  // TMP MODE: burn from tmp wallet using keypairs only (no wallet adapter)
+  if (typeof onStatusUpdateOrOptions !== "function" && onStatusUpdateOrOptions?.mode === "tmp") {
+    const { tmpKeypair, feePayerKeypair, onStatusUpdate } = onStatusUpdateOrOptions;
+    const log = (s: string) => onStatusUpdate?.(s);
+
+    log("Preparing burn transaction on Solana (tmp wallet mode)...");
+
+    // Get tmp wallet USDC ATA and full balance
+    const ownerTokenAccount = await getAssociatedTokenAddress(
+      USDC_MINT,
+      tmpKeypair.publicKey
+    );
+
+    const balanceInfo = await solanaConnection.getTokenAccountBalance(
+      ownerTokenAccount
+    );
+    const rawAmount = balanceInfo?.value?.amount;
+    if (!rawAmount) {
+      throw new Error("No USDC balance found on tmp wallet token account");
+    }
+    const amountInBaseUnits = BigInt(rawAmount);
+
+    // Convert Aptos address to 32 bytes for mint_recipient
+    const mintRecipientBytes = aptosAddressToBytes(aptosAddress);
+
+    log("Building depositForBurn instruction (tmp wallet)...");
+
+    const messageSendEventDataKeypair = Keypair.generate();
+    const messageSendEventData = messageSendEventDataKeypair.publicKey;
+
+    const { instruction } = await createDepositForBurnInstructionManual(
+      TOKEN_MESSENGER_MINTER_PROGRAM_ID,
+      MESSAGE_TRANSMITTER_PROGRAM_ID,
+      USDC_MINT,
+      DOMAIN_APTOS,
+      tmpKeypair.publicKey,
+      feePayerKeypair.publicKey,
+      ownerTokenAccount,
+      mintRecipientBytes,
+      amountInBaseUnits,
+      messageSendEventData,
+      messageSendEventDataKeypair
+    );
+
+    const tx = new Transaction();
+    tx.add(instruction);
+    tx.feePayer = feePayerKeypair.publicKey;
+
+    log("Getting fresh blockhash...");
+    const { blockhash } = await solanaConnection.getLatestBlockhash("confirmed");
+    tx.recentBlockhash = blockhash;
+
+    log("Signing burn transaction with tmp wallet and fee payer...");
+    tx.partialSign(tmpKeypair, messageSendEventDataKeypair, feePayerKeypair);
+
+    log("Sending transaction to Solana...");
+    const signature = await solanaConnection.sendRawTransaction(tx.serialize(), {
+      skipPreflight: false,
+      maxRetries: 3,
+    });
+
+    log(`Burn transaction sent: ${signature}`);
+    return signature;
+  }
+
+  // WALLET MODE (текущая логика моста)
+  const onStatusUpdate = onStatusUpdateOrOptions as (status: string) => void;
+
   try {
     onStatusUpdate('Preparing burn transaction on Solana...');
 
@@ -202,6 +279,7 @@ export async function executeSolanaToAptosBridge(
       MESSAGE_TRANSMITTER_PROGRAM_ID,
       USDC_MINT,
       DOMAIN_APTOS,
+      solanaPublicKey,
       solanaPublicKey,
       ownerTokenAccount,
       mintRecipientBytes,

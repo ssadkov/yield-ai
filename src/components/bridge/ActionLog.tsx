@@ -17,6 +17,8 @@ export interface ActionLogItem {
 
 interface ActionLogProps {
   items: ActionLogItem[];
+  /** Заголовок блока (по умолчанию "Bridge Actions") */
+  title?: string;
 }
 
 // Format duration in milliseconds to HH:MM:SS
@@ -29,7 +31,7 @@ function formatDuration(ms: number): string {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-export function ActionLog({ items }: ActionLogProps) {
+export function ActionLog({ items, title = "Bridge Actions" }: ActionLogProps) {
   if (items.length === 0) {
     return null;
   }
@@ -37,7 +39,7 @@ export function ActionLog({ items }: ActionLogProps) {
   return (
     <Card className="border-2 mt-4">
       <CardContent className="p-4">
-        <h3 className="text-lg font-semibold mb-4">Bridge Actions</h3>
+        <h3 className="text-lg font-semibold mb-4">{title}</h3>
         <div className="space-y-3">
           {items.map((item, index) => (
             <div
