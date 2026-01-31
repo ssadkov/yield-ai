@@ -7,6 +7,7 @@ import { StandardWalletAdapter as SolanaWalletAdapter } from "@solana/wallet-sta
 import { UserResponseStatus } from "@aptos-labs/wallet-standard";
 import type { Aptos } from "@aptos-labs/ts-sdk";
 import { normalizeAuthenticator } from "@/lib/hooks/useTransactionSubmitter";
+import { isDerivedAptosWallet } from "@/lib/aptosWalletUtils";
 
 const USDC_SOLANA = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const USDC_APTOS = "0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b";
@@ -49,6 +50,7 @@ export interface ExecuteAptosToSolanaBridgeParams {
   amount: string;
   aptosAccount: { address: { toString: () => string } };
   aptosWallet: {
+    name?: string;
     isAptosNativeWallet?: boolean;
     features?: { "aptos:signTransaction"?: { signTransaction: (tx: unknown) => Promise<{ status: number; args?: unknown }> } };
     authenticationFunction?: string;
@@ -88,7 +90,7 @@ export async function executeAptosToSolanaBridge(
     throw new Error("Please enter a valid amount");
   }
   const amountOctas = BigInt(Math.floor(amountNum * 1_000_000));
-  const isDerivedWallet = aptosWallet && !aptosWallet.isAptosNativeWallet;
+  const isDerivedWallet = isDerivedAptosWallet(aptosWallet);
   const useGasStation = !!transactionSubmitter;
 
   if (!isDerivedWallet) {

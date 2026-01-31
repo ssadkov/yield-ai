@@ -21,14 +21,13 @@ interface ActionLogProps {
   title?: string;
 }
 
-// Format duration in milliseconds to HH:MM:SS
+// Format duration in ms as "Xs" or "Xm Ys"
 function formatDuration(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  if (totalSeconds < 60) return `${totalSeconds}s`;
+  const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
-  
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
 }
 
 export function ActionLog({ items, title = "Bridge Actions" }: ActionLogProps) {
@@ -77,7 +76,7 @@ export function ActionLog({ items, title = "Bridge Actions" }: ActionLogProps) {
                     </p>
                   </div>
                   {item.duration !== undefined && (
-                    <div className="flex-shrink-0 text-xs text-muted-foreground font-mono">
+                    <div className="flex-shrink-0 text-right text-xs text-muted-foreground font-mono whitespace-nowrap" title={`${Math.round(item.duration / 1000)}s`}>
                       {formatDuration(item.duration)}
                     </div>
                   )}

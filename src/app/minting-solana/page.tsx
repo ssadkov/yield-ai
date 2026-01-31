@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -153,42 +154,33 @@ async function fetchAttestation(
 
 function MintingSolanaPageContent() {
   const { toast } = useToast();
+  const searchParams = useSearchParams();
   const { publicKey: solanaPublicKey, wallet: solanaWallet, signTransaction } = useSolanaWallet();
   const { connection: solanaConnection } = useConnection();
   
-  const [sourceDomain, setSourceDomain] = useState<string>("");
+  const SOURCE_DOMAIN_APTOS = 9;
   const [signature, setSignature] = useState<string>("");
-  const [finalRecipient, setFinalRecipient] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [status, setStatus] = useState<string>("");
   const [attestationProgress, setAttestationProgress] = useState<{ attempt: number; maxAttempts: number } | null>(null);
 
-  // Auto-fill finalRecipient from connected wallet
+  useEffect(() => {
+    const sig = searchParams.get("signature");
+    if (sig) setSignature(sig);
+  }, [searchParams]);
+
   const solanaAddress = solanaPublicKey?.toBase58() || null;
-  
+
   const handleMint = async () => {
-    if (!sourceDomain.trim() || !signature.trim() || !finalRecipient.trim()) {
+    if (!signature.trim()) {
       toast({
         title: "Error",
-        description: "Please enter sourceDomain, signature, and final recipient address",
+        description: "Please enter Aptos transaction signature",
         variant: "destructive",
       });
       return;
     }
 
-    // Validate sourceDomain
-    const domainStr = sourceDomain.toString().trim();
-    const domain = parseInt(domainStr, 10);
-    if (isNaN(domain) || (domain !== 5 && domain !== 9)) {
-      toast({
-        title: "Error",
-        description: "sourceDomain must be 5 (Solana) or 9 (Aptos)",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validate Solana wallet connection
     if (!solanaWallet || !solanaPublicKey || !signTransaction) {
       toast({
         title: "Error",
@@ -198,18 +190,7 @@ function MintingSolanaPageContent() {
       return;
     }
 
-    // Validate finalRecipient is a valid Solana address
-    try {
-      const { PublicKey } = await import("@solana/web3.js");
-      new PublicKey(finalRecipient.trim());
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Invalid Solana address format for final recipient",
-        variant: "destructive",
-      });
-      return;
-    }
+    const formRecipientFromWallet = solanaPublicKey.toBase58();
 
     setIsProcessing(true);
     setStatus("");
@@ -217,17 +198,15 @@ function MintingSolanaPageContent() {
 
     try {
       console.log('[Minting Solana] Starting mint process:', {
-        sourceDomain: domain,
+        sourceDomain: SOURCE_DOMAIN_APTOS,
         signature: signature.substring(0, 20) + '...',
-        finalRecipientFromForm: finalRecipient.substring(0, 20) + '...',
         solanaWallet: solanaWallet.adapter?.name,
-        solanaAddress: solanaAddress,
+        solanaAddress: formRecipientFromWallet,
       });
 
-      // Step 1: Fetch attestation with polling
       setStatus("Fetching attestation from Circle Iris API...");
       const attestationData = await fetchAttestation(
-        domain,
+        SOURCE_DOMAIN_APTOS,
         signature.trim(),
         (attempt, maxAttempts) => {
           setAttestationProgress({ attempt, maxAttempts });
@@ -271,7 +250,7 @@ function MintingSolanaPageContent() {
       // Примечание: адрес может быть в hex формате (для Aptos) или уже в base58 (для Solana)
       // Если destinationDomain = 5 (Solana), адрес нужно преобразовать из hex в base58
       
-      const formRecipient = finalRecipient.trim();
+      const formRecipient = formRecipientFromWallet;
       let mintRecipientFromMessage: string | null = null;
       
       // Преобразуем messageBytes в hex строку для поиска паттернов
@@ -1595,18 +1574,12 @@ function MintingSolanaPageContent() {
         <CardHeader>
           <CardTitle>Solana CCTP Minting</CardTitle>
           <CardDescription>
-            Enter transaction signature (from Aptos burn), source domain, and final recipient Solana address.
-            The script will fetch attestation from Circle Iris API and prepare the mint transaction.
+            Enter Aptos burn transaction signature. Connect a Solana wallet — attestation is fetched and USDC is minted to the ATA from the message (your connected wallet must own that ATA).
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Solana wallet connect */}
-          <SolanaWalletSelector onWalletChange={(addr) => {
-            // Если получатель не задан, подставляем подключенный кошелёк
-            if (addr && !finalRecipient) {
-              setFinalRecipient(addr);
-            }
-          }} />
+          <SolanaWalletSelector onWalletChange={() => {}} />
 
           {/* Wallet Connection Status */}
           {solanaAddress ? (
@@ -1646,61 +1619,23 @@ function MintingSolanaPageContent() {
           )}
 
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="sourceDomain">Source Domain</Label>
-                <Input
-                  id="sourceDomain"
-                  type="number"
-                  value={sourceDomain}
-                  onChange={(e) => setSourceDomain(e.target.value)}
-                  placeholder="9 (Aptos)"
-                  className="font-mono text-sm"
-                />
-                <p className="text-xs text-gray-500 mt-1">9 for Aptos, 5 for Solana</p>
-              </div>
-
-              <div>
-                <Label htmlFor="signature">Transaction Signature</Label>
-                <Input
-                  id="signature"
-                  value={signature}
-                  onChange={(e) => setSignature(e.target.value)}
-                  placeholder="Aptos transaction hash (0x...)"
-                  className="font-mono text-sm"
-                />
-                <p className="text-xs text-gray-500 mt-1">Transaction hash from Aptos burn</p>
-              </div>
-            </div>
-
             <div>
-              <Label htmlFor="finalRecipient">Final Recipient Address (Solana)</Label>
+              <Label htmlFor="signature">Aptos transaction signature</Label>
               <Input
-                id="finalRecipient"
-                value={finalRecipient}
-                onChange={(e) => setFinalRecipient(e.target.value)}
-                placeholder={solanaAddress || "Solana wallet address (e.g. 9XL5jC...)"}
+                id="signature"
+                value={signature}
+                onChange={(e) => setSignature(e.target.value)}
+                placeholder="0x... (Aptos burn tx hash)"
                 className="font-mono text-sm"
               />
-              {solanaAddress && !finalRecipient && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-2"
-                  onClick={() => setFinalRecipient(solanaAddress)}
-                >
-                  Use Connected Wallet
-                </Button>
-              )}
+              <p className="text-xs text-gray-500 mt-1">Transaction hash from Aptos burn. USDC will be minted to the ATA from the message (connected wallet must own it).</p>
             </div>
 
             <Button
               onClick={handleMint}
               disabled={
                 isProcessing ||
-                !sourceDomain.trim() ||
                 !signature.trim() ||
-                !finalRecipient.trim() ||
                 !solanaWallet ||
                 !signTransaction
               }
@@ -1718,7 +1653,9 @@ function MintingSolanaPageContent() {
 export default function MintingSolanaPage() {
   return (
     <SolanaWalletProviderWrapper>
-      <MintingSolanaPageContent />
+      <Suspense fallback={<div className="container mx-auto p-6 max-w-6xl">Loading...</div>}>
+        <MintingSolanaPageContent />
+      </Suspense>
     </SolanaWalletProviderWrapper>
   );
 }

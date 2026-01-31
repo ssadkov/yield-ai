@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { GasStationService } from "@/lib/services/gasStation";
 import { useAptosClient } from "@/contexts/AptosClientContext";
 import { normalizeAuthenticator } from "@/lib/hooks/useTransactionSubmitter";
+import { isDerivedAptosWallet } from "@/lib/aptosWalletUtils";
 
 const TRANSFER_AMOUNT_OCTAS = BigInt(1_000_000); // 0.001 APT
 
@@ -88,8 +89,8 @@ export function SolanaSignMessageButton() {
         throw new Error("Wallet does not support signTransaction");
       }
 
-      // For x-chain wallets, use manual approach: build -> sign -> submit via GasStationTransactionSubmitter
-      if (!wallet.isAptosNativeWallet) {
+      // For x-chain (derived) wallets, use manual approach: build -> sign -> submit via GasStationTransactionSubmitter
+      if (isDerivedAptosWallet(wallet)) {
         if (!transactionSubmitter) {
           throw new Error("Gas Station transaction submitter not available");
         }

@@ -71,11 +71,16 @@ export const WalletProvider = ({ children }: PropsWithChildren) => {
         },
       }}
       onError={(error) => {
-        console.error('Wallet error:', error);
+        const message = typeof error === "string" ? error : (error?.message ?? "Unknown wallet error");
+        console.error("Wallet error:", error);
+        // Don't show toast for expected user actions or auto-connect noise
+        if (message === "Unexpected error" || message === "User has rejected the request") {
+          return;
+        }
         toast({
           variant: "destructive",
           title: "Wallet Error",
-          description: error || "Unknown wallet error",
+          description: message,
         });
       }}
     >

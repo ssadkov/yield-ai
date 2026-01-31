@@ -1,25 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 
-export default function MintingAptosPage() {
-  const { toast } = useToast();
-  const [sourceDomain, setSourceDomain] = useState<string>("");
-  const [signature, setSignature] = useState<string>("");
-  const [finalRecipient, setFinalRecipient] = useState<string>("");
-  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+const SOURCE_DOMAIN_SOLANA = "5";
 
-  // Send data to server for processing
+function MintingAptosContent() {
+  const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const [signature, setSignature] = useState<string>("");
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [lastTxHash, setLastTxHash] = useState<string | null>(null);
+
+  useEffect(() => {
+    const sig = searchParams.get("signature");
+    if (sig) setSignature(sig);
+  }, [searchParams]);
+
   const handleMint = async () => {
-    if (!sourceDomain.trim() || !signature.trim() || !finalRecipient.trim()) {
+    if (!signature.trim()) {
       toast({
         title: "Error",
-        description: "Please enter sourceDomain, signature, and final recipient address",
+        description: "Please enter Solana transaction signature",
         variant: "destructive",
       });
       return;
@@ -35,8 +43,8 @@ export default function MintingAptosPage() {
         },
         body: JSON.stringify({
           signature: signature.trim(),
-          sourceDomain: sourceDomain.trim(),
-          finalRecipient: finalRecipient.trim(),
+          sourceDomain: SOURCE_DOMAIN_SOLANA,
+          finalRecipient: "0x0000000000000000000000000000000000000000000000000000000000000000", // recipient from message; API requires a value
         }),
       });
 
@@ -48,9 +56,28 @@ export default function MintingAptosPage() {
         throw new Error(errorMessage);
       }
 
+      // API returns 200 + pending when attestation is not ready yet (no tx submitted)
+      if (data.data?.pending === true) {
+        toast({
+          title: "Attestation not ready yet",
+          description: data.data?.message || "Wait 1–2 minutes after the burn and try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const txHash = data.data?.transaction?.hash;
+      const explorerUrl = txHash
+        ? `https://explorer.aptoslabs.com/txn/${txHash}?network=mainnet`
+        : null;
+
+      if (txHash) setLastTxHash(txHash);
+
       toast({
-        title: "Success",
-        description: `Attestation processed successfully. Account: ${data.data?.accountAddress || 'N/A'}`,
+        title: txHash ? "Mint submitted" : "Success",
+        description: txHash
+          ? "Transaction sent. Open the link below to check status. If no credits — check if the transaction reverted in Explorer."
+          : `Account: ${data.data?.accountAddress ?? "N/A"}`,
       });
     } catch (error: any) {
       console.error('[Minting Aptos] Error:', error);
@@ -70,60 +97,58 @@ export default function MintingAptosPage() {
         <CardHeader>
           <CardTitle>Aptos CCTP Minting</CardTitle>
           <CardDescription>
-            Enter transaction signature, source domain, and final recipient address.
-            The server will fetch attestation data and process the minting transaction.
+            Enter Solana burn transaction signature. The server will fetch attestation and mint USDC on Aptos to the address from the burn.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Input Section */}
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="sourceDomain">Source Domain</Label>
-                <Input
-                  id="sourceDomain"
-                  type="number"
-                  value={sourceDomain}
-                  onChange={(e) => setSourceDomain(e.target.value)}
-                  placeholder="1"
-                  className="font-mono text-sm"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="signature">Transaction Signature</Label>
-                <Input
-                  id="signature"
-                  value={signature}
-                  onChange={(e) => setSignature(e.target.value)}
-                  placeholder="47C3YgaV4SbJifuZ9yciNbfdjgPHfQTuiKbxgwdrhseYMVVZgwiBJDqLKTtwR2DvZvz1zPw6SwqeUWfkmxS7svEP"
-                  className="font-mono text-sm"
-                />
-              </div>
-            </div>
-
             <div>
-              <Label htmlFor="finalRecipient">Final Recipient Address</Label>
+              <Label htmlFor="signature">Solana transaction signature</Label>
               <Input
-                id="finalRecipient"
-                value={finalRecipient}
-                onChange={(e) => setFinalRecipient(e.target.value)}
-                placeholder="0x..."
+                id="signature"
+                value={signature}
+                onChange={(e) => setSignature(e.target.value)}
+                placeholder="FoQTrVrvLC7X8DxgQQjofznpuxfgivzknrcSZmWzjoANA1FCEMzC6PwbJS7BoYsWbE3ad5sBkavuGuYd4kWhR5G"
                 className="font-mono text-sm"
               />
             </div>
 
             <Button
               onClick={handleMint}
-              disabled={isProcessing || !sourceDomain.trim() || !signature.trim() || !finalRecipient.trim()}
+              disabled={isProcessing || !signature.trim()}
               className="w-full bg-green-600 hover:bg-green-700"
             >
               {isProcessing ? "Processing..." : "Mint USDC on Aptos"}
             </Button>
+
+            {lastTxHash && (
+              <div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm">
+                <p className="font-medium text-green-800">Transaction submitted</p>
+                <p className="mt-1 text-green-700">
+                  If no credits on the recipient — open the link and check status (success / reverted).
+                </p>
+                <Link
+                  href={`https://explorer.aptoslabs.com/txn/${lastTxHash}?network=mainnet`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-block font-mono text-green-800 underline"
+                >
+                  View transaction in Aptos Explorer →
+                </Link>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function MintingAptosPage() {
+  return (
+    <Suspense fallback={<div className="container mx-auto p-6 max-w-6xl">Loading...</div>}>
+      <MintingAptosContent />
+    </Suspense>
   );
 }
 

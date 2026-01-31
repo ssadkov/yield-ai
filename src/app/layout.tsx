@@ -4,6 +4,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import Link from "next/link";
 import { WalletProvider } from "@/lib/WalletProvider";
+import { SolanaProvider } from "@/lib/SolanaProvider";
 import { WalletDataProvider } from "@/contexts/WalletContext";
 import { ProtocolProvider } from "@/lib/contexts/ProtocolContext";
 import { DragDropProvider } from "@/contexts/DragDropContext";
@@ -12,6 +13,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Analytics } from "@vercel/analytics/next";
 import { AptosClientProvider } from "@/contexts/AptosClientContext";
 import { ThemeProviderWrapper } from "@/components/ThemeProviderWrapper";
+import { SolanaWalletRestore } from "@/components/SolanaWalletRestore";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -65,8 +67,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProviderWrapper>
           <AptosClientProvider>
             <WalletProvider>
-              <WalletDataProvider>
-                <ProtocolProvider>
+              <SolanaProvider>
+                <SolanaWalletRestore>
+                <WalletDataProvider>
+                  <ProtocolProvider>
                   <DragDropProvider>
                     <TooltipProvider>
                       {/*<AlphaBanner />*/}
@@ -78,16 +82,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                         target="_blank"
                         rel="noopener noreferrer"
                         className="fixed bottom-4 right-4 z-50 p-1 text-gray-400 hover:text-gray-600 transition-colors hidden md:block"
-                        title="Yield AI Home"
-                      >
-                        <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
-                        </svg>
-                      </Link>
-                    </TooltipProvider>
-                  </DragDropProvider>
-                </ProtocolProvider>
-              </WalletDataProvider>
+                          title="Yield AI Home"
+                        >
+                          <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                          </svg>
+                        </Link>
+                      </TooltipProvider>
+                    </DragDropProvider>
+                  </ProtocolProvider>
+                </WalletDataProvider>
+                </SolanaWalletRestore>
+              </SolanaProvider>
               <Toaster />
             </WalletProvider>
           </AptosClientProvider>

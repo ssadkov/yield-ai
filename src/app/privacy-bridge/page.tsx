@@ -2,12 +2,12 @@
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useWallet as useSolanaWallet, useConnection } from "@solana/wallet-adapter-react";
 import { useWallet as useAptosWallet } from "@aptos-labs/wallet-adapter-react";
 import { WalletReadyState, WalletName } from "@solana/wallet-adapter-base";
 import { PublicKey, Keypair } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { SolanaWalletProviderWrapper } from "../bridge3/SolanaWalletProvider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -26,9 +26,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/components/ui/use-toast";
 import { WalletSelector } from "@/components/WalletSelector";
-import { Loader2, Eye, EyeOff, ArrowLeft, Copy, LogOut } from "lucide-react";
+import { Loader2, Eye, EyeOff, ArrowLeft, Copy, LogOut, ChevronDown } from "lucide-react";
 import bs58 from "bs58";
 import { ActionLog, type ActionLogItem } from "@/components/bridge/ActionLog";
+import { isDerivedAptosWalletReliable, getAptosWalletNameFromStorage } from "@/lib/aptosWalletUtils";
+import { useSolanaPortfolio } from "@/hooks/useSolanaPortfolio";
+import { AptosPortfolioService } from "@/lib/services/aptos/portfolio";
+import { Token } from "@/lib/types/token";
+import { TokenList } from "@/components/portfolio/TokenList";
+import { formatCurrency } from "@/lib/utils/numberFormat";
+import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const PRIVACY_SIGN_MESSAGE = "Privacy Money account sign in";
 const USDC_MINT = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
@@ -55,6 +63,7 @@ function PrivacyBridgeContent() {
   const {
     publicKey: solanaPublicKey,
     connected: solanaConnected,
+    wallet: solanaWallet,
     disconnect: disconnectSolana,
     wallets,
     select,
@@ -65,12 +74,17 @@ function PrivacyBridgeContent() {
   const {
     account: aptosAccount,
     connected: aptosConnected,
+    wallet: aptosWallet,
+    wallets: aptosWallets,
+    connect: connectAptos,
     disconnect: disconnectAptos,
     isLoading: aptosConnecting,
   } = useAptosWallet();
 
   const [isSolanaDialogOpen, setIsSolanaDialogOpen] = useState(false);
   const [isSolanaConnecting, setIsSolanaConnecting] = useState(false);
+  const [isSolanaBalanceExpanded, setIsSolanaBalanceExpanded] = useState(false);
+  const [isAptosBalanceExpanded, setIsAptosBalanceExpanded] = useState(false);
   const [privacyBalanceUsdc, setPrivacyBalanceUsdc] = useState<number | null>(null);
   const [privacyBalanceUsdcLoading, setPrivacyBalanceUsdcLoading] = useState(false);
   const [privacyBalanceUsdcError, setPrivacyBalanceUsdcError] = useState<string | null>(null);
@@ -85,9 +99,16 @@ function PrivacyBridgeContent() {
   const [isTmpBridgeRunning, setIsTmpBridgeRunning] = useState(false);
   /** Лог действий burn/mint как в основном бридже: крупно, со ссылками, не сбрасывается при автообновлении */
   const [actionLog, setActionLog] = useState<ActionLogItem[]>([]);
+  const [lastBurnParams, setLastBurnParams] = useState<{ signature: string; finalRecipient: string } | null>(null);
+  const [walletConnectMounted, setWalletConnectMounted] = useState(false);
+  useEffect(() => {
+    setWalletConnectMounted(true);
+  }, []);
 
   /** Один раз за сессию для текущего адреса — чтобы не дергать кошелёк на подпись после burn/mint */
   const lastFetchedBalanceForAddress = useRef<string | null>(null);
+  /** Блокировка одновременных вызовов signMessage (кошелёк допускает только один pending запрос) */
+  const isFetchingPrivacyBalanceRef = useRef(false);
 
   /** По умолчанию в поле withdraw — весь баланс (реальное значение, не placeholder) */
   useEffect(() => {
@@ -100,8 +121,134 @@ function PrivacyBridgeContent() {
 
   const solanaAddress = solanaPublicKey?.toBase58() ?? null;
 
+  const solanaWalletNameForDerived =
+    (solanaWallet as { adapter?: { name?: string }; name?: string })?.adapter?.name ??
+    (solanaWallet as { name?: string })?.name ??
+    "";
+  const isDerivedWallet = useMemo(() => {
+    if (aptosWallet) {
+      if (isDerivedAptosWalletReliable(aptosWallet)) return true;
+      return Boolean(solanaWalletNameForDerived && aptosWallet.name === solanaWalletNameForDerived);
+    }
+    const stored = getAptosWalletNameFromStorage();
+    return Boolean(stored != null && stored !== "" && String(stored).trim().endsWith(" (Solana)"));
+  }, [aptosWallet, solanaWalletNameForDerived]);
+
+  // Restore Solana wallet from localStorage on bridge load (AptosWalletName e.g. "Trust (Solana)" first, then walletName)
+  const hasTriggeredRestore = useRef(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (solanaConnected) return;
+    const walletNames = new Set<string>(wallets?.map((w) => String(w.adapter.name)) ?? []);
+    let savedName: string | null = null;
+    const aptosRaw = window.localStorage.getItem("AptosWalletName");
+    if (aptosRaw) {
+      try {
+        const parsed = JSON.parse(aptosRaw) as string | null;
+        const aptosName = typeof parsed === "string" ? parsed : aptosRaw;
+        if (aptosName?.endsWith(" (Solana)")) {
+          const name = aptosName.slice(0, -" (Solana)".length).trim();
+          if (name && walletNames.has(name)) savedName = name;
+        }
+      } catch {}
+    }
+    if (!savedName) {
+      const raw = window.localStorage.getItem("walletName");
+      if (raw) {
+        try {
+          const p = JSON.parse(raw) as string | null;
+          if (p && walletNames.has(p)) savedName = p;
+        } catch {}
+      }
+    }
+    if (!savedName) return;
+
+    const tryRestore = () => {
+      if (solanaConnected || !wallets?.length) return;
+      const exists = wallets.some((w) => w.adapter.name === savedName);
+      if (!exists) return;
+      if (hasTriggeredRestore.current) return;
+      hasTriggeredRestore.current = true;
+      select(savedName as WalletName);
+      setTimeout(() => connectSolana().catch(() => {}), 100);
+      setTimeout(() => connectSolana().catch(() => {}), 600);
+    };
+
+    tryRestore();
+    const t1 = setTimeout(tryRestore, 400);
+    const t2 = setTimeout(tryRestore, 1200);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [wallets, solanaConnected, select, connectSolana]);
+
+  const skipAutoConnectDerivedRef = useRef(false);
+  const hasTriedAutoConnectDerived = useRef(false);
+  useEffect(() => {
+    if (!aptosConnected || !aptosWallet || typeof window === "undefined") return;
+    const derived = isDerivedAptosWalletReliable(aptosWallet) || Boolean(solanaWalletNameForDerived && aptosWallet.name === solanaWalletNameForDerived);
+    if (!derived) {
+      sessionStorage.removeItem("skip_auto_connect_derived_aptos");
+      skipAutoConnectDerivedRef.current = false;
+      hasTriedAutoConnectDerived.current = false;
+    }
+  }, [aptosConnected, aptosWallet, solanaWalletNameForDerived]);
+  useEffect(() => {
+    if (!solanaConnected || aptosConnected || !aptosWallets?.length || !solanaWallet) return;
+    if (skipAutoConnectDerivedRef.current) return;
+    if (typeof window !== "undefined" && sessionStorage.getItem("skip_auto_connect_derived_aptos") === "1") return;
+    const solanaWalletName =
+      (solanaWallet as { adapter?: { name?: string }; name?: string }).adapter?.name ??
+      (solanaWallet as { name?: string }).name ??
+      "";
+    const derivedNameForCurrentSolana = `${solanaWalletName} (Solana)`;
+    const derived = aptosWallets.find(
+      (w) => w.name === derivedNameForCurrentSolana
+    );
+    if (derived && !hasTriedAutoConnectDerived.current) {
+      hasTriedAutoConnectDerived.current = true;
+      connectAptos(derived.name);
+    }
+  }, [solanaConnected, aptosConnected, aptosWallets, connectAptos, solanaWallet]);
+
   const truncateAddress = (addr: string) =>
     addr ? `${addr.slice(0, 8)}...${addr.slice(-8)}` : "";
+
+  const {
+    tokens: solanaTokens,
+    totalValueUsd: solanaTotalValue,
+    isLoading: isSolanaLoading,
+  } = useSolanaPortfolio();
+
+  const [aptosTokens, setAptosTokens] = useState<Token[]>([]);
+  const [aptosTotalValue, setAptosTotalValue] = useState<number>(0);
+  const [isAptosLoading, setIsAptosLoading] = useState(false);
+
+  useEffect(() => {
+    const loadAptosPortfolio = async () => {
+      if (!aptosAccount?.address) {
+        setAptosTokens([]);
+        setAptosTotalValue(0);
+        return;
+      }
+      try {
+        setIsAptosLoading(true);
+        const portfolioService = new AptosPortfolioService();
+        const portfolio = await portfolioService.getPortfolio(aptosAccount.address.toString());
+        setAptosTokens(portfolio.tokens);
+        const total = portfolio.tokens.reduce((sum, token) => sum + (token.value ? parseFloat(token.value) : 0), 0);
+        setAptosTotalValue(total);
+      } catch (error) {
+        console.error("Error loading Aptos portfolio:", error);
+        setAptosTokens([]);
+        setAptosTotalValue(0);
+      } finally {
+        setIsAptosLoading(false);
+      }
+    };
+    loadAptosPortfolio();
+  }, [aptosAccount?.address]);
 
   const addAction = (
     message: string,
@@ -283,6 +430,8 @@ function PrivacyBridgeContent() {
   };
 
   const handleDisconnectAptos = async () => {
+    skipAutoConnectDerivedRef.current = true;
+    if (typeof window !== "undefined") sessionStorage.setItem("skip_auto_connect_derived_aptos", "1");
     try {
       await disconnectAptos();
       toast({ title: "Success", description: "Aptos wallet disconnected" });
@@ -373,6 +522,12 @@ function PrivacyBridgeContent() {
       pushLog("info", `USDC private balance loaded: ${amount.toFixed(6)} USDC`);
     } catch (err: unknown) {
       const raw = err instanceof Error ? err.message : String(err);
+      const isAlreadyPending = /already pending|please wait/i.test(raw);
+      if (isAlreadyPending) {
+        pushLog("warning", "Balance load skipped: another wallet sign request is in progress. Try again in a moment.");
+        setPrivacyBalanceUsdcError(null);
+        return;
+      }
       const isMissingPrivacycashUtils =
         /cannot find module ['"]privacycash\/utils['"]|module not found.*privacycash\/utils|can't resolve ['"]privacycash\/utils['"]/i.test(
           raw
@@ -389,6 +544,7 @@ function PrivacyBridgeContent() {
       toast({ variant: "destructive", title: "Privacy Cash USDC balance", description: msg });
       pushLog("error", `Failed to load USDC balance: ${msg}`);
     } finally {
+      isFetchingPrivacyBalanceRef.current = false;
       setPrivacyBalanceUsdcLoading(false);
     }
   };
@@ -535,6 +691,7 @@ function PrivacyBridgeContent() {
 
     const burnStartTime = Date.now();
     setActionLog([]);
+    setLastBurnParams(null);
     addAction("Starting burn + mint to Aptos...", "pending", undefined, undefined, burnStartTime);
 
     try {
@@ -562,6 +719,7 @@ function PrivacyBridgeContent() {
         "View transaction on Solscan"
       );
       addAction("Burn transaction sent on Solana", "success", solscanUrl, "View on Solscan");
+      setLastBurnParams({ signature: sig, finalRecipient: aptosAccount.address.toString() });
 
       const attestationUrl = `https://iris-api.circle.com/v1/messages/5/${sig}`;
       addAction("Waiting for Circle attestation...", "pending", attestationUrl, "View attestation request");
@@ -711,7 +869,9 @@ function PrivacyBridgeContent() {
             await new Promise((resolve) => setTimeout(resolve, delay));
             continue;
           }
-          updateLastAction(`Failed after ${maxAttempts} attempts: ${msg}`, "error", attestationUrl, "View attestation");
+          const mintingAptosUrl = `/minting-aptos?signature=${encodeURIComponent(sig)}`;
+          updateLastAction(`Failed after ${maxAttempts} attempts: ${msg}`, "error", mintingAptosUrl, "Mint manually on Aptos");
+          addAction("Mint manually on Aptos", "error", mintingAptosUrl, "Open /minting-aptos");
           toast({ variant: "destructive", title: "Aptos mint failed", description: msg });
           return;
         }
@@ -866,13 +1026,17 @@ function PrivacyBridgeContent() {
   // Авто-загрузка приватного баланса только при первом подключении кошелька (по адресу).
   // Не зависяем от solanaConnection/solanaSignMessage — иначе после burn/mint ре-рендер
   // перезапускал эффект и снова открывал кошелёк на подпись (burn/mint сами кошелёк не используют).
+  // Задержка, чтобы не пересекаться с авто-подключением derived Aptos (тот тоже может дергать кошелёк).
   useEffect(() => {
     const address = solanaPublicKey?.toBase58() ?? null;
     if (!solanaConnected || !address || address === lastFetchedBalanceForAddress.current) {
       return;
     }
     lastFetchedBalanceForAddress.current = address;
-    void fetchPrivacyUsdcBalance();
+    const t = setTimeout(() => {
+      void fetchPrivacyUsdcBalance();
+    }, 500);
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [solanaConnected, solanaPublicKey?.toBase58()]);
 
@@ -893,56 +1057,131 @@ function PrivacyBridgeContent() {
           <div className="flex flex-col gap-4 w-full p-4 border rounded-lg bg-card">
             <h1 className="text-xl font-semibold text-center">Privacy Bridge</h1>
 
-            {/* Копия блока подключения кошельков из /bridge: не во всю ширину, прижат к правому краю */}
-            {solanaConnected && solanaAddress ? (
-              <div className="flex justify-end">
-                <div className="p-3 border rounded-lg bg-card w-auto space-y-2">
-                <div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-muted-foreground">Solana</span>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-auto p-0 font-mono text-sm">
-                            {truncateAddress(solanaAddress)}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onSelect={copySolanaAddress} className="gap-2">
-                            <Copy className="h-4 w-4" /> Copy address
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onSelect={handleDisconnectSolana} className="gap-2">
-                            <LogOut className="h-4 w-4" /> Disconnect
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+            {/* Блок комиссий слева, блок кошельков справа */}
+            {solanaConnected ? (
+              <div className="flex flex-wrap items-start gap-4">
+                <div className="w-full md:flex-[0_0_calc(50%-0.5rem)] md:min-w-0 p-3 border rounded-lg bg-card">
+                  <span className="text-sm font-medium text-muted-foreground block mb-2">
+                    Withdraw fees
+                  </span>
+                  {withdrawConfig ? (
+                    <div className="space-y-1 text-sm text-muted-foreground">
+                      <p>
+                        USDC protocol fee:{" "}
+                        {typeof withdrawConfig.withdraw_fee_rate === "number"
+                          ? `${(withdrawConfig.withdraw_fee_rate * 100).toFixed(3)}% of amount`
+                          : "see relayer config"}
+                        {withdrawConfig.usdc_withdraw_rent_fee
+                          ? ` + ${withdrawConfig.usdc_withdraw_rent_fee} USDC rent`
+                          : ""}
+                        .
+                      </p>
+                      <p>
+                        SOL network fee: approximately{" "}
+                        <span className="font-mono">0.002 SOL</span> required for on-chain tx fees.
+                      </p>
                     </div>
-                  </div>
+                  ) : withdrawConfigError ? (
+                    <p className="text-sm text-muted-foreground">
+                      Failed to load withdraw fees: {withdrawConfigError}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Loading withdraw fees…</p>
+                  )}
                 </div>
-                {aptosConnected && aptosAccount ? (
+                {solanaAddress ? (
+              <div className="w-full md:flex-[0_0_calc(50%-0.5rem)] md:min-w-0 p-3 border rounded-lg bg-card space-y-2">
+                  {/* Solana Wallet */}
                   <div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-muted-foreground">Aptos</span>
+                    <div className="flex items-center justify-between cursor-pointer hover:bg-accent/50 rounded p-1 -m-1 transition-colors" onClick={() => setIsSolanaBalanceExpanded(!isSolanaBalanceExpanded)}>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-sm font-medium text-muted-foreground shrink-0">Solana</span>
                         <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-auto p-0 font-mono text-sm">
-                              {truncateAddress(aptosAccount.address.toString())}
+                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" className="h-auto p-0 font-mono text-sm truncate">
+                              {truncateAddress(solanaAddress)}
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={copyAptosAddress} className="gap-2">
+                            <DropdownMenuItem onSelect={copySolanaAddress} className="gap-2">
                               <Copy className="h-4 w-4" /> Copy address
                             </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={handleDisconnectAptos} className="gap-2">
+                            <DropdownMenuItem onSelect={handleDisconnectSolana} className="gap-2">
                               <LogOut className="h-4 w-4" /> Disconnect
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
+                      <ChevronDown
+                        className={cn(
+                          "h-4 w-4 shrink-0 transition-transform text-muted-foreground",
+                          isSolanaBalanceExpanded ? "transform rotate-0" : "transform -rotate-90"
+                        )}
+                      />
                     </div>
+                    {isSolanaBalanceExpanded && (
+                      <div className="mt-2 pt-2 border-t">
+                        <div className="text-sm font-medium pb-2">
+                          {isSolanaLoading ? "..." : solanaTotalValue !== null ? formatCurrency(solanaTotalValue, 2) : "N/A"}
+                        </div>
+                        <ScrollArea className="max-h-48">
+                          {solanaTokens.length > 0 ? (
+                            <TokenList tokens={solanaTokens} disableDrag={true} />
+                          ) : (
+                            <div className="text-sm text-muted-foreground p-2">No tokens found</div>
+                          )}
+                        </ScrollArea>
+                      </div>
+                    )}
                   </div>
-                ) : (
+
+                  {/* Aptos Wallet */}
+                  {aptosConnected && aptosAccount ? (
+                    <div>
+                      <div className="flex items-center justify-between cursor-pointer hover:bg-accent/50 rounded p-1 -m-1 transition-colors" onClick={() => setIsAptosBalanceExpanded(!isAptosBalanceExpanded)}>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-sm font-medium text-muted-foreground shrink-0">
+                            Aptos {isDerivedWallet ? "(Derived)" : "(Native)"}
+                          </span>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                              <Button variant="ghost" className="h-auto p-0 font-mono text-sm truncate">
+                                {truncateAddress(aptosAccount.address.toString())}
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onSelect={copyAptosAddress} className="gap-2">
+                                <Copy className="h-4 w-4" /> Copy address
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onSelect={handleDisconnectAptos} className="gap-2">
+                                <LogOut className="h-4 w-4" /> Disconnect
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                        <ChevronDown
+                          className={cn(
+                            "h-4 w-4 shrink-0 transition-transform text-muted-foreground",
+                            isAptosBalanceExpanded ? "transform rotate-0" : "transform -rotate-90"
+                          )}
+                        />
+                      </div>
+                      {isAptosBalanceExpanded && (
+                        <div className="mt-2 pt-2 border-t">
+                          <div className="text-sm font-medium pb-2">
+                            {isAptosLoading ? "..." : formatCurrency(aptosTotalValue, 2)}
+                          </div>
+                          <ScrollArea className="max-h-48">
+                            {aptosTokens.length > 0 ? (
+                              <TokenList tokens={aptosTokens} disableDrag={true} />
+                            ) : (
+                              <div className="text-sm text-muted-foreground p-2">No tokens found</div>
+                            )}
+                          </ScrollArea>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
                   <div className="relative">
                     <div className="[&>button]:hidden">
                       <WalletSelector />
@@ -970,23 +1209,25 @@ function PrivacyBridgeContent() {
                   </div>
                 )}
                 </div>
+              ) : null}
               </div>
             ) : !solanaConnected ? (
-              <div className="flex justify-end">
-                <Dialog open={isSolanaDialogOpen} onOpenChange={setIsSolanaDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button size="sm" disabled={isSolanaConnecting}>
-                      {isSolanaConnecting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Connecting...
-                        </>
-                      ) : (
-                        "Connect Solana Wallet"
-                      )}
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
+              <div className="flex flex-col items-end gap-2">
+                {walletConnectMounted ? (
+                  <Dialog open={isSolanaDialogOpen} onOpenChange={setIsSolanaDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" disabled={isSolanaConnecting}>
+                        {isSolanaConnecting ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Connecting...
+                          </>
+                        ) : (
+                          "Connect Solana Wallet"
+                        )}
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Select Solana Wallet</DialogTitle>
                       <DialogDescription>
@@ -1022,6 +1263,36 @@ function PrivacyBridgeContent() {
                     </div>
                   </DialogContent>
                 </Dialog>
+                ) : (
+                  <Button size="sm" disabled>
+                    Connect Solana Wallet
+                  </Button>
+                )}
+                <div className="relative">
+                  <div className="[&>button]:hidden">
+                    <WalletSelector />
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={aptosConnecting}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const wrapper = e.currentTarget.parentElement;
+                      const hiddenButton = wrapper?.querySelector("div button") as HTMLElement | null;
+                      if (hiddenButton) hiddenButton.click();
+                    }}
+                  >
+                    {aptosConnecting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Connecting...
+                      </>
+                    ) : (
+                      "Connect Aptos Wallet"
+                    )}
+                  </Button>
+                </div>
               </div>
             ) : null}
 
@@ -1185,35 +1456,6 @@ function PrivacyBridgeContent() {
                     </div>
                   )}
 
-                  <div className="mt-2 space-y-1">
-                    <span className="text-sm font-medium text-muted-foreground block">
-                      Withdraw fees
-                    </span>
-                    {withdrawConfig ? (
-                      <>
-                        <p className="text-muted-foreground">
-                          USDC protocol fee:{" "}
-                          {typeof withdrawConfig.withdraw_fee_rate === "number"
-                            ? `${(withdrawConfig.withdraw_fee_rate * 100).toFixed(3)}% of amount`
-                            : "see relayer config"}
-                          {withdrawConfig.usdc_withdraw_rent_fee
-                            ? ` + ${withdrawConfig.usdc_withdraw_rent_fee} USDC rent`
-                            : ""}
-                          .
-                        </p>
-                        <p className="text-muted-foreground">
-                          SOL network fee: approximately{" "}
-                          <span className="font-mono">0.002 SOL</span> required for on-chain tx fees.
-                        </p>
-                      </>
-                    ) : withdrawConfigError ? (
-                      <p className="text-muted-foreground">
-                        Failed to load withdraw fees: {withdrawConfigError}
-                      </p>
-                    ) : (
-                      <p className="text-muted-foreground">Loading withdraw fees…</p>
-                    )}
-                  </div>
                 </div>
               )}
             </div>
@@ -1222,6 +1464,16 @@ function PrivacyBridgeContent() {
           </div>
 
           <ActionLog items={actionLog} title="Privacy Bridge Actions" />
+          {lastBurnParams && (
+            <div className="mt-2 flex flex-wrap gap-2 text-xs">
+              <Link
+                href={`/minting-aptos?signature=${encodeURIComponent(lastBurnParams.signature)}&sourceDomain=5&finalRecipient=${encodeURIComponent(lastBurnParams.finalRecipient)}`}
+                className="text-blue-600 hover:underline"
+              >
+                Mint on Aptos →
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -1229,10 +1481,6 @@ function PrivacyBridgeContent() {
 }
 
 export default function PrivacyBridgePage() {
-  return (
-    <SolanaWalletProviderWrapper>
-      <PrivacyBridgeContent />
-    </SolanaWalletProviderWrapper>
-  );
+  return <PrivacyBridgeContent />;
 }
 

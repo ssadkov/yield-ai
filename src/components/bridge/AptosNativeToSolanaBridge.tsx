@@ -3,6 +3,7 @@
 import bs58 from "bs58";
 import { AccountAddress, U32, U64 } from "@aptos-labs/ts-sdk";
 import type { Aptos } from "@aptos-labs/ts-sdk";
+import { isDerivedAptosWallet } from "@/lib/aptosWalletUtils";
 
 const USDC_SOLANA = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const USDC_APTOS = "0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b";
@@ -55,6 +56,7 @@ export interface ExecuteAptosNativeToSolanaBridgeParams {
   amount: string;
   aptosAccount: { address: any };
   aptosWallet: {
+    name?: string;
     isAptosNativeWallet?: boolean;
     features?: {
       "aptos:signTransaction"?: {
@@ -77,8 +79,8 @@ export async function executeAptosNativeToSolanaBridge(
 ): Promise<string> {
   const { amount, aptosAccount, aptosWallet, aptosClient, destinationSolanaAddress, onStatusUpdate } = params;
 
-  if (!aptosWallet?.isAptosNativeWallet) {
-    throw new Error("Aptos (native) → Solana supports only native Aptos wallets (e.g. Petra).");
+  if (isDerivedAptosWallet(aptosWallet)) {
+    throw new Error("Aptos (native) → Solana supports only native Aptos wallets (e.g. Petra). Use derived flow for Solana-linked wallets.");
   }
   const signTx = aptosWallet.features?.["aptos:signTransaction"];
   if (!signTx) {

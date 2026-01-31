@@ -57,11 +57,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch attestation from Circle API
-    // Note: Main retry logic is handled on client side with exponential backoff
-    // This API will return 404 if attestation not ready, client will retry
-    const url = `${irisApiUrl}/${domain}/${signature.trim()}`;
-	
+    // Fetch attestation from Circle API (same format as https://iris-api.circle.com/v1/messages/5/<signature>)
+    const baseUrl = irisApiUrl.replace(/\/$/, '');
+    const url = `${baseUrl}/${domain}/${signature.trim()}`;
+    console.log('[Mint CCTP API] Fetching attestation:', url);
+
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -136,6 +136,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    console.log('[Mint CCTP API] Attestation valid, building transaction (attestation length:', firstMessage.attestation.length, ')');
+
     // Convert message and attestation hex strings to byte arrays
     // No parsing needed - we just pass them directly to the transaction
     // Convert to Uint8Array as required by Aptos SDK
@@ -150,10 +152,10 @@ export async function POST(request: NextRequest) {
     let account: Account;
 
     if (privateKeyHex) {
-      // Use private key directly from env
+      const keyHex = privateKeyHex.replace(/^0x/, '').trim();
       try {
         account = Account.fromPrivateKey({
-          privateKey: new Ed25519PrivateKey(privateKeyHex),
+          privateKey: new Ed25519PrivateKey(keyHex),
         });
       } catch (error: any) {
         console.error('[Mint CCTP API] Failed to create account from private key:', error);
