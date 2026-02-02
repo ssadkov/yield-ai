@@ -1055,7 +1055,8 @@ function PrivacyBridgeContent() {
           </div>
 
           <div className="flex flex-col gap-4 w-full p-4 border rounded-lg bg-card">
-            <h1 className="text-xl font-semibold text-center">Privacy Bridge</h1>
+            <h1 className="text-xl font-semibold text-center">Yield AI Private Bridge</h1>
+            <h3 className="text-xl font-semibold text-center">Powered by Privacy Cash</h3>
 
             {/* Блок комиссий слева, блок кошельков справа */}
             {solanaConnected ? (
