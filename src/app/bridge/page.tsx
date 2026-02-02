@@ -1082,7 +1082,7 @@ function BridgePageContent() {
             </button>
             <Link href="/privacy-bridge">
               <Button variant="outline" size="sm" className="bg-black text-white border-black hover:bg-gray-800 hover:text-white hover:border-gray-800">
-                Privacy Bridge
+                Private Bridge
               </Button>
             </Link>
           </div>
