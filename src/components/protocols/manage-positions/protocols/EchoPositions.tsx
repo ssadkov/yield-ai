@@ -18,9 +18,11 @@ interface EchoPosition {
   amount: number;
   priceUSD: number;
   valueUSD: number;
+  type?: 'supply' | 'borrow';
 }
 
 function EchoPositionCard({ position }: { position: EchoPosition }) {
+  const isBorrow = position.type === 'borrow';
   return (
     <div className="rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
       <div className="flex flex-wrap justify-between items-center gap-2">
@@ -36,9 +38,20 @@ function EchoPositionCard({ position }: { position: EchoPosition }) {
             <div className="font-medium">{position.symbol}</div>
             <div className="text-sm text-muted-foreground">{position.name}</div>
           </div>
+          <span
+            className={
+              isBorrow
+                ? 'text-xs font-medium px-2 py-0.5 rounded bg-red-500/10 text-red-600 border border-red-500/20'
+                : 'text-xs font-medium px-2 py-0.5 rounded bg-green-500/10 text-green-600 border border-green-500/20'
+            }
+          >
+            {isBorrow ? 'Borrow' : 'Supply'}
+          </span>
         </div>
         <div className="text-right">
-          <div className="font-semibold">{formatCurrency(position.valueUSD, 2)}</div>
+          <div className={`font-semibold ${isBorrow ? 'text-red-600' : ''}`}>
+            {isBorrow ? '-' : ''}{formatCurrency(position.valueUSD, 2)}
+          </div>
           <div className="text-sm text-muted-foreground">{formatNumber(position.amount, 6)} {position.symbol}</div>
         </div>
       </div>
@@ -122,18 +135,28 @@ export function EchoPositions() {
     );
   }
 
-  const totalValue = positions.reduce((sum, p) => sum + (p.valueUSD || 0), 0);
+  const supplyTotal = positions.filter((p) => p.type !== 'borrow').reduce((sum, p) => sum + (p.valueUSD || 0), 0);
+  const borrowTotal = positions.filter((p) => p.type === 'borrow').reduce((sum, p) => sum + (p.valueUSD || 0), 0);
+  const netTotal = supplyTotal - borrowTotal;
 
   return (
     <div className="w-full mb-6 py-2">
       <div className="space-y-4 text-base">
         {positions.map((position) => (
-          <EchoPositionCard key={position.positionId} position={position} />
+          <EchoPositionCard key={`${position.type ?? 'supply'}-${position.positionId}`} position={position} />
         ))}
-        <div className="pt-6 pb-6">
+        <div className="pt-6 pb-6 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xl">Total assets in Echo Protocol:</span>
-            <span className="text-xl text-primary font-bold">{formatCurrency(totalValue)}</span>
+            <span className="text-xl">Supply:</span>
+            <span className="text-xl font-bold text-green-600">{formatCurrency(supplyTotal)}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-xl">Borrow:</span>
+            <span className="text-xl font-bold text-red-600">{formatCurrency(borrowTotal)}</span>
+          </div>
+          <div className="flex items-center justify-between pt-2 border-t">
+            <span className="text-xl">Net (Echo Protocol):</span>
+            <span className="text-xl text-primary font-bold">{formatCurrency(netTotal)}</span>
           </div>
         </div>
       </div>

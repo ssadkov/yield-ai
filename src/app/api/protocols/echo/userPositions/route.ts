@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { normalizeAddress } from '@/lib/utils/addressNormalization';
 import { PanoraPricesService } from '@/lib/services/panora/prices';
+import tokenList from '@/lib/data/tokenList.json';
 
 const ECHO_CONTRACT = '0xeab7ea4d635b6b6add79d5045c4a45d8148d88287b1cfa1c3b6a4b56f46839ed';
+// Canonical USDC FA address (used for USDCn pricing/decimals normalization)
+const CANONICAL_USDC_FA_ADDRESS = '0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b';
 const FULLNODE_VIEW_URL = 'https://fullnode.mainnet.aptoslabs.com/v1/view';
 const APTOS_API_KEY = process.env.APTOS_API_KEY;
 
@@ -48,11 +51,21 @@ function parseATokens(result: unknown): ATokenInfo[] {
   }).filter(Boolean) as ATokenInfo[];
 }
 
-function parseScaledBalanceAndSupply(result: unknown): [string, string] {
-  if (Array.isArray(result) && result.length >= 2) {
-    return [String(result[0] ?? '0'), String(result[1] ?? '0')];
+/** Parses scaled balance from pool::scale_a_token_balance_of (returns single u256). */
+function parseScaledBalance(result: unknown): string {
+  if (result == null) return '0';
+  if (Array.isArray(result) && result.length >= 1 && result[0] != null) return String(result[0]);
+  if (typeof result === 'number' && Number.isFinite(result)) return String(Math.floor(result));
+  if (typeof result === 'string') return result;
+  return '0';
+}
+
+function canonicalizeEchoSymbol(symbolGuess: string): { symbol: string; pricingAddressOverride?: string; decimalsOverride?: number } {
+  // Echo can return underlying symbols like "USDCn". We normalize to canonical assets for pricing/decimals.
+  if (symbolGuess === 'USDCn') {
+    return { symbol: 'USDC', pricingAddressOverride: CANONICAL_USDC_FA_ADDRESS, decimalsOverride: 6 };
   }
-  return ['0', '0'];
+  return { symbol: symbolGuess };
 }
 
 async function getTokenInfo(address: string): Promise<{ symbol: string; name: string; decimals: number; logoUrl: string | null; priceUSD: number | null } | null> {
@@ -75,6 +88,41 @@ async function getTokenInfo(address: string): Promise<{ symbol: string; name: st
   }
 }
 
+/** Fallback: get price from tokenList by symbol when address lookup fails (e.g. Echo underlying != tokenList address). */
+function getPriceFromTokenListBySymbol(symbol: string): number | null {
+  const tokens = (tokenList as { data: { data: Array<{ symbol?: string; usdPrice?: string }> } }).data.data;
+  const t = tokens.find((x) => x.symbol?.toLowerCase() === symbol?.toLowerCase());
+  if (!t?.usdPrice) return null;
+  const p = parseFloat(t.usdPrice);
+  return Number.isFinite(p) ? p : null;
+}
+
+/** Parses underlying_token_factory::get_coin_asset_pairs() → [types[], addresses[]]. Returns map: coin type → FA address. */
+function parseCoinAssetPairs(result: unknown): Map<string, string> {
+  const map = new Map<string, string>();
+  if (!Array.isArray(result) || result.length < 2) return map;
+  const typesArr = Array.isArray(result[0]) ? result[0] : (typeof result[0] === 'object' && result[0] != null ? [] : [result[0]]);
+  const addrsArr = Array.isArray(result[1]) ? result[1] : (typeof result[1] === 'object' && result[1] != null ? [] : [result[1]]);
+  const len = Math.min(typesArr.length, addrsArr.length);
+  for (let i = 0; i < len; i++) {
+    const t = String(typesArr[i] ?? '');
+    const a = String(addrsArr[i] ?? '').trim();
+    if (t && a) {
+      const fa = normalizeTokenAddress(a);
+      map.set(t, fa);
+      map.set(fa, fa); // address → FA (so we resolve by address too)
+    }
+  }
+  return map;
+}
+
+/** Resolve underlying (type string or address) to FA address for pricing using get_coin_asset_pairs map. */
+function resolveUnderlyingToFa(underlying: string, coinAssetPairs: Map<string, string>): string {
+  if (!underlying) return '';
+  const norm = underlying.includes('::') ? underlying.trim() : normalizeTokenAddress(underlying);
+  return coinAssetPairs.get(norm) ?? coinAssetPairs.get(underlying) ?? norm;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -86,23 +134,26 @@ export async function GET(request: NextRequest) {
     const userAddress = normalizeTokenAddress(address);
     const poolDataProvider = `${ECHO_CONTRACT}::pool_data_provider`;
     const variableTokenFactory = `${ECHO_CONTRACT}::variable_token_factory`;
+    const underlyingTokenFactory = `${ECHO_CONTRACT}::underlying_token_factory`;
+    const poolView = `${ECHO_CONTRACT}::pool::scale_a_token_balance_of`;
+    const scaleVariableTokenBalanceView = `${ECHO_CONTRACT}::pool::scale_variable_token_balance_of`;
 
-    const aTokensResult = await callView(`${poolDataProvider}::get_all_a_tokens`, []);
+    const [aTokensResult, varTokensResult, coinPairsResult] = await Promise.all([
+      callView(`${poolDataProvider}::get_all_a_tokens`, []),
+      callView(`${poolDataProvider}::get_all_var_tokens`, []),
+      callView(`${underlyingTokenFactory}::get_coin_asset_pairs`, []),
+    ]);
+    const coinAssetPairs = parseCoinAssetPairs(coinPairsResult);
     const aTokens = parseATokens(aTokensResult);
-    if (aTokens.length === 0) {
-      return NextResponse.json(
-        { success: true, data: [] },
-        { headers: { 'Cache-Control': 'public, max-age=3, s-maxage=3, stale-while-revalidate=6' } }
-      );
-    }
+    const varTokens = parseATokens(varTokensResult);
 
     type RawPosition = { aToken: ATokenInfo; aTokenAddr: string; scaledBalanceStr: string; underlyingNorm: string };
     const rawPositions: RawPosition[] = [];
 
     for (const aToken of aTokens) {
       const aTokenAddr = aToken.token_address.startsWith('0x') ? aToken.token_address : `0x${aToken.token_address}`;
-      const [scaledBalanceStr] = parseScaledBalanceAndSupply(
-        await callView(`${variableTokenFactory}::get_scaled_user_balance_and_supply`, [userAddress, aTokenAddr])
+      const scaledBalanceStr = parseScaledBalance(
+        await callView(poolView, [userAddress, aTokenAddr])
       );
       const scaledBalance = BigInt(scaledBalanceStr || '0');
       if (scaledBalance === BigInt(0)) continue;
@@ -121,12 +172,49 @@ export async function GET(request: NextRequest) {
       rawPositions.push({ aToken, aTokenAddr, scaledBalanceStr, underlyingNorm });
     }
 
-    const underlyingAddresses = [...new Set(rawPositions.map((r) => r.underlyingNorm))];
+    type RawBorrowPosition = { varToken: ATokenInfo; varTokenAddr: string; scaledBalanceStr: string; underlyingNorm: string };
+    const rawBorrowPositions: RawBorrowPosition[] = [];
+    for (const varToken of varTokens) {
+      const varTokenAddr = varToken.token_address.startsWith('0x') ? varToken.token_address : `0x${varToken.token_address}`;
+      const scaledBalanceStr = parseScaledBalance(
+        await callView(scaleVariableTokenBalanceView, [userAddress, varTokenAddr])
+      );
+      if (BigInt(scaledBalanceStr || '0') === BigInt(0)) continue;
+      let underlyingAddr: string;
+      try {
+        const raw = await callView(`${variableTokenFactory}::get_underlying_asset_address`, [varTokenAddr]);
+        underlyingAddr = Array.isArray(raw) && raw[0] != null
+          ? normalizeTokenAddress(String(raw[0]))
+          : (raw && typeof raw === 'object' && 'inner' in (raw as { inner?: string }) ? normalizeTokenAddress(String((raw as { inner: string }).inner)) : '');
+      } catch {
+        continue;
+      }
+      if (!underlyingAddr) continue;
+      const underlyingNorm = underlyingAddr.startsWith('0x') ? underlyingAddr : `0x${underlyingAddr}`;
+      rawBorrowPositions.push({ varToken, varTokenAddr, scaledBalanceStr, underlyingNorm });
+    }
+
+    const pricingAddresses = [
+      ...new Set([
+        ...rawPositions.map((r) => {
+          const symbolGuess = r.aToken.symbol.replace(/^A/, '');
+          const canonical = canonicalizeEchoSymbol(symbolGuess);
+          const fa = resolveUnderlyingToFa(r.underlyingNorm, coinAssetPairs);
+          return canonical.pricingAddressOverride ?? (fa || r.underlyingNorm);
+        }),
+        ...rawBorrowPositions.map((r) => {
+          const symbolGuess = r.varToken.symbol.replace(/^V/, '');
+          const canonical = canonicalizeEchoSymbol(symbolGuess);
+          const fa = resolveUnderlyingToFa(r.underlyingNorm, coinAssetPairs);
+          return canonical.pricingAddressOverride ?? (fa || r.underlyingNorm);
+        }),
+      ]),
+    ];
     const priceMap: Record<string, number> = {};
-    if (underlyingAddresses.length > 0) {
+    if (pricingAddresses.length > 0) {
       try {
         const pricesService = PanoraPricesService.getInstance();
-        const pricesResponse = await pricesService.getPrices(1, underlyingAddresses);
+        const pricesResponse = await pricesService.getPrices(1, pricingAddresses);
         const pricesData = (pricesResponse as { data?: Array<{ tokenAddress?: string; faAddress?: string; usdPrice?: string }> }).data ?? (Array.isArray(pricesResponse) ? pricesResponse : []);
         for (const p of pricesData) {
           const addr = p.tokenAddress || p.faAddress;
@@ -141,29 +229,75 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const positions = await Promise.all(
+    const supplyPositions = await Promise.all(
       rawPositions.map(async ({ aToken, aTokenAddr, scaledBalanceStr, underlyingNorm }) => {
-        const tokenInfo = await getTokenInfo(underlyingNorm);
-        const decimals = tokenInfo?.decimals ?? 8;
+        const symbolGuess = aToken.symbol.replace(/^A/, '');
+        const canonical = canonicalizeEchoSymbol(symbolGuess);
+        const pricingAddress = canonical.pricingAddressOverride ?? (resolveUnderlyingToFa(underlyingNorm, coinAssetPairs) || underlyingNorm);
+
+        const tokenInfo = await getTokenInfo(pricingAddress);
+        const symbol = canonical.symbol;
+        const decimals = canonical.decimalsOverride ?? tokenInfo?.decimals ?? 8;
         const amount = Number(scaledBalanceStr) / Math.pow(10, decimals);
-        const priceUSD = priceMap[underlyingNorm] ?? priceMap[normalizeAddress(underlyingNorm)] ?? tokenInfo?.priceUSD ?? 0;
+        let priceUSD = priceMap[pricingAddress] ?? priceMap[normalizeAddress(pricingAddress)] ?? (tokenInfo?.priceUSD ?? 0);
+        if (priceUSD === 0) {
+          const fallbackPrice = getPriceFromTokenListBySymbol(symbol);
+          if (fallbackPrice != null) priceUSD = fallbackPrice;
+        }
         const valueUSD = amount * priceUSD;
         return {
           positionId: aTokenAddr,
           aTokenAddress: aTokenAddr,
           aTokenSymbol: aToken.symbol,
           underlyingAddress: underlyingNorm,
-          symbol: tokenInfo?.symbol ?? aToken.symbol.replace(/^A/, ''),
-          name: tokenInfo?.name ?? tokenInfo?.symbol ?? aToken.symbol,
+          symbol,
+          name: tokenInfo?.name ?? tokenInfo?.symbol ?? symbol,
           decimals,
           logoUrl: tokenInfo?.logoUrl ?? null,
           amountRaw: scaledBalanceStr,
           amount,
           priceUSD,
           valueUSD,
+          type: 'supply' as const,
         };
       })
     );
+
+    const borrowPositions = await Promise.all(
+      rawBorrowPositions.map(async ({ varToken, varTokenAddr, scaledBalanceStr, underlyingNorm }) => {
+        const symbolGuess = varToken.symbol.replace(/^V/, '');
+        const canonical = canonicalizeEchoSymbol(symbolGuess);
+        const pricingAddress = canonical.pricingAddressOverride ?? (resolveUnderlyingToFa(underlyingNorm, coinAssetPairs) || underlyingNorm);
+
+        const tokenInfo = await getTokenInfo(pricingAddress);
+        const symbol = canonical.symbol;
+        const decimals = canonical.decimalsOverride ?? tokenInfo?.decimals ?? 8;
+        const amount = Number(scaledBalanceStr) / Math.pow(10, decimals);
+        let priceUSD = priceMap[pricingAddress] ?? priceMap[normalizeAddress(pricingAddress)] ?? (tokenInfo?.priceUSD ?? 0);
+        if (priceUSD === 0) {
+          const fallbackPrice = getPriceFromTokenListBySymbol(symbol);
+          if (fallbackPrice != null) priceUSD = fallbackPrice;
+        }
+        const valueUSD = amount * priceUSD;
+        return {
+          positionId: varTokenAddr,
+          aTokenAddress: varTokenAddr,
+          aTokenSymbol: varToken.symbol,
+          underlyingAddress: underlyingNorm,
+          symbol,
+          name: tokenInfo?.name ?? tokenInfo?.symbol ?? symbol,
+          decimals,
+          logoUrl: tokenInfo?.logoUrl ?? null,
+          amountRaw: scaledBalanceStr,
+          amount,
+          priceUSD,
+          valueUSD,
+          type: 'borrow' as const,
+        };
+      })
+    );
+
+    const positions = [...supplyPositions, ...borrowPositions];
 
     return NextResponse.json(
       { success: true, data: positions },
