@@ -52,6 +52,7 @@ function EchoPositionRow({ position }: { position: EchoPosition }) {
   const valueDisplay = formatCurrency(position.valueUSD, 2);
   const amountDisplay = formatNumber(position.amount, 6);
   const logo = position.logoUrl || getTokenLogoUrl(position.underlyingAddress, position.symbol);
+  const displayLogo = logo ?? '/file.svg';
 
   return (
     <div className="p-3 sm:p-4 border-b last:border-b-0 transition-colors">
@@ -59,7 +60,7 @@ function EchoPositionRow({ position }: { position: EchoPosition }) {
       <div className="hidden sm:flex items-center justify-between">
         <div className="flex items-center gap-3">
           <ProtocolIcon
-            logoUrl={logo || undefined}
+            logoUrl={displayLogo}
             name={position.symbol}
             size="sm"
           />
@@ -100,7 +101,7 @@ function EchoPositionRow({ position }: { position: EchoPosition }) {
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2">
             <ProtocolIcon
-              logoUrl={logo || undefined}
+              logoUrl={displayLogo}
               name={position.symbol}
               size="sm"
             />
