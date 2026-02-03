@@ -19,7 +19,7 @@ export function calculateApyFromRay(rawRate: string): number {
 
   try {
     const rateBigInt = BigInt(rawRate);
-    if (rateBigInt <= 0n) return 0;
+    if (rateBigInt <= BigInt(0)) return 0;
     const rate = Number(rateBigInt) / Number(RAY_BIGINT);
     return clampNumber(rate);
   } catch {
