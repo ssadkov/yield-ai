@@ -106,6 +106,6 @@
     "@wormhole-foundation/sdk-evm-tokenbridge": "4.7.1",
     "@wormhole-foundation/sdk-solana-tokenbridge": "4.7.1",
     "bs58": "^5.0.0",
-    "viem": "2.41.2"
+    "viem": "^2.44.0"
   }
 }
