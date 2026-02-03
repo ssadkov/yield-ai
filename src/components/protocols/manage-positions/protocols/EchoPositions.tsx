@@ -48,7 +48,7 @@ function EchoPositionRow({ position }: { position: EchoPosition }) {
   const isBorrow = position.type === 'borrow';
   const price = position.priceUSD > 0 ? position.priceUSD : null;
   const valueDisplay = formatCurrency(position.valueUSD, 2);
-  const amountDisplay = `${formatNumber(position.amount, 6)} ${position.symbol}`;
+  const amountDisplay = formatNumber(position.amount, 6);
   const logo = position.logoUrl || getTokenLogoUrl(position.underlyingAddress, position.symbol);
 
   return (
