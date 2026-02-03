@@ -381,5 +381,24 @@
     "contractAddresses": [
       "0x075b4890de3e312d9425408c43d9a9752b64ab3562a30e89a55bdc568c645920"
     ]
+  },
+  {
+    "name": "Echo Protocol",
+    "key": "echo",
+    "category": "Lending",
+    "url": "https://vault.echo-protocol.xyz/lending",
+    "logoUrl": "/protocol_ico/echo.png",
+    "description": "Echo is a multifaceted protocol specializing in liquid staking & restaking and yield solutions, seamlessly interoperating within the Move ecosystem. Echo is expanding the use of aBTC & eAPT across multiple DeFi protocols on Move.",
+    "depositType": "external",
+    "depositUrl": "https://vault.echo-protocol.xyz/lending",
+    "isDepositEnabled": true,
+    "managedType": "external",
+    "socialMedia": {
+      "twitter": "https://x.com/EchoProtocol_"
+    },
+    "airdrop": "",
+    "contractAddresses": [
+      "0xeab7ea4d635b6b6add79d5045c4a45d8148d88287b1cfa1c3b6a4b56f46839ed"
+    ]
   }
 ] 
