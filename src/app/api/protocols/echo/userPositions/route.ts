@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { normalizeAddress } from '@/lib/utils/addressNormalization';
 import { PanoraPricesService } from '@/lib/services/panora/prices';
 import tokenList from '@/lib/data/tokenList.json';
+import { getReserveApyMetrics, EchoReserveData } from '@/lib/utils/apy';
 
 const ECHO_CONTRACT = '0xeab7ea4d635b6b6add79d5045c4a45d8148d88287b1cfa1c3b6a4b56f46839ed';
 // Canonical USDC FA address (used for USDCn pricing/decimals normalization)
@@ -66,6 +67,22 @@ function canonicalizeEchoSymbol(symbolGuess: string): { symbol: string; pricingA
     return { symbol: 'USDC', pricingAddressOverride: CANONICAL_USDC_FA_ADDRESS, decimalsOverride: 6 };
   }
   return { symbol: symbolGuess };
+}
+
+function parseReserveData(result: unknown): EchoReserveData {
+  if (!result) return {};
+  if (Array.isArray(result)) {
+    if (result.length === 0) return {};
+    const first = result.length === 1 ? result[0] : result[0];
+    if (first && typeof first === 'object') {
+      return first as EchoReserveData;
+    }
+    return {};
+  }
+  if (typeof result === 'object') {
+    return result as EchoReserveData;
+  }
+  return {};
 }
 
 async function getTokenInfo(address: string): Promise<{ symbol: string; name: string; decimals: number; logoUrl: string | null; priceUSD: number | null } | null> {
@@ -229,6 +246,25 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const reserveAddresses = [
+      ...new Set([
+        ...rawPositions.map((r) => r.underlyingNorm),
+        ...rawBorrowPositions.map((r) => r.underlyingNorm),
+      ]),
+    ];
+    const reserveMetrics: Record<string, ReturnType<typeof getReserveApyMetrics>> = {};
+    await Promise.all(
+      reserveAddresses.map(async (addr) => {
+        try {
+          const reserveRaw = await callView(`${ECHO_CONTRACT}::pool::get_reserve_data`, [addr]);
+          const reserveData = parseReserveData(reserveRaw);
+          reserveMetrics[addr] = getReserveApyMetrics(reserveData);
+        } catch (e) {
+          console.warn('[Echo] reserve data fetch error:', addr, e);
+        }
+      }),
+    );
+
     const supplyPositions = await Promise.all(
       rawPositions.map(async ({ aToken, aTokenAddr, scaledBalanceStr, underlyingNorm }) => {
         const symbolGuess = aToken.symbol.replace(/^A/, '');
@@ -245,6 +281,7 @@ export async function GET(request: NextRequest) {
           if (fallbackPrice != null) priceUSD = fallbackPrice;
         }
         const valueUSD = amount * priceUSD;
+        const metrics = reserveMetrics[underlyingNorm];
         return {
           positionId: aTokenAddr,
           aTokenAddress: aTokenAddr,
@@ -258,6 +295,8 @@ export async function GET(request: NextRequest) {
           amount,
           priceUSD,
           valueUSD,
+          apy: metrics?.supplyApy ?? 0,
+          apyFormatted: metrics?.supplyApyFormatted ?? '0.00%',
           type: 'supply' as const,
         };
       })
@@ -279,6 +318,7 @@ export async function GET(request: NextRequest) {
           if (fallbackPrice != null) priceUSD = fallbackPrice;
         }
         const valueUSD = amount * priceUSD;
+        const metrics = reserveMetrics[underlyingNorm];
         return {
           positionId: varTokenAddr,
           aTokenAddress: varTokenAddr,
@@ -292,6 +332,8 @@ export async function GET(request: NextRequest) {
           amount,
           priceUSD,
           valueUSD,
+          apy: metrics?.borrowApy ?? 0,
+          apyFormatted: metrics?.borrowApyFormatted ?? '0.00%',
           type: 'borrow' as const,
         };
       })

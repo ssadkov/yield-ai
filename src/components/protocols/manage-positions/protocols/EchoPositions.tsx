@@ -23,6 +23,8 @@ interface EchoPosition {
   priceUSD: number;
   valueUSD: number;
   type?: 'supply' | 'borrow';
+  apy?: number;
+  apyFormatted?: string;
 }
 
 const tokensData = (tokenList as { data: { data: Array<{ tokenAddress?: string; faAddress?: string; symbol?: string; logoUrl?: string }> } }).data.data;
@@ -77,9 +79,17 @@ function EchoPositionRow({ position }: { position: EchoPosition }) {
           </div>
         </div>
         <div className="text-right space-y-1">
-          <div className={cn('text-lg font-bold', isBorrow && 'text-red-600')}>
-            {isBorrow ? '-' : ''}
-            {valueDisplay}
+          <div className="flex items-center justify-end gap-2">
+            <Badge
+              variant={isBorrow ? 'danger' : 'success'}
+              className="text-xs font-normal px-2 py-0.5 h-5"
+            >
+              APR: {position.apyFormatted ?? '0.00%'}
+            </Badge>
+            <div className={cn('text-lg font-bold', isBorrow && 'text-red-600')}>
+              {isBorrow ? '-' : ''}
+              {valueDisplay}
+            </div>
           </div>
           <div className="text-base text-muted-foreground">{amountDisplay}</div>
         </div>
@@ -109,10 +119,18 @@ function EchoPositionRow({ position }: { position: EchoPosition }) {
               </div>
             </div>
           </div>
-          <div className="text-right">
-            <div className={cn('text-base font-semibold', isBorrow && 'text-red-600')}>
-              {isBorrow ? '-' : ''}
-              {valueDisplay}
+          <div className="text-right space-y-1">
+            <div className="flex items-center justify-end gap-2">
+              <Badge
+                variant={isBorrow ? 'danger' : 'success'}
+                className="text-xs font-normal px-1.5 py-0.5 h-4"
+              >
+                APR: {position.apyFormatted ?? '0.00%'}
+              </Badge>
+              <div className={cn('text-base font-semibold', isBorrow && 'text-red-600')}>
+                {isBorrow ? '-' : ''}
+                {valueDisplay}
+              </div>
             </div>
             <div className="text-sm text-muted-foreground">{amountDisplay}</div>
           </div>
