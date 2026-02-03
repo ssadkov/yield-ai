@@ -10,7 +10,9 @@ import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import Image from "next/image";
 import { ManagePositionsButton } from "../ManagePositionsButton";
 import { useCollapsible } from "@/contexts/CollapsibleContext";
-import { formatCurrency } from "@/lib/utils/numberFormat";
+import { formatCurrency, formatNumber } from "@/lib/utils/numberFormat";
+import { Badge } from "@/components/ui/badge";
+import tokenList from "@/lib/data/tokenList.json";
 
 interface PositionsListProps {
   address?: string;
@@ -36,29 +38,70 @@ interface EchoPosition {
   valueUSD: number;
 }
 
-function EchoPositionCard({ position }: { position: EchoPosition }) {
+function normalizeAddress(addr: string): string {
+  if (!addr || !addr.startsWith("0x")) return addr;
+  return "0x" + addr.slice(2).replace(/^0+/, "") || "0x0";
+}
+
+function getTokenLogoUrl(underlyingAddress: string, symbol: string): string | null {
+  const normalized = normalizeAddress(underlyingAddress.startsWith("0x") ? underlyingAddress : `0x${underlyingAddress}`);
+  const tokens = (tokenList as { data: { data: Array<{ tokenAddress?: string; faAddress?: string; symbol?: string; logoUrl?: string }> } }).data.data;
+  const byAddress = tokens.find((t) => {
+    const fa = t.faAddress ? normalizeAddress(t.faAddress) : null;
+    const ta = t.tokenAddress ? normalizeAddress(t.tokenAddress) : null;
+    return fa === normalized || ta === normalized;
+  });
+  if (byAddress?.logoUrl) return byAddress.logoUrl;
+  const bySymbol = tokens.find((t) => t.symbol?.toLowerCase() === symbol?.toLowerCase());
+  return bySymbol?.logoUrl ?? null;
+}
+
+function EchoPositionRow({
+  position,
+  logoUrl,
+}: {
+  position: EchoPosition;
+  logoUrl: string | null;
+}) {
+  const valueStr = position.valueUSD > 0 ? formatCurrency(position.valueUSD, 2) : "$0.00";
+  const priceStr = position.priceUSD > 0 ? formatNumber(position.priceUSD, 2) : "N/A";
+
   return (
-    <Card className="w-full mb-3">
-      <CardHeader className="flex flex-row items-center justify-between py-2">
-        <div className="flex items-center gap-2">
-          {position.logoUrl ? (
-            <div className="w-6 h-6 rounded-full overflow-hidden border border-white">
-              <img
-                src={position.logoUrl}
-                alt={position.symbol}
-                className="w-full h-full object-contain"
-              />
-            </div>
-          ) : (
-            <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
-              {position.symbol.slice(0, 2)}
-            </div>
-          )}
-          <div className="text-sm font-medium">{position.symbol}</div>
+    <div className="mb-2 flex justify-between items-center">
+      <div className="flex items-center gap-2">
+        {logoUrl ? (
+          <div className="w-6 h-6 relative shrink-0">
+            <Image
+              src={logoUrl}
+              alt={position.symbol}
+              width={24}
+              height={24}
+              className="object-contain"
+            />
+          </div>
+        ) : (
+          <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-medium shrink-0">
+            {position.symbol.slice(0, 2)}
+          </div>
+        )}
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">{position.symbol}</span>
+            <Badge
+              variant="outline"
+              className="bg-green-500/10 text-green-600 border-green-500/20 text-xs font-normal px-2 py-0.5 h-5"
+            >
+              Supply
+            </Badge>
+          </div>
+          <div className="text-xs text-muted-foreground">${priceStr}</div>
         </div>
-        <div className="text-base font-medium">{formatCurrency(position.valueUSD, 2)}</div>
-      </CardHeader>
-    </Card>
+      </div>
+      <div className="text-right">
+        <div className="text-sm font-medium">{valueStr}</div>
+        <div className="text-xs text-muted-foreground">{formatNumber(position.amount, 4)}</div>
+      </div>
+    </div>
   );
 }
 
@@ -201,7 +244,11 @@ export function PositionsList({
         <CardContent className="flex-1 overflow-y-auto px-3 pt-0">
           <ScrollArea className="h-full">
             {sortedPositions.map((position) => (
-              <EchoPositionCard key={position.positionId} position={position} />
+              <EchoPositionRow
+                key={position.positionId}
+                position={position}
+                logoUrl={position.logoUrl || getTokenLogoUrl(position.underlyingAddress, position.symbol)}
+              />
             ))}
             {protocol && showManageButton && (
               <ManagePositionsButton protocol={protocol} />
