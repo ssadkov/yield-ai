@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
@@ -77,17 +77,15 @@ export function PositionsList({
 
   const walletAddress = address || account?.address?.toString();
   const protocol = getProtocolByName("Echo Protocol");
-  const requestIdRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
-    const myId = ++requestIdRef.current;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
       if (!cancelled) {
         controller.abort();
       }
-    }, 25000);
+    }, 60000);
 
     async function loadPositions() {
       if (!walletAddress) {
@@ -109,14 +107,14 @@ export function PositionsList({
         }
 
         const data = await response.json();
-        if (cancelled || myId !== requestIdRef.current) return;
+        if (cancelled) return;
         if (data.success && Array.isArray(data.data)) {
           setPositions(data.data);
         } else {
           setPositions([]);
         }
       } catch (err) {
-        if (cancelled || myId !== requestIdRef.current) return;
+        if (cancelled) return;
         if (err instanceof Error && err.name === "AbortError") {
           setPositions([]);
         } else {
@@ -124,7 +122,7 @@ export function PositionsList({
         }
       } finally {
         clearTimeout(timeoutId);
-        if (!cancelled && myId === requestIdRef.current) {
+        if (!cancelled) {
           setLoading(false);
           onPositionsCheckComplete?.();
         }
