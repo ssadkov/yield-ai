@@ -105,7 +105,16 @@ async function getTokenInfo(address: string): Promise<{ symbol: string; name: st
   }
 }
 
-/** Fallback: get price from tokenList by symbol when address lookup fails (e.g. Echo underlying != tokenList address). */
+/** Find token in tokenList by symbol; return faAddress or tokenAddress for Panora lookup. */
+function getTokenAddressFromTokenListBySymbol(symbol: string): string | null {
+  const tokens = (tokenList as { data: { data: Array<{ symbol?: string; faAddress?: string; tokenAddress?: string }> } }).data.data;
+  const t = tokens.find((x) => x.symbol?.toLowerCase() === symbol?.toLowerCase());
+  if (!t) return null;
+  const addr = t.faAddress ?? t.tokenAddress ?? null;
+  return addr ? normalizeTokenAddress(addr) : null;
+}
+
+/** Fallback: get price from tokenList by symbol when Panora returns 0. */
 function getPriceFromTokenListBySymbol(symbol: string): number | null {
   const tokens = (tokenList as { data: { data: Array<{ symbol?: string; usdPrice?: string }> } }).data.data;
   const t = tokens.find((x) => x.symbol?.toLowerCase() === symbol?.toLowerCase());
@@ -216,14 +225,14 @@ export async function GET(request: NextRequest) {
         ...rawPositions.map((r) => {
           const symbolGuess = r.aToken.symbol.replace(/^A/, '');
           const canonical = canonicalizeEchoSymbol(symbolGuess);
-          const fa = resolveUnderlyingToFa(r.underlyingNorm, coinAssetPairs);
-          return canonical.pricingAddressOverride ?? (fa || r.underlyingNorm);
+          const addrFromTokenList = getTokenAddressFromTokenListBySymbol(canonical.symbol);
+          return addrFromTokenList ?? canonical.pricingAddressOverride ?? (resolveUnderlyingToFa(r.underlyingNorm, coinAssetPairs) || r.underlyingNorm);
         }),
         ...rawBorrowPositions.map((r) => {
           const symbolGuess = r.varToken.symbol.replace(/^V/, '');
           const canonical = canonicalizeEchoSymbol(symbolGuess);
-          const fa = resolveUnderlyingToFa(r.underlyingNorm, coinAssetPairs);
-          return canonical.pricingAddressOverride ?? (fa || r.underlyingNorm);
+          const addrFromTokenList = getTokenAddressFromTokenListBySymbol(canonical.symbol);
+          return addrFromTokenList ?? canonical.pricingAddressOverride ?? (resolveUnderlyingToFa(r.underlyingNorm, coinAssetPairs) || r.underlyingNorm);
         }),
       ]),
     ];
@@ -269,7 +278,7 @@ export async function GET(request: NextRequest) {
       rawPositions.map(async ({ aToken, aTokenAddr, scaledBalanceStr, underlyingNorm }) => {
         const symbolGuess = aToken.symbol.replace(/^A/, '');
         const canonical = canonicalizeEchoSymbol(symbolGuess);
-        const pricingAddress = canonical.pricingAddressOverride ?? (resolveUnderlyingToFa(underlyingNorm, coinAssetPairs) || underlyingNorm);
+        const pricingAddress = getTokenAddressFromTokenListBySymbol(canonical.symbol) ?? canonical.pricingAddressOverride ?? (resolveUnderlyingToFa(underlyingNorm, coinAssetPairs) || underlyingNorm);
 
         const tokenInfo = await getTokenInfo(pricingAddress);
         const symbol = canonical.symbol;
@@ -306,7 +315,7 @@ export async function GET(request: NextRequest) {
       rawBorrowPositions.map(async ({ varToken, varTokenAddr, scaledBalanceStr, underlyingNorm }) => {
         const symbolGuess = varToken.symbol.replace(/^V/, '');
         const canonical = canonicalizeEchoSymbol(symbolGuess);
-        const pricingAddress = canonical.pricingAddressOverride ?? (resolveUnderlyingToFa(underlyingNorm, coinAssetPairs) || underlyingNorm);
+        const pricingAddress = getTokenAddressFromTokenListBySymbol(canonical.symbol) ?? canonical.pricingAddressOverride ?? (resolveUnderlyingToFa(underlyingNorm, coinAssetPairs) || underlyingNorm);
 
         const tokenInfo = await getTokenInfo(pricingAddress);
         const symbol = canonical.symbol;
