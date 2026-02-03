@@ -36,6 +36,7 @@ interface EchoPosition {
   amount: number;
   priceUSD: number;
   valueUSD: number;
+  type?: "supply" | "borrow";
 }
 
 function normalizeAddress(addr: string): string {
@@ -63,7 +64,11 @@ function EchoPositionRow({
   position: EchoPosition;
   logoUrl: string | null;
 }) {
-  const valueStr = position.valueUSD > 0 ? formatCurrency(position.valueUSD, 2) : "$0.00";
+  const isBorrow = position.type === "borrow";
+  const valueStr =
+    position.valueUSD > 0
+      ? (isBorrow ? "-" : "") + formatCurrency(position.valueUSD, 2)
+      : "$0.00";
   const priceStr = position.priceUSD > 0 ? formatNumber(position.priceUSD, 2) : "N/A";
 
   return (
@@ -89,16 +94,20 @@ function EchoPositionRow({
             <span className="text-sm font-medium">{position.symbol}</span>
             <Badge
               variant="outline"
-              className="bg-green-500/10 text-green-600 border-green-500/20 text-xs font-normal px-2 py-0.5 h-5"
+              className={
+                isBorrow
+                  ? "bg-red-500/10 text-red-600 border-red-500/20 text-xs font-normal px-2 py-0.5 h-5"
+                  : "bg-green-500/10 text-green-600 border-green-500/20 text-xs font-normal px-2 py-0.5 h-5"
+              }
             >
-              Supply
+              {isBorrow ? "Borrow" : "Supply"}
             </Badge>
           </div>
           <div className="text-xs text-muted-foreground">${priceStr}</div>
         </div>
       </div>
       <div className="text-right">
-        <div className="text-sm font-medium">{valueStr}</div>
+        <div className={cn("text-sm font-medium", isBorrow && "text-red-600")}>{valueStr}</div>
         <div className="text-xs text-muted-foreground">{formatNumber(position.amount, 4)}</div>
       </div>
     </div>
@@ -184,7 +193,9 @@ export function PositionsList({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walletAddress, refreshKey]);
 
-  const totalValue = positions.reduce((sum, p) => sum + (p.valueUSD || 0), 0);
+  const supplyTotal = positions.filter((p) => p.type !== "borrow").reduce((sum, p) => sum + (p.valueUSD || 0), 0);
+  const borrowTotal = positions.filter((p) => p.type === "borrow").reduce((sum, p) => sum + (p.valueUSD || 0), 0);
+  const totalValue = supplyTotal - borrowTotal;
   const sortedPositions = [...positions].sort((a, b) => (b.valueUSD || 0) - (a.valueUSD || 0));
 
   useEffect(() => {
@@ -245,7 +256,7 @@ export function PositionsList({
           <ScrollArea className="h-full">
             {sortedPositions.map((position) => (
               <EchoPositionRow
-                key={position.positionId}
+                key={`${position.type ?? "supply"}-${position.positionId}`}
                 position={position}
                 logoUrl={position.logoUrl || getTokenLogoUrl(position.underlyingAddress, position.symbol)}
               />
