@@ -514,26 +514,32 @@ function AprFromResult({
   const [daysInput, setDaysInput] = useState<string>(() => {
     return initialDays ? initialDays.toString() : '30';
   });
+  // Normalize date to ISO yyyy-mm-dd; accept dd.mm.yyyy from old share links
+  const toISODate = (s: string): string => {
+    if (!s) return '';
+    const iso = /^\d{4}-\d{2}-\d{2}$/.test(s);
+    if (iso) return s;
+    const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(s);
+    if (!m) return '';
+    return `${m[3]}-${m[2]}-${m[1]}`;
+  };
+  const todayISO = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
   const [startDateStr, setStartDateStr] = useState<string>(() => {
-    return initialStartDate || '';
+    return toISODate(initialStartDate || '');
   });
   const [endDateStr, setEndDateStr] = useState<string>(() => {
-    if (initialEndDate) return initialEndDate;
-    const d = new Date();
-    const dd = String(d.getDate()).padStart(2, '0');
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const yyyy = d.getFullYear();
-    return `${dd}.${mm}.${yyyy}`;
+    if (initialEndDate) return toISODate(initialEndDate);
+    return todayISO();
   });
 
   // Ensure end date defaults to today when switching to dates mode
   useEffect(() => {
     if (daysMode === 'dates' && !endDateStr) {
-      const d = new Date();
-      const dd = String(d.getDate()).padStart(2, '0');
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const yyyy = d.getFullYear();
-      setEndDateStr(`${dd}.${mm}.${yyyy}`);
+      setEndDateStr(todayISO());
     }
   }, [daysMode, endDateStr]);
 
@@ -569,21 +575,14 @@ function AprFromResult({
       const d = parseInt((daysInput || '0').replace(/\D/g, ''), 10);
       return Math.max(1, isNaN(d) ? 0 : d);
     }
-    // dates mode
-    const parseDDMMYYYY = (s: string): Date | null => {
-      const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(s);
-      if (!m) return null;
-      const dd = parseInt(m[1], 10);
-      const mm = parseInt(m[2], 10);
-      const yyyy = parseInt(m[3], 10);
-      if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
-      const dt = new Date(yyyy, mm - 1, dd);
-      if (dt.getFullYear() !== yyyy || dt.getMonth() !== mm - 1 || dt.getDate() !== dd) return null;
-      return dt;
+    // dates mode: startDateStr and endDateStr are in ISO yyyy-mm-dd
+    const parseISO = (s: string): Date | null => {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+      const dt = new Date(s + 'T12:00:00');
+      return isNaN(dt.getTime()) ? null : dt;
     };
-
-    const s = startDateStr ? parseDDMMYYYY(startDateStr) : null;
-    const e = endDateStr ? parseDDMMYYYY(endDateStr) : null;
+    const s = startDateStr ? parseISO(startDateStr) : null;
+    const e = endDateStr ? parseISO(endDateStr) : null;
     if (!s || !e || isNaN(s.getTime()) || isNaN(e.getTime())) return 1;
     const diffMs = e.getTime() - s.getTime();
     const d = Math.floor(diffMs / (1000 * 60 * 60 * 24));
@@ -675,47 +674,15 @@ function AprFromResult({
           ) : (
             <div className="grid grid-cols-2 gap-2">
               <Input
-                type="text"
-                inputMode="numeric"
-                placeholder="dd.mm.yyyy"
+                type="date"
                 value={startDateStr}
-                onChange={(e) => {
-                  const v = e.target.value.replace(/[^0-9.]/g, '');
-                  const parts = v.split('.');
-                  const normalized = parts.length > 3 ? parts.slice(0, 3).join('.') : v;
-                  setStartDateStr(normalized);
-                }}
-                onBlur={() => {
-                  const m = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(startDateStr);
-                  if (m) {
-                    const dd = String(Math.min(31, Math.max(1, parseInt(m[1], 10)))).padStart(2, '0');
-                    const mm = String(Math.min(12, Math.max(1, parseInt(m[2], 10)))).padStart(2, '0');
-                    const yyyy = m[3];
-                    setStartDateStr(`${dd}.${mm}.${yyyy}`);
-                  }
-                }}
+                onChange={(e) => setStartDateStr(e.target.value)}
                 className="h-12 text-lg"
               />
               <Input
-                type="text"
-                inputMode="numeric"
-                placeholder="dd.mm.yyyy"
+                type="date"
                 value={endDateStr}
-                onChange={(e) => {
-                  const v = e.target.value.replace(/[^0-9.]/g, '');
-                  const parts = v.split('.');
-                  const normalized = parts.length > 3 ? parts.slice(0, 3).join('.') : v;
-                  setEndDateStr(normalized);
-                }}
-                onBlur={() => {
-                  const m = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(endDateStr);
-                  if (m) {
-                    const dd = String(Math.min(31, Math.max(1, parseInt(m[1], 10)))).padStart(2, '0');
-                    const mm = String(Math.min(12, Math.max(1, parseInt(m[2], 10)))).padStart(2, '0');
-                    const yyyy = m[3];
-                    setEndDateStr(`${dd}.${mm}.${yyyy}`);
-                  }
-                }}
+                onChange={(e) => setEndDateStr(e.target.value)}
                 className="h-12 text-lg"
               />
             </div>
