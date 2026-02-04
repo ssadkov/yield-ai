@@ -17,6 +17,7 @@ import { PositionsList as EarniumPositionsList } from "./protocols/earnium/Posit
 import { PositionsList as AavePositionsList } from "./protocols/aave/PositionsList";
 import { PositionsList as MoarPositionsList } from "./protocols/moar/PositionsList";
 import { PositionsList as ThalaPositionsList } from "./protocols/thala/PositionsList";
+import { PositionsList as EchoPositionsList } from "./protocols/echo/PositionsList";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { AptosPortfolioService } from "@/lib/services/aptos/portfolio";
 import { Token } from "@/lib/types/token";
@@ -50,6 +51,7 @@ function MobileTabsContent() {
   const [aaveValue, setAaveValue] = useState<number>(0);
   const [moarValue, setMoarValue] = useState<number>(0);
   const [thalaValue, setThalaValue] = useState<number>(0);
+  const [echoValue, setEchoValue] = useState<number>(0);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   // Функция для скролла к верху
@@ -73,13 +75,13 @@ function MobileTabsContent() {
         }, 0);
 
         setTokens(portfolio.tokens);
-        setTotalValue((total + hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + earniumValue + aaveValue + moarValue + thalaValue).toFixed(2));
+        setTotalValue((total + hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + earniumValue + aaveValue + moarValue + thalaValue + echoValue).toFixed(2));
       } catch (error) {
       }
     }
 
     loadPortfolio();
-  }, [account?.address, hyperionValue, echelonValue, ariesValue, jouleValue, tappValue, mesoValue, auroValue, earniumValue, aaveValue, moarValue, thalaValue]);
+  }, [account?.address, hyperionValue, echelonValue, ariesValue, jouleValue, tappValue, mesoValue, auroValue, earniumValue, aaveValue, moarValue, thalaValue, echoValue]);
 
   // Обработчики изменения суммы позиций в протоколах
   const handleHyperionValueChange = (value: number) => {
@@ -125,6 +127,10 @@ function MobileTabsContent() {
     setThalaValue(value);
   };
 
+  const handleEchoValueChange = (value: number) => {
+    setEchoValue(value);
+  };
+
   // Refresh function
   const handleRefresh = async () => {
     if (!account?.address) return;
@@ -153,6 +159,7 @@ function MobileTabsContent() {
       setAaveValue(0);
       setMoarValue(0);
       setThalaValue(0);
+      setEchoValue(0);
       
       setTotalValue(total.toFixed(2));
     } catch (error) {
@@ -271,6 +278,12 @@ function MobileTabsContent() {
                         value: thalaValue, 
                         name: 'Thala',
                         handler: handleThalaValueChange
+                      },
+                      { 
+                        component: EchoPositionsList, 
+                        value: echoValue, 
+                        name: 'Echo Protocol',
+                        handler: handleEchoValueChange
                       }
                     ]
                       .sort((a, b) => b.value - a.value)
