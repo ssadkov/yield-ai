@@ -94,27 +94,6 @@
       "twitter": "https://x.com/EchelonMarket"
     },
     "airdrop": "",
-    "airdropInfo": {
-      "title": "🎁 Points Program - Season 2",
-      "description": "Second season points program active. Participates in Aptos LFM program for future token launch. Points influence future protocol rewards.",
-      "links": [
-        {
-          "text": "LFM Program Info",
-          "url": "https://x.com/EchelonMarket/status/1947328107741925458",
-          "type": "twitter"
-        },
-        {
-          "text": "Check Points",
-          "url": "https://app.echelon.market/points",
-          "type": "app"
-        }
-      ],
-      "requirements": [
-        "Participate in protocol activities",
-        "Earn points through interactions"
-      ],
-      "additionalInfo": "Aptos LFM program participant"
-    },
     "contractAddresses": [
       "0xc6bc659f1649553c1a3fa05d9727433dc03843baac29473c817d06d39e7621ba"
     ]
