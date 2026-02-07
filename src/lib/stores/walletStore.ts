@@ -223,6 +223,7 @@ export const useWalletStore = create<WalletState>()(
               'earnium',
               'aave',
               'moar',
+              'decibel',
             ];
             const newPositions: ProtocolPositions = { ...state.positions };
             

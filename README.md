@@ -306,6 +306,8 @@ GET /api/transactions?address=0x1234...&protocol=hyperion&activityType=ACTIVITY_
    - `NEXT_PUBLIC_APTOS_NODE_URL` - Aptos RPC endpoint
    - `NEXT_PUBLIC_PANORA_API_URL` - Panora API endpoint
    - `NEXT_PUBLIC_HYPERION_API_URL` - Hyperion API endpoint
+   - `DECIBEL_API_KEY` (optional) - Bearer token for Decibel API (positions); create at [app.decibel.trade/api](https://app.decibel.trade/api)
+   - `DECIBEL_API_BASE_URL` (optional) - Decibel API base URL; default: `https://api.testnet.aptoslabs.com/decibel`
 
 4. **Run the development server**
    ```bash

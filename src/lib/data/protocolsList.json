@@ -379,5 +379,22 @@
     "contractAddresses": [
       "0xeab7ea4d635b6b6add79d5045c4a45d8148d88287b1cfa1c3b6a4b56f46839ed"
     ]
+  },
+  {
+    "name": "Decibel",
+    "key": "decibel",
+    "category": "Perpetuals",
+    "url": "https://trade.decibel.exchange",
+    "logoUrl": "/protocol_ico/decibel.png",
+    "description": "Decentralized perps and trading on Aptos. View positions and account overview from testnet or mainnet.",
+    "depositType": "external",
+    "depositUrl": "https://trade.decibel.exchange",
+    "isDepositEnabled": false,
+    "managedType": "native",
+    "socialMedia": {
+      "twitter": "https://x.com/decibel_trade"
+    },
+    "airdrop": "",
+    "contractAddresses": []
   }
 ] 
