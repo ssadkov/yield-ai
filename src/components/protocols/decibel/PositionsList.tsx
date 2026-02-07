@@ -167,16 +167,16 @@ export function PositionsList({
                 : `${positionsCount} position${positionsCount !== 1 ? "s" : ""}`}
           </div>
           {!isLoading && vaults.length > 0 && (
-            <div className="mt-2 text-sm">
-              <div className="font-medium text-muted-foreground mb-1">Vaults</div>
+            <div className="mt-4 pt-4 space-y-2">
+              <h4 className="text-sm font-medium mb-2 text-muted-foreground">Vaults</h4>
               {vaults.map((v, i) => (
-                <div key={i} className="flex items-baseline justify-between gap-2 text-xs">
-                  <span className="truncate">{v.name}</span>
-                  {v.current_value_of_shares != null && v.current_value_of_shares > 0 && (
-                    <span className="text-muted-foreground shrink-0">
-                      {formatCurrency(v.current_value_of_shares)}
-                    </span>
-                  )}
+                <div key={i} className="flex items-center justify-between py-1">
+                  <div className="text-sm font-medium truncate min-w-0">{v.name}</div>
+                  <div className="text-sm font-medium shrink-0 ml-2">
+                    {v.current_value_of_shares != null && v.current_value_of_shares > 0
+                      ? formatCurrency(v.current_value_of_shares, 2)
+                      : null}
+                  </div>
                 </div>
               ))}
             </div>

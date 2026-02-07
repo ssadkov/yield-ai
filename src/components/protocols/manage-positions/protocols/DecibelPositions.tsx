@@ -5,6 +5,7 @@ import { useWallet } from '@aptos-labs/wallet-adapter-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { formatNumber, formatCurrency } from '@/lib/utils/numberFormat';
+import { normalizeAddress } from '@/lib/utils/addressNormalization';
 
 /** Decibel API position shape (snake_case from API) */
 export interface DecibelPosition {
@@ -32,12 +33,23 @@ export interface DecibelVaultItem {
 
 const DECIBEL_APP_URL = 'https://app.decibel.trade/';
 
-/** Parse Decibel market string (e.g. "BTC-USDC", "BTC-USD") into base and quote for display */
-function formatDecibelMarket(market: string): { base: string; quote: string; pair: string } {
-  const parts = (market || '').split('-');
-  const base = parts[0]?.toUpperCase() || market;
+/** Shorten hex address for display */
+function shortenHex(hex: string, head = 6, tail = 4): string {
+  if (!hex || !hex.startsWith('0x') || hex.length <= head + tail + 2) return hex;
+  return `${hex.slice(0, head + 2)}…${hex.slice(-tail)}`;
+}
+
+/** Parse market symbol (e.g. "BTC-USDC") into base and quote for labels; returns market as-is if not symbol-like */
+function formatDecibelMarket(marketName: string): { base: string; quote: string; displayPair: string } {
+  const s = (marketName || '').trim();
+  if (!s || s.startsWith('0x') || !s.includes('-')) {
+    const display = s.startsWith('0x') ? shortenHex(s) : s || '—';
+    return { base: s || '—', quote: '', displayPair: display };
+  }
+  const parts = s.split('-');
+  const base = parts[0]?.toUpperCase() || s;
   const quote = parts[1]?.toUpperCase() || '';
-  return { base, quote, pair: quote ? `${base} / ${quote}` : base };
+  return { base, quote, displayPair: quote ? `${base}-${quote}` : base };
 }
 
 export function DecibelPositions() {
@@ -45,6 +57,7 @@ export function DecibelPositions() {
   const { toast } = useToast();
   const [positions, setPositions] = useState<DecibelPosition[]>([]);
   const [vaults, setVaults] = useState<DecibelVaultItem[]>([]);
+  const [marketNames, setMarketNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [vaultsLoading, setVaultsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -109,9 +122,33 @@ export function DecibelPositions() {
     fetchPositions();
   }, [fetchPositions]);
 
+  const fetchMarkets = useCallback(async () => {
+    try {
+      const res = await fetch('/api/protocols/decibel/markets');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        const map: Record<string, string> = {};
+        for (const m of data.data as { market_addr?: string; market_name?: string }[]) {
+          const addr = m.market_addr;
+          const name = m.market_name;
+          if (addr != null && name != null) {
+            map[normalizeAddress(String(addr))] = String(name);
+          }
+        }
+        setMarketNames(map);
+      }
+    } catch {
+      setMarketNames({});
+    }
+  }, []);
+
   useEffect(() => {
     fetchVaults();
   }, [fetchVaults]);
+
+  useEffect(() => {
+    fetchMarkets();
+  }, [fetchMarkets]);
 
   useEffect(() => {
     const handler = (e: CustomEvent<{ protocol: string; data?: DecibelPosition[] }>) => {
@@ -176,14 +213,17 @@ export function DecibelPositions() {
           </div>
           <ul className="space-y-3">
             {positions.map((pos, i) => {
-              const { base, quote, pair } = formatDecibelMarket(pos.market);
+              const marketKey = normalizeAddress(pos.market);
+              const marketName = marketNames[marketKey] ?? pos.market;
+              const { base, quote, displayPair } = formatDecibelMarket(marketName);
+              const showTokenLabels = base && quote && !pos.market.startsWith('0x');
               return (
                 <li
                   key={`${pos.market}-${pos.user}-${i}`}
                   className="rounded-lg border bg-card p-3 text-card-foreground shadow-sm"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-medium">{pair}</span>
+                    <span className="font-medium">{displayPair}</span>
                     {pos.is_isolated && (
                       <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">
                         Isolated
@@ -192,16 +232,27 @@ export function DecibelPositions() {
                   </div>
                   <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                     <div>
-                      <span className="text-muted-foreground">Size ({base})</span>
-                      <span className="ml-2">{formatNumber(pos.size)} {base}</span>
+                      <span className="text-muted-foreground">
+                        {showTokenLabels ? `Size (${base})` : 'Size'}
+                      </span>
+                      <span className="ml-2">
+                        {formatNumber(pos.size)}
+                        {showTokenLabels ? ` ${base}` : ''}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Entry price</span>
-                      <span className="ml-2">{formatNumber(pos.entry_price)} {quote}</span>
+                      <span className="ml-2">
+                        {formatNumber(pos.entry_price)}
+                        {showTokenLabels ? ` ${quote}` : ''}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Liq. price</span>
-                      <span className="ml-2">{formatNumber(pos.estimated_liquidation_price)} {quote}</span>
+                      <span className="ml-2">
+                        {formatNumber(pos.estimated_liquidation_price)}
+                        {showTokenLabels ? ` ${quote}` : ''}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Unrealized funding</span>
@@ -222,9 +273,7 @@ export function DecibelPositions() {
       {/* Vaults: show when we have vault deposits */}
       {(vaultsLoading || vaults.length > 0) && (
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">Vaults</span>
-          </div>
+          <h4 className="text-sm font-medium mb-2 text-muted-foreground">Vaults</h4>
           {vaultsLoading ? (
             <p className="text-sm text-muted-foreground">Loading vaults...</p>
           ) : vaults.length === 0 ? (
@@ -236,15 +285,19 @@ export function DecibelPositions() {
                   key={i}
                   className="rounded-lg border bg-card p-3 text-card-foreground shadow-sm"
                 >
-                  <div className="font-medium">{v.vault?.name ?? 'Vault'}</div>
-                  <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                    {v.current_value_of_shares != null && (
-                      <span>Current value: {formatCurrency(v.current_value_of_shares)}</span>
-                    )}
-                    {v.total_deposited != null && (
-                      <span>Deposited: {formatCurrency(v.total_deposited)}</span>
-                    )}
+                  <div className="flex items-center justify-between py-1">
+                    <div className="text-sm font-medium">{v.vault?.name ?? 'Vault'}</div>
+                    <div className="text-sm font-medium">
+                      {v.current_value_of_shares != null
+                        ? formatCurrency(v.current_value_of_shares, 2)
+                        : '—'}
+                    </div>
                   </div>
+                  {v.total_deposited != null && (
+                    <div className="mt-1 text-sm text-muted-foreground">
+                      Deposited: {formatCurrency(v.total_deposited, 2)}
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
