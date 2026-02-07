@@ -3,7 +3,7 @@
  * Loads .env.local; set DECIBEL_API_KEY there.
  * Hits Decibel testnet only (no mainnet). Tests all proxy routes via direct Decibel API.
  */
-const address = '0x56ff2fc971deecd286314fe99b8ffd6a5e72e62eacdc46ae9b234c5282985f97';
+const address = process.argv[2] || '0x56ff2fc971deecd286314fe99b8ffd6a5e72e62eacdc46ae9b234c5282985f97';
 const base = 'https://api.testnet.aptoslabs.com/decibel';
 
 async function loadEnv() {
@@ -142,6 +142,7 @@ async function main() {
   console.log('  GET /api/protocols/decibel/openOrders?address=' + address);
   console.log('  GET /api/protocols/decibel/tradeHistory?address=' + address);
   console.log('  GET /api/protocols/decibel/fundingRateHistory?address=' + address);
+  console.log('  GET /api/protocols/decibel/accountVaultPerformance?address=' + address);
 }
 
 main();

@@ -4,8 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { ExternalLink } from 'lucide-react';
-import { formatNumber } from '@/lib/utils/numberFormat';
+import { formatNumber, formatCurrency } from '@/lib/utils/numberFormat';
 
 /** Decibel API position shape (snake_case from API) */
 export interface DecibelPosition {
@@ -24,13 +23,30 @@ export interface DecibelPosition {
   tp_trigger_price?: number | null;
 }
 
-const DECIBEL_APP_URL = 'https://trade.decibel.exchange';
+/** Decibel vault performance item (from account_vault_performance API) */
+export interface DecibelVaultItem {
+  vault?: { name?: string };
+  current_value_of_shares?: number;
+  total_deposited?: number;
+}
+
+const DECIBEL_APP_URL = 'https://app.decibel.trade/';
+
+/** Parse Decibel market string (e.g. "BTC-USDC", "BTC-USD") into base and quote for display */
+function formatDecibelMarket(market: string): { base: string; quote: string; pair: string } {
+  const parts = (market || '').split('-');
+  const base = parts[0]?.toUpperCase() || market;
+  const quote = parts[1]?.toUpperCase() || '';
+  return { base, quote, pair: quote ? `${base} / ${quote}` : base };
+}
 
 export function DecibelPositions() {
   const { account } = useWallet();
   const { toast } = useToast();
   const [positions, setPositions] = useState<DecibelPosition[]>([]);
+  const [vaults, setVaults] = useState<DecibelVaultItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [vaultsLoading, setVaultsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchPositions = useCallback(async () => {
@@ -66,9 +82,36 @@ export function DecibelPositions() {
     }
   }, [account?.address, toast]);
 
+  const fetchVaults = useCallback(async () => {
+    if (!account?.address) {
+      setVaults([]);
+      return;
+    }
+    setVaultsLoading(true);
+    try {
+      const res = await fetch(
+        `/api/protocols/decibel/accountVaultPerformance?address=${encodeURIComponent(account.address)}`
+      );
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        setVaults(data.data as DecibelVaultItem[]);
+      } else {
+        setVaults([]);
+      }
+    } catch {
+      setVaults([]);
+    } finally {
+      setVaultsLoading(false);
+    }
+  }, [account?.address]);
+
   useEffect(() => {
     fetchPositions();
   }, [fetchPositions]);
+
+  useEffect(() => {
+    fetchVaults();
+  }, [fetchVaults]);
 
   useEffect(() => {
     const handler = (e: CustomEvent<{ protocol: string; data?: DecibelPosition[] }>) => {
@@ -104,7 +147,7 @@ export function DecibelPositions() {
     );
   }
 
-  if (positions.length === 0) {
+  if (positions.length === 0 && !vaultsLoading && vaults.length === 0) {
     return (
       <div className="py-4 space-y-3">
         <p className="text-sm text-muted-foreground">
@@ -115,71 +158,99 @@ export function DecibelPositions() {
             rel="noopener noreferrer"
             className="text-primary hover:underline"
           >
-            trade.decibel.exchange
+            app.decibel.trade
           </a>
         </p>
-        <Button variant="outline" size="sm" asChild>
-          <a href={DECIBEL_APP_URL} target="_blank" rel="noopener noreferrer">
-            Open in Decibel
-            <ExternalLink className="ml-1 h-3 w-3" />
-          </a>
-        </Button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-muted-foreground">
-          {positions.length} position{positions.length !== 1 ? 's' : ''}
-        </span>
-        <Button variant="outline" size="sm" asChild>
-          <a href={DECIBEL_APP_URL} target="_blank" rel="noopener noreferrer">
-            Open in Decibel
-            <ExternalLink className="ml-1 h-3 w-3" />
-          </a>
-        </Button>
-      </div>
-      <ul className="space-y-3">
-        {positions.map((pos, i) => (
-          <li
-            key={`${pos.market}-${pos.user}-${i}`}
-            className="rounded-lg border bg-card p-3 text-card-foreground shadow-sm"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="font-medium">{pos.market}</span>
-              {pos.is_isolated && (
-                <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">
-                  Isolated
-                </span>
-              )}
-            </div>
-            <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-              <div>
-                <span className="text-muted-foreground">Size</span>
-                <span className="ml-2">{formatNumber(pos.size)}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Entry price</span>
-                <span className="ml-2">{formatNumber(pos.entry_price)}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Liq. price</span>
-                <span className="ml-2">{formatNumber(pos.estimated_liquidation_price)}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Unrealized funding</span>
-                <span className="ml-2">{formatNumber(pos.unrealized_funding)}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Leverage</span>
-                <span className="ml-2">{pos.user_leverage}x</span>
-              </div>
-            </div>
-          </li>
-        ))}
-      </ul>
+    <div className="space-y-6">
+      {positions.length > 0 && (
+        <>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">
+              {positions.length} position{positions.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          <ul className="space-y-3">
+            {positions.map((pos, i) => {
+              const { base, quote, pair } = formatDecibelMarket(pos.market);
+              return (
+                <li
+                  key={`${pos.market}-${pos.user}-${i}`}
+                  className="rounded-lg border bg-card p-3 text-card-foreground shadow-sm"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-medium">{pair}</span>
+                    {pos.is_isolated && (
+                      <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">
+                        Isolated
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Size ({base})</span>
+                      <span className="ml-2">{formatNumber(pos.size)} {base}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Entry price</span>
+                      <span className="ml-2">{formatNumber(pos.entry_price)} {quote}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Liq. price</span>
+                      <span className="ml-2">{formatNumber(pos.estimated_liquidation_price)} {quote}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Unrealized funding</span>
+                      <span className="ml-2">{formatNumber(pos.unrealized_funding)}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Leverage</span>
+                      <span className="ml-2">{pos.user_leverage}x</span>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
+
+      {/* Vaults: show when we have vault deposits */}
+      {(vaultsLoading || vaults.length > 0) && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">Vaults</span>
+          </div>
+          {vaultsLoading ? (
+            <p className="text-sm text-muted-foreground">Loading vaults...</p>
+          ) : vaults.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No vault deposits.</p>
+          ) : (
+            <ul className="space-y-2">
+              {vaults.map((v, i) => (
+                <li
+                  key={i}
+                  className="rounded-lg border bg-card p-3 text-card-foreground shadow-sm"
+                >
+                  <div className="font-medium">{v.vault?.name ?? 'Vault'}</div>
+                  <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                    {v.current_value_of_shares != null && (
+                      <span>Current value: {formatCurrency(v.current_value_of_shares)}</span>
+                    )}
+                    {v.total_deposited != null && (
+                      <span>Deposited: {formatCurrency(v.total_deposited)}</span>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }
