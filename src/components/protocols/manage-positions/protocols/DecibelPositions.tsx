@@ -34,6 +34,16 @@ export interface DecibelVaultItem {
 
 const DECIBEL_APP_URL = 'https://app.decibel.trade/';
 
+/** Format position size with enough decimals for small amounts (e.g. 0.003706 BTC) */
+function formatSize(size: number): string {
+  const abs = Math.abs(size);
+  if (abs === 0) return '0';
+  if (abs < 0.0001) return size.toFixed(8);
+  if (abs < 0.01) return size.toFixed(6);
+  if (abs < 1) return size.toFixed(4);
+  return formatNumber(size, 2);
+}
+
 /** Shorten hex address for display */
 function shortenHex(hex: string, head = 6, tail = 4): string {
   if (!hex || !hex.startsWith('0x') || hex.length <= head + tail + 2) return hex;
@@ -207,11 +217,6 @@ export function DecibelPositions() {
     <div className="space-y-6">
       {positions.length > 0 && (
         <>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">
-              {positions.length} position{positions.length !== 1 ? 's' : ''}
-            </span>
-          </div>
           <ul className="space-y-3">
             {positions.map((pos, i) => {
               const marketKey = normalizeAddress(pos.market);
@@ -242,11 +247,25 @@ export function DecibelPositions() {
                   </div>
                   <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                     <div>
+                      <span className="text-muted-foreground">Value (USD)</span>
+                      <span className="ml-2 font-medium">{formatCurrency(notionalUsd, 2)}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Margin (USD)</span>
+                      <span className="ml-2 font-medium">{formatCurrency(marginUsd, 2)}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Funding (USD)</span>
+                      <span className={cn('ml-2', pos.unrealized_funding < 0 ? 'text-destructive font-medium' : 'font-medium')}>
+                        {formatNumber(pos.unrealized_funding, 2)}
+                      </span>
+                    </div>
+                    <div>
                       <span className="text-muted-foreground">
                         {showTokenLabels ? `Size (${base})` : 'Size'}
                       </span>
                       <span className="ml-2">
-                        {formatNumber(pos.size)}
+                        {formatSize(pos.size)}
                         {showTokenLabels ? ` ${base}` : ''}
                       </span>
                     </div>
@@ -262,12 +281,6 @@ export function DecibelPositions() {
                       <span className="ml-2">
                         {formatNumber(pos.estimated_liquidation_price)}
                         {showTokenLabels ? ` ${quote}` : ''}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">PnL</span>
-                      <span className={cn('ml-2', pos.unrealized_funding < 0 ? 'text-destructive' : '')}>
-                        {formatNumber(pos.unrealized_funding)}
                       </span>
                     </div>
                     <div>

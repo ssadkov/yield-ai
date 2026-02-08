@@ -31,7 +31,7 @@ export function PositionsList({
   showManageButton = true,
 }: PositionsListProps) {
   const [equity, setEquity] = useState<number | null>(null);
-  const [positions, setPositions] = useState<{ market: string }[]>([]);
+  const [positions, setPositions] = useState<{ market: string; marginUsd: number; pnl: number }[]>([]);
   const [marketNames, setMarketNames] = useState<Record<string, string>>({});
   const [availableToTrade, setAvailableToTrade] = useState<number | null>(null);
   const [vaults, setVaults] = useState<{ name: string; current_value_of_shares?: number }[]>([]);
@@ -73,9 +73,22 @@ export function PositionsList({
             ? Number(overviewRes.data.usdc_cross_withdrawable_balance)
             : null;
         const posList = positionsRes?.success && Array.isArray(positionsRes?.data)
-          ? (positionsRes.data as { market: string; is_deleted?: boolean }[])
+          ? (positionsRes.data as {
+              market: string;
+              size?: number;
+              entry_price?: number;
+              user_leverage?: number;
+              unrealized_funding?: number;
+              is_deleted?: boolean;
+            }[])
               .filter((p) => !p.is_deleted)
-              .map((p) => ({ market: p.market }))
+              .map((p) => {
+                const notional = Math.abs(Number(p.size) || 0) * Number(p.entry_price || 0);
+                const lev = Number(p.user_leverage) || 1;
+                const marginUsd = lev > 0 ? notional / lev : notional;
+                const pnl = Number(p.unrealized_funding) || 0;
+                return { market: p.market, marginUsd, pnl };
+              })
           : [];
         const vaultList = vaultsRes?.success && Array.isArray(vaultsRes?.data)
           ? vaultsRes.data.map((v: { vault?: { name?: string }; current_value_of_shares?: number }) => ({
@@ -213,10 +226,23 @@ export function PositionsList({
                 </div>
               )}
               {positions.length > 0 && (
-                <div className="space-y-1 mt-1">
+                <div className="space-y-2 mt-1">
                   {positions.map((p, i) => (
-                    <div key={`${p.market}-${i}`} className="text-sm font-medium">
-                      {formatPairForSidebar(p.market)}
+                    <div
+                      key={`${p.market}-${i}`}
+                      className="flex items-center justify-between gap-2 py-0.5"
+                    >
+                      <span className="text-sm font-medium truncate min-w-0">
+                        {formatPairForSidebar(p.market)}
+                      </span>
+                      <div className="text-sm shrink-0 ml-2 text-right flex items-center justify-end gap-1.5">
+                        <span className={p.pnl < 0 ? "text-destructive" : "text-muted-foreground"}>
+                          ({p.pnl > 0 ? "+" : ""}{formatCurrency(p.pnl, 2)})
+                        </span>
+                        <span className="font-medium">
+                          {formatCurrency(p.marginUsd, 2)}
+                        </span>
+                      </div>
                     </div>
                   ))}
                 </div>
