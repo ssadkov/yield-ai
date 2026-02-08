@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { formatNumber, formatCurrency } from '@/lib/utils/numberFormat';
 import { normalizeAddress } from '@/lib/utils/addressNormalization';
+import { cn } from '@/lib/utils';
 
 /** Decibel API position shape (snake_case from API) */
 export interface DecibelPosition {
@@ -217,18 +218,27 @@ export function DecibelPositions() {
               const marketName = marketNames[marketKey] ?? pos.market;
               const { base, quote, displayPair } = formatDecibelMarket(marketName);
               const showTokenLabels = base && quote && !pos.market.startsWith('0x');
+              const notionalUsd = Math.abs(pos.size) * pos.entry_price;
+              const marginUsd = pos.user_leverage && pos.user_leverage > 0
+                ? notionalUsd / pos.user_leverage
+                : notionalUsd;
               return (
                 <li
                   key={`${pos.market}-${pos.user}-${i}`}
                   className="rounded-lg border bg-card p-3 text-card-foreground shadow-sm"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-medium">{displayPair}</span>
-                    {pos.is_isolated && (
-                      <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">
-                        Isolated
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium">{displayPair}</span>
+                      {pos.is_isolated && (
+                        <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">
+                          Isolated
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-sm font-medium text-muted-foreground shrink-0">
+                      Margin: {formatCurrency(marginUsd, 2)}
+                    </span>
                   </div>
                   <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                     <div>
@@ -255,8 +265,10 @@ export function DecibelPositions() {
                       </span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Unrealized funding</span>
-                      <span className="ml-2">{formatNumber(pos.unrealized_funding)}</span>
+                      <span className="text-muted-foreground">PnL</span>
+                      <span className={cn('ml-2', pos.unrealized_funding < 0 ? 'text-destructive' : '')}>
+                        {formatNumber(pos.unrealized_funding)}
+                      </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Leverage</span>

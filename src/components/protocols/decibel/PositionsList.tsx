@@ -12,6 +12,7 @@ import { formatCurrency } from "@/lib/utils/numberFormat";
 import { Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { normalizeAddress } from "@/lib/utils/addressNormalization";
 
 
 interface PositionsListProps {
@@ -30,7 +31,9 @@ export function PositionsList({
   showManageButton = true,
 }: PositionsListProps) {
   const [equity, setEquity] = useState<number | null>(null);
-  const [positionsCount, setPositionsCount] = useState(0);
+  const [positions, setPositions] = useState<{ market: string }[]>([]);
+  const [marketNames, setMarketNames] = useState<Record<string, string>>({});
+  const [availableToTrade, setAvailableToTrade] = useState<number | null>(null);
   const [vaults, setVaults] = useState<{ name: string; current_value_of_shares?: number }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { isExpanded, toggleSection } = useCollapsible();
@@ -57,31 +60,55 @@ export function PositionsList({
       fetch(`/api/protocols/decibel/accountVaultPerformance?address=${encodeURIComponent(address)}`).then((r) =>
         r.json()
       ),
+      fetch("/api/protocols/decibel/markets").then((r) => r.json()),
     ])
-      .then(([overviewRes, positionsRes, vaultsRes]) => {
+      .then(([overviewRes, positionsRes, vaultsRes, marketsRes]) => {
         if (cancelled) return;
         const eq =
           overviewRes?.success && overviewRes?.data?.perp_equity_balance != null
             ? Number(overviewRes.data.perp_equity_balance)
             : 0;
-        const count = positionsRes?.success && Array.isArray(positionsRes?.data)
-          ? positionsRes.data.filter((p: { is_deleted?: boolean }) => !p.is_deleted).length
-          : 0;
+        const avail =
+          overviewRes?.success && overviewRes?.data?.usdc_cross_withdrawable_balance != null
+            ? Number(overviewRes.data.usdc_cross_withdrawable_balance)
+            : null;
+        const posList = positionsRes?.success && Array.isArray(positionsRes?.data)
+          ? (positionsRes.data as { market: string; is_deleted?: boolean }[])
+              .filter((p) => !p.is_deleted)
+              .map((p) => ({ market: p.market }))
+          : [];
         const vaultList = vaultsRes?.success && Array.isArray(vaultsRes?.data)
           ? vaultsRes.data.map((v: { vault?: { name?: string }; current_value_of_shares?: number }) => ({
               name: v.vault?.name ?? "Vault",
               current_value_of_shares: v.current_value_of_shares,
             }))
           : [];
+        const map: Record<string, string> = {};
+        if (marketsRes?.success && Array.isArray(marketsRes?.data)) {
+          for (const m of marketsRes.data as { market_addr?: string; market_name?: string }[]) {
+            if (m.market_addr != null && m.market_name != null) {
+              map[normalizeAddress(String(m.market_addr))] = String(m.market_name);
+            }
+          }
+        }
+        const vaultsTotal = vaultList.reduce(
+          (sum, v) => sum + (v.current_value_of_shares ?? 0),
+          0
+        );
+        const totalValue = eq + vaultsTotal;
         setEquity(eq);
-        setPositionsCount(count);
+        setPositions(posList);
+        setMarketNames(map);
+        setAvailableToTrade(avail);
         setVaults(vaultList);
-        onValueRef.current?.(eq);
+        onValueRef.current?.(totalValue);
       })
       .catch(() => {
         if (!cancelled) {
           setEquity(0);
-          setPositionsCount(0);
+          setPositions([]);
+          setMarketNames({});
+          setAvailableToTrade(null);
           setVaults([]);
           onValueRef.current?.(0);
         }
@@ -97,11 +124,25 @@ export function PositionsList({
     };
   }, [address, refreshKey]);
 
-  const displayValue = equity != null ? equity : 0;
+  const vaultsTotal = vaults.reduce(
+    (sum, v) => sum + (v.current_value_of_shares ?? 0),
+    0
+  );
+  const displayValue = (equity != null ? equity : 0) + vaultsTotal;
   const hasAnything =
-    isLoading || positionsCount > 0 || vaults.length > 0 || displayValue > 0;
+    positions.length > 0 || vaults.length > 0 || displayValue > 0;
+
+  /** Format market for sidebar: "BTC-USDC" -> "BTC/USDC", "BTC-USD" -> "BTC/USD" */
+  const formatPairForSidebar = (marketAddr: string) => {
+    const name = marketNames[normalizeAddress(marketAddr)] ?? marketAddr;
+    if (name.startsWith("0x")) return `${name.slice(0, 8)}…`;
+    return name.replace("-", "/");
+  };
 
   if (!address) {
+    return null;
+  }
+  if (isLoading) {
     return null;
   }
   if (!hasAnything) {
@@ -159,13 +200,29 @@ export function PositionsList({
       </CardHeader>
       {isExpanded("decibel") && (
         <CardContent className="px-3 pt-0 pb-3">
-          <div className="text-sm text-muted-foreground">
-            {isLoading
-              ? "Loading..."
-              : positionsCount === 0
-                ? "No open positions"
-                : `${positionsCount} position${positionsCount !== 1 ? "s" : ""}`}
-          </div>
+          {isLoading ? (
+            <div className="text-sm text-muted-foreground">Loading...</div>
+          ) : (
+            <>
+              {availableToTrade != null && (
+                <div className="flex items-center justify-between py-1">
+                  <span className="text-sm text-muted-foreground">Available to trade</span>
+                  <span className="text-sm font-medium shrink-0 ml-2">
+                    {formatCurrency(availableToTrade, 2)}
+                  </span>
+                </div>
+              )}
+              {positions.length > 0 && (
+                <div className="space-y-1 mt-1">
+                  {positions.map((p, i) => (
+                    <div key={`${p.market}-${i}`} className="text-sm font-medium">
+                      {formatPairForSidebar(p.market)}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
           {!isLoading && vaults.length > 0 && (
             <div className="mt-4 pt-4 space-y-2">
               <h4 className="text-sm font-medium mb-2 text-muted-foreground">Vaults</h4>
