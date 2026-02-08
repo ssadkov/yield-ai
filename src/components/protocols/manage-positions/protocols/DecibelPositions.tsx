@@ -69,8 +69,11 @@ export function DecibelPositions() {
   const [positions, setPositions] = useState<DecibelPosition[]>([]);
   const [vaults, setVaults] = useState<DecibelVaultItem[]>([]);
   const [marketNames, setMarketNames] = useState<Record<string, string>>({});
+  const [availableToTrade, setAvailableToTrade] = useState<number | null>(null);
+  const [totalEquity, setTotalEquity] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [vaultsLoading, setVaultsLoading] = useState(false);
+  const [overviewLoading, setOverviewLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchPositions = useCallback(async () => {
@@ -157,9 +160,45 @@ export function DecibelPositions() {
     fetchVaults();
   }, [fetchVaults]);
 
+  const fetchOverview = useCallback(async () => {
+    if (!account?.address) {
+      setAvailableToTrade(null);
+      setTotalEquity(null);
+      return;
+    }
+    setOverviewLoading(true);
+    try {
+      const res = await fetch(
+        `/api/protocols/decibel/accountOverview?address=${encodeURIComponent(account.address)}`
+      );
+      const data = await res.json();
+      if (data.success && data.data) {
+        const d = data.data as { usdc_cross_withdrawable_balance?: number; perp_equity_balance?: number };
+        setAvailableToTrade(
+          d.usdc_cross_withdrawable_balance != null ? Number(d.usdc_cross_withdrawable_balance) : null
+        );
+        setTotalEquity(
+          d.perp_equity_balance != null ? Number(d.perp_equity_balance) : null
+        );
+      } else {
+        setAvailableToTrade(null);
+        setTotalEquity(null);
+      }
+    } catch {
+      setAvailableToTrade(null);
+      setTotalEquity(null);
+    } finally {
+      setOverviewLoading(false);
+    }
+  }, [account?.address]);
+
   useEffect(() => {
     fetchMarkets();
   }, [fetchMarkets]);
+
+  useEffect(() => {
+    fetchOverview();
+  }, [fetchOverview]);
 
   useEffect(() => {
     const handler = (e: CustomEvent<{ protocol: string; data?: DecibelPosition[] }>) => {
@@ -195,10 +234,24 @@ export function DecibelPositions() {
     );
   }
 
-  if (positions.length === 0 && !vaultsLoading && vaults.length === 0) {
-    return (
-      <div className="py-4 space-y-3">
-        <p className="text-sm text-muted-foreground">
+  const vaultsTotal = vaults.reduce(
+    (sum, v) => sum + (v.current_value_of_shares ?? 0),
+    0
+  );
+  const totalAssets = (totalEquity ?? 0) + vaultsTotal;
+
+  return (
+    <div className="space-y-6 text-base">
+      {(availableToTrade != null || overviewLoading) && (
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">Available to trade</span>
+          <span className="font-medium">
+            {overviewLoading ? '…' : formatCurrency(availableToTrade ?? 0, 2)}
+          </span>
+        </div>
+      )}
+      {positions.length === 0 && !vaultsLoading && vaults.length === 0 && (
+        <p className="text-sm text-muted-foreground py-2">
           No open positions on Decibel. Open positions at{' '}
           <a
             href={DECIBEL_APP_URL}
@@ -209,12 +262,7 @@ export function DecibelPositions() {
             app.decibel.trade
           </a>
         </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
+      )}
       {positions.length > 0 && (
         <>
           <ul className="space-y-3">
@@ -329,6 +377,10 @@ export function DecibelPositions() {
           )}
         </div>
       )}
+      <div className="flex items-center justify-between pt-6 pb-6">
+        <span className="text-xl">Total assets in Decibel:</span>
+        <span className="text-xl font-bold text-primary">{formatCurrency(totalAssets, 2)}</span>
+      </div>
     </div>
   );
 }
