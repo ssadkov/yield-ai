@@ -22,7 +22,7 @@ export function SolanaSignMessageButton() {
   
   // Check if debug mode is enabled via query parameter or env variable
   const isDebugMode = useMemo(() => {
-    const debugParam = searchParams.get('debug');
+    const debugParam = searchParams?.get('debug');
     const envDebug = process.env.NEXT_PUBLIC_DEBUG === 'true';
     return debugParam === 'true' || envDebug;
   }, [searchParams]);

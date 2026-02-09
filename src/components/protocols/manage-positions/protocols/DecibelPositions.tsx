@@ -85,7 +85,7 @@ export function DecibelPositions() {
     setError(null);
     try {
       const res = await fetch(
-        `/api/protocols/decibel/userPositions?address=${encodeURIComponent(account.address)}`
+        `/api/protocols/decibel/userPositions?address=${encodeURIComponent(account.address.toString())}`
       );
       const data = await res.json();
       if (!res.ok) {
@@ -117,7 +117,7 @@ export function DecibelPositions() {
     setVaultsLoading(true);
     try {
       const res = await fetch(
-        `/api/protocols/decibel/accountVaultPerformance?address=${encodeURIComponent(account.address)}`
+        `/api/protocols/decibel/accountVaultPerformance?address=${encodeURIComponent(account.address.toString())}`
       );
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
@@ -169,7 +169,7 @@ export function DecibelPositions() {
     setOverviewLoading(true);
     try {
       const res = await fetch(
-        `/api/protocols/decibel/accountOverview?address=${encodeURIComponent(account.address)}`
+        `/api/protocols/decibel/accountOverview?address=${encodeURIComponent(account.address.toString())}`
       );
       const data = await res.json();
       if (data.success && data.data) {

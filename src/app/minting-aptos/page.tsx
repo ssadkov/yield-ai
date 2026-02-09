@@ -19,6 +19,7 @@ function MintingAptosContent() {
   const [lastTxHash, setLastTxHash] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!searchParams) return;
     const sig = searchParams.get("signature");
     if (sig) setSignature(sig);
   }, [searchParams]);

@@ -165,6 +165,7 @@ function MintingSolanaPageContent() {
   const [attestationProgress, setAttestationProgress] = useState<{ attempt: number; maxAttempts: number } | null>(null);
 
   useEffect(() => {
+    if (!searchParams) return;
     const sig = searchParams.get("signature");
     if (sig) setSignature(sig);
   }, [searchParams]);

@@ -47,6 +47,7 @@ function CctpRedeemTestPageContent() {
 
   // Read query parameters and auto-fill fields
   useEffect(() => {
+    if (!searchParams) return;
     const messageHash = searchParams.get('messageHash');
     const txSignature = searchParams.get('txSignature');
 
@@ -692,7 +693,7 @@ function CctpRedeemTestPageContent() {
   // Fetch attestation from Circle API using messageHash
   const fetchAttestationFromCircle = async () => {
     // Try to get messageHash from computed value, URL param, or input
-    let messageHash = computedDepositMessageHash || searchParams.get('messageHash');
+    let messageHash = computedDepositMessageHash || searchParams?.get('messageHash');
     
     if (!messageHash || !circleApiKey.trim()) {
       toast({
@@ -1044,7 +1045,7 @@ function CctpRedeemTestPageContent() {
               </div>
               
               {/* Method 1: By depositMessageHash */}
-              {(searchParams.get('messageHash') || computedDepositMessageHash) && (
+              {(searchParams?.get('messageHash') || computedDepositMessageHash) && (
                 <div className="space-y-2">
                   <Button
                     onClick={fetchAttestationFromCircle}
@@ -1054,8 +1055,8 @@ function CctpRedeemTestPageContent() {
                     {isFetchingAttestation ? "Fetching..." : "Fetch Attestation by depositMessageHash"}
                   </Button>
                   <p className="text-[11px] text-muted-foreground">
-                    Using depositMessageHash: {(computedDepositMessageHash || searchParams.get('messageHash'))?.slice(0, 16)}...
-                    {(computedDepositMessageHash || searchParams.get('messageHash'))?.slice(-8)}
+                    Using depositMessageHash: {(computedDepositMessageHash || searchParams?.get('messageHash'))?.slice(0, 16)}...
+                    {(computedDepositMessageHash || searchParams?.get('messageHash'))?.slice(-8)}
                   </p>
                 </div>
               )}

@@ -92,6 +92,7 @@ export default function ChatPanel() {
 
   // Handle query parameter to open calculator
   useEffect(() => {
+    if (!searchParams) return;
     const calculatorParam = searchParams.get('calculator');
     if (calculatorParam === 'true') {
       setIsYieldCalcOpen(true);
@@ -102,7 +103,7 @@ export default function ChatPanel() {
   const handleCloseCalculator = useCallback(() => {
     setIsYieldCalcOpen(false);
     // Remove calculator parameter from URL
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams?.toString() ?? '');
     params.delete('calculator');
     params.delete('apr');
     params.delete('deposit');
@@ -275,13 +276,13 @@ export default function ChatPanel() {
         totalAssets={totalAssets}
         walletTotal={walletTotal}
         initialApr={(() => {
-          const aprParam = searchParams.get('apr');
+          const aprParam = searchParams?.get('apr');
           if (!aprParam) return undefined;
           const aprValue = parseFloat(aprParam);
           return Number.isFinite(aprValue) && aprValue > 0 ? aprValue : undefined;
         })()}
         initialDeposit={(() => {
-          const depositParam = searchParams.get('deposit');
+          const depositParam = searchParams?.get('deposit');
           if (!depositParam) return undefined;
           const depositValue = parseFloat(depositParam);
           return Number.isFinite(depositValue) && depositValue >= 0 ? depositValue : undefined;

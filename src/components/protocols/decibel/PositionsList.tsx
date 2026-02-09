@@ -105,7 +105,7 @@ export function PositionsList({
           }
         }
         const vaultsTotal = vaultList.reduce(
-          (sum, v) => sum + (v.current_value_of_shares ?? 0),
+          (sum: number, v: { current_value_of_shares?: number }) => sum + (v.current_value_of_shares ?? 0),
           0
         );
         const totalValue = eq + vaultsTotal;
@@ -138,7 +138,7 @@ export function PositionsList({
   }, [address, refreshKey]);
 
   const vaultsTotal = vaults.reduce(
-    (sum, v) => sum + (v.current_value_of_shares ?? 0),
+    (sum: number, v: { current_value_of_shares?: number }) => sum + (v.current_value_of_shares ?? 0),
     0
   );
   const displayValue = (equity != null ? equity : 0) + vaultsTotal;

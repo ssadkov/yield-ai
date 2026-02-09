@@ -659,6 +659,7 @@ export default function CctpListAttestationsPage() {
 
   // Read query parameters and auto-fill fields
   useEffect(() => {
+    if (!searchParams) return;
     const txSignature = searchParams.get('txSignature');
     const messageHash = searchParams.get('messageHash');
 
