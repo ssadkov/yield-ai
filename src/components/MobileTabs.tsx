@@ -18,6 +18,7 @@ import { PositionsList as AavePositionsList } from "./protocols/aave/PositionsLi
 import { PositionsList as MoarPositionsList } from "./protocols/moar/PositionsList";
 import { PositionsList as ThalaPositionsList } from "./protocols/thala/PositionsList";
 import { PositionsList as EchoPositionsList } from "./protocols/echo/PositionsList";
+import { PositionsList as DecibelPositionsList } from "./protocols/decibel/PositionsList";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { AptosPortfolioService } from "@/lib/services/aptos/portfolio";
 import { Token } from "@/lib/types/token";
@@ -52,7 +53,9 @@ function MobileTabsContent() {
   const [moarValue, setMoarValue] = useState<number>(0);
   const [thalaValue, setThalaValue] = useState<number>(0);
   const [echoValue, setEchoValue] = useState<number>(0);
+  const [decibelValue, setDecibelValue] = useState<number>(0);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [refreshKey, setRefreshKey] = useState<number>(0);
 
   // Функция для скролла к верху
   const scrollToTop = () => {
@@ -75,13 +78,13 @@ function MobileTabsContent() {
         }, 0);
 
         setTokens(portfolio.tokens);
-        setTotalValue((total + hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + earniumValue + aaveValue + moarValue + thalaValue + echoValue).toFixed(2));
+        setTotalValue((total + hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + earniumValue + aaveValue + moarValue + thalaValue + echoValue + decibelValue).toFixed(2));
       } catch (error) {
       }
     }
 
     loadPortfolio();
-  }, [account?.address, hyperionValue, echelonValue, ariesValue, jouleValue, tappValue, mesoValue, auroValue, earniumValue, aaveValue, moarValue, thalaValue, echoValue]);
+  }, [account?.address, hyperionValue, echelonValue, ariesValue, jouleValue, tappValue, mesoValue, auroValue, earniumValue, aaveValue, moarValue, thalaValue, echoValue, decibelValue]);
 
   // Обработчики изменения суммы позиций в протоколах
   const handleHyperionValueChange = (value: number) => {
@@ -131,6 +134,10 @@ function MobileTabsContent() {
     setEchoValue(value);
   };
 
+  const handleDecibelValueChange = (value: number) => {
+    setDecibelValue(value);
+  };
+
   // Refresh function
   const handleRefresh = async () => {
     if (!account?.address) return;
@@ -147,7 +154,7 @@ function MobileTabsContent() {
 
       setTokens(portfolio.tokens);
       
-      // Reset protocol values to trigger reload
+      // Reset protocol values and bump refreshKey so protocol cards refetch
       setHyperionValue(0);
       setEchelonValue(0);
       setAriesValue(0);
@@ -160,7 +167,9 @@ function MobileTabsContent() {
       setMoarValue(0);
       setThalaValue(0);
       setEchoValue(0);
-      
+      setDecibelValue(0);
+      setRefreshKey((k) => k + 1);
+
       setTotalValue(total.toFixed(2));
     } catch (error) {
       console.error('Error refreshing portfolio:', error);
@@ -284,6 +293,12 @@ function MobileTabsContent() {
                         value: echoValue, 
                         name: 'Echo Protocol',
                         handler: handleEchoValueChange
+                      },
+                      { 
+                        component: DecibelPositionsList, 
+                        value: decibelValue, 
+                        name: 'Decibel',
+                        handler: handleDecibelValueChange
                       }
                     ]
                       .sort((a, b) => b.value - a.value)
@@ -293,6 +308,8 @@ function MobileTabsContent() {
                           address={account.address.toString()}
                           onPositionsValueChange={handler}
                           walletTokens={tokens}
+                          refreshKey={refreshKey}
+                          onPositionsCheckComplete={() => {}}
                         />
                       ))}
                   </>
