@@ -31,6 +31,7 @@ import bs58 from "bs58";
 import { ActionLog, type ActionLogItem } from "@/components/bridge/ActionLog";
 import { isDerivedAptosWalletReliable, getAptosWalletNameFromStorage } from "@/lib/aptosWalletUtils";
 import { useSolanaPortfolio } from "@/hooks/useSolanaPortfolio";
+import { useAptosNativeRestore } from "@/hooks/useAptosNativeRestore";
 import { AptosPortfolioService } from "@/lib/services/aptos/portfolio";
 import { Token } from "@/lib/types/token";
 import { TokenList } from "@/components/portfolio/TokenList";
@@ -41,6 +42,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 const PRIVACY_SIGN_MESSAGE = "Privacy Money account sign in";
 const USDC_MINT = new PublicKey("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
 const TMP_WALLET_STORAGE_KEY = "privacy_cash_tmp_wallet_usdc";
+const APTOS_NATIVE_FALLBACK_STORAGE_KEY = "privacy_bridge_aptos_native_fallback";
 
 const TMP_SEED_WORDS = [
   "alpha", "bravo", "charlie", "delta", "echo", "foxtrot",
@@ -71,20 +73,54 @@ function PrivacyBridgeContent() {
     signMessage: solanaSignMessage,
     signTransaction: solanaSignTransaction,
   } = useSolanaWallet();
+  const aptosNative = useAptosNativeRestore();
   const {
-    account: aptosAccount,
-    connected: aptosConnected,
-    wallet: aptosWallet,
     wallets: aptosWallets,
     connect: connectAptos,
     disconnect: disconnectAptos,
-    isLoading: aptosConnecting,
+    isLoading: aptosAdapterLoading,
   } = useAptosWallet();
+  // Prefer restored native Aptos state for UI consistency (prevents UI "disconnect" flicker)
+  const aptosAccount = aptosNative.account;
+  const aptosConnected = aptosNative.connected;
+  const aptosWallet = aptosNative.wallet;
 
   const [isSolanaDialogOpen, setIsSolanaDialogOpen] = useState(false);
   const [isSolanaConnecting, setIsSolanaConnecting] = useState(false);
+  const [isAptosDialogOpen, setIsAptosDialogOpen] = useState(false);
+  const [isAptosConnecting, setIsAptosConnecting] = useState(false);
   const [isSolanaBalanceExpanded, setIsSolanaBalanceExpanded] = useState(false);
   const [isAptosBalanceExpanded, setIsAptosBalanceExpanded] = useState(false);
+  
+  // Restoring/Reconnecting states - show loading while wallets are being restored/reconnected
+  const [isSolanaRestoring, setIsSolanaRestoring] = useState(false);
+  const [isAptosRestoring, setIsAptosRestoring] = useState(false);
+  const [isSolanaReconnecting, setIsSolanaReconnecting] = useState(false);
+  const [isAptosReconnecting, setIsAptosReconnecting] = useState(false);
+  const [pendingReconnectWallet, setPendingReconnectWallet] = useState<string | null>(null);
+  const [aptosNativeFallback, setAptosNativeFallback] = useState<{ name: string; address: string } | null>(null);
+  // Mirror /bridge: track stored AptosWalletName and selection state
+  const [storedAptosName, setStoredAptosName] = useState<string | null>(null);
+  
+  // Get Solana address - prefer adapter state over hook state for reliability
+  const solanaAdapterConnected = solanaWallet?.adapter?.connected ?? false;
+  const solanaAdapterPublicKey = solanaWallet?.adapter?.publicKey;
+  const effectiveSolanaConnected = solanaConnected || solanaAdapterConnected;
+  const effectiveSolanaPublicKey = solanaPublicKey ?? solanaAdapterPublicKey ?? null;
+  const solanaAddress = effectiveSolanaPublicKey?.toBase58() ?? null;
+  // Some wallets (notably Phantom via standard wallet path) can desync hook helpers.
+  // Use adapter methods as fallback.
+  const effectiveSolanaSignMessage = useMemo(() => {
+    if (solanaSignMessage) return solanaSignMessage;
+    const adapter = solanaWallet?.adapter as unknown as { signMessage?: (msg: Uint8Array) => Promise<any> };
+    // IMPORTANT: bind to adapter to preserve `this` context (Phantom emits events internally)
+    return adapter?.signMessage ? adapter.signMessage.bind(adapter) : null;
+  }, [solanaSignMessage, solanaWallet]);
+  const effectiveSolanaSignTransaction = useMemo(() => {
+    if (solanaSignTransaction) return solanaSignTransaction;
+    const adapter = solanaWallet?.adapter as unknown as { signTransaction?: (tx: any) => Promise<any> };
+    return adapter?.signTransaction ? adapter.signTransaction.bind(adapter) : null;
+  }, [solanaSignTransaction, solanaWallet]);
   const [privacyBalanceUsdc, setPrivacyBalanceUsdc] = useState<number | null>(null);
   const [privacyBalanceUsdcLoading, setPrivacyBalanceUsdcLoading] = useState(false);
   const [privacyBalanceUsdcError, setPrivacyBalanceUsdcError] = useState<string | null>(null);
@@ -104,11 +140,153 @@ function PrivacyBridgeContent() {
   useEffect(() => {
     setWalletConnectMounted(true);
   }, []);
+  
+  // Restoring indicators — same logic as /bridge
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    // IMPORTANT: match /bridge behavior — if already connected, stop here
+    // Otherwise we'll re-enable "Restoring..." just because localStorage keys exist.
+    if (solanaConnected || effectiveSolanaConnected) {
+      setIsSolanaRestoring(false);
+      return;
+    }
+    if (aptosConnected) setIsAptosRestoring(false);
+    const savedSolana = window.localStorage.getItem('walletName');
+    const savedAptosDerived = window.localStorage.getItem('AptosWalletName');
+    const skipSolana = window.sessionStorage.getItem('skip_auto_connect_solana') === '1';
+    let hasSavedSolana = false;
+    if (savedSolana) {
+      try {
+        const parsed = JSON.parse(savedSolana);
+        hasSavedSolana = typeof parsed === 'string' && parsed.length > 0;
+      } catch {
+        hasSavedSolana = savedSolana.length > 0;
+      }
+    }
+    let hasDerivedAptos = false;
+    if (savedAptosDerived) {
+      try {
+        const parsed = JSON.parse(savedAptosDerived);
+        hasDerivedAptos = typeof parsed === 'string' && parsed.includes('(Solana)');
+      } catch {
+        hasDerivedAptos = savedAptosDerived.includes('(Solana)');
+      }
+    }
+    if (!skipSolana && (hasSavedSolana || hasDerivedAptos)) setIsSolanaRestoring(true);
+    else setIsSolanaRestoring(false);
+    let hasNativeAptos = false;
+    if (savedAptosDerived && !hasDerivedAptos) {
+      try {
+        const parsed = JSON.parse(savedAptosDerived);
+        hasNativeAptos = typeof parsed === 'string' && parsed.length > 0;
+      } catch {
+        hasNativeAptos = savedAptosDerived.length > 0;
+      }
+    }
+    if (hasNativeAptos && !aptosConnected) setIsAptosRestoring(true);
+    else setIsAptosRestoring(false);
+  }, [solanaConnected, effectiveSolanaConnected, aptosConnected]);
+
+  useEffect(() => {
+    if (solanaConnected || effectiveSolanaConnected) {
+      setIsSolanaRestoring(false);
+      setIsSolanaReconnecting(false);
+    }
+  }, [solanaConnected, effectiveSolanaConnected]);
+  useEffect(() => {
+    if (aptosConnected) {
+      setIsAptosRestoring(false);
+      setIsAptosReconnecting(false);
+    }
+  }, [aptosConnected]);
+  // Clear restoring after timeout - increased to 10s for Phantom which needs multiple retries
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (!solanaConnected && !effectiveSolanaConnected) setIsSolanaRestoring(false);
+      if (!aptosConnected) setIsAptosRestoring(false);
+    }, 10000);
+    return () => clearTimeout(t);
+  }, [solanaConnected, effectiveSolanaConnected, aptosConnected]);
+
+  // Additional check: clear restoring early if adapter is not attempting to connect
+  // This helps when there's no saved wallet or wallet extension is not installed
+  useEffect(() => {
+    if (!isSolanaRestoring) return;
+    // Check adapter state after SolanaWalletRestore had time to start (2s)
+    const checkTimer = setTimeout(() => {
+      const adapter = solanaWallet?.adapter;
+      // If no wallet selected or adapter explicitly not connecting, clear restoring
+      if (!adapter || (!adapter.connected && !adapter.connecting)) {
+        // Check if there's actually a saved wallet to restore
+        const savedWallet = typeof window !== 'undefined' ? window.localStorage.getItem('walletName') : null;
+        const savedAptos = typeof window !== 'undefined' ? window.localStorage.getItem('AptosWalletName') : null;
+        const hasDerived = savedAptos?.includes('(Solana)');
+        if (!savedWallet && !hasDerived) {
+          setIsSolanaRestoring(false);
+        }
+      }
+    }, 2000);
+    return () => clearTimeout(checkTimer);
+  }, [isSolanaRestoring, solanaWallet]);
+  useEffect(() => {
+    if (isSolanaReconnecting) {
+      const t = setTimeout(() => setIsSolanaReconnecting(false), 5000);
+      return () => clearTimeout(t);
+    }
+  }, [isSolanaReconnecting]);
+  useEffect(() => {
+    if (isAptosReconnecting) {
+      const t = setTimeout(() => setIsAptosReconnecting(false), 5000);
+      return () => clearTimeout(t);
+    }
+  }, [isAptosReconnecting]);
+
+  // Reconnect Solana after derived Aptos disconnect (same idea as /bridge)
+  useEffect(() => {
+    if (!pendingReconnectWallet || effectiveSolanaConnected) {
+      if (pendingReconnectWallet && effectiveSolanaConnected) {
+        setPendingReconnectWallet(null);
+        setIsSolanaReconnecting(false);
+      }
+      return;
+    }
+    const walletToConnect = wallets.find((w) => w.adapter.name === pendingReconnectWallet);
+    if (!walletToConnect) {
+      setPendingReconnectWallet(null);
+      setIsSolanaReconnecting(false);
+      return;
+    }
+    const doReconnect = async () => {
+      try {
+        select(pendingReconnectWallet as WalletName);
+        await new Promise((r) => setTimeout(r, 100));
+        const adapter = walletToConnect.adapter;
+        if (!adapter.connected) {
+          await adapter.connect();
+        }
+      } catch {
+        // ignore
+      } finally {
+        setPendingReconnectWallet(null);
+        setIsSolanaReconnecting(false);
+      }
+    };
+    void doReconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingReconnectWallet, effectiveSolanaConnected, wallets, select]);
 
   /** Один раз за сессию для текущего адреса — чтобы не дергать кошелёк на подпись после burn/mint */
   const lastFetchedBalanceForAddress = useRef<string | null>(null);
   /** Блокировка одновременных вызовов signMessage (кошелёк допускает только один pending запрос) */
   const isFetchingPrivacyBalanceRef = useRef(false);
+  /** Флаг: нужно загрузить приватный баланс когда signMessage станет доступен (для Phantom) */
+  const pendingBalanceFetchRef = useRef(false);
+  /** Ref для актуального signMessage (чтобы retry мог видеть обновленное значение) */
+  const signMessageRef = useRef(effectiveSolanaSignMessage);
+  // Обновляем ref при каждом изменении effectiveSolanaSignMessage
+  useEffect(() => {
+    signMessageRef.current = effectiveSolanaSignMessage;
+  }, [effectiveSolanaSignMessage]);
 
   /** По умолчанию в поле withdraw — весь баланс (реальное значение, не placeholder) */
   useEffect(() => {
@@ -118,8 +296,6 @@ function PrivacyBridgeContent() {
       setWithdrawAmount("");
     }
   }, [privacyBalanceUsdc]);
-
-  const solanaAddress = solanaPublicKey?.toBase58() ?? null;
 
   const solanaWalletNameForDerived =
     (solanaWallet as { adapter?: { name?: string }; name?: string })?.adapter?.name ??
@@ -134,44 +310,172 @@ function PrivacyBridgeContent() {
     return Boolean(stored != null && stored !== "" && String(stored).trim().endsWith(" (Solana)"));
   }, [aptosWallet, solanaWalletNameForDerived]);
 
-  // Restore Solana wallet from localStorage on bridge load (AptosWalletName e.g. "Trust (Solana)" first, then walletName)
-  const hasTriggeredRestore = useRef(false);
+  // Sync storedAptosName from storage / fallback (mirror /bridge)
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (solanaConnected) return;
+    setStoredAptosName(getAptosWalletNameFromStorage());
+  }, [aptosConnected, aptosWallet?.name]);
+
+  useEffect(() => {
+    if (aptosNativeFallback && aptosNativeFallback.name) {
+      setStoredAptosName(aptosNativeFallback.name);
+      if (typeof window !== "undefined") {
+        try {
+          window.localStorage.setItem("AptosWalletName", aptosNativeFallback.name);
+        } catch {}
+      }
+    }
+  }, [aptosNativeFallback]);
+
+  const aptosNativeSelected = Boolean(
+    storedAptosName && !String(storedAptosName).trim().endsWith(" (Solana)")
+  );
+  const fallbackIsNative = Boolean(
+    aptosNativeFallback && !aptosNativeFallback.name.endsWith(" (Solana)")
+  );
+  const isCurrentAptosDerived = aptosWallet?.name?.endsWith(" (Solana)") ?? false;
+
+  const showAptosAsConnected = Boolean(
+    // Adapter connected - but only count derived as connected if Solana is still connected
+    (aptosConnected && aptosAccount && (!isCurrentAptosDerived || effectiveSolanaConnected)) ||
+    (aptosWallet && storedAptosName === aptosWallet.name && aptosNativeSelected) ||
+    fallbackIsNative
+  );
+
+  // UI "connecting" state for Aptos: only when native is selected and adapter is connecting
+  const aptosConnecting =
+    !aptosNativeFallback &&
+    Boolean(
+      aptosWallet &&
+      storedAptosName === aptosWallet.name &&
+      aptosNativeSelected &&
+      !aptosConnected &&
+      aptosAdapterLoading
+    );
+
+  const aptosDisplayAddress =
+    aptosAccount?.address?.toString() ?? aptosNativeFallback?.address ?? null;
+
+  // Load persisted Aptos native fallback for UI (helps after refresh / adapter desync)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (aptosConnected && aptosAccount?.address) return;
+    if (aptosNativeFallback) return;
+    const storedName = getAptosWalletNameFromStorage();
+    if (!storedName || storedName.endsWith(" (Solana)")) return; // only native
+    try {
+      const raw = window.sessionStorage.getItem(APTOS_NATIVE_FALLBACK_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { name?: string; address?: string } | null;
+      if (parsed?.address && typeof parsed.address === "string") {
+        setAptosNativeFallback({
+          name: typeof parsed.name === "string" ? parsed.name : storedName,
+          address: parsed.address,
+        });
+      }
+    } catch {
+      // ignore
+    }
+  }, [aptosConnected, aptosAccount?.address, aptosNativeFallback]);
+
+  // Debug log for Aptos UI state (mirror /bridge)
+  useEffect(() => {
+    // Keep payload compact but informative
+    console.log("[privacy-bridge][AptosUI] Debug:", {
+      showAptosAsConnected,
+      aptosConnecting,
+      aptosConnected,
+      aptosAccount: aptosAccount?.address?.toString() || null,
+      aptosWalletName: aptosWallet?.name || null,
+      storedAptosName,
+      aptosNativeSelected,
+      fallbackIsNative,
+      isCurrentAptosDerived,
+      aptosNativeFallback: aptosNativeFallback
+        ? {
+            name: aptosNativeFallback.name,
+            address: aptosNativeFallback.address.slice(0, 10) + "...",
+          }
+        : null,
+      effectiveSolanaConnected,
+      effectiveSolanaPublicKey:
+        effectiveSolanaPublicKey && "toBase58" in effectiveSolanaPublicKey
+          ? (effectiveSolanaPublicKey as any).toBase58()
+          : null,
+    });
+  }, [
+    showAptosAsConnected,
+    aptosConnecting,
+    aptosConnected,
+    aptosAccount?.address,
+    aptosWallet?.name,
+    storedAptosName,
+    aptosNativeSelected,
+    fallbackIsNative,
+    isCurrentAptosDerived,
+    aptosNativeFallback,
+    effectiveSolanaConnected,
+    effectiveSolanaPublicKey,
+  ]);
+
+  // Restore Solana wallet from localStorage — same logic as /bridge (walletName first, then AptosWalletName derived)
+  const hasTriggeredRestore = useRef(false);
+  const prevSolanaConnected = useRef(solanaConnected);
+  const prevEffectiveSolanaConnected = useRef(effectiveSolanaConnected);
+  useEffect(() => {
+    const wasConnected = prevSolanaConnected.current || prevEffectiveSolanaConnected.current;
+    const isNowDisconnected = !solanaConnected && !effectiveSolanaConnected;
+    if (wasConnected && isNowDisconnected) hasTriggeredRestore.current = false;
+    prevSolanaConnected.current = solanaConnected;
+    prevEffectiveSolanaConnected.current = effectiveSolanaConnected;
+  }, [solanaConnected, effectiveSolanaConnected]);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (solanaConnected || effectiveSolanaConnected) return;
+    if (window.sessionStorage.getItem("skip_auto_connect_solana") === "1") return;
     const walletNames = new Set<string>(wallets?.map((w) => String(w.adapter.name)) ?? []);
     let savedName: string | null = null;
-    const aptosRaw = window.localStorage.getItem("AptosWalletName");
-    if (aptosRaw) {
+    const raw = window.localStorage.getItem("walletName");
+    if (raw) {
       try {
-        const parsed = JSON.parse(aptosRaw) as string | null;
-        const aptosName = typeof parsed === "string" ? parsed : aptosRaw;
-        if (aptosName?.endsWith(" (Solana)")) {
-          const name = aptosName.slice(0, -" (Solana)".length).trim();
-          if (name && walletNames.has(name)) savedName = name;
-        }
-      } catch {}
+        const p = JSON.parse(raw) as string | null;
+        if (p && walletNames.has(p)) savedName = p;
+      } catch {
+        if (typeof raw === "string" && raw.length > 0 && walletNames.has(raw)) savedName = raw;
+      }
     }
     if (!savedName) {
-      const raw = window.localStorage.getItem("walletName");
-      if (raw) {
+      const aptosRaw = window.localStorage.getItem("AptosWalletName");
+      if (aptosRaw) {
         try {
-          const p = JSON.parse(raw) as string | null;
-          if (p && walletNames.has(p)) savedName = p;
+          const parsed = JSON.parse(aptosRaw) as string | null;
+          const aptosName = typeof parsed === "string" ? parsed : aptosRaw;
+          if (aptosName?.endsWith(" (Solana)")) {
+            const name = aptosName.slice(0, -" (Solana)".length).trim();
+            if (name && walletNames.has(name)) savedName = name;
+          }
         } catch {}
       }
     }
     if (!savedName) return;
 
     const tryRestore = () => {
-      if (solanaConnected || !wallets?.length) return;
+      if (solanaConnected || effectiveSolanaConnected || !wallets?.length) return;
       const exists = wallets.some((w) => w.adapter.name === savedName);
       if (!exists) return;
       if (hasTriggeredRestore.current) return;
       hasTriggeredRestore.current = true;
       select(savedName as WalletName);
-      setTimeout(() => connectSolana().catch(() => {}), 100);
-      setTimeout(() => connectSolana().catch(() => {}), 600);
+      const doConnect = async (attempt: number) => {
+        try {
+          await connectSolana();
+        } catch {
+          if (attempt < 3) select(savedName as WalletName);
+        }
+      };
+      setTimeout(() => doConnect(1), 150);
+      setTimeout(() => doConnect(2), 500);
+      setTimeout(() => doConnect(3), 1200);
     };
 
     tryRestore();
@@ -181,7 +485,7 @@ function PrivacyBridgeContent() {
       clearTimeout(t1);
       clearTimeout(t2);
     };
-  }, [wallets, solanaConnected, select, connectSolana]);
+  }, [wallets, solanaConnected, effectiveSolanaConnected, select, connectSolana]);
 
   const skipAutoConnectDerivedRef = useRef(false);
   const hasTriedAutoConnectDerived = useRef(false);
@@ -195,7 +499,7 @@ function PrivacyBridgeContent() {
     }
   }, [aptosConnected, aptosWallet, solanaWalletNameForDerived]);
   useEffect(() => {
-    if (!solanaConnected || aptosConnected || !aptosWallets?.length || !solanaWallet) return;
+    if (!effectiveSolanaConnected || !aptosWallets?.length || !solanaWallet) return;
     if (skipAutoConnectDerivedRef.current) return;
     if (typeof window !== "undefined" && sessionStorage.getItem("skip_auto_connect_derived_aptos") === "1") return;
     const solanaWalletName =
@@ -203,14 +507,62 @@ function PrivacyBridgeContent() {
       (solanaWallet as { name?: string }).name ??
       "";
     const derivedNameForCurrentSolana = `${solanaWalletName} (Solana)`;
-    const derived = aptosWallets.find(
-      (w) => w.name === derivedNameForCurrentSolana
-    );
+    
+    // Already connected to the correct derived wallet
+    if (aptosConnected && aptosWallet?.name === derivedNameForCurrentSolana) return;
+    
+    // Wrong derived wallet connected (old Solana) — disconnect it first
+    // IMPORTANT: Save Solana wallet name BEFORE disconnect, because disconnecting derived Aptos
+    // can cascade-disconnect Solana (especially with Trust wallet)
+    if (aptosConnected && aptosWallet?.name && aptosWallet.name.endsWith(' (Solana)') && aptosWallet.name !== derivedNameForCurrentSolana) {
+      console.log('[derived-auto-connect] Wrong derived wallet:', aptosWallet.name, 'expected:', derivedNameForCurrentSolana);
+      const currentSolanaName = solanaWalletName;
+      (async () => {
+        try { await disconnectAptos(); } catch {}
+        // Restore Solana walletName in case cascade disconnect cleared it
+        if (currentSolanaName && typeof window !== "undefined") {
+          setTimeout(() => {
+            try {
+              const current = window.localStorage.getItem("walletName");
+              if (!current) {
+                console.log('[derived-auto-connect] Restoring Solana walletName after cascade:', currentSolanaName);
+                window.localStorage.setItem("walletName", JSON.stringify(currentSolanaName));
+              }
+              window.sessionStorage.removeItem("skip_auto_connect_solana");
+            } catch {}
+          }, 300);
+        }
+        hasTriedAutoConnectDerived.current = false;
+      })();
+      return;
+    }
+    
+    // Don't override native Aptos
+    if (aptosConnected && aptosWallet?.name && !aptosWallet.name.endsWith(' (Solana)')) return;
+    
+    // Don't override native preference in storage
+    const storedAptos = getAptosWalletNameFromStorage();
+    if (storedAptos && !String(storedAptos).trim().endsWith(" (Solana)")) return;
+    
+    const derived = aptosWallets.find((w) => w.name === derivedNameForCurrentSolana);
     if (derived && !hasTriedAutoConnectDerived.current) {
       hasTriedAutoConnectDerived.current = true;
-      connectAptos(derived.name);
+      console.log('[derived-auto-connect] Connecting:', derivedNameForCurrentSolana);
+      if (typeof window !== "undefined") {
+        try { window.localStorage.setItem("AptosWalletName", derivedNameForCurrentSolana); } catch {}
+      }
+      (async () => {
+        try {
+          await connectAptos(derived.name);
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          if (!msg.includes("User") && !msg.includes("rejected") && !msg.includes("already connected")) {
+            console.error('[derived-auto-connect] Connect error:', e);
+          }
+        }
+      })();
     }
-  }, [solanaConnected, aptosConnected, aptosWallets, connectAptos, solanaWallet]);
+  }, [effectiveSolanaConnected, aptosConnected, aptosWallets, aptosWallet, connectAptos, disconnectAptos, solanaWallet]);
 
   const truncateAddress = (addr: string) =>
     addr ? `${addr.slice(0, 8)}...${addr.slice(-8)}` : "";
@@ -384,25 +736,46 @@ function PrivacyBridgeContent() {
   const handleSolanaWalletSelect = async (walletName: string) => {
     try {
       setIsSolanaConnecting(true);
+      // Clear skip flags since user is explicitly connecting a new Solana wallet
+      if (typeof window !== "undefined") {
+        try {
+          window.sessionStorage.removeItem("skip_auto_connect_solana");
+          window.sessionStorage.removeItem("skip_auto_connect_derived_aptos");
+          window.localStorage.setItem("walletName", JSON.stringify(walletName));
+        } catch {}
+      }
+      // Allow derived auto-connect for the new Solana wallet
+      skipAutoConnectDerivedRef.current = false;
+      hasTriedAutoConnectDerived.current = false;
+      const targetWallet = wallets.find((w) => w.adapter.name === walletName);
+      if (!targetWallet) {
+        throw new Error(`Wallet ${walletName} not found in available wallets`);
+      }
       select(walletName as WalletName);
       setIsSolanaDialogOpen(false);
-      setTimeout(async () => {
+      const maxAttempts = 10;
+      let attempt = 0;
+      const tryConnect = async () => {
+        attempt++;
         try {
           await connectSolana();
           toast({
             title: "Wallet Connected",
             description: `Connected to ${walletName}`,
           });
-        } catch (err: unknown) {
-          toast({
-            variant: "destructive",
-            title: "Connection Failed",
-            description: err instanceof Error ? err.message : "Failed to connect wallet",
-          });
-        } finally {
           setIsSolanaConnecting(false);
+        } catch (error: unknown) {
+          if (attempt < maxAttempts) {
+            setTimeout(tryConnect, 200 * attempt);
+          } else {
+            // Don't show toast — connection often succeeds via SolanaWalletRestore
+            // even when connectSolana() throws (race condition with Phantom etc.)
+            console.log('[privacy-bridge] All connect attempts exhausted, relying on restore mechanism');
+            setIsSolanaConnecting(false);
+          }
         }
-      }, 100);
+      };
+      setTimeout(tryConnect, 150);
     } catch (err: unknown) {
       setIsSolanaConnecting(false);
       toast({
@@ -414,12 +787,116 @@ function PrivacyBridgeContent() {
   };
 
   const handleDisconnectSolana = async () => {
+    // Determine current Aptos wallet type BEFORE any disconnect actions
+    const rawAptosStorage = typeof window !== "undefined" ? window.localStorage.getItem("AptosWalletName") : null;
+    const currentAptosWalletName = aptosWallet?.name;
+    const isCurrentAptosDerivedWallet = isDerivedWallet;
+    
+    // Get native Aptos wallet name (if any)
+    let savedAptosNativeName: string | null = null;
+    if (typeof window !== "undefined" && rawAptosStorage) {
+      try {
+        let parsed = rawAptosStorage;
+        try { parsed = JSON.parse(rawAptosStorage) as string; } catch {}
+        if (parsed && !parsed.endsWith(' (Solana)')) {
+          savedAptosNativeName = parsed;
+        }
+      } catch {}
+    }
+    if (!savedAptosNativeName && currentAptosWalletName && !currentAptosWalletName.endsWith(' (Solana)')) {
+      savedAptosNativeName = currentAptosWalletName;
+    }
+    
+    console.log('[handleDisconnectSolana] Starting:', {
+      isCurrentAptosDerivedWallet, savedAptosNativeName, currentAptosWalletName, aptosConnected,
+    });
+
+    // Save native Aptos address for UI fallback BEFORE disconnecting
+    if (savedAptosNativeName && aptosConnected && aptosAccount?.address) {
+      setAptosNativeFallback({
+        name: savedAptosNativeName,
+        address: aptosAccount.address.toString(),
+      });
+    }
+
     try {
+      if (typeof window !== "undefined") {
+        try { window.sessionStorage.setItem("skip_auto_connect_solana", "1"); } catch {}
+      }
+      
+      // CRITICAL: If Aptos is derived, disconnect it FIRST before Solana
+      // Derived Aptos depends on Solana — must be disconnected together
+      if (isCurrentAptosDerivedWallet && aptosConnected) {
+        console.log('[handleDisconnectSolana] Disconnecting derived Aptos wallet first');
+        skipAutoConnectDerivedRef.current = true;
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem("skip_auto_connect_derived_aptos", "1");
+        }
+        try {
+          await disconnectAptos();
+        } catch (e) {
+          console.log('[handleDisconnectSolana] disconnectAptos error (benign):', e);
+        }
+        // Remove AptosWalletName for derived — it's no longer valid without Solana
+        if (typeof window !== "undefined") {
+          try { window.localStorage.removeItem("AptosWalletName"); } catch {}
+        }
+      }
+      
       await disconnectSolana();
+      
+      if (typeof window !== "undefined") {
+        try { window.localStorage.removeItem("walletName"); } catch {}
+      }
+      
       lastFetchedBalanceForAddress.current = null;
+      pendingBalanceFetchRef.current = false;
       setPrivacyBalanceUsdc(null);
       setPrivacyBalanceUsdcError(null);
       toast({ title: "Success", description: "Solana wallet disconnected" });
+
+      // If we had a native Aptos wallet (not derived), restore it
+      if (savedAptosNativeName) {
+        console.log('[handleDisconnectSolana] Will restore Aptos native:', savedAptosNativeName);
+        setIsAptosReconnecting(true);
+        const walletName = savedAptosNativeName;
+        
+        // Ensure AptosWalletName points to native wallet
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem("AptosWalletName", walletName);
+        }
+
+        const attemptReconnect = (attempt: number) => {
+          try {
+            if (aptosConnected && aptosWallet?.name === walletName) {
+              setIsAptosReconnecting(false);
+              return;
+            }
+            const walletToConnect = aptosWallets?.find((w) => w.name === walletName);
+            if (!walletToConnect || walletName.endsWith(" (Solana)")) {
+              setIsAptosReconnecting(false);
+              return;
+            }
+            (async () => {
+              try {
+                await connectAptos(walletName);
+                setIsAptosReconnecting(false);
+              } catch (e) {
+                const msg = e instanceof Error ? e.message : String(e);
+                if (msg.includes("already connected")) {
+                  setIsAptosReconnecting(false);
+                }
+              }
+            })();
+          } catch {
+            // ignore
+          }
+        };
+
+        window.setTimeout(() => attemptReconnect(1), 1500);
+        window.setTimeout(() => attemptReconnect(2), 2500);
+        window.setTimeout(() => attemptReconnect(3), 4000);
+      }
     } catch (err: unknown) {
       toast({
         variant: "destructive",
@@ -432,15 +909,113 @@ function PrivacyBridgeContent() {
   const handleDisconnectAptos = async () => {
     skipAutoConnectDerivedRef.current = true;
     if (typeof window !== "undefined") sessionStorage.setItem("skip_auto_connect_derived_aptos", "1");
+    
+    // Determine if this is a derived wallet BEFORE removing localStorage
+    const isDerived = aptosWallet && isDerivedAptosWalletReliable(aptosWallet);
+
+    // If disconnecting derived Aptos, the adapter can cascade-disconnect Solana and clear walletName.
+    // Save Solana wallet name so we can restore it after.
+    let savedSolanaName: string | null = null;
+    if (isDerived && typeof window !== "undefined") {
+      const fromAdapter =
+        (solanaWallet as { adapter?: { name?: string } })?.adapter?.name ??
+        (solanaWallet as { name?: string })?.name;
+      const fromStorage = window.localStorage.getItem("walletName");
+      const fromAptos = (() => {
+        const a = window.localStorage.getItem("AptosWalletName");
+        if (a?.endsWith(" (Solana)")) return a.slice(0, -" (Solana)".length).trim();
+        return null;
+      })();
+      let raw = fromAdapter ?? fromStorage ?? fromAptos;
+      if (typeof raw === "string" && raw.startsWith('"') && raw.endsWith('"')) {
+        try {
+          raw = JSON.parse(raw) as string;
+        } catch {}
+      }
+      savedSolanaName = (typeof raw === "string" ? raw.trim() : null) || null;
+    }
+    
+    // Clear localStorage to prevent auto-restore
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.removeItem("AptosWalletName");
+        // Allow standalone Solana restore/reconnect after derived disconnect
+        window.sessionStorage.removeItem("skip_auto_connect_solana");
+      } catch {}
+    }
+    
+    // If wallet is already undefined/disconnected, consider it a success
+    const walletAlreadyDisconnected = !aptosWallet;
+    // User explicitly disconnecting Aptos: clear UI fallback (state + persisted)
+    setAptosNativeFallback(null);
+    if (typeof window !== "undefined") {
+      try {
+        window.sessionStorage.removeItem(APTOS_NATIVE_FALLBACK_STORAGE_KEY);
+      } catch {}
+    }
+
+    let disconnectSucceeded = false;
+    
     try {
       await disconnectAptos();
+      disconnectSucceeded = true;
       toast({ title: "Success", description: "Aptos wallet disconnected" });
     } catch (err: unknown) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: err instanceof Error ? err.message : "Failed to disconnect",
-      });
+      const name = (err as { name?: string })?.name;
+      const msg = err instanceof Error ? err.message : String(err);
+      
+      // Check for benign disconnect errors
+      const isBenignDisconnect =
+        name === "WalletDisconnectedError" ||
+        name === "WalletNotConnectedError" ||
+        (typeof msg === "string" &&
+          (msg.includes("WalletDisconnectedError") || msg.includes("WalletNotConnectedError")));
+      
+      const isUserRejected =
+        msg === "User has rejected the request" ||
+        msg.includes("User rejected") ||
+        msg.includes("rejected the request");
+      
+      // For derived wallets, non-user-rejection errors are often just noise
+      const isDerivedSoftError = isDerived && !isUserRejected;
+      
+      // If wallet was already disconnected, treat as success
+      const isAlreadyDisconnectedError = walletAlreadyDisconnected && !isUserRejected;
+      
+      if (isUserRejected) {
+        // User explicitly rejected - do nothing
+        return;
+      } else if (isBenignDisconnect || isDerivedSoftError || isAlreadyDisconnectedError) {
+        // Wallet was already disconnected or it's a soft error - show success
+        disconnectSucceeded = true;
+        toast({ title: "Success", description: "Aptos wallet disconnected" });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: msg || "Failed to disconnect",
+        });
+        return;
+      }
+    }
+
+    if (!disconnectSucceeded) return;
+
+    // Restore Solana after derived Aptos disconnect (if cascade happened)
+    if (isDerived && savedSolanaName && typeof window !== "undefined") {
+      setTimeout(() => {
+        try {
+          const currentWalletName = window.localStorage.getItem("walletName");
+          const adapterConnected = solanaWallet?.adapter?.connected ?? false;
+          if (!currentWalletName || !adapterConnected) {
+            window.localStorage.setItem("walletName", JSON.stringify(savedSolanaName));
+            setIsSolanaReconnecting(true);
+            setPendingReconnectWallet(savedSolanaName);
+          }
+        } catch {
+          // ignore
+        }
+      }, 500);
     }
   };
 
@@ -455,9 +1030,9 @@ function PrivacyBridgeContent() {
   };
 
   const copyAptosAddress = async () => {
-    if (!aptosAccount?.address) return;
+    if (!aptosDisplayAddress) return;
     try {
-      await navigator.clipboard.writeText(aptosAccount.address.toString());
+      await navigator.clipboard.writeText(aptosDisplayAddress);
       toast({ title: "Copied", description: "Aptos address copied to clipboard" });
     } catch {
       toast({ variant: "destructive", title: "Error", description: "Failed to copy address" });
@@ -465,13 +1040,10 @@ function PrivacyBridgeContent() {
   };
 
   const fetchPrivacyUsdcBalance = async () => {
-    if (!solanaPublicKey || !solanaConnection || !solanaSignMessage) {
-      toast({
-        variant: "destructive",
-        title: "Cannot load USDC balance",
-        description: "Connect a Solana wallet that supports message signing (e.g. Phantom, Solflare).",
-      });
-      pushLog("warning", "Cannot load USDC balance: Solana wallet or signMessage not available.");
+    if (!effectiveSolanaPublicKey || !solanaConnection || !effectiveSolanaSignMessage) {
+      // This can happen briefly right after adapter connects (especially on Vercel/Phantom).
+      // Don't show a scary toast; we'll retry on next render when signMessage becomes available.
+      pushLog("warning", "Cannot load USDC balance yet: Solana wallet or signMessage not available.");
       return;
     }
     setPrivacyBalanceUsdcLoading(true);
@@ -481,7 +1053,7 @@ function PrivacyBridgeContent() {
       const msg = new TextEncoder().encode(PRIVACY_SIGN_MESSAGE);
       let sig: Uint8Array;
       try {
-        const raw = await solanaSignMessage(msg);
+        const raw = await effectiveSolanaSignMessage(msg);
         if (typeof raw === "object" && raw !== null && "signature" in raw && raw.signature instanceof Uint8Array) {
           sig = raw.signature;
         } else {
@@ -505,9 +1077,9 @@ function PrivacyBridgeContent() {
       const enc = new EncryptionService();
       enc.deriveEncryptionKeyFromSignature(sig);
 
-      const publicKey = solanaPublicKey instanceof PublicKey
-        ? solanaPublicKey
-        : new PublicKey(solanaPublicKey);
+      const publicKey = effectiveSolanaPublicKey instanceof PublicKey
+        ? effectiveSolanaPublicKey
+        : new PublicKey(effectiveSolanaPublicKey);
 
       const utxos = await getUtxosSPL({
         publicKey,
@@ -575,7 +1147,7 @@ function PrivacyBridgeContent() {
   }, []);
 
   const handleSendToDeposit = async () => {
-    if (!solanaPublicKey || !solanaConnection || !solanaSignMessage || !solanaSignTransaction) {
+    if (!effectiveSolanaPublicKey || !solanaConnection || !effectiveSolanaSignMessage || !effectiveSolanaSignTransaction) {
       toast({
         variant: "destructive",
         title: "Cannot prepare deposit",
@@ -602,7 +1174,7 @@ function PrivacyBridgeContent() {
       const msg = new TextEncoder().encode(PRIVACY_SIGN_MESSAGE);
       let sig: Uint8Array;
       try {
-        const raw = await solanaSignMessage(msg);
+        const raw = await effectiveSolanaSignMessage(msg);
         if (typeof raw === "object" && raw !== null && "signature" in raw && raw.signature instanceof Uint8Array) {
           sig = raw.signature;
         } else {
@@ -630,9 +1202,9 @@ function PrivacyBridgeContent() {
       enc.deriveEncryptionKeyFromSignature(sig);
       pushLog("info", "Initialized EncryptionService with derived key.");
 
-      const publicKey = solanaPublicKey instanceof PublicKey
-        ? solanaPublicKey
-        : new PublicKey(solanaPublicKey);
+      const publicKey = effectiveSolanaPublicKey instanceof PublicKey
+        ? effectiveSolanaPublicKey
+        : new PublicKey(effectiveSolanaPublicKey);
 
       await depositSPL({
         lightWasm,
@@ -644,7 +1216,7 @@ function PrivacyBridgeContent() {
         encryptionService: enc,
         mintAddress: USDC_MINT,
         transactionSigner: async (tx: any) => {
-          const signed = await solanaSignTransaction(tx);
+          const signed = await effectiveSolanaSignTransaction(tx);
           pushLog("info", "Transaction signed by wallet. Sending to Privacy Cash relayer / network...");
           return signed;
         },
@@ -892,7 +1464,7 @@ function PrivacyBridgeContent() {
 
   /** Withdraw из Privacy Cash на tmp-кошелёк, затем сразу burn на Solana + mint на Aptos. Одна связка. */
   const handleWithdrawUsdc = async () => {
-    if (!solanaPublicKey || !solanaConnection || !solanaSignMessage || !solanaSignTransaction) {
+    if (!effectiveSolanaPublicKey || !solanaConnection || !effectiveSolanaSignMessage || !effectiveSolanaSignTransaction) {
       toast({
         variant: "destructive",
         title: "Cannot prepare withdraw",
@@ -939,7 +1511,7 @@ function PrivacyBridgeContent() {
       const msg = new TextEncoder().encode(PRIVACY_SIGN_MESSAGE);
       let sig: Uint8Array;
       try {
-        const raw = await solanaSignMessage(msg);
+        const raw = await effectiveSolanaSignMessage(msg);
         if (typeof raw === "object" && raw !== null && "signature" in raw && raw.signature instanceof Uint8Array) {
           sig = raw.signature;
         } else {
@@ -970,9 +1542,9 @@ function PrivacyBridgeContent() {
       const wallet = await ensureTmpWallet();
       const recipientPubkey = new PublicKey(wallet.address);
 
-      const publicKey = solanaPublicKey instanceof PublicKey
-        ? solanaPublicKey
-        : new PublicKey(solanaPublicKey);
+      const publicKey = effectiveSolanaPublicKey instanceof PublicKey
+        ? effectiveSolanaPublicKey
+        : new PublicKey(effectiveSolanaPublicKey);
 
       await withdrawSPL({
         lightWasm,
@@ -1023,22 +1595,73 @@ function PrivacyBridgeContent() {
     }
   };
 
-  // Авто-загрузка приватного баланса только при первом подключении кошелька (по адресу).
-  // Не зависяем от solanaConnection/solanaSignMessage — иначе после burn/mint ре-рендер
-  // перезапускал эффект и снова открывал кошелёк на подпись (burn/mint сами кошелёк не используют).
-  // Задержка, чтобы не пересекаться с авто-подключением derived Aptos (тот тоже может дергать кошелёк).
+  // Авто-загрузка приватного баланса: два эффекта для надежной работы с Phantom.
+  // Эффект 1: Когда подключается новый адрес, устанавливаем флаг pending.
   useEffect(() => {
-    const address = solanaPublicKey?.toBase58() ?? null;
-    if (!solanaConnected || !address || address === lastFetchedBalanceForAddress.current) {
+    const address = solanaAddress;
+    if (!effectiveSolanaConnected || !address || address === lastFetchedBalanceForAddress.current) {
       return;
     }
+    // Новый адрес подключен - нужно загрузить баланс
     lastFetchedBalanceForAddress.current = address;
+    pendingBalanceFetchRef.current = true;
+    pushLog("info", `New wallet connected (${address.slice(0, 8)}...), pending balance fetch.`);
+  }, [effectiveSolanaConnected, solanaAddress]);
+
+  // Эффект 2: Когда signMessage становится доступен и есть pending fetch - загружаем баланс.
+  // Этот эффект срабатывает каждый раз когда меняется effectiveSolanaSignMessage.
+  useEffect(() => {
+    if (!pendingBalanceFetchRef.current) {
+      return;
+    }
+    if (!effectiveSolanaSignMessage) {
+      // signMessage еще не доступен - ждем следующего рендера
+      return;
+    }
+    // signMessage доступен, сбрасываем флаг и загружаем баланс
+    pendingBalanceFetchRef.current = false;
+    pushLog("info", `signMessage available, fetching Privacy Cash balance...`);
     const t = setTimeout(() => {
       void fetchPrivacyUsdcBalance();
     }, 500);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [solanaConnected, solanaPublicKey?.toBase58()]);
+  }, [effectiveSolanaSignMessage]);
+
+  // Эффект 3: Fallback retry для Phantom - если signMessage не появился за 3 секунды, пробуем еще раз
+  useEffect(() => {
+    if (!pendingBalanceFetchRef.current || !effectiveSolanaConnected || !solanaAddress) {
+      return;
+    }
+    // Запускаем таймер на 3 секунды - если к тому моменту pending все еще true, пробуем загрузить
+    const fallbackTimer = setTimeout(() => {
+      if (!pendingBalanceFetchRef.current) return;
+      // Проверяем ref напрямую (актуальное значение)
+      const currentSignMessage = signMessageRef.current;
+      if (currentSignMessage) {
+        pendingBalanceFetchRef.current = false;
+        pushLog("info", `Fallback: signMessage available via ref, fetching Privacy Cash balance...`);
+        void fetchPrivacyUsdcBalance();
+      } else {
+        pushLog("warning", `Fallback: signMessage still not available after 3s timeout.`);
+        pendingBalanceFetchRef.current = false;
+      }
+    }, 3000);
+    return () => clearTimeout(fallbackTimer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveSolanaConnected, solanaAddress]);
+
+  // Keep/update native Aptos fallback when connected (so UI doesn't flicker on Solana disconnect)
+  useEffect(() => {
+    if (!aptosConnected || !aptosAccount?.address) return;
+    const name = aptosWallet?.name;
+    if (!name || name.endsWith(" (Solana)")) return; // only native
+    const next = { name, address: aptosAccount.address.toString() };
+    setAptosNativeFallback(next);
+    try {
+      window.sessionStorage.setItem(APTOS_NATIVE_FALLBACK_STORAGE_KEY, JSON.stringify(next));
+    } catch {}
+  }, [aptosConnected, aptosAccount?.address, aptosWallet?.name]);
 
   return (
     <div className="w-full h-screen overflow-y-auto bg-gradient-to-br from-gray-50 via-white to-gray-100">
@@ -1055,51 +1678,58 @@ function PrivacyBridgeContent() {
           </div>
 
           <div className="flex flex-col gap-4 w-full p-4 border rounded-lg bg-card">
-            <h1 className="text-xl font-semibold text-center">Yield AI Private Bridge</h1>
-            <h3 className="text-xl font-semibold text-center">Powered by Privacy Cash</h3>
+            <h1 className="text-xl font-semibold text-center">Privacy Bridge</h1>
 
-            {/* Блок комиссий слева, блок кошельков справа */}
-            {solanaConnected ? (
-              <div className="flex flex-wrap items-start gap-4">
-                <div className="w-full md:flex-[0_0_calc(50%-0.5rem)] md:min-w-0 p-3 border rounded-lg bg-card">
-                  <span className="text-sm font-medium text-muted-foreground block mb-2">
-                    Withdraw fees
-                  </span>
-                  {withdrawConfig ? (
-                    <div className="space-y-1 text-sm text-muted-foreground">
-                      <p>
-                        USDC protocol fee:{" "}
-                        {typeof withdrawConfig.withdraw_fee_rate === "number"
-                          ? `${(withdrawConfig.withdraw_fee_rate * 100).toFixed(3)}% of amount`
-                          : "see relayer config"}
-                        {withdrawConfig.usdc_withdraw_rent_fee
-                          ? ` + ${withdrawConfig.usdc_withdraw_rent_fee} USDC rent`
-                          : ""}
-                        .
-                      </p>
-                      <p>
-                        SOL network fee: approximately{" "}
-                        <span className="font-mono">0.002 SOL</span> required for on-chain tx fees.
-                      </p>
-                    </div>
-                  ) : withdrawConfigError ? (
-                    <p className="text-sm text-muted-foreground">
-                      Failed to load withdraw fees: {withdrawConfigError}
+            {/* Блок комиссий слева, блок кошельков справа (одинаковый layout при подключенной и отключенной Solana) */}
+            <div className="flex flex-wrap items-start gap-4">
+              <div className="w-full md:flex-[0_0_calc(50%-0.5rem)] md:min-w-0 p-3 border rounded-lg bg-card">
+                <span className="text-sm font-medium text-muted-foreground block mb-2">
+                  Withdraw fees
+                </span>
+                {withdrawConfig ? (
+                  <div className="space-y-1 text-sm text-muted-foreground">
+                    <p>
+                      USDC protocol fee:{" "}
+                      {typeof withdrawConfig.withdraw_fee_rate === "number"
+                        ? `${(withdrawConfig.withdraw_fee_rate * 100).toFixed(3)}% of amount`
+                        : "see relayer config"}
+                      {withdrawConfig.usdc_withdraw_rent_fee
+                        ? ` + ${withdrawConfig.usdc_withdraw_rent_fee} USDC rent`
+                        : ""}
+                      .
                     </p>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">Loading withdraw fees…</p>
-                  )}
-                </div>
-                {solanaAddress ? (
+                    <p>
+                      SOL network fee: approximately{" "}
+                      <span className="font-mono">0.002 SOL</span> required for on-chain tx fees.
+                    </p>
+                  </div>
+                ) : withdrawConfigError ? (
+                  <p className="text-sm text-muted-foreground">
+                    Failed to load withdraw fees: {withdrawConfigError}
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Loading withdraw fees…</p>
+                )}
+              </div>
+
               <div className="w-full md:flex-[0_0_calc(50%-0.5rem)] md:min-w-0 p-3 border rounded-lg bg-card space-y-2">
-                  {/* Solana Wallet */}
+                {/* Solana Wallet: подключённый или кнопка коннекта */}
+                {effectiveSolanaConnected && solanaAddress ? (
                   <div>
-                    <div className="flex items-center justify-between cursor-pointer hover:bg-accent/50 rounded p-1 -m-1 transition-colors" onClick={() => setIsSolanaBalanceExpanded(!isSolanaBalanceExpanded)}>
+                    <div
+                      className="flex items-center justify-between cursor-pointer hover:bg-accent/50 rounded p-1 -m-1 transition-colors"
+                      onClick={() => setIsSolanaBalanceExpanded(!isSolanaBalanceExpanded)}
+                    >
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-sm font-medium text-muted-foreground shrink-0">Solana</span>
+                        <span className="text-sm font-medium text-muted-foreground shrink-0">
+                          Solana
+                        </span>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" className="h-auto p-0 font-mono text-sm truncate">
+                            <Button
+                              variant="ghost"
+                              className="h-auto p-0 font-mono text-sm truncate"
+                            >
                               {truncateAddress(solanaAddress)}
                             </Button>
                           </DropdownMenuTrigger>
@@ -1123,31 +1753,125 @@ function PrivacyBridgeContent() {
                     {isSolanaBalanceExpanded && (
                       <div className="mt-2 pt-2 border-t">
                         <div className="text-sm font-medium pb-2">
-                          {isSolanaLoading ? "..." : solanaTotalValue !== null ? formatCurrency(solanaTotalValue, 2) : "N/A"}
+                          {isSolanaLoading
+                            ? "..."
+                            : solanaTotalValue !== null
+                              ? formatCurrency(solanaTotalValue, 2)
+                              : "N/A"}
                         </div>
                         <ScrollArea className="max-h-48">
                           {solanaTokens.length > 0 ? (
                             <TokenList tokens={solanaTokens} disableDrag={true} />
                           ) : (
-                            <div className="text-sm text-muted-foreground p-2">No tokens found</div>
+                            <div className="text-sm text-muted-foreground p-2">
+                              No tokens found
+                            </div>
                           )}
                         </ScrollArea>
                       </div>
                     )}
                   </div>
+                ) : (
+                  <div>
+                    {walletConnectMounted ? (
+                      <Dialog open={isSolanaDialogOpen} onOpenChange={setIsSolanaDialogOpen}>
+                        <DialogTrigger asChild>
+                          <Button
+                            size="sm"
+                            className="w-full"
+                            disabled={
+                              isSolanaConnecting || isSolanaRestoring || isSolanaReconnecting
+                            }
+                          >
+                            {isSolanaConnecting || isSolanaRestoring || isSolanaReconnecting ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                {isSolanaRestoring
+                                  ? "Restoring..."
+                                  : isSolanaReconnecting
+                                    ? "Reconnecting..."
+                                    : "Connecting..."}
+                              </>
+                            ) : (
+                              "Connect Solana Wallet"
+                            )}
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Select Solana Wallet</DialogTitle>
+                            <DialogDescription>
+                              Choose a wallet to connect to your Solana account
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-2 mt-4">
+                            {availableSolanaWallets.length === 0 ? (
+                              <div className="text-sm text-muted-foreground p-4 text-center">
+                                No Solana wallets detected. Please install a wallet extension.
+                              </div>
+                            ) : (
+                              availableSolanaWallets.map((w, i) => (
+                                <Button
+                                  key={`${w.adapter.name}-${i}-${w.adapter.url ?? ""}`}
+                                  variant="outline"
+                                  className="w-full justify-start"
+                                  onClick={() => handleSolanaWalletSelect(w.adapter.name)}
+                                  disabled={isSolanaConnecting}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    {w.adapter.icon && (
+                                      <img
+                                        src={w.adapter.icon}
+                                        alt={w.adapter.name}
+                                        className="w-6 h-6"
+                                      />
+                                    )}
+                                    <span>{w.adapter.name}</span>
+                                    {w.readyState === WalletReadyState.Loadable && (
+                                      <span className="ml-auto text-xs text-muted-foreground">
+                                        (Install)
+                                      </span>
+                                    )}
+                                  </div>
+                                </Button>
+                              ))
+                            )}
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    ) : (
+                      <Button size="sm" className="w-full" disabled>
+                        Connect Solana Wallet
+                      </Button>
+                    )}
+                  </div>
+                )}
 
-                  {/* Aptos Wallet */}
-                  {aptosConnected && aptosAccount ? (
-                    <div>
-                      <div className="flex items-center justify-between cursor-pointer hover:bg-accent/50 rounded p-1 -m-1 transition-colors" onClick={() => setIsAptosBalanceExpanded(!isAptosBalanceExpanded)}>
-                        <div className="flex items-center gap-2 min-w-0">
+                {/* Aptos Wallet — тот же layout, что и при подключённой Solana */}
+                <div className="relative mt-2 w-full">
+                  <div className="hidden">
+                    <WalletSelector
+                      externalOpen={isAptosDialogOpen}
+                      onExternalOpenChange={setIsAptosDialogOpen}
+                    />
+                  </div>
+                  {showAptosAsConnected && aptosDisplayAddress ? (
+                    <div className="flex flex-col items-start w-full">
+                      <div
+                        className="flex items-center justify-between w-full cursor-pointer hover:bg-accent/50 rounded py-1 -my-1 transition-colors"
+                        onClick={() => setIsAptosBalanceExpanded(!isAptosBalanceExpanded)}
+                      >
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
                           <span className="text-sm font-medium text-muted-foreground shrink-0">
                             Aptos {isDerivedWallet ? "(Derived)" : "(Native)"}
                           </span>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                              <Button variant="ghost" className="h-auto p-0 font-mono text-sm truncate">
-                                {truncateAddress(aptosAccount.address.toString())}
+                              <Button
+                                variant="ghost"
+                                className="h-auto p-0 font-mono text-sm truncate"
+                              >
+                                {truncateAddress(aptosDisplayAddress)}
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
@@ -1168,7 +1892,7 @@ function PrivacyBridgeContent() {
                         />
                       </div>
                       {isAptosBalanceExpanded && (
-                        <div className="mt-2 pt-2 border-t">
+                        <div className="mt-2 pt-2 border-t w-full">
                           <div className="text-sm font-medium pb-2">
                             {isAptosLoading ? "..." : formatCurrency(aptosTotalValue, 2)}
                           </div>
@@ -1176,129 +1900,41 @@ function PrivacyBridgeContent() {
                             {aptosTokens.length > 0 ? (
                               <TokenList tokens={aptosTokens} disableDrag={true} />
                             ) : (
-                              <div className="text-sm text-muted-foreground p-2">No tokens found</div>
+                              <div className="text-sm text-muted-foreground p-2">
+                                No tokens found
+                              </div>
                             )}
                           </ScrollArea>
                         </div>
                       )}
                     </div>
                   ) : (
-                  <div className="relative">
-                    <div className="[&>button]:hidden">
-                      <WalletSelector />
-                    </div>
                     <Button
                       size="sm"
                       className="w-full"
-                      disabled={aptosConnecting}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const wrapper = e.currentTarget.parentElement;
-                        const hiddenButton = wrapper?.querySelector("button") as HTMLElement;
-                        if (hiddenButton) hiddenButton.click();
-                      }}
+                      disabled={aptosConnecting || isAptosRestoring || isAptosReconnecting}
+                      onClick={() => setIsAptosDialogOpen(true)}
                     >
-                      {aptosConnecting ? (
+                      {aptosConnecting || isAptosRestoring || isAptosReconnecting ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Connecting...
+                          {isAptosRestoring
+                            ? "Restoring..."
+                            : isAptosReconnecting
+                              ? "Reconnecting..."
+                              : "Connecting..."}
                         </>
                       ) : (
                         "Connect Aptos Wallet"
                       )}
                     </Button>
-                  </div>
-                )}
-                </div>
-              ) : null}
-              </div>
-            ) : !solanaConnected ? (
-              <div className="flex flex-col items-end gap-2">
-                {walletConnectMounted ? (
-                  <Dialog open={isSolanaDialogOpen} onOpenChange={setIsSolanaDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button size="sm" disabled={isSolanaConnecting}>
-                        {isSolanaConnecting ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Connecting...
-                          </>
-                        ) : (
-                          "Connect Solana Wallet"
-                        )}
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Select Solana Wallet</DialogTitle>
-                      <DialogDescription>
-                        Choose a wallet to connect to your Solana account
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-2 mt-4">
-                      {availableSolanaWallets.length === 0 ? (
-                        <div className="text-sm text-muted-foreground p-4 text-center">
-                          No Solana wallets detected. Please install a wallet extension.
-                        </div>
-                      ) : (
-                        availableSolanaWallets.map((w, i) => (
-                          <Button
-                            key={`${w.adapter.name}-${i}-${w.adapter.url ?? ""}`}
-                            variant="outline"
-                            className="w-full justify-start"
-                            onClick={() => handleSolanaWalletSelect(w.adapter.name)}
-                            disabled={isSolanaConnecting}
-                          >
-                            <div className="flex items-center gap-2">
-                              {w.adapter.icon && (
-                                <img src={w.adapter.icon} alt={w.adapter.name} className="w-6 h-6" />
-                              )}
-                              <span>{w.adapter.name}</span>
-                              {w.readyState === WalletReadyState.Loadable && (
-                                <span className="ml-auto text-xs text-muted-foreground">(Install)</span>
-                              )}
-                            </div>
-                          </Button>
-                        ))
-                      )}
-                    </div>
-                  </DialogContent>
-                </Dialog>
-                ) : (
-                  <Button size="sm" disabled>
-                    Connect Solana Wallet
-                  </Button>
-                )}
-                <div className="relative">
-                  <div className="[&>button]:hidden">
-                    <WalletSelector />
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={aptosConnecting}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const wrapper = e.currentTarget.parentElement;
-                      const hiddenButton = wrapper?.querySelector("div button") as HTMLElement | null;
-                      if (hiddenButton) hiddenButton.click();
-                    }}
-                  >
-                    {aptosConnecting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Connecting...
-                      </>
-                    ) : (
-                      "Connect Aptos Wallet"
-                    )}
-                  </Button>
+                  )}
                 </div>
               </div>
-            ) : null}
+            </div>
 
             {/* Ниже блока кошельков: баланс Privacy, депозит, вывод, Burn to Aptos и т.д. (только если подключён Solana) */}
-            {solanaConnected && (
+            {effectiveSolanaConnected && (
               <div className="pt-2 border-t space-y-3">
               <span className="text-sm font-medium text-muted-foreground block">
                 Privacy Cash Balance (USDC)

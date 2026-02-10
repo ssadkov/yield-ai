@@ -73,11 +73,9 @@ export function SolanaWalletSelector({ onWalletChange }: SolanaWalletSelectorPro
             description: `Connected to ${walletName}`,
           });
         } catch (error: any) {
-          toast({
-            variant: "destructive",
-            title: "Connection Failed",
-            description: error.message || "Failed to connect wallet",
-          });
+          // Don't show toast — connection often succeeds via restore mechanism
+          // even when connect() throws (race condition with Phantom etc.)
+          console.log('[SolanaWalletSelector] connect failed (suppressed):', error?.message);
         } finally {
           setIsConnecting(false);
         }

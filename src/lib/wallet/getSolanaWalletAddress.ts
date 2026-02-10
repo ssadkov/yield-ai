@@ -17,8 +17,18 @@ export function getSolanaWalletAddress(wallet: AdapterWallet | null): string | n
 
   try {
     const publicKey = maybeDerivedWallet.solanaWallet?.publicKey;
-    return publicKey ? publicKey.toBase58() : null;
-  } catch {
+    const address = publicKey ? publicKey.toBase58() : null;
+    
+    console.log('[getSolanaWalletAddress] Extracting address:', {
+      walletName: wallet.name,
+      hasSolanaWallet: !!maybeDerivedWallet.solanaWallet,
+      hasPublicKey: !!publicKey,
+      address,
+    });
+    
+    return address;
+  } catch (e) {
+    console.log('[getSolanaWalletAddress] Error:', e);
     return null;
   }
 }

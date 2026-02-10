@@ -23,8 +23,13 @@ export function getAptosWalletNameFromStorage(): string | null {
   try {
     const raw = window.localStorage.getItem(APTOS_WALLET_NAME_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as string | null;
-    return typeof parsed === "string" ? parsed : null;
+    try {
+      const parsed = JSON.parse(raw) as string | null;
+      return typeof parsed === "string" ? parsed : null;
+    } catch {
+      // Some adapters may store plain string, not JSON
+      return typeof raw === "string" && raw.length > 0 ? raw : null;
+    }
   } catch {
     return null;
   }

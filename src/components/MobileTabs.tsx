@@ -18,6 +18,7 @@ import { PositionsList as AavePositionsList } from "./protocols/aave/PositionsLi
 import { PositionsList as MoarPositionsList } from "./protocols/moar/PositionsList";
 import { PositionsList as ThalaPositionsList } from "./protocols/thala/PositionsList";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
+import { useAptosNativeRestore } from "@/hooks/useAptosNativeRestore";
 import { AptosPortfolioService } from "@/lib/services/aptos/portfolio";
 import { Token } from "@/lib/types/token";
 import { Logo } from "./ui/logo";
@@ -28,7 +29,10 @@ import { useSolanaPortfolio } from "@/hooks/useSolanaPortfolio";
 
 function MobileTabsContent() {
   const [tab, setTab] = useState<"ideas" | "assets" | "chat">("assets");
-  const { account } = useWallet();
+  // Use native restore hook to ensure native Aptos wallets are reconnected
+  const { account } = useAptosNativeRestore();
+  // Also keep useWallet for other functionality
+  useWallet(); // Keep adapter state synced
   const {
     address: solanaAddress,
     tokens: solanaTokens,
@@ -185,7 +189,9 @@ function MobileTabsContent() {
             <div className={tab === "assets" ? "block w-full max-w-full" : "hidden w-full max-w-full"}>
               <div className="p-4 space-y-4 w-full max-w-full">
                 <WalletSelector />
-                {account?.address ? (
+                
+                {/* Aptos wallet card and protocols - only when Aptos is connected */}
+                {account?.address && (
                   <>
                     <PortfolioCard 
                       totalValue={totalValue} 
@@ -194,17 +200,6 @@ function MobileTabsContent() {
                       isRefreshing={isRefreshing}
                       hasSolanaWallet={!!solanaAddress}
                     />
-                    {solanaAddress && (
-                      <div className="space-y-2">
-                        <SolanaWalletCard
-                          tokens={solanaTokens}
-                          totalValueUsd={solanaTotalValue}
-                          onRefresh={refreshSolana}
-                          isRefreshing={isSolanaLoading}
-                        />
-                        <SolanaSignMessageButton />
-                      </div>
-                    )}
                     {[
                       { 
                         component: HyperionPositionsList, 
@@ -283,10 +278,26 @@ function MobileTabsContent() {
                         />
                       ))}
                   </>
-                ) : (
+                )}
+                
+                {/* Solana wallet card - INDEPENDENT of Aptos */}
+                {solanaAddress && (
+                  <div className="space-y-2">
+                    <SolanaWalletCard
+                      tokens={solanaTokens}
+                      totalValueUsd={solanaTotalValue}
+                      onRefresh={refreshSolana}
+                      isRefreshing={isSolanaLoading}
+                    />
+                    <SolanaSignMessageButton />
+                  </div>
+                )}
+                
+                {/* Message when no wallets connected */}
+                {!account?.address && !solanaAddress && (
                   <div className="mt-6 p-4 bg-muted rounded-lg">
                     <p className="text-sm text-muted-foreground">
-                      Connect your Aptos wallet to view your assets and positions in DeFi protocols
+                      Connect your wallet to view your assets and positions in DeFi protocols
                     </p>
                   </div>
                 )}

@@ -10,6 +10,7 @@ import { YieldCalculatorModal } from '@/components/ui/yield-calculator-modal';
 import { TransferModal } from '@/components/ui/transfer-modal';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
+import { useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
 import { useWalletData } from '@/contexts/WalletContext';
 import { useWalletStore } from '@/lib/stores/walletStore';
 import { useToast } from '@/components/ui/use-toast';
@@ -21,15 +22,23 @@ export default function ChatPanel() {
   const [isYieldCalcOpen, setIsYieldCalcOpen] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const { account, wallet } = useWallet();
+  const { connected: solanaConnected, publicKey: solanaPublicKey, wallets: solanaWallets } = useSolanaWallet();
   const { tokens } = useWalletData();
   const totalAssetsStore = useWalletStore((s) => s.totalAssets);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
 
-  // Check if Solana wallet is connected
+  // Check if any wallet is connected (Solana derived, Aptos derived, Aptos native, or direct Solana)
   const solanaAddress = useMemo(() => getSolanaWalletAddress(wallet), [wallet]);
   const hasSolanaWallet = !!solanaAddress;
+  // Direct Solana wallet check (covers case when Aptos derived is disconnected but Solana remains connected)
+  const hasSolanaDirectWallet = solanaConnected && !!solanaPublicKey;
+  // Also check adapters directly for desync scenarios
+  const hasSolanaAdapterConnected = useMemo(() => {
+    return solanaWallets?.some(w => w.adapter.connected && w.adapter.publicKey) ?? false;
+  }, [solanaWallets]);
+  const hasAnyWallet = hasSolanaWallet || hasSolanaDirectWallet || hasSolanaAdapterConnected || !!account?.address;
 
   const walletTotal = useMemo(() => {
     return (tokens || []).reduce((sum, t: any) => {
@@ -158,7 +167,7 @@ export default function ChatPanel() {
           </svg>
           Portfolio Tracker
         </Button>
-        {hasSolanaWallet && (
+        {hasAnyWallet && (
           <Button 
             variant="outline" 
             onClick={handleBridgeUSDC}

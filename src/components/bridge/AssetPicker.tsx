@@ -70,18 +70,24 @@ export function AssetPicker({
           <div className="flex items-center gap-3">
             {chain ? (
               <>
-                {chain.icon && (
+                {token?.icon ? (
+                  <img
+                    src={token.icon}
+                    alt={`${token.chain} ${token.symbol}`}
+                    className="w-8 h-8 rounded-full"
+                  />
+                ) : chain.icon ? (
                   <img
                     src={chain.icon}
                     alt={chain.name}
-                    className="w-6 h-6 rounded-full"
+                    className="w-8 h-8 rounded-full"
                   />
-                )}
+                ) : null}
                 <div className="text-left">
-                  <div className="font-medium">{chain.name}</div>
-                  {token && (
+                  <div className="font-medium">{chain.name} {token?.symbol ?? ''}</div>
+                  {token?.name && (
                     <div className="text-sm text-muted-foreground">
-                      {token.symbol}
+                      {token.name}
                     </div>
                   )}
                 </div>
