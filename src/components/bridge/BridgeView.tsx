@@ -8,7 +8,7 @@ import { AssetPicker } from './AssetPicker';
 import { AmountInput } from './AmountInput';
 import { SolanaWalletSelector } from '@/components/SolanaWalletSelector';
 import { Input } from '@/components/ui/input';
-import { ArrowLeftRight, CheckCircle2 } from 'lucide-react';
+import { ArrowLeftRight, CheckCircle2, Loader2 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useWallet as useSolanaWallet } from '@solana/wallet-adapter-react';
 
@@ -56,6 +56,15 @@ interface BridgeViewProps {
   missingWalletAlert?: ReactNode;
   bridgeButtonDisabled?: boolean;
   bridgeButtonAlert?: ReactNode;
+  sourceBalance?: number;
+  isBalanceLoading?: boolean;
+}
+
+/** Truncate number to N decimal places WITHOUT rounding */
+function truncateDecimals(value: number, decimals: number): string {
+  const factor = Math.pow(10, decimals);
+  const truncated = Math.floor(value * factor) / factor;
+  return truncated.toFixed(decimals);
 }
 
 export function BridgeView({
@@ -88,6 +97,8 @@ export function BridgeView({
   missingWalletAlert,
   bridgeButtonDisabled = false,
   bridgeButtonAlert,
+  sourceBalance = 0,
+  isBalanceLoading = false,
 }: BridgeViewProps) {
   const searchParams = useSearchParams();
   const { publicKey: solanaPublicKey, connected: solanaConnected } = useSolanaWallet();
@@ -146,16 +157,18 @@ export function BridgeView({
 
           {/* Source Asset */}
           <div className="space-y-4">
-            <AssetPicker
-              label="From"
-              chain={sourceChain}
-              token={sourceToken}
-              chains={chains}
-              tokens={tokens}
-              onChainSelect={onSourceChainSelect}
-              onTokenSelect={onSourceTokenSelect}
-              disabled={disableAssetSelection || !bothWalletsConnected}
-            />
+            <div>
+              <AssetPicker
+                label="From"
+                chain={sourceChain}
+                token={sourceToken}
+                chains={chains}
+                tokens={tokens}
+                onChainSelect={onSourceChainSelect}
+                onTokenSelect={onSourceTokenSelect}
+                disabled={disableAssetSelection || !bothWalletsConnected}
+              />
+            </div>
 
             {/* Swap Button */}
             {showSwapButton && (
@@ -191,14 +204,48 @@ export function BridgeView({
                 value={amount}
                 onChange={onAmountChange}
                 tokenSymbol={sourceToken.symbol}
-                maxAmount={10}
+                maxAmount={undefined}
                 disabled={!bothWalletsConnected}
               />
-              {availableBalance !== null && availableBalance !== undefined && (
-                <p className="text-sm text-muted-foreground text-right">
-                  Available: {availableBalance} {sourceToken.symbol} on Solana
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                  Balance:{' '}
+                  {isBalanceLoading ? (
+                    <Loader2 className="h-3 w-3 animate-spin inline" />
+                  ) : (
+                    <span>{sourceBalance.toString()} {sourceToken.symbol} on {sourceChain?.name || 'Unknown'}</span>
+                  )}
                 </p>
-              )}
+                {/* Percentage buttons */}
+                {bothWalletsConnected && (
+                  <div className="flex gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-6 text-xs px-2"
+                      onClick={() => onAmountChange(truncateDecimals(sourceBalance * 0.25, 2))}
+                    >
+                      25%
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-6 text-xs px-2"
+                      onClick={() => onAmountChange(truncateDecimals(sourceBalance * 0.5, 2))}
+                    >
+                      50%
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-6 text-xs px-2"
+                      onClick={() => onAmountChange(truncateDecimals(sourceBalance, 2))}
+                    >
+                      Max
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -240,9 +287,8 @@ export function BridgeView({
 
           {/* Info */}
           <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
-            <p>• Automatic relaying: The relayer will complete the transfer</p>
-            <p>• Gas on destination: 0.01 APT will be provided for gas fees</p>
-            <p>• Works on empty Aptos wallets: No need to pre-fund with APT</p>
+            <p>• Works on empty Aptos wallets: transaction on Aptos is sponsored by Yield AI</p>
+            <p>• Bridge fee: 0$, you pay gas only on Solana</p>
           </div>
         </CardContent>
       </Card>

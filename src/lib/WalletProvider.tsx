@@ -21,6 +21,38 @@ export const WalletProvider = ({ children }: PropsWithChildren) => {
     setupAutomaticSolanaWalletDerivation({
       defaultNetwork: Network.MAINNET,
     });
+    
+    // Global handler to suppress benign wallet adapter promise rejections
+    // These errors are thrown internally by wallet adapters and can't be caught elsewhere
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const error = event.reason;
+      const name = error?.name || '';
+      const message = error?.message || String(error) || '';
+      
+      // List of benign wallet errors that should be suppressed
+      const isBenignWalletError = 
+        name === 'WalletNotConnectedError' ||
+        name === 'WalletDisconnectedError' ||
+        name === 'WalletNotSelectedError' ||
+        message === 'Unexpected error' ||
+        message.includes('WalletNotConnectedError') ||
+        message.includes('WalletDisconnectedError') ||
+        message.includes('WalletNotSelectedError') ||
+        message.includes('User has rejected the request') ||
+        message.includes('User rejected') ||
+        message.includes('Unexpected error');
+      
+      if (isBenignWalletError) {
+        console.log('[WalletProvider] Suppressing benign wallet error:', name || message);
+        event.preventDefault(); // Prevent the error from showing in console as uncaught
+      }
+    };
+    
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    
+    return () => {
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
   }, []);
 
   // Initialize gas station
@@ -72,11 +104,33 @@ export const WalletProvider = ({ children }: PropsWithChildren) => {
       }}
       onError={(error) => {
         const message = typeof error === "string" ? error : (error?.message ?? "Unknown wallet error");
-        console.error("Wallet error:", error);
-        // Don't show toast for expected user actions or auto-connect noise
-        if (message === "Unexpected error" || message === "User has rejected the request") {
+        const name = (error as { name?: string })?.name;
+        
+        // Debug log all errors
+        console.log('[WalletProvider] onError called:', { name, message, error });
+        
+        // Don't show toast for expected user actions, auto-connect noise, or disconnect noise
+        // WalletDisconnectedError / WalletNotConnectedError / WalletNotSelectedError могут лететь при ручном disconnect и не должны пугать пользователя.
+        // Also suppress "Unexpected error" which Trust wallet throws on disconnect
+        if (
+          message === "Unexpected error" ||
+          message === "User has rejected the request" ||
+          name === "WalletDisconnectedError" ||
+          name === "WalletNotConnectedError" ||
+          name === "WalletNotSelectedError" ||
+          (typeof message === "string" && (
+            message.includes("WalletDisconnectedError") || 
+            message.includes("WalletNotConnectedError") || 
+            message.includes("WalletNotSelectedError") ||
+            message.includes("disconnect") ||
+            message.includes("Disconnect") ||
+            message.includes("already connected")
+          ))
+        ) {
+          console.log('[WalletProvider] Suppressing error:', name || message);
           return;
         }
+        console.error("Wallet error:", error);
         toast({
           variant: "destructive",
           title: "Wallet Error",

@@ -13,12 +13,14 @@ interface SolanaWalletCardProps {
   totalValueUsd: number | null;
   isRefreshing?: boolean;
   onRefresh?: () => Promise<void> | void;
+  hideSmallAssets?: boolean;
 }
 
 export function SolanaWalletCard({
   tokens,
   totalValueUsd,
   isRefreshing = false,
+  hideSmallAssets = false,
 }: SolanaWalletCardProps) {
   const { isExpanded, toggleSection } = useCollapsible();
 
@@ -32,6 +34,13 @@ export function SolanaWalletCard({
     }
     return "N/A";
   }, [totalValueUsd, isRefreshing]);
+
+  const filteredTokens = hideSmallAssets
+    ? tokens.filter((token) => {
+        const value = token.value ? parseFloat(token.value) : 0;
+        return !isNaN(value) && value >= 1;
+      })
+    : tokens;
 
   return (
     <div>
@@ -83,7 +92,7 @@ export function SolanaWalletCard({
         {isExpanded("solana-wallet") && (
           <CardContent className="flex-1 overflow-y-auto px-3 pt-0">
             <ScrollArea className="h-full">
-              {tokens.length > 0 ? <TokenList tokens={tokens} disableDrag={true} /> : null}
+              {filteredTokens.length > 0 ? <TokenList tokens={filteredTokens} disableDrag={true} /> : null}
             </ScrollArea>
           </CardContent>
         )}

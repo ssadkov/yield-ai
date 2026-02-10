@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useWallet } from "@aptos-labs/wallet-adapter-react";
+import { useWallet as useAptosWallet } from "@aptos-labs/wallet-adapter-react";
+import { useWallet as useSolanaWallet } from "@solana/wallet-adapter-react";
 import { getSolanaWalletAddress } from "@/lib/wallet/getSolanaWalletAddress";
 import { Token } from "@/lib/types/token";
 
@@ -12,22 +13,83 @@ interface SolanaPortfolioState {
 }
 
 export function useSolanaPortfolio(): SolanaPortfolioState {
-  const { wallet } = useWallet();
+  // 1) Aptos cross-chain wallet (Trust / derived) — даёт solanaWallet внутри себя.
+  const { wallet: aptosWallet } = useAptosWallet();
+  // 2) Обычный Solana-адаптер — независимое подключение Solana.
+  const { publicKey: solanaPublicKey, connected: solanaConnected, wallet: solanaWallet } = useSolanaWallet();
   const [address, setAddress] = useState<string | null>(null);
   const [tokens, setTokens] = useState<Token[]>([]);
   const [totalValueUsd, setTotalValueUsd] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const addressRef = useRef<string | null>(null);
+  
+  // Force re-render trigger for adapter state changes (Phantom doesn't trigger React updates)
+  const [, forceUpdate] = useState(0);
 
   useEffect(() => {
-    const derivedAddress = getSolanaWalletAddress(wallet ?? null);
-    setAddress(derivedAddress);
-    addressRef.current = derivedAddress;
-    if (!derivedAddress) {
+    // Приоритет: если есть Aptos cross-chain (Trust/Phantom) с solanaWallet внутри — считаем это "основным" адресом Solana.
+    // Если нет — fallback на обычный Solana-кошелёк из @solana/wallet-adapter-react.
+    const derivedAddress = getSolanaWalletAddress(aptosWallet ?? null);
+    
+    // Try multiple sources for Solana address:
+    // 1. Hook's publicKey (may be out of sync with adapter)
+    // 2. Adapter's publicKey directly (more reliable for Phantom)
+    const hookAddress = solanaPublicKey ? solanaPublicKey.toBase58() : null;
+    const adapterAddress = solanaWallet?.adapter?.publicKey?.toBase58() ?? null;
+    const fallbackAddress = hookAddress ?? adapterAddress;
+    
+    const effectiveAddress = derivedAddress ?? fallbackAddress;
+
+    console.log('[useSolanaPortfolio] Address detection:', {
+      aptosWalletName: aptosWallet?.name ?? null,
+      derivedAddress,
+      hookAddress,
+      adapterAddress,
+      fallbackAddress,
+      effectiveAddress,
+      hasSolanaPublicKey: !!solanaPublicKey,
+      solanaConnected,
+      solanaWalletName: solanaWallet?.adapter?.name ?? null,
+      solanaAdapterConnected: solanaWallet?.adapter?.connected ?? false,
+    });
+
+    setAddress(effectiveAddress);
+    addressRef.current = effectiveAddress;
+    if (!effectiveAddress) {
       setTokens([]);
       setTotalValueUsd(null);
     }
-  }, [wallet]);
+  }, [aptosWallet, solanaPublicKey, solanaConnected, solanaWallet]);
+
+  // Poll adapter state for Phantom (which doesn't trigger React state updates properly)
+  useEffect(() => {
+    if (!solanaWallet?.adapter) return;
+    
+    // If we already have an address, no need to poll
+    if (address) return;
+    
+    const checkAdapter = () => {
+      const adapterPk = solanaWallet.adapter.publicKey?.toBase58() ?? null;
+      if (adapterPk && adapterPk !== addressRef.current) {
+        console.log('[useSolanaPortfolio] Adapter publicKey detected via polling:', adapterPk);
+        setAddress(adapterPk);
+        addressRef.current = adapterPk;
+        forceUpdate(n => n + 1);
+      }
+    };
+    
+    // Check immediately and then poll
+    checkAdapter();
+    const interval = setInterval(checkAdapter, 500);
+    
+    // Stop polling after 10 seconds
+    const timeout = setTimeout(() => clearInterval(interval), 10000);
+    
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [solanaWallet, address]);
 
   const refresh = useCallback(async () => {
     if (!addressRef.current) {

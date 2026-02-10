@@ -20,15 +20,34 @@ interface PortfolioCardProps {
   tokens: Token[];
   onRefresh?: () => Promise<void>;
   isRefreshing?: boolean;
+  /** @deprecated No longer used - title is always "Aptos Wallet" */
   hasSolanaWallet?: boolean;
+  /** Optional external control for hiding small assets; if not provided, component manages its own state */
+  hideSmallAssets?: boolean;
+  onHideSmallAssetsChange?: (value: boolean) => void;
+  /** If false, не рендерить верхнюю панель (чекбокс, refresh, CollapsibleControls) */
+  showHeaderControls?: boolean;
 }
 
-export function PortfolioCard({ totalValue, tokens, onRefresh, isRefreshing, hasSolanaWallet = false }: PortfolioCardProps) {
+export function PortfolioCard({
+  totalValue,
+  tokens,
+  onRefresh,
+  isRefreshing,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  hasSolanaWallet = false,
+  hideSmallAssets,
+  onHideSmallAssetsChange,
+  showHeaderControls = true,
+}: PortfolioCardProps) {
   const { isExpanded, toggleSection } = useCollapsible();
-  const [hideSmallAssets, setHideSmallAssets] = useState(true);
+  const [internalHideSmallAssets, setInternalHideSmallAssets] = useState(true);
   const { state, validateDrop, handleDrop } = useDragDrop();
 
-  const filteredTokens = hideSmallAssets 
+  const effectiveHideSmallAssets = hideSmallAssets ?? internalHideSmallAssets;
+  const setHideSmallAssets = onHideSmallAssetsChange ?? setInternalHideSmallAssets;
+
+  const filteredTokens = effectiveHideSmallAssets 
     ? tokens.filter(token => {
         const value = token.value ? parseFloat(token.value) : 0;
         return !isNaN(value) && value >= 1;
@@ -85,44 +104,48 @@ export function PortfolioCard({ totalValue, tokens, onRefresh, isRefreshing, has
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-lg font-medium">Assets</span>
-        <span className="text-lg font-medium">{formatCurrency(displayTotalValue, 2)}</span>
-      </div>
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center space-x-2">
-          <Checkbox 
-            id="hideSmallAssets" 
-            checked={hideSmallAssets}
-            onCheckedChange={(checked) => setHideSmallAssets(checked as boolean)}
-          />
-          <Label htmlFor="hideSmallAssets" className="text-sm">Hide assets {'<'}1$</Label>
-        </div>
-        <div className="flex items-center gap-1">
-          {onRefresh && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onRefresh}
-                  disabled={isRefreshing}
-                  className="h-4 w-4 p-0 text-muted-foreground hover:bg-transparent hover:text-foreground/60 opacity-80 transition-colors"
-                >
-                  <RefreshCw className={cn(
-                    "h-3 w-3",
-                    isRefreshing && "animate-spin"
-                  )} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Refresh all data</p>
-              </TooltipContent>
-            </Tooltip>
-          )}
-          <CollapsibleControls />
-        </div>
-      </div>
+      {showHeaderControls && (
+        <>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-lg font-medium">Assets</span>
+            <span className="text-lg font-medium">{formatCurrency(displayTotalValue, 2)}</span>
+          </div>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="hideSmallAssets" 
+                checked={effectiveHideSmallAssets}
+                onCheckedChange={(checked) => setHideSmallAssets(checked as boolean)}
+              />
+              <Label htmlFor="hideSmallAssets" className="text-sm">Hide assets {'<'}1$</Label>
+            </div>
+            <div className="flex items-center gap-1">
+              {onRefresh && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={onRefresh}
+                      disabled={isRefreshing}
+                      className="h-4 w-4 p-0 text-muted-foreground hover:bg-transparent hover:text-foreground/60 opacity-80 transition-colors"
+                    >
+                      <RefreshCw className={cn(
+                        "h-3 w-3",
+                        isRefreshing && "animate-spin"
+                      )} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Refresh all data</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              <CollapsibleControls />
+            </div>
+          </div>
+        </>
+      )}
       <Card 
         className={`w-full h-full flex flex-col transition-colors ${getDropZoneClassName()}`}
         onDragOver={handleDragOver}
@@ -136,7 +159,7 @@ export function PortfolioCard({ totalValue, tokens, onRefresh, isRefreshing, has
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-blue-500"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"></path><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"></path></svg>
-              {hasSolanaWallet ? 'Aptos Wallet' : 'Wallet'}
+              Aptos Wallet
             </CardTitle>
             <div className="flex items-center gap-2">
               <span className="text-lg">{formatCurrency(walletTotal, 2)}</span>
