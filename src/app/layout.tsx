@@ -14,6 +14,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { AptosClientProvider } from "@/contexts/AptosClientContext";
 import { ThemeProviderWrapper } from "@/components/ThemeProviderWrapper";
 import { SolanaWalletRestore } from "@/components/SolanaWalletRestore";
+import { QueryProvider } from "@/lib/query/QueryProvider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -64,17 +65,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProviderWrapper>
-          <AptosClientProvider>
-            <WalletProvider>
-              <SolanaProvider>
-                <SolanaWalletRestore>
-                <WalletDataProvider>
-                  <ProtocolProvider>
-                  <DragDropProvider>
-                    <TooltipProvider>
-                      {/*<AlphaBanner />*/}
-                      {children}
+        <QueryProvider>
+          <ThemeProviderWrapper>
+            <AptosClientProvider>
+              <WalletProvider>
+                <SolanaProvider>
+                  <SolanaWalletRestore>
+                  <WalletDataProvider>
+                    <ProtocolProvider>
+                    <DragDropProvider>
+                      <TooltipProvider>
+                        {/*<AlphaBanner />*/}
+                        {children}
 
                       {/* Fixed home icon in bottom right corner - desktop only */}
                       <Link
@@ -98,6 +100,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </WalletProvider>
           </AptosClientProvider>
         </ThemeProviderWrapper>
+        </QueryProvider>
         <Analytics />
       </body>
     </html>
