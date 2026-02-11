@@ -616,7 +616,8 @@ export function AavePositions() {
           onConfirm={handleWithdrawConfirm}
           position={{ 
             coin: selectedPosition.underlying_asset, 
-            supply: String(selectedPosition.deposit_amount) 
+            // API returns deposit_amount in human form; WithdrawModal expects supply in octas (smallest units)
+            supply: String(Math.round(selectedPosition.deposit_amount * Math.pow(10, selectedPosition.decimals))) 
           }}
           tokenInfo={getTokenInfo(selectedPosition.underlying_asset)}
           isLoading={isWithdrawing}
