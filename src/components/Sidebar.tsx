@@ -36,6 +36,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { RefreshCw } from "lucide-react";
 import { CollapsibleControls } from "@/components/ui/collapsible-controls";
 import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils/numberFormat";
 
 export default function Sidebar() {
   // Use native restore hook to ensure native Aptos wallets are reconnected
@@ -246,6 +247,17 @@ export default function Sidebar() {
         </div>
         <div className="flex-1 overflow-y-auto scrollbar-hide">
           <div className="mt-4 space-y-4">
+            {hasAnyWalletCard && (
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-lg font-medium">Total Assets</span>
+                <span className="text-lg font-medium">
+                  {formatCurrency(
+                    (account?.address ? totalAssets : 0) + (solanaAddress ? (solanaTotalValue ?? 0) : 0),
+                    2
+                  )}
+                </span>
+              </div>
+            )}
             {hasAnyWalletCard && (
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center space-x-2">
