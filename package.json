@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "dev:turbo": "next dev --turbopack",
-    "build": "cross-env NEXT_IGNORE_INCORRECT_LOCKFILE=1 next build",
+    "build": "cross-env NEXT_IGNORE_INCORRECT_LOCKFILE=1 next build --webpack",
     "start": "next start",
     "lint": "next lint",
     "update-tokens": "node scripts/update-token-list.js",

@@ -1,8 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   // Optimize chunk loading for Vercel deployment
   webpack: (config, { isServer }) => {
     if (!isServer) {
@@ -49,12 +46,6 @@ const nextConfig = {
     }
     return config;
   },
-  // Add experimental features for better chunk handling
-  experimental: {
-    optimizePackageImports: ['@radix-ui/react-icons', 'lucide-react'],
-    // Disable Turbopack for WASM compatibility (can re-enable after testing)
-    // turbopack: undefined,
-  },
   // Optimize images for better loading
   images: {
     remotePatterns: [
@@ -76,17 +67,48 @@ const nextConfig = {
         port: '',
         pathname: '/**',
       },
-    ],
-    domains: [
-      'hyperion.xyz',
-      'ariesmarkets.xyz',
-      'app.joule.finance',
-      'app.echelon.market',
-      'tapp.exchange',
-      'app.meso.finance',
-      'app.auro.finance',
-      'app.kofi.finance',
-      'app.earnium.io'
+      {
+        protocol: 'https',
+        hostname: 'hyperion.xyz',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'app.joule.finance',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'app.echelon.market',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'tapp.exchange',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'app.meso.finance',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'app.auro.finance',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'app.kofi.finance',
+        port: '',
+        pathname: '/**',
+      },
     ],
     // Add image optimization settings
     formats: ['image/webp', 'image/avif'],
