@@ -312,7 +312,7 @@ export default function Sidebar() {
                 />
                 {checkingProtocols.length > 0 && (
                   <div className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground">
-                    <span>Checking positions on</span>
+                    <span className="whitespace-nowrap">Checking positions on</span>
                     <div className="flex items-center gap-1">
                       {checkingProtocols.map((name) => {
                         const proto = getProtocolByName(name);
