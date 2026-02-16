@@ -35,6 +35,7 @@ export function PositionsList({
   const [marketNames, setMarketNames] = useState<Record<string, string>>({});
   const [availableToTrade, setAvailableToTrade] = useState<number | null>(null);
   const [vaults, setVaults] = useState<{ name: string; current_value_of_shares?: number }[]>([]);
+  const [preDepositSumUsdc, setPreDepositSumUsdc] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { isExpanded, toggleSection } = useCollapsible();
   const protocol = getProtocolByName("Decibel");
@@ -61,8 +62,11 @@ export function PositionsList({
         r.json()
       ),
       fetch("/api/protocols/decibel/markets").then((r) => r.json()),
+      fetch(`/api/protocols/decibel/predepositorBalance?address=${encodeURIComponent(address)}`).then((r) =>
+        r.json()
+      ),
     ])
-      .then(([overviewRes, positionsRes, vaultsRes, marketsRes]) => {
+      .then(([overviewRes, positionsRes, vaultsRes, marketsRes, predepositRes]) => {
         if (cancelled) return;
         const eq =
           overviewRes?.success && overviewRes?.data?.perp_equity_balance != null
@@ -108,12 +112,16 @@ export function PositionsList({
           (sum: number, v: { current_value_of_shares?: number }) => sum + (v.current_value_of_shares ?? 0),
           0
         );
-        const totalValue = eq + vaultsTotal;
+        const preDeposit = predepositRes?.success && typeof predepositRes?.data?.sumUsdc === 'number'
+          ? predepositRes.data.sumUsdc
+          : 0;
+        const totalValue = eq + vaultsTotal + preDeposit;
         setEquity(eq);
         setPositions(posList);
         setMarketNames(map);
         setAvailableToTrade(avail);
         setVaults(vaultList);
+        setPreDepositSumUsdc(preDeposit);
         onValueRef.current?.(totalValue);
       })
       .catch(() => {
@@ -123,6 +131,7 @@ export function PositionsList({
           setMarketNames({});
           setAvailableToTrade(null);
           setVaults([]);
+          setPreDepositSumUsdc(null);
           onValueRef.current?.(0);
         }
       })
@@ -141,9 +150,10 @@ export function PositionsList({
     (sum: number, v: { current_value_of_shares?: number }) => sum + (v.current_value_of_shares ?? 0),
     0
   );
-  const displayValue = (equity != null ? equity : 0) + vaultsTotal;
+  const displayValue = (equity != null ? equity : 0) + vaultsTotal + (preDepositSumUsdc ?? 0);
   const hasAnything =
-    positions.length > 0 || vaults.length > 0 || displayValue > 0;
+    positions.length > 0 || vaults.length > 0 || displayValue > 0 ||
+    (preDepositSumUsdc != null && preDepositSumUsdc > 0);
 
   /** Format market for sidebar: "BTC-USDC" -> "BTC/USDC", "BTC-USD" -> "BTC/USD" */
   const formatPairForSidebar = (marketAddr: string) => {
@@ -217,6 +227,17 @@ export function PositionsList({
             <div className="text-sm text-muted-foreground">Loading...</div>
           ) : (
             <>
+              <div className="flex items-center justify-between py-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Pre-deposit</span>
+                  <Badge variant="secondary" className="text-xs font-normal">
+                    mainnet
+                  </Badge>
+                </div>
+                <span className="text-sm font-medium shrink-0 ml-2">
+                  {formatCurrency(preDepositSumUsdc ?? 0, 2)}
+                </span>
+              </div>
               {availableToTrade != null && (
                 <div className="flex items-center justify-between py-1">
                   <span className="text-sm text-muted-foreground">Available to trade</span>
