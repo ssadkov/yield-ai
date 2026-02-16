@@ -66,6 +66,7 @@ export default function Sidebar() {
   const [thalaValue, setThalaValue] = useState(0);
   const [echoValue, setEchoValue] = useState(0);
   const [decibelValue, setDecibelValue] = useState(0);
+  const [decibelMainnetValue, setDecibelMainnetValue] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [checkingProtocols, setCheckingProtocols] = useState<string[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -135,6 +136,7 @@ export default function Sidebar() {
     setThalaValue(0);
 	setEchoValue(0);
     setDecibelValue(0);
+    setDecibelMainnetValue(0);
     resetChecking();
     setRefreshKey((k) => k + 1);
   }, [loadPortfolio, resetChecking]);
@@ -200,6 +202,9 @@ export default function Sidebar() {
   const handleDecibelValueChange = useCallback((value: number) => {
     setDecibelValue(value);
   }, []);
+  const handleDecibelMainnetValueChange = useCallback((value: number) => {
+    setDecibelMainnetValue(value);
+  }, []);
 
   // Считаем сумму по кошельку
   const walletTotal = tokens.reduce((sum, token) => {
@@ -207,8 +212,8 @@ export default function Sidebar() {
     return sum + (isNaN(value) ? 0 : value);
   }, 0);
 
-  // Считаем сумму по всем протоколам
-  const totalProtocolsValue = hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + amnisValue + earniumValue + aaveValue + moarValue + thalaValue + echoValue;
+  // Считаем сумму по всем протоколам (Decibel testnet excluded; only Decibel mainnet pre-deposit included)
+  const totalProtocolsValue = hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + amnisValue + earniumValue + aaveValue + moarValue + thalaValue + echoValue + decibelMainnetValue;
 
   // Итоговая сумма
   const totalAssets = walletTotal + totalProtocolsValue;
@@ -367,10 +372,11 @@ export default function Sidebar() {
                         name === 'Moar Market' ? handleMoarValueChange :
                         name === 'Thala' ? handleThalaValueChange :
 						name === 'Echo Protocol' ? handleEchoValueChange :
-                        name === 'Decibel' ? handleDecibelValueChange :
+                      name === 'Decibel' ? handleDecibelValueChange :
                         undefined
                       }
-                      onPositionsCheckComplete={() =>
+                    onMainnetValueChange={name === 'Decibel' ? handleDecibelMainnetValueChange : undefined}
+                    onPositionsCheckComplete={() =>
                         setCheckingProtocols((prev) => prev.filter((p) => p !== name))
                       }
                     />

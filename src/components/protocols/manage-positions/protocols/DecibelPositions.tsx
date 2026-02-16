@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { formatNumber, formatCurrency } from '@/lib/utils/numberFormat';
 import { normalizeAddress } from '@/lib/utils/addressNormalization';
@@ -71,6 +72,8 @@ export function DecibelPositions() {
   const [marketNames, setMarketNames] = useState<Record<string, string>>({});
   const [availableToTrade, setAvailableToTrade] = useState<number | null>(null);
   const [totalEquity, setTotalEquity] = useState<number | null>(null);
+  const [preDepositSumUsdc, setPreDepositSumUsdc] = useState<number | null>(null);
+  const [preDepositLoading, setPreDepositLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [vaultsLoading, setVaultsLoading] = useState(false);
   const [overviewLoading, setOverviewLoading] = useState(false);
@@ -200,6 +203,33 @@ export function DecibelPositions() {
     fetchOverview();
   }, [fetchOverview]);
 
+  const fetchPreDeposit = useCallback(async () => {
+    if (!account?.address) {
+      setPreDepositSumUsdc(null);
+      return;
+    }
+    setPreDepositLoading(true);
+    try {
+      const res = await fetch(
+        `/api/protocols/decibel/predepositorBalance?address=${encodeURIComponent(account.address.toString())}`
+      );
+      const data = await res.json();
+      if (data.success && typeof data.data?.sumUsdc === 'number') {
+        setPreDepositSumUsdc(data.data.sumUsdc);
+      } else {
+        setPreDepositSumUsdc(0);
+      }
+    } catch {
+      setPreDepositSumUsdc(null);
+    } finally {
+      setPreDepositLoading(false);
+    }
+  }, [account?.address]);
+
+  useEffect(() => {
+    fetchPreDeposit();
+  }, [fetchPreDeposit]);
+
   useEffect(() => {
     const handler = (e: CustomEvent<{ protocol: string; data?: DecibelPosition[] }>) => {
       if (e.detail?.protocol === 'decibel' && Array.isArray(e.detail.data)) {
@@ -238,10 +268,21 @@ export function DecibelPositions() {
     (sum, v) => sum + (v.current_value_of_shares ?? 0),
     0
   );
-  const totalAssets = (totalEquity ?? 0) + vaultsTotal;
+  const totalAssets = (totalEquity ?? 0) + vaultsTotal + (preDepositSumUsdc ?? 0);
 
   return (
     <div className="space-y-6 text-base">
+      <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground">Pre-deposit</span>
+          <Badge variant="secondary" className="text-xs font-normal">
+            mainnet
+          </Badge>
+        </div>
+        <span className="font-medium">
+          {preDepositLoading ? '…' : formatCurrency(preDepositSumUsdc ?? 0, 2)}
+        </span>
+      </div>
       {(availableToTrade != null || overviewLoading) && (
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">Available to trade</span>

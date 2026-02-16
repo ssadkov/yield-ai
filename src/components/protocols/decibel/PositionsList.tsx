@@ -18,6 +18,7 @@ import { normalizeAddress } from "@/lib/utils/addressNormalization";
 interface PositionsListProps {
   address?: string;
   onPositionsValueChange?: (value: number) => void;
+  onMainnetValueChange?: (value: number) => void;
   refreshKey?: number;
   onPositionsCheckComplete?: () => void;
   showManageButton?: boolean;
@@ -26,6 +27,7 @@ interface PositionsListProps {
 export function PositionsList({
   address,
   onPositionsValueChange,
+  onMainnetValueChange,
   refreshKey,
   onPositionsCheckComplete,
   showManageButton = true,
@@ -40,9 +42,37 @@ export function PositionsList({
   const { isExpanded, toggleSection } = useCollapsible();
   const protocol = getProtocolByName("Decibel");
   const onValueRef = useRef(onPositionsValueChange);
+  const onMainnetRef = useRef(onMainnetValueChange);
   const onCompleteRef = useRef(onPositionsCheckComplete);
   onValueRef.current = onPositionsValueChange;
+  onMainnetRef.current = onMainnetValueChange;
   onCompleteRef.current = onPositionsCheckComplete;
+
+  // Fetch mainnet pre-deposit separately so Total Assets gets it even when testnet APIs fail
+  useEffect(() => {
+    if (!address) {
+      onMainnetRef.current?.(0);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/protocols/decibel/predepositorBalance?address=${encodeURIComponent(address)}`)
+      .then((r) => r.json())
+      .then((data: { success?: boolean; data?: { sumUsdc?: number } }) => {
+        if (cancelled) return;
+        const sum = data?.success && typeof data?.data?.sumUsdc === 'number' ? data.data.sumUsdc : 0;
+        setPreDepositSumUsdc(sum);
+        onMainnetRef.current?.(sum);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPreDepositSumUsdc(null);
+          onMainnetRef.current?.(0);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [address, refreshKey]);
 
   useEffect(() => {
     if (!address) {
@@ -123,6 +153,7 @@ export function PositionsList({
         setVaults(vaultList);
         setPreDepositSumUsdc(preDeposit);
         onValueRef.current?.(totalValue);
+        onMainnetRef.current?.(preDeposit);
       })
       .catch(() => {
         if (!cancelled) {
@@ -131,7 +162,6 @@ export function PositionsList({
           setMarketNames({});
           setAvailableToTrade(null);
           setVaults([]);
-          setPreDepositSumUsdc(null);
           onValueRef.current?.(0);
         }
       })
