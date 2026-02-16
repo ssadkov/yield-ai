@@ -202,6 +202,8 @@ export function PositionsList({
     return null;
   }
 
+  const hasTestnetData = availableToTrade != null || positions.length > 0 || vaults.length > 0;
+
   return (
     <Card className="w-full">
       <CardHeader
@@ -222,21 +224,20 @@ export function PositionsList({
               </div>
             )}
             <CardTitle className="text-lg">Decibel</CardTitle>
-            <Badge variant="secondary" className="text-xs font-normal">
-              testnet
-            </Badge>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-flex text-muted-foreground cursor-help">
-                    <Info className="h-3.5 w-3.5" />
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-[220px]">
-                  <p>Decibel is on testnet. These funds are not included in total assets.</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            {hasTestnetData && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex text-muted-foreground cursor-help" onClick={(e) => e.stopPropagation()}>
+                      <Info className="h-3.5 w-3.5" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[220px]">
+                    <p>Decibel testnet funds (positions, available to trade, vaults) are not included in total assets.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <div className="text-lg whitespace-nowrap">
@@ -270,7 +271,12 @@ export function PositionsList({
               </div>
               {availableToTrade != null && (
                 <div className="flex items-center justify-between py-1">
-                  <span className="text-sm text-muted-foreground">Available to trade</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Available to trade</span>
+                    <Badge variant="secondary" className="text-xs font-normal">
+                      testnet
+                    </Badge>
+                  </div>
                   <span className="text-sm font-medium shrink-0 ml-2">
                     {formatCurrency(availableToTrade, 2)}
                   </span>
@@ -278,6 +284,12 @@ export function PositionsList({
               )}
               {positions.length > 0 && (
                 <div className="space-y-2 mt-1">
+                  <div className="flex items-center gap-2 py-0.5">
+                    <span className="text-sm font-medium text-muted-foreground">Positions</span>
+                    <Badge variant="secondary" className="text-xs font-normal">
+                      testnet
+                    </Badge>
+                  </div>
                   {positions.map((p, i) => (
                     <div
                       key={`${p.market}-${i}`}
@@ -302,7 +314,12 @@ export function PositionsList({
           )}
           {!isLoading && vaults.length > 0 && (
             <div className="mt-4 pt-4 space-y-2">
-              <h4 className="text-sm font-medium mb-2 text-muted-foreground">Vaults</h4>
+              <h4 className="text-sm font-medium mb-2 text-muted-foreground flex items-center gap-2">
+                Vaults
+                <Badge variant="secondary" className="text-xs font-normal">
+                  testnet
+                </Badge>
+              </h4>
               {vaults.map((v, i) => (
                 <div key={i} className="flex items-center justify-between py-1">
                   <div className="text-sm font-medium truncate min-w-0">{v.name}</div>
