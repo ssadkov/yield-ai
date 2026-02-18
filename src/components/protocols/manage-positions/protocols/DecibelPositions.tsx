@@ -3,6 +3,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Info } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { formatNumber, formatCurrency } from '@/lib/utils/numberFormat';
 import { normalizeAddress } from '@/lib/utils/addressNormalization';
@@ -71,6 +74,8 @@ export function DecibelPositions() {
   const [marketNames, setMarketNames] = useState<Record<string, string>>({});
   const [availableToTrade, setAvailableToTrade] = useState<number | null>(null);
   const [totalEquity, setTotalEquity] = useState<number | null>(null);
+  const [preDepositSumUsdc, setPreDepositSumUsdc] = useState<number | null>(null);
+  const [preDepositLoading, setPreDepositLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [vaultsLoading, setVaultsLoading] = useState(false);
   const [overviewLoading, setOverviewLoading] = useState(false);
@@ -200,6 +205,33 @@ export function DecibelPositions() {
     fetchOverview();
   }, [fetchOverview]);
 
+  const fetchPreDeposit = useCallback(async () => {
+    if (!account?.address) {
+      setPreDepositSumUsdc(null);
+      return;
+    }
+    setPreDepositLoading(true);
+    try {
+      const res = await fetch(
+        `/api/protocols/decibel/predepositorBalance?address=${encodeURIComponent(account.address.toString())}`
+      );
+      const data = await res.json();
+      if (data.success && typeof data.data?.sumUsdc === 'number') {
+        setPreDepositSumUsdc(data.data.sumUsdc);
+      } else {
+        setPreDepositSumUsdc(0);
+      }
+    } catch {
+      setPreDepositSumUsdc(null);
+    } finally {
+      setPreDepositLoading(false);
+    }
+  }, [account?.address]);
+
+  useEffect(() => {
+    fetchPreDeposit();
+  }, [fetchPreDeposit]);
+
   useEffect(() => {
     const handler = (e: CustomEvent<{ protocol: string; data?: DecibelPosition[] }>) => {
       if (e.detail?.protocol === 'decibel' && Array.isArray(e.detail.data)) {
@@ -238,20 +270,51 @@ export function DecibelPositions() {
     (sum, v) => sum + (v.current_value_of_shares ?? 0),
     0
   );
-  const totalAssets = (totalEquity ?? 0) + vaultsTotal;
+  const totalAssets = (totalEquity ?? 0) + vaultsTotal + (preDepositSumUsdc ?? 0);
+  const hasTestnetData = availableToTrade != null || positions.length > 0 || vaults.length > 0;
 
   return (
     <div className="space-y-6 text-base">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground">Pre-deposit</span>
+          <Badge variant="secondary" className="text-xs font-normal">
+            mainnet
+          </Badge>
+        </div>
+        <span className="font-medium">
+          {preDepositLoading ? '…' : formatCurrency(preDepositSumUsdc ?? 0, 2)}
+        </span>
+      </div>
       {(availableToTrade != null || overviewLoading) && (
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Available to trade</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">Available to trade</span>
+            <Badge variant="secondary" className="text-xs font-normal">
+              testnet
+            </Badge>
+            {hasTestnetData && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex text-muted-foreground cursor-help">
+                      <Info className="h-4 w-4" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[220px]">
+                    <p>Decibel testnet funds (positions, available to trade, vaults) are not included in total assets.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
           <span className="font-medium">
             {overviewLoading ? '…' : formatCurrency(availableToTrade ?? 0, 2)}
           </span>
         </div>
       )}
       {positions.length === 0 && !vaultsLoading && vaults.length === 0 && (
-        <p className="text-sm text-muted-foreground py-2">
+        <p className="text-base text-muted-foreground py-2">
           No open positions on Decibel. Open positions at{' '}
           <a
             href={DECIBEL_APP_URL}
@@ -265,6 +328,26 @@ export function DecibelPositions() {
       )}
       {positions.length > 0 && (
         <>
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-muted-foreground">Positions</span>
+            <Badge variant="secondary" className="text-xs font-normal">
+              testnet
+            </Badge>
+            {hasTestnetData && (availableToTrade == null && !overviewLoading) && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex text-muted-foreground cursor-help">
+                      <Info className="h-4 w-4" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[220px]">
+                    <p>Decibel testnet funds (positions, available to trade, vaults) are not included in total assets.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
           <ul className="space-y-3">
             {positions.map((pos, i) => {
               const marketKey = normalizeAddress(pos.market);
@@ -289,11 +372,11 @@ export function DecibelPositions() {
                         </span>
                       )}
                     </div>
-                    <span className="text-sm font-medium text-muted-foreground shrink-0">
+                    <span className="text-base font-medium text-muted-foreground shrink-0">
                       Margin: {formatCurrency(marginUsd, 2)}
                     </span>
                   </div>
-                  <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                  <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-base">
                     <div>
                       <span className="text-muted-foreground">Value (USD)</span>
                       <span className="ml-2 font-medium">{formatCurrency(notionalUsd, 2)}</span>
@@ -346,11 +429,30 @@ export function DecibelPositions() {
       {/* Vaults: show when we have vault deposits */}
       {(vaultsLoading || vaults.length > 0) && (
         <div className="space-y-2">
-          <h4 className="text-sm font-medium mb-2 text-muted-foreground">Vaults</h4>
+          <h4 className="text-base font-medium mb-2 text-muted-foreground flex items-center gap-2">
+            Vaults
+            <Badge variant="secondary" className="text-xs font-normal">
+              testnet
+            </Badge>
+            {hasTestnetData && (availableToTrade == null && !overviewLoading) && positions.length === 0 && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex text-muted-foreground cursor-help">
+                      <Info className="h-4 w-4" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[220px]">
+                    <p>Decibel testnet funds (positions, available to trade, vaults) are not included in total assets.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </h4>
           {vaultsLoading ? (
-            <p className="text-sm text-muted-foreground">Loading vaults...</p>
+            <p className="text-base text-muted-foreground">Loading vaults...</p>
           ) : vaults.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No vault deposits.</p>
+            <p className="text-base text-muted-foreground">No vault deposits.</p>
           ) : (
             <ul className="space-y-2">
               {vaults.map((v, i) => (
@@ -359,15 +461,15 @@ export function DecibelPositions() {
                   className="rounded-lg border bg-card p-3 text-card-foreground shadow-sm"
                 >
                   <div className="flex items-center justify-between py-1">
-                    <div className="text-sm font-medium">{v.vault?.name ?? 'Vault'}</div>
-                    <div className="text-sm font-medium">
+                    <div className="text-base font-medium">{v.vault?.name ?? 'Vault'}</div>
+                    <div className="text-base font-medium">
                       {v.current_value_of_shares != null
                         ? formatCurrency(v.current_value_of_shares, 2)
                         : '—'}
                     </div>
                   </div>
                   {v.total_deposited != null && (
-                    <div className="mt-1 text-sm text-muted-foreground">
+                    <div className="mt-1 text-base text-muted-foreground">
                       Deposited: {formatCurrency(v.total_deposited, 2)}
                     </div>
                   )}
@@ -378,8 +480,8 @@ export function DecibelPositions() {
         </div>
       )}
       <div className="flex items-center justify-between pt-6 pb-6">
-        <span className="text-xl">Total assets in Decibel:</span>
-        <span className="text-xl font-bold text-primary">{formatCurrency(totalAssets, 2)}</span>
+        <span className="text-lg">Total assets in Decibel:</span>
+        <span className="text-lg font-bold text-primary">{formatCurrency(totalAssets, 2)}</span>
       </div>
     </div>
   );

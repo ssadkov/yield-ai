@@ -5,6 +5,7 @@ import { SolanaWalletCard } from "./portfolio/SolanaWalletCard";
 import { SolanaSignMessageButton } from "./SolanaSignMessageButton";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useEffect, useState, useCallback } from "react";
+import { useAptosNativeRestore } from "@/hooks/useAptosNativeRestore";
 import { AptosPortfolioService } from "@/lib/services/aptos/portfolio";
 import { Token } from "@/lib/types/token";
 import { Logo } from "./ui/logo";
@@ -28,9 +29,20 @@ import { PositionsList as EchoPositionsList } from "./protocols/echo/PositionsLi
 import { PositionsList as DecibelPositionsList } from "./protocols/decibel/PositionsList";
 import { useSolanaPortfolio } from "@/hooks/useSolanaPortfolio";
 import { ProtocolIcon } from "@/shared/ProtocolIcon/ProtocolIcon";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { RefreshCw } from "lucide-react";
+import { CollapsibleControls } from "@/components/ui/collapsible-controls";
+import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils/numberFormat";
 
 export default function Sidebar() {
-  const { account } = useWallet();
+  // Use native restore hook to ensure native Aptos wallets are reconnected
+  const { account } = useAptosNativeRestore();
+  // Also keep useWallet for other functionality
+  useWallet(); // Keep adapter state synced
   const {
     address: solanaAddress,
     tokens: solanaTokens,
@@ -54,6 +66,7 @@ export default function Sidebar() {
   const [thalaValue, setThalaValue] = useState(0);
   const [echoValue, setEchoValue] = useState(0);
   const [decibelValue, setDecibelValue] = useState(0);
+  const [decibelMainnetValue, setDecibelMainnetValue] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [checkingProtocols, setCheckingProtocols] = useState<string[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -73,7 +86,7 @@ export default function Sidebar() {
     "Aave",
     "Moar Market",
     "Thala",
-    "Echo Protocol",
+	"Echo Protocol",
     "Decibel",
   ];
 
@@ -121,8 +134,9 @@ export default function Sidebar() {
     setEarniumValue(0);
     setAaveValue(0);
     setThalaValue(0);
-    setEchoValue(0);
+	setEchoValue(0);
     setDecibelValue(0);
+    setDecibelMainnetValue(0);
     resetChecking();
     setRefreshKey((k) => k + 1);
   }, [loadPortfolio, resetChecking]);
@@ -188,6 +202,9 @@ export default function Sidebar() {
   const handleDecibelValueChange = useCallback((value: number) => {
     setDecibelValue(value);
   }, []);
+  const handleDecibelMainnetValueChange = useCallback((value: number) => {
+    setDecibelMainnetValue(value);
+  }, []);
 
   // Считаем сумму по кошельку
   const walletTotal = tokens.reduce((sum, token) => {
@@ -195,8 +212,8 @@ export default function Sidebar() {
     return sum + (isNaN(value) ? 0 : value);
   }, 0);
 
-  // Считаем сумму по всем протоколам (Decibel testnet excluded until mainnet)
-  const totalProtocolsValue = hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + amnisValue + earniumValue + aaveValue + moarValue + thalaValue + echoValue;
+  // Считаем сумму по всем протоколам (Decibel testnet excluded; only Decibel mainnet pre-deposit included)
+  const totalProtocolsValue = hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + amnisValue + earniumValue + aaveValue + moarValue + thalaValue + echoValue + decibelMainnetValue;
 
   // Итоговая сумма
   const totalAssets = walletTotal + totalProtocolsValue;
@@ -204,6 +221,19 @@ export default function Sidebar() {
   useEffect(() => {
     setTotalAssetsStore(totalAssets);
   }, [totalAssets, setTotalAssetsStore]);
+
+  // Shared UI state: hide assets <1$ for all wallets (Aptos + Solana)
+  const [hideSmallAssets, setHideSmallAssets] = useState(true);
+
+  const hasAnyWalletCard = Boolean(account?.address || solanaAddress);
+
+  const handleGlobalRefresh = useCallback(async () => {
+    // Обновляем Aptos-портфель (если есть) и Solana-портфель
+    if (account?.address) {
+      await handleRefresh();
+    }
+    await refreshSolana();
+  }, [account?.address, handleRefresh, refreshSolana]);
 
   return (
     <CollapsibleProvider>
@@ -221,99 +251,159 @@ export default function Sidebar() {
           <WalletSelector />
         </div>
         <div className="flex-1 overflow-y-auto scrollbar-hide">
-          {account?.address ? (
-            <div className="mt-4 space-y-4">
-              <PortfolioCard 
-                totalValue={totalAssets.toString()} 
-                tokens={tokens} 
-                onRefresh={handleRefresh}
-                isRefreshing={isRefreshing}
-                hasSolanaWallet={!!solanaAddress}
-              />
-              {solanaAddress && (
-                <div className="space-y-2">
-                  <SolanaWalletCard
-                    tokens={solanaTokens}
-                    totalValueUsd={solanaTotalValue}
-                    onRefresh={refreshSolana}
-                    isRefreshing={isSolanaLoading}
+          <div className="mt-4 space-y-4">
+            {hasAnyWalletCard && (
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-lg font-medium">Total Assets</span>
+                <span className="text-lg font-medium">
+                  {formatCurrency(
+                    (account?.address ? totalAssets : 0) + (solanaAddress ? (solanaTotalValue ?? 0) : 0),
+                    2
+                  )}
+                </span>
+              </div>
+            )}
+            {hasAnyWalletCard && (
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="hideSmallAssetsGlobal"
+                    checked={hideSmallAssets}
+                    onCheckedChange={(checked) => setHideSmallAssets(!!checked)}
                   />
-                  <SolanaSignMessageButton />
+                  <Label htmlFor="hideSmallAssetsGlobal" className="text-sm">
+                    Hide assets {'<'}1$
+                  </Label>
                 </div>
-              )}
-              {checkingProtocols.length > 0 && (
-                <div className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground">
-                  <span>Checking positions on</span>
-                  <div className="flex items-center gap-1">
-                    {checkingProtocols.map((name) => {
-                      const proto = getProtocolByName(name);
-                      const logo = proto?.logoUrl || "/favicon.ico";
-                      return (
-                        <ProtocolIcon
-                          key={name}
-                          logoUrl={logo}
-                          name={name}
-                          size="sm"
-                          isLoading={true}
+                <div className="flex items-center gap-1">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleGlobalRefresh}
+                        disabled={isRefreshing || isSolanaLoading}
+                        className="h-4 w-4 p-0 text-muted-foreground hover:bg-transparent hover:text-foreground/60 opacity-80 transition-colors"
+                      >
+                        <RefreshCw
+                          className={cn(
+                            "h-3 w-3",
+                            (isRefreshing || isSolanaLoading) && "animate-spin"
+                          )}
                         />
-                      );
-                    })}
-                  </div>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Refresh Aptos & Solana</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <CollapsibleControls />
                 </div>
-              )}
-              {[
-                { component: HyperionPositionsList, value: hyperionValue, name: 'Hyperion' },
-                { component: EchelonPositionsList, value: echelonValue, name: 'Echelon' },
-                { component: AriesPositionsList, value: ariesValue, name: 'Aries' },
-                { component: JoulePositionsList, value: jouleValue, name: 'Joule' },
-                { component: TappPositionsList, value: tappValue, name: 'Tapp Exchange' },
-                { component: MesoPositionsList, value: mesoValue, name: 'Meso Finance' },
-                { component: AuroPositionsList, value: auroValue, name: 'Auro Finance' },
-                { component: AmnisPositionsList, value: amnisValue, name: 'Amnis Finance' },
-                { component: EarniumPositionsList, value: earniumValue, name: 'Earnium' },
-                { component: AavePositionsList, value: aaveValue, name: 'Aave' },
-                { component: MoarPositionsList, value: moarValue, name: 'Moar Market' },
-                { component: ThalaPositionsList, value: thalaValue, name: 'Thala' },
-                { component: EchoPositionsList, value: echoValue, name: 'Echo Protocol' },
-                { component: DecibelPositionsList, value: decibelValue, name: 'Decibel' },
-              ]
-                .sort((a, b) => b.value - a.value)
-                .map(({ component: Component, name }) => (
-                  <Component
-                    key={name}
-                    address={account.address.toString()}
-                    walletTokens={tokens} // Передаем токены кошелька для проверки Vault токенов
-                    refreshKey={refreshKey}
-                    onPositionsValueChange={
-                      name === 'Hyperion' ? handleHyperionValueChange :
-                      name === 'Echelon' ? handleEchelonValueChange :
-                      name === 'Aries' ? handleAriesValueChange :
-                      name === 'Joule' ? handleJouleValueChange :
-                      name === 'Tapp Exchange' ? handleTappValueChange :
-                      name === 'Meso Finance' ? handleMesoValueChange :
-                      name === 'Auro Finance' ? handleAuroValueChange :
-                      name === 'Amnis Finance' ? handleAmnisValueChange :
-                      name === 'Earnium' ? handleEarniumValueChange :
-                      name === 'Aave' ? handleAaveValueChange :
-                      name === 'Moar Market' ? handleMoarValueChange :
-                      name === 'Thala' ? handleThalaValueChange :
-                      name === 'Echo Protocol' ? handleEchoValueChange :
+              </div>
+            )}
+
+            {/* Aptos-портфель и протоколы — только если есть Aptos-аккаунт */}
+            {account?.address ? (
+              <div className="space-y-4">
+                <PortfolioCard 
+                  totalValue={totalAssets.toString()} 
+                  tokens={tokens} 
+                  onRefresh={handleRefresh}
+                  isRefreshing={isRefreshing}
+                  hasSolanaWallet={!!solanaAddress}
+                  hideSmallAssets={hideSmallAssets}
+                  onHideSmallAssetsChange={setHideSmallAssets}
+                  showHeaderControls={false}
+                />
+                {checkingProtocols.length > 0 && (
+                  <div className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground">
+                    <span className="whitespace-nowrap">Checking positions on</span>
+                    <div className="flex items-center gap-1">
+                      {checkingProtocols.map((name) => {
+                        const proto = getProtocolByName(name);
+                        const logo = proto?.logoUrl || "/favicon.ico";
+                        return (
+                          <ProtocolIcon
+                            key={name}
+                            logoUrl={logo}
+                            name={name}
+                            size="sm"
+                            isLoading={true}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {[
+                  { component: HyperionPositionsList, value: hyperionValue, name: 'Hyperion' },
+                  { component: EchelonPositionsList, value: echelonValue, name: 'Echelon' },
+                  { component: AriesPositionsList, value: ariesValue, name: 'Aries' },
+                  { component: JoulePositionsList, value: jouleValue, name: 'Joule' },
+                  { component: TappPositionsList, value: tappValue, name: 'Tapp Exchange' },
+                  { component: MesoPositionsList, value: mesoValue, name: 'Meso Finance' },
+                  { component: AuroPositionsList, value: auroValue, name: 'Auro Finance' },
+                  { component: AmnisPositionsList, value: amnisValue, name: 'Amnis Finance' },
+                  { component: EarniumPositionsList, value: earniumValue, name: 'Earnium' },
+                  { component: AavePositionsList, value: aaveValue, name: 'Aave' },
+                  { component: MoarPositionsList, value: moarValue, name: 'Moar Market' },
+                  { component: ThalaPositionsList, value: thalaValue, name: 'Thala' },
+				  { component: EchoPositionsList, value: echoValue, name: 'Echo Protocol' },
+                  { component: DecibelPositionsList, value: decibelValue, name: 'Decibel' },
+                ]
+                  .sort((a, b) => b.value - a.value)
+                  .map(({ component: Component, name }) => (
+                    <Component
+                      key={name}
+                      address={account!.address.toString()}
+                      walletTokens={tokens}
+                      refreshKey={refreshKey}
+                      onPositionsValueChange={
+                        name === 'Hyperion' ? handleHyperionValueChange :
+                        name === 'Echelon' ? handleEchelonValueChange :
+                        name === 'Aries' ? handleAriesValueChange :
+                        name === 'Joule' ? handleJouleValueChange :
+                        name === 'Tapp Exchange' ? handleTappValueChange :
+                        name === 'Meso Finance' ? handleMesoValueChange :
+                        name === 'Auro Finance' ? handleAuroValueChange :
+                        name === 'Amnis Finance' ? handleAmnisValueChange :
+                        name === 'Earnium' ? handleEarniumValueChange :
+                        name === 'Aave' ? handleAaveValueChange :
+                        name === 'Moar Market' ? handleMoarValueChange :
+                        name === 'Thala' ? handleThalaValueChange :
+						name === 'Echo Protocol' ? handleEchoValueChange :
                       name === 'Decibel' ? handleDecibelValueChange :
-                      undefined
-                    }
+                        undefined
+                      }
+                    onMainnetValueChange={name === 'Decibel' ? handleDecibelMainnetValueChange : undefined}
                     onPositionsCheckComplete={() =>
-                      setCheckingProtocols((prev) => prev.filter((p) => p !== name))
-                    }
-                  />
-                ))}
-            </div>
-          ) : (
-            <div className="mt-4 p-4 bg-muted rounded-lg">
-              <p className="text-sm text-muted-foreground">
-                Connect your Aptos wallet to view your assets and positions in DeFi protocols
-              </p>
-            </div>
-          )}
+                        setCheckingProtocols((prev) => prev.filter((p) => p !== name))
+                      }
+                    />
+                  ))}
+              </div>
+            ) : (
+              <div className="mt-4 p-4 bg-muted rounded-lg space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Connect your Aptos wallet to view your assets and positions in DeFi protocols
+                </p>
+              </div>
+            )}
+
+            {/* Solana должна отображаться независимо от Aptos-аккаунта */}
+            {solanaAddress && (
+              <div className="space-y-2">
+                <SolanaWalletCard
+                  tokens={solanaTokens}
+                  totalValueUsd={solanaTotalValue}
+                  onRefresh={refreshSolana}
+                  isRefreshing={isSolanaLoading}
+                  hideSmallAssets={hideSmallAssets}
+                />
+                <SolanaSignMessageButton />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </CollapsibleProvider>

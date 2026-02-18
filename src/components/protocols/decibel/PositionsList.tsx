@@ -18,6 +18,7 @@ import { normalizeAddress } from "@/lib/utils/addressNormalization";
 interface PositionsListProps {
   address?: string;
   onPositionsValueChange?: (value: number) => void;
+  onMainnetValueChange?: (value: number) => void;
   refreshKey?: number;
   onPositionsCheckComplete?: () => void;
   showManageButton?: boolean;
@@ -26,6 +27,7 @@ interface PositionsListProps {
 export function PositionsList({
   address,
   onPositionsValueChange,
+  onMainnetValueChange,
   refreshKey,
   onPositionsCheckComplete,
   showManageButton = true,
@@ -35,13 +37,42 @@ export function PositionsList({
   const [marketNames, setMarketNames] = useState<Record<string, string>>({});
   const [availableToTrade, setAvailableToTrade] = useState<number | null>(null);
   const [vaults, setVaults] = useState<{ name: string; current_value_of_shares?: number }[]>([]);
+  const [preDepositSumUsdc, setPreDepositSumUsdc] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { isExpanded, toggleSection } = useCollapsible();
   const protocol = getProtocolByName("Decibel");
   const onValueRef = useRef(onPositionsValueChange);
+  const onMainnetRef = useRef(onMainnetValueChange);
   const onCompleteRef = useRef(onPositionsCheckComplete);
   onValueRef.current = onPositionsValueChange;
+  onMainnetRef.current = onMainnetValueChange;
   onCompleteRef.current = onPositionsCheckComplete;
+
+  // Fetch mainnet pre-deposit separately so Total Assets gets it even when testnet APIs fail
+  useEffect(() => {
+    if (!address) {
+      onMainnetRef.current?.(0);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/protocols/decibel/predepositorBalance?address=${encodeURIComponent(address)}`)
+      .then((r) => r.json())
+      .then((data: { success?: boolean; data?: { sumUsdc?: number } }) => {
+        if (cancelled) return;
+        const sum = data?.success && typeof data?.data?.sumUsdc === 'number' ? data.data.sumUsdc : 0;
+        setPreDepositSumUsdc(sum);
+        onMainnetRef.current?.(sum);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPreDepositSumUsdc(null);
+          onMainnetRef.current?.(0);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [address, refreshKey]);
 
   useEffect(() => {
     if (!address) {
@@ -61,8 +92,11 @@ export function PositionsList({
         r.json()
       ),
       fetch("/api/protocols/decibel/markets").then((r) => r.json()),
+      fetch(`/api/protocols/decibel/predepositorBalance?address=${encodeURIComponent(address)}`).then((r) =>
+        r.json()
+      ),
     ])
-      .then(([overviewRes, positionsRes, vaultsRes, marketsRes]) => {
+      .then(([overviewRes, positionsRes, vaultsRes, marketsRes, predepositRes]) => {
         if (cancelled) return;
         const eq =
           overviewRes?.success && overviewRes?.data?.perp_equity_balance != null
@@ -108,13 +142,18 @@ export function PositionsList({
           (sum: number, v: { current_value_of_shares?: number }) => sum + (v.current_value_of_shares ?? 0),
           0
         );
-        const totalValue = eq + vaultsTotal;
+        const preDeposit = predepositRes?.success && typeof predepositRes?.data?.sumUsdc === 'number'
+          ? predepositRes.data.sumUsdc
+          : 0;
+        const totalValue = eq + vaultsTotal + preDeposit;
         setEquity(eq);
         setPositions(posList);
         setMarketNames(map);
         setAvailableToTrade(avail);
         setVaults(vaultList);
+        setPreDepositSumUsdc(preDeposit);
         onValueRef.current?.(totalValue);
+        onMainnetRef.current?.(preDeposit);
       })
       .catch(() => {
         if (!cancelled) {
@@ -141,9 +180,10 @@ export function PositionsList({
     (sum: number, v: { current_value_of_shares?: number }) => sum + (v.current_value_of_shares ?? 0),
     0
   );
-  const displayValue = (equity != null ? equity : 0) + vaultsTotal;
+  const displayValue = (equity != null ? equity : 0) + vaultsTotal + (preDepositSumUsdc ?? 0);
   const hasAnything =
-    positions.length > 0 || vaults.length > 0 || displayValue > 0;
+    positions.length > 0 || vaults.length > 0 || displayValue > 0 ||
+    (preDepositSumUsdc != null && preDepositSumUsdc > 0);
 
   /** Format market for sidebar: "BTC-USDC" -> "BTC/USDC", "BTC-USD" -> "BTC/USD" */
   const formatPairForSidebar = (marketAddr: string) => {
@@ -161,6 +201,8 @@ export function PositionsList({
   if (!hasAnything) {
     return null;
   }
+
+  const hasTestnetData = availableToTrade != null || positions.length > 0 || vaults.length > 0;
 
   return (
     <Card className="w-full">
@@ -182,21 +224,20 @@ export function PositionsList({
               </div>
             )}
             <CardTitle className="text-lg">Decibel</CardTitle>
-            <Badge variant="secondary" className="text-xs font-normal">
-              testnet
-            </Badge>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-flex text-muted-foreground cursor-help">
-                    <Info className="h-3.5 w-3.5" />
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-[220px]">
-                  <p>Decibel is on testnet. These funds are not included in total assets.</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            {hasTestnetData && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex text-muted-foreground cursor-help" onClick={(e) => e.stopPropagation()}>
+                      <Info className="h-3.5 w-3.5" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[220px]">
+                    <p>Decibel testnet funds (positions, available to trade, vaults) are not included in total assets.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <div className="text-lg whitespace-nowrap">
@@ -217,9 +258,25 @@ export function PositionsList({
             <div className="text-sm text-muted-foreground">Loading...</div>
           ) : (
             <>
+              <div className="flex items-center justify-between py-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Pre-deposit</span>
+                  <Badge variant="secondary" className="text-xs font-normal">
+                    mainnet
+                  </Badge>
+                </div>
+                <span className="text-sm font-medium shrink-0 ml-2">
+                  {formatCurrency(preDepositSumUsdc ?? 0, 2)}
+                </span>
+              </div>
               {availableToTrade != null && (
                 <div className="flex items-center justify-between py-1">
-                  <span className="text-sm text-muted-foreground">Available to trade</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Available to trade</span>
+                    <Badge variant="secondary" className="text-xs font-normal">
+                      testnet
+                    </Badge>
+                  </div>
                   <span className="text-sm font-medium shrink-0 ml-2">
                     {formatCurrency(availableToTrade, 2)}
                   </span>
@@ -227,6 +284,12 @@ export function PositionsList({
               )}
               {positions.length > 0 && (
                 <div className="space-y-2 mt-1">
+                  <div className="flex items-center gap-2 py-0.5">
+                    <span className="text-sm font-medium text-muted-foreground">Positions</span>
+                    <Badge variant="secondary" className="text-xs font-normal">
+                      testnet
+                    </Badge>
+                  </div>
                   {positions.map((p, i) => (
                     <div
                       key={`${p.market}-${i}`}
@@ -251,7 +314,12 @@ export function PositionsList({
           )}
           {!isLoading && vaults.length > 0 && (
             <div className="mt-4 pt-4 space-y-2">
-              <h4 className="text-sm font-medium mb-2 text-muted-foreground">Vaults</h4>
+              <h4 className="text-sm font-medium mb-2 text-muted-foreground flex items-center gap-2">
+                Vaults
+                <Badge variant="secondary" className="text-xs font-normal">
+                  testnet
+                </Badge>
+              </h4>
               {vaults.map((v, i) => (
                 <div key={i} className="flex items-center justify-between py-1">
                   <div className="text-sm font-medium truncate min-w-0">{v.name}</div>

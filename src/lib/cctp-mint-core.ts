@@ -1,8 +1,8 @@
 // CCTP Minting core logic
 // Extracted from minting-solana page for reusability
 
-import { PublicKey, Transaction, TransactionInstruction, SystemProgram, Connection } from "@solana/web3.js";
-import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { PublicKey, Transaction, TransactionInstruction, SystemProgram, Connection, ComputeBudgetProgram } from "@solana/web3.js";
+import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress, createAssociatedTokenAccountIdempotentInstruction } from "@solana/spl-token";
 import { hexToBytes, hexToSolanaBase58 } from "./cctp-mint";
 import { generateAllCCTPPDAs, MESSAGE_TRANSMITTER_PROGRAM_ID, TOKEN_MESSENGER_MINTER_PROGRAM_ID, USDC_MINT } from "./cctp-mint-pdas";
 
@@ -179,10 +179,11 @@ export async function performMintOnSolana(
     recipientTokenAccount: recipientTokenAccount.toBase58(),
   });
 
-  // Verify token account
+  // Verify token account and check if it needs to be created
   if (onStatusUpdate) {
     onStatusUpdate("Verifying token account...");
   }
+  let needsCreateATA = false;
   const tokenAccountInfo = await connection.getAccountInfo(recipientTokenAccount);
   if (tokenAccountInfo) {
     const { unpackAccount } = await import("@solana/spl-token");
@@ -195,6 +196,10 @@ export async function performMintOnSolana(
     if (!parsedTokenAccount.mint.equals(USDC_MINT)) {
       throw new Error(`Token account mint (${parsedTokenAccount.mint.toBase58()}) does not match USDC_MINT (${USDC_MINT.toBase58()})`);
     }
+  } else {
+    // Token account does not exist — we need to create it before the CCTP receive_message
+    console.log('[CCTP Mint] Recipient USDC token account does not exist, will create ATA');
+    needsCreateATA = true;
   }
 
   // Generate all PDAs
@@ -235,6 +240,19 @@ export async function performMintOnSolana(
 
   // Create transaction
   const transaction = new Transaction();
+
+  // If the recipient's USDC token account doesn't exist, create it first
+  if (needsCreateATA) {
+    console.log('[CCTP Mint] Adding createAssociatedTokenAccountIdempotent instruction for', recipientTokenAccount.toBase58());
+    const createATAIx = createAssociatedTokenAccountIdempotentInstruction(
+      solanaPublicKey,          // payer
+      recipientTokenAccount,     // associatedToken (the ATA address)
+      recipientPubkey,           // owner
+      USDC_MINT                  // mint
+    );
+    transaction.add(createATAIx);
+  }
+
   transaction.add(receiveMessageIx);
   transaction.feePayer = solanaPublicKey;
 
