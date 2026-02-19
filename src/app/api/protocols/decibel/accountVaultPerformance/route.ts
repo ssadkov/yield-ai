@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { normalizeAddress } from '@/lib/utils/addressNormalization';
+import { deriveVaultApr } from '@/lib/protocols/decibel/vaultApr';
 
 const DECIBEL_API_KEY = process.env.DECIBEL_API_KEY;
 const DECIBEL_API_BASE_URL =
@@ -107,7 +108,14 @@ export async function GET(request: NextRequest) {
         }
       }
     }
-    return NextResponse.json({ success: true, data: list });
+
+    // Enrich each item with derived APR when vault has return metrics but no apr field
+    const enriched = list.map((item: { vault?: unknown }) => {
+      const apr = deriveVaultApr(item.vault as Parameters<typeof deriveVaultApr>[0]);
+      return { ...item, apr: apr ?? undefined };
+    });
+
+    return NextResponse.json({ success: true, data: enriched });
   } catch (error) {
     console.error('[Decibel] accountVaultPerformance error:', error);
     return NextResponse.json(

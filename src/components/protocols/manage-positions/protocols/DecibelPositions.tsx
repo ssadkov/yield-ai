@@ -28,11 +28,13 @@ export interface DecibelPosition {
   tp_trigger_price?: number | null;
 }
 
-/** Decibel vault performance item (from account_vault_performance API) */
+/** Decibel vault performance item (from account_vault_performance API, enriched with apr) */
 export interface DecibelVaultItem {
   vault?: { name?: string };
   current_value_of_shares?: number;
   total_deposited?: number;
+  /** APR as decimal (e.g. 0.15 = 15%), from API or derived from vault returns */
+  apr?: number;
 }
 
 const DECIBEL_APP_URL = 'https://app.decibel.trade/';
@@ -468,11 +470,14 @@ export function DecibelPositions() {
                         : '—'}
                     </div>
                   </div>
-                  {v.total_deposited != null && (
-                    <div className="mt-1 text-base text-muted-foreground">
-                      Deposited: {formatCurrency(v.total_deposited, 2)}
-                    </div>
-                  )}
+                  <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-base text-muted-foreground">
+                    {v.total_deposited != null && (
+                      <span>Deposited: {formatCurrency(v.total_deposited, 2)}</span>
+                    )}
+                    {v.apr != null && Number.isFinite(v.apr) && (
+                      <span>APR: {(v.apr * 100).toFixed(2)}%</span>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>
