@@ -87,6 +87,53 @@ export default function ChatPanel() {
     }
   };
 
+  const [tgLoading, setTgLoading] = useState(false);
+
+  const handleTgNotifications = async () => {
+    setTgLoading(true);
+    try {
+      const solana = solanaPublicKey?.toBase58() || solanaAddress || '';
+      const aptos = account?.address?.toString() || '';
+
+      const response = await fetch('/api/tg-subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ solana, aptos }),
+      });
+
+      let data;
+      try {
+        data = await response.json();
+      } catch {
+        toast({
+          variant: "destructive",
+          title: "Subscription error",
+          description: "Subscription server is unavailable, please try again later",
+        });
+        return;
+      }
+
+      if (data.link) {
+        window.open(data.link, '_blank');
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Subscription error",
+          description: data.error || "Subscription server is unavailable, please try again later",
+        });
+      }
+    } catch (error) {
+      console.error('TG notifications error:', error);
+      toast({
+        variant: "destructive",
+        title: "Subscription error",
+        description: "Subscription server is unavailable, please try again later",
+      });
+    } finally {
+      setTgLoading(false);
+    }
+  };
+
   const handleTransfer = () => {
     if (account?.address) {
       setIsTransferModalOpen(true);
@@ -178,6 +225,19 @@ export default function ChatPanel() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
             </svg>
             Bridge USDC
+          </Button>
+        )}
+        {hasAnyWallet && (
+          <Button 
+            variant="outline" 
+            onClick={handleTgNotifications}
+            disabled={tgLoading}
+            className="flex items-center gap-2 w-full justify-start"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20.665 3.717l-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42 10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701h-.002l.002.001-.314 4.692c.46 0 .663-.211.921-.46l2.211-2.15 4.599 3.397c.848.467 1.457.227 1.668-.785l3.019-14.228c.309-1.239-.473-1.8-1.282-1.434z"/>
+            </svg>
+            {tgLoading ? 'Loading...' : 'TG notifications'}
           </Button>
         )}
       </div>
