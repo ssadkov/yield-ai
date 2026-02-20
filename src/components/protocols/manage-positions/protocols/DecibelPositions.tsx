@@ -463,7 +463,17 @@ export function DecibelPositions() {
                   className="rounded-lg border bg-card p-3 text-card-foreground shadow-sm"
                 >
                   <div className="flex items-center justify-between py-1">
-                    <div className="text-base font-medium">{v.vault?.name ?? 'Vault'}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-base font-medium">{v.vault?.name ?? 'Vault'}</div>
+                      {v.apr != null && Number.isFinite(v.apr) && (
+                        <Badge
+                          variant="outline"
+                          className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs font-normal px-2 py-0.5 h-5"
+                        >
+                          APR: {(v.apr * 100).toFixed(2)}%
+                        </Badge>
+                      )}
+                    </div>
                     <div className="text-base font-medium">
                       {v.current_value_of_shares != null
                         ? formatCurrency(v.current_value_of_shares, 2)
@@ -473,9 +483,6 @@ export function DecibelPositions() {
                   <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-base text-muted-foreground">
                     {v.total_deposited != null && (
                       <span>Deposited: {formatCurrency(v.total_deposited, 2)}</span>
-                    )}
-                    {v.apr != null && Number.isFinite(v.apr) && (
-                      <span>APR: {(v.apr * 100).toFixed(2)}%</span>
                     )}
                   </div>
                 </li>
