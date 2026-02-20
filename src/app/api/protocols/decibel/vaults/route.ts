@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { deriveVaultApr } from '@/lib/protocols/decibel/vaultApr';
 
+type DecibelPublicVaultItem = Record<string, unknown>;
+
 const DECIBEL_API_KEY = process.env.DECIBEL_API_KEY;
 const DECIBEL_API_BASE_URL =
   process.env.DECIBEL_API_BASE_URL || 'https://api.testnet.aptoslabs.com/decibel';
-const DECIBEL_MAINNET_URL = 'https://api.netna.aptoslabs.com/decibel';
 
 /**
  * GET /api/protocols/decibel/vaults
@@ -73,14 +74,14 @@ export async function GET(request: NextRequest) {
     }
 
     const raw = data as {
-      items?: unknown[];
+      items?: DecibelPublicVaultItem[];
       total_count?: number;
       total_value_locked?: number;
       total_volume?: number;
     };
 
-    const items = Array.isArray(raw?.items) ? raw.items : [];
-    const enriched = items.map((item: Record<string, unknown>) => {
+    const items: DecibelPublicVaultItem[] = Array.isArray(raw?.items) ? raw.items : [];
+    const enriched = items.map((item) => {
       const apr = deriveVaultApr(item as Parameters<typeof deriveVaultApr>[0]);
       return { ...item, apr: apr ?? undefined };
     });
