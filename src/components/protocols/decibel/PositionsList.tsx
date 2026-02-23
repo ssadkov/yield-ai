@@ -120,7 +120,7 @@ export function PositionsList({
                 const notional = Math.abs(Number(p.size) || 0) * Number(p.entry_price || 0);
                 const lev = Number(p.user_leverage) || 1;
                 const marginUsd = lev > 0 ? notional / lev : notional;
-                const pnl = Number(p.unrealized_funding) || 0;
+                const pnl = -(Number(p.unrealized_funding) || 0);
                 return { market: p.market, marginUsd, pnl };
               })
           : [];
@@ -301,7 +301,7 @@ export function PositionsList({
                         {formatPairForSidebar(p.market)}
                       </span>
                       <div className="text-sm shrink-0 ml-2 text-right flex items-center justify-end gap-1.5">
-                        <span className={p.pnl < 0 ? "text-destructive" : "text-muted-foreground"}>
+                        <span className={p.pnl < 0 ? "text-destructive" : p.pnl > 0 ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}>
                           ({p.pnl > 0 ? "+" : ""}{formatCurrency(p.pnl, 2)})
                         </span>
                         <span className="font-medium">

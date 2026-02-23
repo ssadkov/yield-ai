@@ -278,14 +278,19 @@ export function DecibelPositions() {
 
   useEffect(() => {
     const handler = (e: CustomEvent<{ protocol: string; data?: DecibelPosition[] }>) => {
-      if (e.detail?.protocol === 'decibel' && Array.isArray(e.detail.data)) {
-        const active = e.detail.data.filter((p) => !p.is_deleted);
-        setPositions(active);
+      if (e.detail?.protocol === 'decibel') {
+        if (Array.isArray(e.detail.data)) {
+          const active = e.detail.data.filter((p) => !p.is_deleted);
+          setPositions(active);
+        }
+        fetchVaults();
+        fetchOverview();
+        fetchPreDeposit();
       }
     };
     window.addEventListener('refreshPositions', handler as EventListener);
     return () => window.removeEventListener('refreshPositions', handler as EventListener);
-  }, []);
+  }, [fetchVaults, fetchOverview, fetchPreDeposit]);
 
   const positionKey = (pos: DecibelPosition) => `${pos.market}-${pos.user}-${pos.size}-${pos.entry_price}`;
 
@@ -571,8 +576,11 @@ export function DecibelPositions() {
                     </div>
                     <div>
                       <span className="text-muted-foreground">Funding (USD)</span>
-                      <span className={cn('ml-2', pos.unrealized_funding < 0 ? 'text-destructive font-medium' : 'font-medium')}>
-                        {formatNumber(pos.unrealized_funding, 2)}
+                      <span className={cn(
+                        'ml-2 font-medium',
+                        -pos.unrealized_funding > 0 ? 'text-green-600 dark:text-green-400' : -pos.unrealized_funding < 0 ? 'text-destructive' : ''
+                      )}>
+                        {formatNumber(-pos.unrealized_funding, 2)}
                       </span>
                     </div>
                     <div>
