@@ -258,17 +258,19 @@ export function PositionsList({
             <div className="text-sm text-muted-foreground">Loading...</div>
           ) : (
             <>
-              <div className="flex items-center justify-between py-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Pre-deposit</span>
-                  <Badge variant="secondary" className="text-xs font-normal">
-                    mainnet
-                  </Badge>
+              {(preDepositSumUsdc != null && preDepositSumUsdc > 0) && (
+                <div className="flex items-center justify-between py-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Pre-deposit</span>
+                    <Badge variant="secondary" className="text-xs font-normal">
+                      mainnet
+                    </Badge>
+                  </div>
+                  <span className="text-sm font-medium shrink-0 ml-2">
+                    {formatCurrency(preDepositSumUsdc ?? 0, 2)}
+                  </span>
                 </div>
-                <span className="text-sm font-medium shrink-0 ml-2">
-                  {formatCurrency(preDepositSumUsdc ?? 0, 2)}
-                </span>
-              </div>
+              )}
               {availableToTrade != null && (
                 <div className="flex items-center justify-between py-1">
                   <div className="flex items-center gap-2">

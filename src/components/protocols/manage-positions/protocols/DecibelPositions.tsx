@@ -447,17 +447,19 @@ export function DecibelPositions() {
 
   return (
     <div className="space-y-6 text-base">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-muted-foreground">Pre-deposit</span>
-          <Badge variant="secondary" className="text-xs font-normal">
-            mainnet
-          </Badge>
+      {(preDepositSumUsdc != null && preDepositSumUsdc > 0) && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">Pre-deposit</span>
+            <Badge variant="secondary" className="text-xs font-normal">
+              mainnet
+            </Badge>
+          </div>
+          <span className="font-medium">
+            {preDepositLoading ? '…' : formatCurrency(preDepositSumUsdc ?? 0, 2)}
+          </span>
         </div>
-        <span className="font-medium">
-          {preDepositLoading ? '…' : formatCurrency(preDepositSumUsdc ?? 0, 2)}
-        </span>
-      </div>
+      )}
       {(availableToTrade != null || overviewLoading) && (
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
