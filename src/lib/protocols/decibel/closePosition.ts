@@ -40,10 +40,6 @@ export interface CloseAtMarketParams {
   isTestnet?: boolean;
 }
 
-function toChainUnits(amount: number, decimals: number): number {
-  return Math.floor(amount * 10 ** decimals);
-}
-
 /**
  * Round price to valid tick size and return chain units directly.
  * Uses integer rounding to avoid floating-point errors that cause EPRICE_NOT_RESPECTING_TICKER_SIZE.
@@ -55,23 +51,23 @@ function roundPriceToTickChainUnits(
 ): number {
   if (price <= 0) return 0;
   const scaledPrice = Math.round(price * 10 ** pxDecimals); // integer in chain units
-  const chainPrice = Math.round(scaledPrice / tickSize) * tickSize; // multiple of tickSize
-  return chainPrice;
+  return Math.round(scaledPrice / tickSize) * tickSize; // multiple of tickSize
 }
 
-function roundSizeToLot(
+/**
+ * Round size to lot_size and return chain units directly. Avoids float conversion
+ * to prevent ESIZE_NOT_RESPECTING_LOT_SIZE from floating-point drift.
+ */
+function roundSizeToLotChainUnits(
   size: number,
   lotSize: number,
   minSize: number,
   szDecimals: number
 ): number {
   if (size <= 0) return 0;
-  const minSizeDecimal = minSize / 10 ** szDecimals;
-  const effectiveSize = Math.max(size, minSizeDecimal);
-  const denorm = effectiveSize * 10 ** szDecimals;
-  // Use ceil so we request enough size to close full position; IOC cancels unfilled
-  const rounded = Math.ceil(denorm / lotSize) * lotSize;
-  return Math.max(rounded, minSize) / 10 ** szDecimals;
+  const denorm = Math.ceil(size * 10 ** szDecimals); // chain units, ceil to not under-close
+  const rounded = Math.ceil(denorm / lotSize) * lotSize; // multiple of lot_size
+  return Math.max(rounded, minSize);
 }
 
 /**
@@ -107,8 +103,7 @@ export function buildCloseAtMarketPayload(params: CloseAtMarketParams): {
   const chainPrice = roundPriceToTickChainUnits(priceWithSlippage, tickSize, pxDecimals);
 
   const absSize = Math.abs(size);
-  const roundedSize = roundSizeToLot(absSize, lotSize, minSize, szDecimals);
-  const chainSize = toChainUnits(roundedSize, szDecimals);
+  const chainSize = roundSizeToLotChainUnits(absSize, lotSize, minSize, szDecimals);
 
   // is_buy: long position -> we sell to close -> false; short position -> we buy to close -> true
   const isBuy = !isLong;
