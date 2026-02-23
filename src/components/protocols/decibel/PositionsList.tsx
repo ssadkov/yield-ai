@@ -95,8 +95,9 @@ export function PositionsList({
       fetch(`/api/protocols/decibel/predepositorBalance?address=${encodeURIComponent(address)}`).then((r) =>
         r.json()
       ),
+      fetch("/api/protocols/decibel/prices").then((r) => r.json()),
     ])
-      .then(([overviewRes, positionsRes, vaultsRes, marketsRes, predepositRes]) => {
+      .then(([overviewRes, positionsRes, vaultsRes, marketsRes, predepositRes, pricesRes]) => {
         if (cancelled) return;
         const eq =
           overviewRes?.success && overviewRes?.data?.perp_equity_balance != null
@@ -106,6 +107,16 @@ export function PositionsList({
           overviewRes?.success && overviewRes?.data?.usdc_cross_withdrawable_balance != null
             ? Number(overviewRes.data.usdc_cross_withdrawable_balance)
             : null;
+        const pricesMap: Record<string, number> = {};
+        if (pricesRes?.success && Array.isArray(pricesRes?.data)) {
+          for (const item of pricesRes.data as { market?: string; mark_px?: number; mid_px?: number }[]) {
+            const addr = item.market;
+            if (addr != null) {
+              const mark = item.mark_px ?? item.mid_px;
+              if (typeof mark === "number") pricesMap[normalizeAddress(String(addr))] = mark;
+            }
+          }
+        }
         const posList = positionsRes?.success && Array.isArray(positionsRes?.data)
           ? (positionsRes.data as {
               market: string;
@@ -120,7 +131,12 @@ export function PositionsList({
                 const notional = Math.abs(Number(p.size) || 0) * Number(p.entry_price || 0);
                 const lev = Number(p.user_leverage) || 1;
                 const marginUsd = lev > 0 ? notional / lev : notional;
-                const pnl = -(Number(p.unrealized_funding) || 0);
+                const size = Number(p.size) || 0;
+                const entry = Number(p.entry_price) || 0;
+                const fundingDisplay = -(Number(p.unrealized_funding) || 0);
+                const markPx = pricesMap[normalizeAddress(String(p.market))] ?? entry;
+                const pricePnl = size * (markPx - entry);
+                const pnl = pricePnl + fundingDisplay;
                 return { market: p.market, marginUsd, pnl };
               })
           : [];

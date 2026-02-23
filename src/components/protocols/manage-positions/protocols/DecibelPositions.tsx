@@ -107,6 +107,7 @@ export function DecibelPositions() {
   const [loading, setLoading] = useState(false);
   const [vaultsLoading, setVaultsLoading] = useState(false);
   const [overviewLoading, setOverviewLoading] = useState(false);
+  const [pricesMap, setPricesMap] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
 
   const fetchPositions = useCallback(async () => {
@@ -245,9 +246,35 @@ export function DecibelPositions() {
     fetchMarkets();
   }, [fetchMarkets]);
 
+  const fetchPrices = useCallback(async () => {
+    try {
+      const res = await fetch('/api/protocols/decibel/prices');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        const map: Record<string, number> = {};
+        for (const item of data.data as { market?: string; mark_px?: number; mid_px?: number }[]) {
+          const addr = item.market;
+          if (addr != null) {
+            const mark = item.mark_px ?? item.mid_px;
+            if (typeof mark === 'number') map[normalizeAddress(String(addr))] = mark;
+          }
+        }
+        setPricesMap(map);
+      } else {
+        setPricesMap({});
+      }
+    } catch {
+      setPricesMap({});
+    }
+  }, []);
+
   useEffect(() => {
     fetchOverview();
   }, [fetchOverview]);
+
+  useEffect(() => {
+    if (positions.length > 0) fetchPrices();
+  }, [positions.length, fetchPrices]);
 
   const fetchPreDeposit = useCallback(async () => {
     if (!account?.address) {
@@ -286,11 +313,12 @@ export function DecibelPositions() {
         fetchVaults();
         fetchOverview();
         fetchPreDeposit();
+        fetchPrices();
       }
     };
     window.addEventListener('refreshPositions', handler as EventListener);
     return () => window.removeEventListener('refreshPositions', handler as EventListener);
-  }, [fetchVaults, fetchOverview, fetchPreDeposit]);
+  }, [fetchVaults, fetchOverview, fetchPreDeposit, fetchPrices]);
 
   const positionKey = (pos: DecibelPosition) => `${pos.market}-${pos.user}-${pos.size}-${pos.entry_price}`;
 
@@ -342,7 +370,7 @@ export function DecibelPositions() {
           data: {
             function: payload.function as `${string}::${string}::${string}`,
             typeArguments: payload.typeArguments,
-            functionArguments: payload.functionArguments,
+            functionArguments: payload.functionArguments as (string | number | boolean | Uint8Array | null)[],
           },
           options: { maxGasAmount: 20000 },
         });
@@ -356,12 +384,11 @@ export function DecibelPositions() {
           data: {
             function: payload.function as `${string}::${string}::${string}`,
             typeArguments: payload.typeArguments,
-            functionArguments: payload.functionArguments,
+            functionArguments: payload.functionArguments as (string | number | boolean | Uint8Array | null)[],
           },
           options: { maxGasAmount: 20000 },
         });
-        console.log('[Decibel] sender:', transaction.sender?.toString());
-        console.log('[Decibel] wallet:', account?.address);
+        console.log('[Decibel] sender:', senderAddr.toString(), 'wallet:', account?.address);
         const signResult = await signTransaction({ transactionOrPayload: transaction });
         console.log('[Decibel] signResult keys:', Object.keys(signResult ?? {}));
         const { authenticator } = signResult;
@@ -537,6 +564,10 @@ export function DecibelPositions() {
               const marginUsd = pos.user_leverage && pos.user_leverage > 0
                 ? notionalUsd / pos.user_leverage
                 : notionalUsd;
+              const markPx = pricesMap[marketKey] ?? pos.entry_price;
+              const pricePnl = pos.size * (markPx - pos.entry_price);
+              const fundingDisplay = -pos.unrealized_funding;
+              const totalPnl = pricePnl + fundingDisplay;
               return (
                 <li
                   key={`${pos.market}-${pos.user}-${i}`}
@@ -552,8 +583,11 @@ export function DecibelPositions() {
                       )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-base font-medium text-muted-foreground">
-                        Margin: {formatCurrency(marginUsd, 2)}
+                      <span className={cn(
+                        'text-base font-medium',
+                        totalPnl > 0 ? 'text-green-600 dark:text-green-400' : totalPnl < 0 ? 'text-destructive' : 'text-muted-foreground'
+                      )}>
+                        PnL: {totalPnl >= 0 ? '+' : ''}{formatCurrency(totalPnl, 2)}
                       </span>
                       <Button
                         variant="destructive"
