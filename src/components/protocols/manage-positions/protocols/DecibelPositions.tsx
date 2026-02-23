@@ -2,14 +2,29 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
+import { Aptos, AptosConfig, Network, AccountAddress } from '@aptos-labs/ts-sdk';
+import { normalizeAuthenticator } from '@/lib/hooks/useTransactionSubmitter';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Info } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { ToastAction } from '@/components/ui/toast';
 import { formatNumber, formatCurrency } from '@/lib/utils/numberFormat';
 import { normalizeAddress } from '@/lib/utils/addressNormalization';
 import { cn } from '@/lib/utils';
+import {
+  buildCloseAtMarketPayload,
+  type DecibelMarketConfig,
+} from '@/lib/protocols/decibel/closePosition';
 
 /** Decibel API position shape (snake_case from API) */
 export interface DecibelPosition {
@@ -68,12 +83,23 @@ function formatDecibelMarket(marketName: string): { base: string; quote: string;
   return { base, quote, displayPair: quote ? `${base}-${quote}` : base };
 }
 
+/** Aptos client for direct submission (no Gas Station). Decibel close uses this to avoid Gas Station rules. */
+function getDecibelAptosClient(network: 'testnet' | 'mainnet'): Aptos {
+  const aptosNetwork = network === 'testnet' ? Network.TESTNET : Network.MAINNET;
+  const config = new AptosConfig({ network: aptosNetwork });
+  return new Aptos(config);
+}
+
 export function DecibelPositions() {
-  const { account } = useWallet();
+  const { account, signTransaction, signAndSubmitTransaction } = useWallet();
   const { toast } = useToast();
   const [positions, setPositions] = useState<DecibelPosition[]>([]);
   const [vaults, setVaults] = useState<DecibelVaultItem[]>([]);
   const [marketNames, setMarketNames] = useState<Record<string, string>>({});
+  const [marketsMap, setMarketsMap] = useState<Record<string, DecibelMarketConfig>>({});
+  const [decibelNetwork, setDecibelNetwork] = useState<'testnet' | 'mainnet'>('testnet');
+  const [closingPositionKey, setClosingPositionKey] = useState<string | null>(null);
+  const [closeConfirmPosition, setCloseConfirmPosition] = useState<DecibelPosition | null>(null);
   const [availableToTrade, setAvailableToTrade] = useState<number | null>(null);
   const [totalEquity, setTotalEquity] = useState<number | null>(null);
   const [preDepositSumUsdc, setPreDepositSumUsdc] = useState<number | null>(null);
@@ -148,18 +174,34 @@ export function DecibelPositions() {
       const res = await fetch('/api/protocols/decibel/markets');
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
-        const map: Record<string, string> = {};
-        for (const m of data.data as { market_addr?: string; market_name?: string }[]) {
+        const nameMap: Record<string, string> = {};
+        const configMap: Record<string, DecibelMarketConfig> = {};
+        for (const m of data.data as (DecibelMarketConfig & { market_addr?: string; market_name?: string })[]) {
           const addr = m.market_addr;
           const name = m.market_name;
-          if (addr != null && name != null) {
-            map[normalizeAddress(String(addr))] = String(name);
+          if (addr != null) {
+            const key = normalizeAddress(String(addr));
+            if (name != null) nameMap[key] = String(name);
+            configMap[key] = {
+              market_addr: String(addr),
+              market_name: m.market_name,
+              px_decimals: m.px_decimals ?? 9,
+              sz_decimals: m.sz_decimals ?? 9,
+              tick_size: m.tick_size ?? 1_000_000,
+              lot_size: m.lot_size ?? 100_000_000,
+              min_size: m.min_size ?? 1_000_000_000,
+            };
           }
         }
-        setMarketNames(map);
+        setMarketNames(nameMap);
+        setMarketsMap(configMap);
+        if (data.network === 'mainnet' || data.network === 'testnet') {
+          setDecibelNetwork(data.network);
+        }
       }
     } catch {
       setMarketNames({});
+      setMarketsMap({});
     }
   }, []);
 
@@ -243,6 +285,134 @@ export function DecibelPositions() {
     };
     window.addEventListener('refreshPositions', handler as EventListener);
     return () => window.removeEventListener('refreshPositions', handler as EventListener);
+  }, []);
+
+  const positionKey = (pos: DecibelPosition) => `${pos.market}-${pos.user}-${pos.size}-${pos.entry_price}`;
+
+  const handleCloseClick = (pos: DecibelPosition) => {
+    setCloseConfirmPosition(pos);
+  };
+
+  const handleConfirmClose = useCallback(async () => {
+    const pos = closeConfirmPosition;
+    if (!pos || (!signTransaction && !signAndSubmitTransaction) || !account?.address) {
+      setCloseConfirmPosition(null);
+      return;
+    }
+    const key = positionKey(pos);
+    setClosingPositionKey(key);
+    try {
+      const pricesRes = await fetch(`/api/protocols/decibel/prices?market=${encodeURIComponent(pos.market)}`);
+      const pricesData = await pricesRes.json();
+      const pricesList = pricesData.success && Array.isArray(pricesData.data) ? pricesData.data : [];
+      const priceItem = pricesList.find((p: { market?: string }) => normalizeAddress(p.market || '') === normalizeAddress(pos.market))
+        ?? pricesList[0];
+      const markPx = priceItem?.mark_px ?? priceItem?.mid_px ?? pos.entry_price;
+      const marketKey = normalizeAddress(pos.market);
+      const marketConfig =
+        marketsMap[marketKey] ??
+        Object.values(marketsMap).find((m) => normalizeAddress(m.market_addr || '') === marketKey);
+      if (!marketConfig) {
+        toast({ title: 'Error', description: 'Market config not found. Try refreshing.', variant: 'destructive' });
+        setCloseConfirmPosition(null);
+        setClosingPositionKey(null);
+        return;
+      }
+      const payload = buildCloseAtMarketPayload({
+        subaccountAddr: pos.user,
+        marketAddr: pos.market,
+        size: Math.abs(pos.size),
+        isLong: pos.size > 0,
+        markPx,
+        marketConfig,
+        slippageBps: 50,
+        isTestnet: decibelNetwork === 'testnet',
+      });
+
+      let txHash: string;
+
+      if (signAndSubmitTransaction) {
+        // Primary path: wallet handles sign + submit (avoids normalizeAuthenticator/INVALID_AUTH_KEY)
+        const result = await signAndSubmitTransaction({
+          data: {
+            function: payload.function as `${string}::${string}::${string}`,
+            typeArguments: payload.typeArguments,
+            functionArguments: payload.functionArguments,
+          },
+          options: { maxGasAmount: 20000 },
+        });
+        txHash = typeof result?.hash === 'string' ? result.hash : (result as { hash?: string })?.hash ?? '';
+      } else if (signTransaction) {
+        // Fallback: manual sign + submit (Decibel not in Gas Station rules)
+        const aptos = getDecibelAptosClient(decibelNetwork);
+        const senderAddr = AccountAddress.fromString(account.address.toString());
+        const transaction = await aptos.transaction.build.simple({
+          sender: senderAddr,
+          data: {
+            function: payload.function as `${string}::${string}::${string}`,
+            typeArguments: payload.typeArguments,
+            functionArguments: payload.functionArguments,
+          },
+          options: { maxGasAmount: 20000 },
+        });
+        console.log('[Decibel] sender:', transaction.sender?.toString());
+        console.log('[Decibel] wallet:', account?.address);
+        const signResult = await signTransaction({ transactionOrPayload: transaction });
+        console.log('[Decibel] signResult keys:', Object.keys(signResult ?? {}));
+        const { authenticator } = signResult;
+        const response = await aptos.transaction.submit.simple({
+          transaction,
+          senderAuthenticator: normalizeAuthenticator(authenticator),
+        });
+        txHash = typeof response?.hash === 'string' ? response.hash : (response as { hash?: string })?.hash ?? '';
+      } else {
+        throw new Error('Wallet does not support signing transactions');
+      }
+      toast({
+        title: 'Position closed',
+        description: txHash ? `Transaction ${txHash.slice(0, 6)}...${txHash.slice(-4)}` : 'Transaction submitted',
+        action: txHash ? (
+          <ToastAction
+            altText="View in Explorer"
+            onClick={() =>
+              window.open(
+                `https://explorer.aptoslabs.com/txn/${txHash}?network=${decibelNetwork === 'mainnet' ? 'mainnet' : 'testnet'}`,
+                '_blank'
+              )
+            }
+          >
+            View in Explorer
+          </ToastAction>
+        ) : undefined,
+      });
+      setCloseConfirmPosition(null);
+      fetchPositions();
+    } catch (err: unknown) {
+      const rawMsg =
+        err instanceof Error
+          ? err.message
+          : typeof err === 'object' && err !== null && 'message' in err
+            ? String((err as { message: unknown }).message)
+            : String(err);
+      const testnetHint =
+        decibelNetwork === 'testnet'
+          ? ' Switch your wallet to Aptos Testnet and try again.'
+          : '';
+      const msg = rawMsg || 'Failed to close position';
+      console.error('[Decibel] Close position error:', err);
+      toast({
+        title: 'Error',
+        description: msg + testnetHint,
+        variant: 'destructive',
+      });
+      setCloseConfirmPosition(null);
+    } finally {
+      setClosingPositionKey(null);
+    }
+  }, [closeConfirmPosition, signTransaction, signAndSubmitTransaction, account?.address, marketsMap, decibelNetwork, fetchPositions, toast]);
+
+  const handleCancelClose = useCallback(() => {
+    setCloseConfirmPosition(null);
   }, []);
 
   if (!account?.address) {
@@ -374,9 +544,19 @@ export function DecibelPositions() {
                         </span>
                       )}
                     </div>
-                    <span className="text-base font-medium text-muted-foreground shrink-0">
-                      Margin: {formatCurrency(marginUsd, 2)}
-                    </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-base font-medium text-muted-foreground">
+                        Margin: {formatCurrency(marginUsd, 2)}
+                      </span>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleCloseClick(pos)}
+                        disabled={!!closingPositionKey}
+                      >
+                        {closingPositionKey === positionKey(pos) ? 'Closing…' : 'Close'}
+                      </Button>
+                    </div>
                   </div>
                   <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-base">
                     <div>
@@ -425,6 +605,39 @@ export function DecibelPositions() {
               );
             })}
           </ul>
+          <Dialog open={!!closeConfirmPosition} onOpenChange={(open) => !open && handleCancelClose()}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Close position</DialogTitle>
+                <DialogDescription>
+                  {closeConfirmPosition && (
+                    <>
+                      Close {formatSize(Math.abs(closeConfirmPosition.size))}{' '}
+                      {formatDecibelMarket(marketNames[normalizeAddress(closeConfirmPosition.market)] ?? closeConfirmPosition.market).displayPair}{' '}
+                      at market price? This will execute immediately (IOC).
+                      {decibelNetwork === 'testnet' && (
+                        <span className="mt-2 block text-amber-600 dark:text-amber-400 font-medium">
+                          Switch your wallet to Aptos Testnet before closing.
+                        </span>
+                      )}
+                    </>
+                  )}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={handleCancelClose} disabled={!!closingPositionKey}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleConfirmClose}
+                  disabled={!!closingPositionKey || !closeConfirmPosition}
+                >
+                  {closingPositionKey ? 'Closing…' : 'Close at market'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </>
       )}
 
