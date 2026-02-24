@@ -15,6 +15,7 @@ import styles from "./ProtocolCard.module.css";
 export interface ProtocolCardProps {
   protocol: Protocol;
   totalValue: number;
+  totalRewardsUsd?: string;
   positions?: ProtocolPosition[];
   isLoading?: boolean;
   className?: string;
@@ -23,6 +24,7 @@ export interface ProtocolCardProps {
 export function ProtocolCard({
   protocol,
   totalValue,
+  totalRewardsUsd,
   positions = [],
   isLoading = false,
   className,
@@ -64,6 +66,14 @@ export function ProtocolCard({
             positions.map((pos, i) => (
               <ProtocolCardPosition key={pos.id ?? i} position={pos} />
             ))}
+          {totalRewardsUsd && (
+            <div className={styles.totalRewardsRow}>
+              <span className={styles.totalRewardsLabel}>💰 Total rewards:</span>
+              <span className={styles.totalRewardsValue}>
+                {totalRewardsUsd}
+              </span>
+            </div>
+          )}
           <ManagePositionsButton protocol={protocol} />
         </div>
       )}

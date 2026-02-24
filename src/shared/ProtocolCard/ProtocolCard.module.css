@@ -36,6 +36,25 @@
   animation: contentIn 0.2s ease;
 }
 
+.totalRewardsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.5rem;
+  margin-bottom: 0.25rem;
+  gap: 0.5rem;
+}
+
+.totalRewardsLabel {
+  font-size: 0.8rem;
+  color: var(--muted-foreground);
+}
+
+.totalRewardsValue {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
 @keyframes contentIn {
   from { opacity: 0; }
   to { opacity: 1; }
