@@ -568,30 +568,59 @@ export function DecibelPositions() {
               const pricePnl = pos.size * (markPx - pos.entry_price);
               const fundingDisplay = -pos.unrealized_funding;
               const totalPnl = pricePnl + fundingDisplay;
+              const pnlPercent = marginUsd > 0 ? (totalPnl / marginUsd) * 100 : 0;
+              const isLong = pos.size > 0;
+              const pnlColor = totalPnl > 0 ? 'text-green-600 dark:text-green-400' : totalPnl < 0 ? 'text-destructive' : 'text-muted-foreground';
+              const pricePnlColor = pricePnl > 0 ? 'text-green-600 dark:text-green-400' : pricePnl < 0 ? 'text-destructive' : 'text-muted-foreground';
+              const fundingColor = fundingDisplay > 0 ? 'text-green-600 dark:text-green-400' : fundingDisplay < 0 ? 'text-destructive' : 'text-muted-foreground';
               return (
                 <li
                   key={`${pos.market}-${pos.user}-${i}`}
-                  className="rounded-lg border bg-card p-3 text-card-foreground shadow-sm"
+                  className="rounded-lg border bg-card p-4 text-card-foreground shadow-sm"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 flex-wrap">
+                  {/* Top: pair info | Total PnL, Margin, Close */}
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
                       <span className="font-medium">{displayPair}</span>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          'text-xs font-medium shrink-0',
+                          isLong ? 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20' : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'
+                        )}
+                      >
+                        {isLong ? 'Long' : 'Short'}
+                      </Badge>
+                      <span className="text-sm text-muted-foreground shrink-0">{pos.user_leverage}x</span>
                       {pos.is_isolated && (
-                        <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">
+                        <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
                           Isolated
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className={cn(
-                        'text-base font-medium',
-                        totalPnl > 0 ? 'text-green-600 dark:text-green-400' : totalPnl < 0 ? 'text-destructive' : 'text-muted-foreground'
-                      )}>
-                        PnL: {totalPnl >= 0 ? '+' : ''}{formatCurrency(totalPnl, 2)}
+                    <div className="flex flex-col items-end shrink-0 ml-auto">
+                      <span className={cn('text-2xl font-semibold text-right', pnlColor)}>
+                        {totalPnl >= 0 ? '+' : ''}{formatCurrency(totalPnl, 2)}
                       </span>
+                      <span className={cn('text-lg font-medium text-right', pnlColor)}>
+                        ({pnlPercent >= 0 ? '+' : ''}{formatNumber(pnlPercent, 2)}%)
+                      </span>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-sm text-muted-foreground mt-1 cursor-help">
+                              Margin: {formatCurrency(marginUsd, 2)}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="left" className="max-w-[220px]">
+                            <p>Initial margin (collateral at risk) = Notional ÷ Leverage. Used for % PnL and liquidation.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                       <Button
                         variant="destructive"
                         size="sm"
+                        className="mt-2 self-end"
                         onClick={() => handleCloseClick(pos)}
                         disabled={!!closingPositionKey}
                       >
@@ -599,22 +628,38 @@ export function DecibelPositions() {
                       </Button>
                     </div>
                   </div>
-                  <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-base">
+                  {/* PnL breakdown below, with horizontal line */}
+                  <div className="mt-2 pt-2 border-t border-border flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                    <span className="text-muted-foreground">Est. PnL (price):</span>
+                    <span className={pricePnlColor}>{pricePnl >= 0 ? '+' : ''}{formatCurrency(pricePnl, 2)}</span>
+                    <span className="text-muted-foreground">|</span>
+                    <span className="text-muted-foreground">Funding:</span>
+                    <span className={fundingColor}>{fundingDisplay >= 0 ? '+' : ''}{formatCurrency(fundingDisplay, 2)}</span>
+                    <span className="text-muted-foreground">|</span>
+                    <span className="text-muted-foreground">Total:</span>
+                    <span className={pnlColor}>{totalPnl >= 0 ? '+' : ''}{formatCurrency(totalPnl, 2)}</span>
+                  </div>
+                  {/* Details: Entry, Mark, Liq. price, Size, Value — compact, no extra gap */}
+                  <div className="mt-2 pt-2 border-t border-border grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 text-sm">
                     <div>
-                      <span className="text-muted-foreground">Value (USD)</span>
-                      <span className="ml-2 font-medium">{formatCurrency(notionalUsd, 2)}</span>
+                      <span className="text-muted-foreground">Entry price</span>
+                      <span className="ml-2">
+                        {formatNumber(pos.entry_price)}
+                        {showTokenLabels ? ` ${quote}` : ''}
+                      </span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Margin (USD)</span>
-                      <span className="ml-2 font-medium">{formatCurrency(marginUsd, 2)}</span>
+                      <span className="text-muted-foreground">Mark price</span>
+                      <span className="ml-2">
+                        {formatNumber(markPx)}
+                        {showTokenLabels ? ` ${quote}` : ''}
+                      </span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Funding (USD)</span>
-                      <span className={cn(
-                        'ml-2 font-medium',
-                        -pos.unrealized_funding > 0 ? 'text-green-600 dark:text-green-400' : -pos.unrealized_funding < 0 ? 'text-destructive' : ''
-                      )}>
-                        {formatNumber(-pos.unrealized_funding, 2)}
+                      <span className="text-muted-foreground">Liq. price</span>
+                      <span className="ml-2">
+                        {formatNumber(pos.estimated_liquidation_price)}
+                        {showTokenLabels ? ` ${quote}` : ''}
                       </span>
                     </div>
                     <div>
@@ -627,22 +672,8 @@ export function DecibelPositions() {
                       </span>
                     </div>
                     <div>
-                      <span className="text-muted-foreground">Entry price</span>
-                      <span className="ml-2">
-                        {formatNumber(pos.entry_price)}
-                        {showTokenLabels ? ` ${quote}` : ''}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Liq. price</span>
-                      <span className="ml-2">
-                        {formatNumber(pos.estimated_liquidation_price)}
-                        {showTokenLabels ? ` ${quote}` : ''}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Leverage</span>
-                      <span className="ml-2">{pos.user_leverage}x</span>
+                      <span className="text-muted-foreground">Value (USD)</span>
+                      <span className="ml-2 font-medium">{formatCurrency(notionalUsd, 2)}</span>
                     </div>
                   </div>
                 </li>
