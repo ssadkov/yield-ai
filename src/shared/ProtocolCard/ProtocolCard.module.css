@@ -6,6 +6,7 @@
   color: var(--card-foreground);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
+  padding: 0.5rem;
 }
 
 .header {
@@ -19,6 +20,7 @@
 
 .header:hover {
   background: var(--accent);
+  border-radius: 5px;
 }
 
 .chevron {

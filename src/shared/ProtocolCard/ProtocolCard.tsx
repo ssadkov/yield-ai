@@ -19,6 +19,8 @@ export interface ProtocolCardProps {
   positions?: ProtocolPosition[];
   isLoading?: boolean;
   className?: string;
+  /** When false, hides the "Manage positions" button (e.g. on portfolio grid). Default true. */
+  showManageButton?: boolean;
 }
 
 export function ProtocolCard({
@@ -28,6 +30,7 @@ export function ProtocolCard({
   positions = [],
   isLoading = false,
   className,
+  showManageButton = true,
 }: ProtocolCardProps) {
   const { isExpanded, toggleSection } = useCollapsible();
   const sectionKey = protocol.key;
@@ -74,7 +77,7 @@ export function ProtocolCard({
               </span>
             </div>
           )}
-          <ManagePositionsButton protocol={protocol} />
+          {showManageButton && <ManagePositionsButton protocol={protocol} />}
         </div>
       )}
     </div>

@@ -186,6 +186,8 @@ export const queryKeys = {
       pools: () => ['protocols', 'moar', 'pools'] as const,
       userPositions: (address: string) =>
         ['protocols', 'moar', 'userPositions', address] as const,
+      rewards: (address: string) =>
+        ['protocols', 'moar', 'rewards', address] as const,
     },
 
     /**

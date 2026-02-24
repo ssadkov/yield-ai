@@ -38,7 +38,7 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
     
     try {
       setIsRefreshing(true);
-      
+
       // Специальная обработка для разных протоколов
       let apiPath = protocol.name.toLowerCase();
       let endpoint = 'userPositions';
@@ -55,8 +55,21 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
         apiPath = 'aave';
         endpoint = 'positions'; // AAVE использует endpoint 'positions' вместо 'userPositions'
       } else if (protocol.name.toLowerCase().includes('moar')) {
+        // For Moar we now rely entirely on TanStack Query hooks + cache invalidation.
+        // Just dispatch the refresh event; protocol components will invalidate and refetch.
         apiPath = 'moar';
         endpoint = 'userPositions';
+
+        window.dispatchEvent(new CustomEvent('refreshPositions', { 
+          detail: { protocol: apiPath }
+        }));
+
+        toast({
+          title: "Success",
+          description: `${protocol.name} positions refreshed successfully`,
+        });
+
+        return;
       } else if (protocol.name.toLowerCase().includes('earnium')) {
         apiPath = 'earnium';
         endpoint = 'userPositions';

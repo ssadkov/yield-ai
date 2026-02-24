@@ -37,44 +37,6 @@ import { RefreshCw } from "lucide-react";
 import { CollapsibleControls } from "@/components/ui/collapsible-controls";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/utils/numberFormat";
-import { ProtocolCard } from "@/shared/ProtocolCard";
-import { PositionBadge, type ProtocolPosition } from "@/shared/ProtocolCard/types";
-
-/** Мок-данные для демонстрации общего компонента карты протокола (можно убрать после рефакторинга) */
-const MOCK_PROTOCOL_CARDS: Array<{
-  protocolName: string;
-  totalValue: number;
-  positions?: ProtocolPosition[];
-}> = [
-  {
-    protocolName: "Hyperion",
-    totalValue: 1790.12,
-    positions: [
-      { id: "1", label: "APT/USDC", value: 800, logoUrl: "/favicon.ico", logoUrl2: "/favicon.ico", badge: PositionBadge.Active, apr: 14.2 },
-      { id: "2", label: "APT/USDT", value: 434.56, logoUrl: "/favicon.ico", logoUrl2: "/favicon.ico", badge: PositionBadge.Active, apr: 9.85 },
-      { id: "3", label: "USDC/USDT", value: 555.56, logoUrl: "/favicon.ico", logoUrl2: "/favicon.ico", badge: PositionBadge.Inactive, apr: 0.0 },
-    ],
-  },
-  {
-    protocolName: "Echelon",
-    totalValue: 612.34,
-    positions: [
-      { id: "1", label: "APT", value: 400, logoUrl: "/favicon.ico", badge: PositionBadge.Supply, subLabel: "100.5 APT", price: 3.98, apr: 11.3 },
-      { id: "2", label: "USDC", value: 167.89, logoUrl: "/favicon.ico", badge: PositionBadge.Borrow, subLabel: "167.89 USDC", price: 1, apr: 4.1 },
-      { id: "3", label: "USDT", value: 44.45, logoUrl: "/favicon.ico", badge: PositionBadge.Supply, subLabel: "44.45 USDT", price: 1, apr: 2.5 },
-    ],
-  },
-  {
-    protocolName: "Aave",
-    totalValue: 312.5,
-    positions: [
-      { id: "1", label: "ETH", value: 89.12, logoUrl: "/favicon.ico", badge: PositionBadge.Supply, subLabel: "0.025 ETH", price: 3564.8, apr: 3.4 },
-      { id: "2", label: "WBTC", value: 198.24, logoUrl: "/favicon.ico", badge: PositionBadge.Supply, subLabel: "0.0021 WBTC", price: 94352, apr: 2.1 },
-      { id: "3", label: "USDC", value: 25.14, logoUrl: "/favicon.ico", badge: PositionBadge.Borrow, subLabel: "25.14 USDC", price: 1, apr: 6.75 },
-    ],
-  },
-];
-
 export default function Sidebar() {
   // Use native restore hook to ensure native Aptos wallets are reconnected
   const { account } = useAptosNativeRestore();
@@ -338,25 +300,6 @@ export default function Sidebar() {
                 </div>
               </div>
             )}
-
-            999
-            {account?.address && (
-              <div className="space-y-4 mb-4">
-                {MOCK_PROTOCOL_CARDS.map(({ protocolName, totalValue, positions }, i) => {
-                  const protocol = getProtocolByName(protocolName);
-                  return protocol ? (
-                    <ProtocolCard
-                      key={protocol.key}
-                      protocol={protocol}
-                      totalValue={totalValue}
-                      positions={positions}
-                      isLoading={i === 1}
-                    />
-                  ) : null;
-                })}
-              </div>
-            )}
-            999
 
             {/* Aptos-портфель и протоколы — только если есть Aptos-аккаунт */}
             {account?.address ? (
