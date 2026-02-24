@@ -71,7 +71,11 @@ export function PositionsList({
   );
 
   const totalRewardsUsd =
-    rewardsTotalUsd > 0 ? formatCurrency(rewardsTotalUsd, 2) : undefined;
+    rewardsTotalUsd > 0
+      ? rewardsTotalUsd < 1
+        ? "<$1"
+        : formatCurrency(rewardsTotalUsd, 2)
+      : undefined;
 
   const isLoading = positionsLoading || rewardsLoading;
   const hasError = Boolean(positionsError);
