@@ -1,12 +1,21 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { useEchelonRewards } from "@/lib/query/hooks/protocols/echelon";
+
+interface EchelonReward {
+  token: string;
+  tokenType: string;
+  rewardName?: string;
+  amount: number;
+  rawAmount: string;
+  farmingId: string;
+  stakeAmount: number;
+}
 
 interface RewardsListProps {
   walletAddress: string;
@@ -15,11 +24,38 @@ interface RewardsListProps {
 }
 
 export default function RewardsList({ walletAddress, isOpen = false, onToggle }: RewardsListProps) {
-  const { data: rewards = [], isLoading: loading, error: queryError } = useEchelonRewards(
-    walletAddress,
-    { enabled: isOpen && !!walletAddress && walletAddress.length >= 10 }
-  );
-  const error = queryError ? (queryError instanceof Error ? queryError.message : "Unknown error") : null;
+  const [rewards, setRewards] = useState<EchelonReward[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchRewards = async () => {
+    if (!walletAddress) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/protocols/echelon/rewards?address=${encodeURIComponent(walletAddress)}`);
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setRewards(data.data || []);
+      } else {
+        throw new Error(data.error || "Failed to fetch rewards");
+      }
+    } catch (err) {
+      console.error("Error fetching Echelon rewards:", err);
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen && walletAddress) {
+      fetchRewards();
+    }
+  }, [isOpen, walletAddress]);
 
   const getTokenIcon = (tokenName: string) => {
     if (tokenName.toLowerCase().includes('aptos') || tokenName.toLowerCase().includes('apt')) {

@@ -119,21 +119,6 @@ export const queryKeys = {
       ['protocols', protocol, 'userPositions', address] as const,
 
     /**
-     * Echelon protocol specific queries
-     */
-    echelon: {
-      pools: () => ['protocols', 'echelon', 'pools'] as const,
-      userPositions: (address: string) =>
-        ['protocols', 'echelon', 'userPositions', address] as const,
-      markets: () => ['protocols', 'echelon', 'markets'] as const,
-      rewards: (address: string) =>
-        ['protocols', 'echelon', 'rewards', address] as const,
-      vault: (address: string) =>
-        ['protocols', 'echelon', 'vault', address] as const,
-      poolsV2: () => ['protocols', 'echelon', 'pools', 'v2'] as const,
-    },
-
-    /**
      * Hyperion protocol specific queries
      */
     hyperion: {

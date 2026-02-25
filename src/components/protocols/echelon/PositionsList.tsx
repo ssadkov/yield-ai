@@ -1,5 +1,4 @@
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
@@ -16,14 +15,6 @@ import { createDualAddressPriceMap } from "@/lib/utils/addressNormalization";
 import { TokenInfoService } from "@/lib/services/tokenInfoService";
 import { formatNumber } from "@/lib/utils/numberFormat";
 import { Badge } from "@/components/ui/badge";
-import {
-  useEchelonPositions,
-  useEchelonRewards,
-  useEchelonPools,
-  type EchelonPosition,
-  type EchelonReward,
-} from "@/lib/query/hooks/protocols/echelon";
-import { queryKeys } from "@/lib/query/queryKeys";
 
 interface PositionsListProps {
   address?: string;
@@ -31,6 +22,16 @@ interface PositionsListProps {
   refreshKey?: number;
   onPositionsCheckComplete?: () => void;
   showManageButton?: boolean;
+}
+
+interface Position {
+  market: string;
+  coin: string;
+  supply: number;
+  supplyApr: number;
+  borrow?: number;
+  amount?: number;
+  type?: string; // supply или borrow
 }
 
 interface TokenInfo {
@@ -41,56 +42,31 @@ interface TokenInfo {
   usdPrice: string | null;
 }
 
+interface EchelonReward {
+  token: string;
+  tokenType: string;
+  rewardName?: string;
+  amount: number;
+  rawAmount: string;
+  farmingId: string;
+  stakeAmount: number;
+}
+
 export function PositionsList({ address, onPositionsValueChange, refreshKey, onPositionsCheckComplete, showManageButton=true }: PositionsListProps) {
   const { account } = useWallet();
-  const queryClient = useQueryClient();
-  const walletAddress = address || account?.address?.toString();
-
-  const { data: positions = [], isLoading: loading, error: positionsError } = useEchelonPositions(walletAddress);
-  const { data: rewardsData = [] } = useEchelonRewards(walletAddress);
-  const { data: poolsResponse } = useEchelonPools();
-
+  const [positions, setPositions] = useState<Position[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [tokenPrices, setTokenPrices] = useState<Record<string, string>>({});
+  const [rewardsData, setRewardsData] = useState<EchelonReward[]>([]);
+  const [apyData, setApyData] = useState<Record<string, any>>({});
   const [fallbackTokenInfo, setFallbackTokenInfo] = useState<Record<string, TokenInfo>>({});
   const { isExpanded, toggleSection } = useCollapsible();
   const pricesService = PanoraPricesService.getInstance();
 
+  const walletAddress = address || account?.address?.toString();
+
   const protocol = getProtocolByName("Echelon");
-  const error = positionsError ? "Failed to load Echelon positions" : null;
-
-  const onValueRef = useRef(onPositionsValueChange);
-  const onCompleteRef = useRef(onPositionsCheckComplete);
-  onValueRef.current = onPositionsValueChange;
-  onCompleteRef.current = onPositionsCheckComplete;
-
-  const apyData = useMemo(() => {
-    if (!poolsResponse?.data) return {};
-    const mapping: Record<string, { supplyAPY: number; borrowAPY: number; supplyRewardsApr?: number; borrowRewardsApr?: number; marketAddress?: string; asset?: string }> = {};
-    poolsResponse.data.forEach((pool) => {
-      mapping[pool.token] = {
-        supplyAPY: pool.depositApy,
-        borrowAPY: pool.borrowAPY,
-        supplyRewardsApr: pool.supplyRewardsApr,
-        borrowRewardsApr: pool.borrowRewardsApr,
-        marketAddress: pool.marketAddress,
-        asset: pool.asset,
-      };
-    });
-    return mapping;
-  }, [poolsResponse?.data]);
-
-  useEffect(() => {
-    if (refreshKey != null && walletAddress) {
-      queryClient.invalidateQueries({ queryKey: queryKeys.protocols.echelon.userPositions(walletAddress) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.protocols.echelon.rewards(walletAddress) });
-    }
-  }, [refreshKey, walletAddress, queryClient]);
-
-  useEffect(() => {
-    if (!loading) {
-      onCompleteRef.current?.();
-    }
-  }, [loading]);
 
   // Получаем цену токена из кэша
   const getTokenPrice = (coinAddress: string): string => {
@@ -209,6 +185,29 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
     return totalValue;
   }, [rewardsData, getRewardTokenInfoHelper, tokenPrices]);
 
+  // Функция для загрузки наград
+  const fetchRewards = useCallback(async () => {
+    if (!walletAddress || walletAddress.length < 10) return;
+
+    try {
+      const response = await fetch(`/api/protocols/echelon/rewards?address=${walletAddress}`);
+
+      if (!response.ok) {
+        throw new Error(`API returned status ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.data) {
+        setRewardsData(data.data);
+      } else {
+        setRewardsData([]);
+      }
+    } catch (error) {
+      setRewardsData([]);
+    }
+  }, [walletAddress]);
+
   // Получаем все уникальные адреса токенов из позиций
   const getAllTokenAddresses = useCallback(() => {
     const addresses = new Set<string>();
@@ -310,6 +309,75 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
     return () => clearTimeout(timeoutId);
   }, [getAllTokenAddresses, pricesService]);
 
+      // Загружаем APR данные из того же источника, что и Pro вкладка
+  useEffect(() => {
+    fetch('/api/protocols/echelon/v2/pools')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.data) {
+          // Создаем маппинг token -> APR данные
+          const apyMapping: Record<string, any> = {};
+          data.data.forEach((pool: any) => {
+            apyMapping[pool.token] = {
+              supplyAPY: pool.depositApy,
+              borrowAPY: pool.borrowAPY,
+              supplyRewardsApr: pool.supplyRewardsApr,
+              borrowRewardsApr: pool.borrowRewardsApr,
+              marketAddress: pool.marketAddress,
+              asset: pool.asset
+            };
+          });
+          setApyData(apyMapping);
+        }
+      })
+              .catch(error => {
+          // APR data load error
+      });
+  }, []);
+
+  // Объединенный useEffect для загрузки позиций и наград с дебаунсингом
+  useEffect(() => {
+    if (!walletAddress || walletAddress.length < 10) {
+      setPositions((prev) => prev);
+      setRewardsData((prev) => prev);
+      onPositionsCheckComplete?.();
+      return;
+    }
+
+    const timeoutId = setTimeout(async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        // Загружаем позиции
+        const positionsResponse = await fetch(`/api/protocols/echelon/userPositions?address=${walletAddress}`);
+
+        if (!positionsResponse.ok) {
+          throw new Error(`Positions API returned status ${positionsResponse.status}`);
+        }
+
+        const positionsData = await positionsResponse.json();
+
+        if (positionsData.success && Array.isArray(positionsData.data)) {
+          setPositions(positionsData.data);
+        } else {
+          setPositions([]);
+        }
+
+        // Загружаем награды
+        await fetchRewards();
+      } catch (err) {
+        setError('Failed to load Echelon positions');
+        // keep previous positions to avoid flicker
+      } finally {
+        setLoading(false);
+        onPositionsCheckComplete?.();
+      }
+    }, 500); // Дебаунсинг 500мс
+
+    return () => clearTimeout(timeoutId);
+  }, [walletAddress, refreshKey, fetchRewards]);
+
   // Load token info for unknown tokens using fallback APIs
   useEffect(() => {
     const loadUnknownTokens = async () => {
@@ -384,19 +452,22 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
     loadUnknownTokens();
   }, [positions]);
 
-  // Получить APR для позиции
-  const getApyForPosition = (position: EchelonPosition) => {
+      // Получить APR для позиции
+  const getApyForPosition = (position: Position) => {
+          // Сначала пытаемся найти данные в новом APR маппинге
     const poolData = apyData[position.coin];
     if (poolData) {
       if (position.type === 'supply') {
-        const apy = poolData.supplyAPY / 100;
-        return apy * 100;
+        const apy = poolData.supplyAPY / 100; // Конвертируем из процентов в десятичную форму
+        return apy * 100; // Возвращаем в процентах для отображения
       } else if (position.type === 'borrow') {
         const apy = poolData.borrowAPY / 100;
         return apy * 100;
       }
     }
-    return 0;
+
+    // Fallback на старые данные
+    return position.supplyApr || 0;
   };
 
   // Мемоизируем расчет общей суммы
@@ -436,10 +507,10 @@ export function PositionsList({ address, onPositionsValueChange, refreshKey, onP
     });
   }, [positions, tokenPrices]);
 
-  // Вызываем колбэк при изменении общей суммы позиций (ref чтобы не триггерить родителя на каждый рендер)
+  // Вызываем колбэк при изменении общей суммы позиций
   useEffect(() => {
-    onValueRef.current?.(totalValue);
-  }, [totalValue]);
+    onPositionsValueChange?.(totalValue);
+  }, [totalValue, onPositionsValueChange]);
 
   // Если идет загрузка, не отображаем блок
   if (loading) {
