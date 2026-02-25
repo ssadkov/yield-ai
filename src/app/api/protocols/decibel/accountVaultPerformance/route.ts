@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { normalizeAddress } from '@/lib/utils/addressNormalization';
+import { deriveVaultApr } from '@/lib/protocols/decibel/vaultApr';
+
+type AccountVaultPerfItem = { vault?: unknown } & Record<string, unknown>;
 
 const DECIBEL_API_KEY = process.env.DECIBEL_API_KEY;
 const DECIBEL_API_BASE_URL =
@@ -39,7 +42,7 @@ export async function GET(request: NextRequest) {
       'Content-Type': 'application/json',
     };
 
-    const fetchVaultPerf = async (account: string): Promise<unknown[]> => {
+    const fetchVaultPerf = async (account: string): Promise<AccountVaultPerfItem[]> => {
       const params = new URLSearchParams({ account });
       if (offset !== null && offset !== undefined) params.set('offset', offset);
       if (limit !== null && limit !== undefined) params.set('limit', limit);
@@ -49,13 +52,13 @@ export async function GET(request: NextRequest) {
       if (!res.ok) return [];
       try {
         const parsed = text ? JSON.parse(text) : [];
-        return Array.isArray(parsed) ? parsed : [];
+        return Array.isArray(parsed) ? (parsed as AccountVaultPerfItem[]) : [];
       } catch {
         return [];
       }
     };
 
-    let list = await fetchVaultPerf(normalizedAddr);
+    let list: AccountVaultPerfItem[] = await fetchVaultPerf(normalizedAddr);
 
     if (list.length === 0) {
       const subRes = await fetch(
@@ -75,11 +78,9 @@ export async function GET(request: NextRequest) {
           const subAddr = sub.subaccount_address;
           if (!subAddr) continue;
           const subList = await fetchVaultPerf(subAddr);
-          const seen = new Set(
-            (list as { vault?: { id?: string } }[]).map((v) => v.vault?.id ?? '')
-          );
-          for (const v of subList as { vault?: { id?: string } }[]) {
-            const id = v.vault?.id ?? '';
+          const seen = new Set(list.map((v) => ((v.vault as { id?: string } | undefined)?.id ?? '')));
+          for (const v of subList) {
+            const id = (v.vault as { id?: string } | undefined)?.id ?? '';
             if (id && !seen.has(id)) {
               seen.add(id);
               list.push(v);
@@ -101,13 +102,20 @@ export async function GET(request: NextRequest) {
         const textM = await resM.text();
         try {
           const parsed = textM ? JSON.parse(textM) : [];
-          list = Array.isArray(parsed) ? parsed : [];
+          list = Array.isArray(parsed) ? (parsed as AccountVaultPerfItem[]) : [];
         } catch {
           // keep list
         }
       }
     }
-    return NextResponse.json({ success: true, data: list });
+
+    // Enrich each item with derived APR when vault has return metrics but no apr field
+    const enriched = list.map((item) => {
+      const apr = deriveVaultApr(item.vault as Parameters<typeof deriveVaultApr>[0]);
+      return { ...item, apr: apr ?? undefined };
+    });
+
+    return NextResponse.json({ success: true, data: enriched });
   } catch (error) {
     console.error('[Decibel] accountVaultPerformance error:', error);
     return NextResponse.json(

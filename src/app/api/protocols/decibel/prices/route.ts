@@ -1,16 +1,21 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 const DECIBEL_API_KEY = process.env.DECIBEL_API_KEY;
 const DECIBEL_API_BASE_URL =
   process.env.DECIBEL_API_BASE_URL || 'https://api.testnet.aptoslabs.com/decibel';
+const DECIBEL_MAINNET_URL = 'https://api.netna.aptoslabs.com/decibel';
 
 /**
- * GET /api/protocols/decibel/markets
- * Proxies to Decibel markets API. Returns all available markets with market_addr and market_name
- * so positions can display e.g. "BTC-USDC" instead of the market address.
+ * GET /api/protocols/decibel/prices
+ * Proxies to Decibel prices API. Returns current market prices (oracle, mark, mid).
+ * Optional ?market=<addr> to filter by market. Omit for all markets.
+ * Requires DECIBEL_API_KEY (Bearer token). Optional DECIBEL_API_BASE_URL (default: testnet).
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const market = searchParams.get('market');
+
     if (!DECIBEL_API_KEY) {
       return NextResponse.json(
         { success: false, error: 'Decibel API key not configured' },
@@ -19,7 +24,10 @@ export async function GET() {
     }
 
     const baseUrl = DECIBEL_API_BASE_URL.replace(/\/$/, '');
-    const url = `${baseUrl}/api/v1/markets`;
+    let url = `${baseUrl}/api/v1/prices`;
+    if (market && market.trim()) {
+      url += `?market=${encodeURIComponent(market.trim())}`;
+    }
 
     const response = await fetch(url, {
       method: 'GET',
@@ -45,7 +53,9 @@ export async function GET() {
         {
           success: false,
           error:
-            typeof data === 'object' && data !== null && 'message' in (data as object)
+            typeof data === 'object' &&
+            data !== null &&
+            'message' in (data as object)
               ? (data as { message: string }).message
               : `Decibel API error: ${response.status}`,
         },
@@ -53,15 +63,10 @@ export async function GET() {
       );
     }
 
-    const list = Array.isArray(data) ? data : [];
-    const isTestnet = baseUrl.includes('testnet');
-    return NextResponse.json({
-      success: true,
-      data: list,
-      network: isTestnet ? 'testnet' : 'mainnet',
-    });
+    const list = Array.isArray(data) ? data : [data];
+    return NextResponse.json({ success: true, data: list });
   } catch (error) {
-    console.error('[Decibel] markets error:', error);
+    console.error('[Decibel] prices error:', error);
     return NextResponse.json(
       {
         success: false,
