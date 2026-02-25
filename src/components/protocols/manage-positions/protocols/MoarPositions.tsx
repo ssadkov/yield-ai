@@ -751,11 +751,11 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
           }}
           tokenInfo={{
             symbol: selectedPosition.assetInfo.symbol,
-            logoUrl: selectedPosition.assetInfo.logoUrl,
+            logoUrl: selectedPosition.assetInfo.logoUrl ?? undefined,
             decimals: selectedPosition.assetInfo.decimals
           }}
           isLoading={isWithdrawing}
-          userAddress={walletAddress?.toString()}
+          userAddress={walletAddress != null ? String(walletAddress) : undefined}
         />
       )}
 
@@ -779,7 +779,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
           }}
           tokenIn={{
             symbol: selectedDepositPosition.assetInfo.symbol,
-            logo: selectedDepositPosition.assetInfo.logoUrl,
+            logo: selectedDepositPosition.assetInfo.logoUrl ?? '',
             decimals: selectedDepositPosition.assetInfo.decimals,
             address: (() => {
               if (selectedDepositPosition.assetInfo.symbol === 'APT') {
@@ -792,7 +792,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
           }}
           tokenOut={{
             symbol: selectedDepositPosition.assetInfo.symbol,
-            logo: selectedDepositPosition.assetInfo.logoUrl,
+            logo: selectedDepositPosition.assetInfo.logoUrl ?? '',
             decimals: selectedDepositPosition.assetInfo.decimals,
             address: (() => {
               if (selectedDepositPosition.assetInfo.symbol === 'APT') {
