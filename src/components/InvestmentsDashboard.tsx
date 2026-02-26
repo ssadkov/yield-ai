@@ -95,7 +95,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     'Kofi Finance': true,
     'Echelon': true,
     'Aave': true,
-    'Moar Market': true
+    'Moar Market': true,
+    'Decibel': true
   });
   const [protocolsError, setProtocolsError] = useState<Record<string, string | null>>({});
   const [protocolsData, setProtocolsData] = useState<Record<string, InvestmentData[]>>({});
@@ -109,7 +110,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     'Kofi Finance': '/protocol_ico/kofi.png',
     'Echelon': '/protocol_ico/echelon.png',
     'Aave': '/protocol_ico/aave.ico',
-    'Moar Market': '/protocol_ico/moar-market-logo-primary.png'
+    'Moar Market': '/protocol_ico/moar-market-logo-primary.png',
+    'Decibel': '/protocol_ico/decibel.png'
   });
   const [claimModalOpen, setClaimModalOpen] = useState(false);
   const [summary, setSummary] = useState<any>(null);
@@ -624,6 +626,34 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   marketAddress: pool.marketAddress || pool.token
                 };
               });
+            }
+          },
+          {
+            name: 'Decibel',
+            url: '/api/protocols/decibel/vaults',
+            logoUrl: '/protocol_ico/decibel.png',
+            transform: (data: any) => {
+              const items = data?.data?.items ?? [];
+              const vault = items.find(
+                (v: { name?: string; address?: string }) =>
+                  v.name === 'Decibel Protocol Vault' ||
+                  v.address === '0x06ad70a9a4f30349b489791e2f2bcf58363dad30e54a9d2d4095d6213d7a9bf9'
+              );
+              if (!vault) return [];
+              const aprPct = typeof vault.apr === 'number' ? vault.apr * 100 : 0;
+              return [
+                {
+                  asset: 'USDC',
+                  provider: 'Decibel',
+                  totalAPY: aprPct,
+                  depositApy: aprPct,
+                  borrowAPY: 0,
+                  token: '0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b',
+                  protocol: 'Decibel',
+                  tvlUSD: typeof vault.tvl === 'number' ? vault.tvl : 0,
+                  marketAddress: vault.address
+                }
+              ];
             }
           }
         ];
@@ -1385,8 +1415,8 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                     const hasDexTokens = !!(item.token1Info && item.token2Info) || !!(item as any).tokensInfo?.length;
 
 
-                    // Включаем все пулы: с tokenInfo, с :: в asset, DEX-пулы с token1Info/token2Info, Echelon пулы, или Moar Market пулы
-                    return hasAssetColon || hasTokenInfo || hasDexTokens || item.protocol === 'Echelon' || item.protocol === 'Moar Market';
+                    // Включаем все пулы: с tokenInfo, с :: в asset, DEX-пулы с token1Info/token2Info, Echelon пулы, Moar Market пулы, или Decibel vault
+                    return hasAssetColon || hasTokenInfo || hasDexTokens || item.protocol === 'Echelon' || item.protocol === 'Moar Market' || item.protocol === 'Decibel';
                   })
                   .sort((a, b) => b.totalAPY - a.totalAPY)
                   .map((item, index) => {
