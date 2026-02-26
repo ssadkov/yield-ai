@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
       }
     }
     const text = await response.text();
-    let data: DecibelRedeemResponse & { message?: string };
+    let data: Partial<DecibelRedeemResponse> & { message?: string };
     try {
       data = text ? (JSON.parse(text) as DecibelRedeemResponse & { message?: string }) : {};
     } catch {
@@ -148,6 +148,15 @@ export async function POST(request: NextRequest) {
               : `Decibel API error: ${response.status}`,
         },
         { status: response.status >= 500 ? 502 : response.status }
+      );
+    }
+    if (typeof data.account !== 'string' || typeof data.referral_code !== 'string') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Invalid response payload from Decibel API',
+        },
+        { status: 502 }
       );
     }
     return NextResponse.json({

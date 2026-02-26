@@ -41,9 +41,9 @@ export async function GET() {
       },
     });
     const text = await response.text();
-    let data: DecibelReferralCodeResponse;
+    let data: Partial<DecibelReferralCodeResponse> & { message?: string };
     try {
-      data = text ? (JSON.parse(text) as DecibelReferralCodeResponse) : ({} as DecibelReferralCodeResponse);
+      data = text ? (JSON.parse(text) as DecibelReferralCodeResponse) : {};
     } catch {
       return NextResponse.json(
         { success: false, error: 'Invalid response from Decibel API' },
@@ -54,10 +54,7 @@ export async function GET() {
       return NextResponse.json(
         {
           success: false,
-          error:
-            typeof data === 'object' && data !== null && 'message' in (data as object)
-              ? (data as { message: string }).message
-              : `Decibel API error: ${response.status}`,
+          error: typeof data.message === 'string' ? data.message : `Decibel API error: ${response.status}`,
         },
         { status: response.status >= 500 ? 502 : response.status }
       );

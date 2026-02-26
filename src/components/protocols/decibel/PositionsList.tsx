@@ -249,7 +249,7 @@ export function PositionsList({
                     </span>
                   </TooltipTrigger>
                   <TooltipContent side="bottom" className="max-w-[220px]">
-                    <p>Decibel testnet funds (positions, available to trade, vaults) are not included in total assets.</p>
+                    <p>Decibel mainnet funds (positions, available to trade, vaults) are not included in total assets.</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -292,7 +292,7 @@ export function PositionsList({
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">Available to trade</span>
                     <Badge variant="secondary" className="text-xs font-normal">
-                      testnet
+                      mainnet
                     </Badge>
                   </div>
                   <span className="text-sm font-medium shrink-0 ml-2">
@@ -305,7 +305,7 @@ export function PositionsList({
                   <div className="flex items-center gap-2 py-0.5">
                     <span className="text-sm font-medium text-muted-foreground">Positions</span>
                     <Badge variant="secondary" className="text-xs font-normal">
-                      testnet
+                      mainnet
                     </Badge>
                   </div>
                   {positions.map((p, i) => (
@@ -335,7 +335,7 @@ export function PositionsList({
               <h4 className="text-sm font-medium mb-2 text-muted-foreground flex items-center gap-2">
                 Vaults
                 <Badge variant="secondary" className="text-xs font-normal">
-                  testnet
+                  mainnet
                 </Badge>
               </h4>
               {vaults.map((v, i) => (

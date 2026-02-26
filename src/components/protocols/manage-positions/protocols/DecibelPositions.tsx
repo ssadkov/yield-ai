@@ -428,7 +428,7 @@ export function DecibelPositions() {
             : String(err);
       const testnetHint =
         decibelNetwork === 'testnet'
-          ? ' Switch your wallet to Aptos Testnet and try again.'
+          ? ' Switch your wallet to Aptos Mainnet and try again.'
           : '';
       const msg = rawMsg || 'Failed to close position';
       console.error('[Decibel] Close position error:', err);
@@ -497,7 +497,7 @@ export function DecibelPositions() {
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground">Available to trade</span>
             <Badge variant="secondary" className="text-xs font-normal">
-              testnet
+              mainnet
             </Badge>
             {hasTestnetData && (
               <TooltipProvider>
@@ -508,7 +508,7 @@ export function DecibelPositions() {
                     </span>
                   </TooltipTrigger>
                   <TooltipContent side="bottom" className="max-w-[220px]">
-                    <p>Decibel testnet funds (positions, available to trade, vaults) are not included in total assets.</p>
+                    <p>Decibel mainnet funds (positions, available to trade, vaults) are not included in total assets.</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -537,7 +537,7 @@ export function DecibelPositions() {
           <div className="flex items-center gap-2">
             <span className="font-medium text-muted-foreground">Positions</span>
             <Badge variant="secondary" className="text-xs font-normal">
-              testnet
+              mainnet
             </Badge>
             {hasTestnetData && (availableToTrade == null && !overviewLoading) && (
               <TooltipProvider>
@@ -548,7 +548,7 @@ export function DecibelPositions() {
                     </span>
                   </TooltipTrigger>
                   <TooltipContent side="bottom" className="max-w-[220px]">
-                    <p>Decibel testnet funds (positions, available to trade, vaults) are not included in total assets.</p>
+                    <p>Decibel mainnet funds (positions, available to trade, vaults) are not included in total assets.</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -692,7 +692,7 @@ export function DecibelPositions() {
                       at market price? This will execute immediately (IOC).
                       {decibelNetwork === 'testnet' && (
                         <span className="mt-2 block text-amber-600 dark:text-amber-400 font-medium">
-                          Switch your wallet to Aptos Testnet before closing.
+                          Switch your wallet to Aptos Mainnet before closing.
                         </span>
                       )}
                     </>
@@ -722,7 +722,7 @@ export function DecibelPositions() {
           <h4 className="text-base font-medium mb-2 text-muted-foreground flex items-center gap-2">
             Vaults
             <Badge variant="secondary" className="text-xs font-normal">
-              testnet
+              mainnet
             </Badge>
             {hasTestnetData && (availableToTrade == null && !overviewLoading) && positions.length === 0 && (
               <TooltipProvider>
@@ -733,7 +733,7 @@ export function DecibelPositions() {
                     </span>
                   </TooltipTrigger>
                   <TooltipContent side="bottom" className="max-w-[220px]">
-                    <p>Decibel testnet funds (positions, available to trade, vaults) are not included in total assets.</p>
+                    <p>Decibel mainnet funds (positions, available to trade, vaults) are not included in total assets.</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
