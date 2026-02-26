@@ -7,9 +7,10 @@
  * @see https://docs.decibel.trade/developer-hub/on-chain/overview/contract-reference
  */
 
-export const PACKAGE_MAINNET = '0xb8a5788314451ce4d2fbbad32e1bad88d4184b73943b7fe5166eab93cf1a5a95';
-// Aptos Testnet (api.testnet.aptoslabs.com) - from docs.decibel.trade/quickstart/placing-your-first-order
-export const PACKAGE_TESTNET = '0x952535c3049e52f195f26798c2f1340d7dd5100edbe0f464e520a974d16fbe9f';
+// Must match DECIBEL_PACKAGE_ADDRESS_MAINNET / deployed mainnet contract (e.g. explorer.aptoslabs.com)
+export const PACKAGE_MAINNET = '0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06';
+// Aptos Testnet - match DECIBEL_PACKAGE_ADDRESS_TESTNET when using testnet
+export const PACKAGE_TESTNET = '0xd0b2dd565e0f2020d66d581a938e7766b2163db4b8c63410c17578d32b4e9e88';
 
 export interface DecibelMarketConfig {
   market_addr?: string;
