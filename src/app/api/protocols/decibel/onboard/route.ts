@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { normalizeAddress } from '@/lib/utils/addressNormalization';
+import { toCanonicalAddress } from '@/lib/utils/addressNormalization';
 
 const DECIBEL_API_KEY = process.env.DECIBEL_API_KEY;
 const DECIBEL_API_BASE_URL =
@@ -11,13 +11,6 @@ type DecibelRedeemResponse = {
   account: string;
   generated_referral_codes?: string[];
 };
-
-/** Pad address to 64 hex chars after 0x (Decibel expects this format). */
-function to64Hex(addr: string): string {
-  const s = addr.startsWith('0x') ? addr.slice(2) : addr;
-  const hex = s.replace(/^0+/, '') || '0';
-  return '0x' + hex.padStart(64, '0').slice(-64);
-}
 
 /**
  * POST /api/protocols/decibel/onboard
@@ -57,8 +50,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    const normalizedAddr = normalizeAddress(account);
-    const account64 = to64Hex(normalizedAddr);
+    const account64 = toCanonicalAddress(account);
     const baseUrl = DECIBEL_API_BASE_URL.replace(/\/$/, '');
     const url = `${baseUrl}/api/v1/referrals/redeem`;
 

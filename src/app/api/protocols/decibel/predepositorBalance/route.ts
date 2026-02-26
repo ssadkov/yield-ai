@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Aptos, AptosConfig, Network } from '@aptos-labs/ts-sdk';
-import { normalizeAddress } from '@/lib/utils/addressNormalization';
+import { toCanonicalAddress } from '@/lib/utils/addressNormalization';
 
 // Decibel predeposit module (mainnet)
 const PREDEPOSIT_MODULE = '0xc5939ec6e7e656cb6fed9afa155e390eb2aa63ba74e73157161829b2f80e1538';
@@ -38,13 +38,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const normalizedAddr = normalizeAddress(address.trim());
+    const decibelAddr = toCanonicalAddress(address.trim());
 
     const result = await aptos.view({
       payload: {
         function: `${PREDEPOSIT_MODULE}::predeposit::predepositor_balance`,
         typeArguments: [],
-        functionArguments: [POOL_ADDRESS, normalizedAddr],
+        functionArguments: [POOL_ADDRESS, decibelAddr],
       },
     });
 

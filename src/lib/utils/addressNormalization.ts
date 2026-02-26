@@ -9,10 +9,22 @@
  */
 
 /**
+ * Converts an Aptos address to canonical 64-char hex form (with leading zeros).
+ * Use this when calling APIs that expect the on-chain format (e.g. Decibel).
+ * @param addr - The address (e.g. "0x3f42..." or "0x03f42...")
+ * @returns "0x" + 64 hex chars, left-padded with zeros
+ */
+export function toCanonicalAddress(addr: string): string {
+  if (!addr || !addr.startsWith('0x')) return addr;
+  const hex = addr.slice(2).replace(/^0+/, '') || '0';
+  return '0x' + hex.padStart(64, '0');
+}
+
+/**
  * Normalizes an Aptos address by removing leading zeros after 0x prefix
  * @param addr - The address to normalize (e.g., "0x05fabd..." or "0x5fabd...")
  * @returns Normalized address with leading zeros removed (e.g., "0x5fabd...")
- * 
+ *
  * @example
  * normalizeAddress("0x05fabd1b...") // returns "0x5fabd1b..."
  * normalizeAddress("0x5fabd1b...")  // returns "0x5fabd1b..."

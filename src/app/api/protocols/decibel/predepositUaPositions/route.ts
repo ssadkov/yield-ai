@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { normalizeAddress } from '@/lib/utils/addressNormalization';
+import { toCanonicalAddress } from '@/lib/utils/addressNormalization';
 
 const DECIBEL_API_KEY = process.env.DECIBEL_API_KEY;
 const DECIBEL_API_BASE_URL =
@@ -31,9 +31,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const normalizedAddr = normalizeAddress(address.trim());
+    const decibelAddr = toCanonicalAddress(address.trim());
     const baseUrl = DECIBEL_API_BASE_URL.replace(/\/$/, '');
-    const params = new URLSearchParams({ account: normalizedAddr });
+    const params = new URLSearchParams({ account: decibelAddr });
     const url = `${baseUrl}/api/v1/predeposits/positions/ua?${params.toString()}`;
 
     const response = await fetch(url, {

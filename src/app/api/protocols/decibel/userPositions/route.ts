@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { normalizeAddress } from '@/lib/utils/addressNormalization';
+import { normalizeAddress, toCanonicalAddress } from '@/lib/utils/addressNormalization';
 
 const DECIBEL_API_KEY = process.env.DECIBEL_API_KEY;
 const DECIBEL_API_BASE_URL =
@@ -30,11 +30,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const normalizedAddr = normalizeAddress(address.trim());
+    const decibelAddr = toCanonicalAddress(address.trim());
     const baseUrl = DECIBEL_API_BASE_URL.replace(/\/$/, '');
-    const url = `${baseUrl}/api/v1/account_positions?account=${encodeURIComponent(normalizedAddr)}`;
+    const url = `${baseUrl}/api/v1/account_positions?account=${encodeURIComponent(decibelAddr)}`;
 
-    console.log('[Decibel] userPositions request:', { baseUrl, address: normalizedAddr, urlNoQuery: `${baseUrl}/api/v1/account_positions` });
+    console.log('[Decibel] userPositions request:', { baseUrl, address: decibelAddr, urlNoQuery: `${baseUrl}/api/v1/account_positions` });
 
     const response = await fetch(url, {
       method: 'GET',
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
     for (const p of positions) {
       seen.add(`${p.market}-${p.user}-${p.size}-${p.entry_price}`);
     }
-    const subaccountsUrl = `${baseUrl}/api/v1/subaccounts?owner=${encodeURIComponent(normalizedAddr)}`;
+    const subaccountsUrl = `${baseUrl}/api/v1/subaccounts?owner=${encodeURIComponent(decibelAddr)}`;
     try {
       const subRes = await fetch(subaccountsUrl, { method: 'GET', headers });
       if (subRes.ok) {
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
         if (Array.isArray(subList)) {
           for (const s of subList) {
             const acc = s.subaccount_address ? String(s.subaccount_address).trim() : null;
-            if (!acc || acc === normalizedAddr) continue;
+            if (!acc || acc === decibelAddr) continue;
             const posUrl = `${baseUrl}/api/v1/account_positions?account=${encodeURIComponent(acc)}`;
             const posRes = await fetch(posUrl, { method: 'GET', headers });
             if (posRes.ok) {
@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
 
     const usedTestnet = baseUrl.includes('testnet');
     if (positions.length === 0 && usedTestnet && !process.env.DECIBEL_API_BASE_URL) {
-      const mainnetUrl = `${DECIBEL_MAINNET_URL.replace(/\/$/, '')}/api/v1/account_positions?account=${encodeURIComponent(normalizedAddr)}`;
+      const mainnetUrl = `${DECIBEL_MAINNET_URL.replace(/\/$/, '')}/api/v1/account_positions?account=${encodeURIComponent(decibelAddr)}`;
       console.log('[Decibel] userPositions empty on testnet, trying mainnet');
       const mainnetRes = await fetch(mainnetUrl, { method: 'GET', headers });
       const mainnetText = await mainnetRes.text();

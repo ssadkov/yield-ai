@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { normalizeAddress } from '@/lib/utils/addressNormalization';
+import { toCanonicalAddress } from '@/lib/utils/addressNormalization';
 
 const DECIBEL_API_KEY = process.env.DECIBEL_API_KEY;
 const DECIBEL_API_BASE_URL =
@@ -33,9 +33,9 @@ export async function GET(request: NextRequest) {
         { status: 503 }
       );
     }
-    const normalizedAddr = normalizeAddress(owner.trim());
+    const decibelAddr = toCanonicalAddress(owner.trim());
     const baseUrl = DECIBEL_API_BASE_URL.replace(/\/$/, '');
-    const url = `${baseUrl}/api/v1/points/trading/amps?owner=${encodeURIComponent(normalizedAddr)}`;
+    const url = `${baseUrl}/api/v1/points/trading/amps?owner=${encodeURIComponent(decibelAddr)}`;
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        owner: data.owner ?? normalizedAddr,
+        owner: data.owner ?? decibelAddr,
         total_amps: typeof data.total_amps === 'number' ? data.total_amps : 0,
         breakdown: data.breakdown ?? null,
       },

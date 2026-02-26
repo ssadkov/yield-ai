@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { normalizeAddress } from '@/lib/utils/addressNormalization';
+import { toCanonicalAddress } from '@/lib/utils/addressNormalization';
 
 const DECIBEL_API_KEY = process.env.DECIBEL_API_KEY;
 const DECIBEL_API_BASE_URL =
@@ -33,16 +33,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const normalizedAddr = normalizeAddress(address.trim());
+    const decibelAddr = toCanonicalAddress(address.trim());
     const baseUrl = DECIBEL_API_BASE_URL.replace(/\/$/, '');
     // Doc: account_overviews uses "account" (required), not "user"
-    const params = new URLSearchParams({ account: normalizedAddr });
+    const params = new URLSearchParams({ account: decibelAddr });
     if (includePerformance === 'true') params.set('include_performance', 'true');
     if (volumeWindow) params.set('volume_window', volumeWindow);
     if (performanceLookbackDays) params.set('performance_lookback_days', performanceLookbackDays);
     const url = `${baseUrl}/api/v1/account_overviews?${params.toString()}`;
 
-    console.log('[Decibel] accountOverview request:', { baseUrl, address: normalizedAddr });
+    console.log('[Decibel] accountOverview request:', { baseUrl, address: decibelAddr });
 
     const headers = {
       Authorization: `Bearer ${DECIBEL_API_KEY}`,
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!response.ok && response.status === 404) {
-      const subRes = await fetch(`${baseUrl}/api/v1/subaccounts?owner=${encodeURIComponent(normalizedAddr)}`, { method: 'GET', headers });
+      const subRes = await fetch(`${baseUrl}/api/v1/subaccounts?owner=${encodeURIComponent(decibelAddr)}`, { method: 'GET', headers });
       if (subRes.ok) {
         const subText = await subRes.text();
         const subList = subText ? JSON.parse(subText) : [];
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
     if (!response.ok) {
       const tryUserParam = (response.status === 400 || response.status === 404) && url.includes('account=');
       if (tryUserParam) {
-        const paramsAlt = new URLSearchParams({ user: normalizedAddr });
+        const paramsAlt = new URLSearchParams({ user: decibelAddr });
         if (includePerformance === 'true') paramsAlt.set('include_performance', 'true');
         if (volumeWindow) paramsAlt.set('volume_window', volumeWindow);
         if (performanceLookbackDays) paramsAlt.set('performance_lookback_days', performanceLookbackDays);
@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
       const usedTestnet = baseUrl.includes('testnet');
       if (usedTestnet && !process.env.DECIBEL_API_BASE_URL) {
         const mainnetBase = DECIBEL_MAINNET_URL.replace(/\/$/, '');
-        const paramsM = new URLSearchParams({ account: normalizedAddr });
+        const paramsM = new URLSearchParams({ account: decibelAddr });
         if (includePerformance === 'true') paramsM.set('include_performance', 'true');
         const urlM = `${mainnetBase}/api/v1/account_overviews?${paramsM.toString()}`;
         console.log('[Decibel] accountOverview trying mainnet');

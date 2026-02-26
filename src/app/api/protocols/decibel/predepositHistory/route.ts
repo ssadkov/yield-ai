@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { normalizeAddress } from '@/lib/utils/addressNormalization';
+import { toCanonicalAddress } from '@/lib/utils/addressNormalization';
 
 const DECIBEL_API_KEY = process.env.DECIBEL_API_KEY;
 const DECIBEL_API_BASE_URL =
@@ -38,9 +38,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const normalizedAddr = normalizeAddress(address.trim());
+    const decibelAddr = toCanonicalAddress(address.trim());
     const baseUrl = DECIBEL_API_BASE_URL.replace(/\/$/, '');
-    const params = new URLSearchParams({ account: normalizedAddr });
+    const params = new URLSearchParams({ account: decibelAddr });
     if (kind != null && kind !== '') params.set('kind', kind);
     if (fundType != null && fundType !== '') params.set('fund_type', fundType);
     if (startTime != null && startTime !== '') params.set('startTime', startTime);
