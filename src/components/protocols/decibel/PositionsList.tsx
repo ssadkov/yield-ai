@@ -249,7 +249,7 @@ export function PositionsList({
                     </span>
                   </TooltipTrigger>
                   <TooltipContent side="bottom" className="max-w-[220px]">
-                    <p>Decibel mainnet funds (positions, available to trade, vaults) are not included in total assets.</p>
+                    <p>Decibel assets (positions, available to trade, vaults) are included in Total Assets.</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>

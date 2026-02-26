@@ -212,8 +212,9 @@ export default function Sidebar() {
     return sum + (isNaN(value) ? 0 : value);
   }, 0);
 
-  // Считаем сумму по всем протоколам (Decibel testnet excluded; only Decibel mainnet pre-deposit included)
-  const totalProtocolsValue = hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + amnisValue + earniumValue + aaveValue + moarValue + thalaValue + echoValue + decibelMainnetValue;
+  // Считаем сумму по всем протоколам (Decibel: full assets when available, else pre-deposit fallback)
+  const decibelTotal = decibelValue > 0 ? decibelValue : decibelMainnetValue;
+  const totalProtocolsValue = hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + amnisValue + earniumValue + aaveValue + moarValue + thalaValue + echoValue + decibelTotal;
 
   // Итоговая сумма
   const totalAssets = walletTotal + totalProtocolsValue;
