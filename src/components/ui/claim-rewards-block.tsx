@@ -5,14 +5,17 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Gift } from 'lucide-react';
 import { ClaimableRewardsSummary } from '@/lib/stores/walletStore';
+import { cn } from '@/lib/utils';
 
 interface ClaimRewardsBlockProps {
   summary: ClaimableRewardsSummary | null;
   onClaim: () => void;
   loading?: boolean;
+  /** Optional class for the card (e.g. mb-0 when inside a grid) */
+  className?: string;
 }
 
-export function ClaimRewardsBlock({ summary, onClaim, loading = false }: ClaimRewardsBlockProps) {
+export function ClaimRewardsBlock({ summary, onClaim, loading = false, className }: ClaimRewardsBlockProps) {
   // Don't render if loading or invalid summary or no rewards
   if (loading || !summary || !summary.protocols || summary.totalValue <= 0) {
     return null;
@@ -22,7 +25,7 @@ export function ClaimRewardsBlock({ summary, onClaim, loading = false }: ClaimRe
     .filter(p => p.count > 0).length;
 
   return (
-    <Card className="mb-6 border-success/20 hover:shadow-md transition-shadow">
+    <Card className={cn('mb-6 border-success/20 hover:shadow-md transition-shadow', className)}>
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">

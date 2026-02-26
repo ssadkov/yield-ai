@@ -35,6 +35,7 @@ import { useMobileManagement } from "@/contexts/MobileManagementContext";
 import { useWalletStore } from "@/lib/stores/walletStore";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { ClaimRewardsBlock } from "@/components/ui/claim-rewards-block";
+import { DecibelCTABlock } from "@/components/ui/decibel-cta-block";
 import { ClaimAllRewardsModal } from "@/components/ui/claim-all-rewards-modal";
 import { AirdropInfoTooltip } from "@/components/ui/airdrop-info-tooltip";
 import { Settings } from "lucide-react";
@@ -842,12 +843,32 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
         </CollapsibleProvider>
       )}
 
-              {/* Claim Rewards Block */}
-        <ClaimRewardsBlock
-          summary={summary}
-          onClaim={() => setClaimModalOpen(true)}
-          loading={rewardsLoading}
-        />
+              {/* Top strip: Decibel CTA (left or full width) + Claim Rewards (right when available) */}
+        {(() => {
+          const hasClaimRewards =
+            !rewardsLoading &&
+            summary?.protocols &&
+            typeof summary.totalValue === 'number' &&
+            summary.totalValue > 0;
+          if (hasClaimRewards) {
+            return (
+              <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <DecibelCTABlock />
+                <ClaimRewardsBlock
+                  summary={summary}
+                  onClaim={() => setClaimModalOpen(true)}
+                  loading={rewardsLoading}
+                  className="mb-0"
+                />
+              </div>
+            );
+          }
+          return (
+            <div className="mb-6">
+              <DecibelCTABlock />
+            </div>
+          );
+        })()}
 
       <div className="mb-4 pl-4">
         <div className="flex items-center justify-between">

@@ -61,8 +61,9 @@ export async function POST(request: NextRequest) {
     const account64 = to64Hex(normalizedAddr);
     const baseUrl = DECIBEL_API_BASE_URL.replace(/\/$/, '');
     const url = `${baseUrl}/api/v1/referrals/redeem`;
-    const response = await fetch(url, {
-      method: 'POST',
+
+    const fetchOptions = {
+      method: 'POST' as const,
       headers: {
         Authorization: `Bearer ${DECIBEL_API_KEY}`,
         'Content-Type': 'application/json',
@@ -71,14 +72,62 @@ export async function POST(request: NextRequest) {
         referral_code: DECIBEL_BUILDER_CODE,
         account: account64,
       }),
-    });
+    };
+
+    const fetchWithTimeout = (timeoutMs: number) => {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeoutMs);
+      return fetch(url, { ...fetchOptions, signal: controller.signal }).finally(() => clearTimeout(id));
+    };
+
+    const timeoutMs = 25000;
+    let response: Response;
+    try {
+      response = await fetchWithTimeout(timeoutMs);
+    } catch (fetchErr) {
+      try {
+        response = await fetchWithTimeout(timeoutMs);
+      } catch (retryErr) {
+        const err = retryErr ?? fetchErr;
+        const isTimeout =
+          err instanceof Error && (err.name === 'AbortError' || (err as { cause?: { code?: string } }).cause?.code === 'UND_ERR_CONNECT_TIMEOUT');
+        console.error('[Decibel] onboard fetch failed:', err);
+        return NextResponse.json(
+          {
+            success: false,
+            error: isTimeout
+              ? 'Connection to Decibel timed out. Please try again.'
+              : err instanceof Error ? err.message : 'Failed to reach Decibel API',
+          },
+          { status: 502 }
+        );
+      }
+    }
     const text = await response.text();
     let data: DecibelRedeemResponse & { message?: string };
     try {
       data = text ? (JSON.parse(text) as DecibelRedeemResponse & { message?: string }) : {};
     } catch {
+      const snippet = (text || '').slice(0, 200).replace(/\s+/g, ' ').trim();
+      console.error('[Decibel] onboard: non-JSON response', response.status, snippet);
+      if (response.status === 403 && /internal only/i.test(snippet)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Redeem is restricted to Decibel internal use. Please register at app.decibel.trade',
+            code: 'DECIBEL_REDEEM_FORBIDDEN',
+          },
+          { status: 403 }
+        );
+      }
       return NextResponse.json(
-        { success: false, error: 'Invalid response from Decibel API' },
+        {
+          success: false,
+          error:
+            response.status >= 400
+              ? `Decibel API returned ${response.status}. ${snippet || 'Non-JSON response.'}`
+              : 'Invalid response from Decibel API',
+        },
         { status: 502 }
       );
     }
