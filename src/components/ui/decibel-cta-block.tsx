@@ -7,19 +7,23 @@ import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import { useToast } from '@/components/ui/use-toast';
 import { ToastAction } from '@/components/ui/toast';
+import { buildApproveBuilderFeePayload } from '@/lib/protocols/decibel/approveBuilderFee';
 
 const DECIBEL_LOGO = '/protocol_ico/decibel.png';
 
 type ReferralStatus = { success: boolean; canRegister?: boolean };
-type SubaccountsResponse = { success: boolean; data?: { subaccount_address?: string }[] };
+type SubaccountItem = { subaccount_address?: string; is_primary?: boolean };
+type SubaccountsResponse = { success: boolean; data?: SubaccountItem[] };
+type BuilderConfigResponse = { success: boolean; builderAddress?: string; builderFeeBps?: number };
 
 export function DecibelCTABlock() {
-  const { account } = useWallet();
+  const { account, signAndSubmitTransaction } = useWallet();
   const { toast } = useToast();
   const [referralStatus, setReferralStatus] = useState<ReferralStatus | null>(null);
-  const [subaccounts, setSubaccounts] = useState<{ subaccount_address?: string }[]>([]);
+  const [subaccounts, setSubaccounts] = useState<SubaccountItem[]>([]);
   const [checking, setChecking] = useState(false);
   const [registering, setRegistering] = useState(false);
+  const [approving, setApproving] = useState(false);
 
   const address = account?.address?.toString();
 
@@ -104,6 +108,64 @@ export function DecibelCTABlock() {
     }
   };
 
+  const handleApproveBuilderFee = async () => {
+    if (!address || approving || !signAndSubmitTransaction || subaccounts.length === 0) return;
+    const primary = subaccounts.find((s) => s.is_primary) ?? subaccounts[0];
+    const subaccountAddr = primary?.subaccount_address?.trim();
+    if (!subaccountAddr) {
+      toast({ variant: 'destructive', title: 'Error', description: 'No subaccount address' });
+      return;
+    }
+    setApproving(true);
+    try {
+      const configRes = await fetch('/api/protocols/decibel/builder-config');
+      const config = (await configRes.json()) as BuilderConfigResponse;
+      if (!configRes.ok || !config.success || !config.builderAddress || config.builderFeeBps == null) {
+        toast({
+          variant: 'destructive',
+          title: 'Approve failed',
+          description: config?.success === false ? 'Builder not configured' : 'Could not load builder config',
+        });
+        return;
+      }
+      const payload = buildApproveBuilderFeePayload({
+        subaccountAddr,
+        builderAddr: config.builderAddress,
+        maxFeeBps: config.builderFeeBps,
+        isTestnet: false,
+      });
+      const result = await signAndSubmitTransaction({
+        data: {
+          function: payload.function as `${string}::${string}::${string}`,
+          typeArguments: payload.typeArguments,
+          functionArguments: payload.functionArguments as (string | number)[],
+        },
+        options: { maxGasAmount: 20000 },
+      });
+      const txHash = typeof result?.hash === 'string' ? result.hash : (result as { hash?: string })?.hash ?? '';
+      toast({
+        title: 'Builder fee approved',
+        description: txHash ? `Transaction ${txHash.slice(0, 6)}...${txHash.slice(-4)}` : 'Transaction submitted',
+        action: txHash ? (
+          <ToastAction
+            altText="View in Explorer"
+            onClick={() => window.open('https://explorer.aptoslabs.com/txn/' + txHash + '?network=mainnet', '_blank')}
+          >
+            View in Explorer
+          </ToastAction>
+        ) : undefined,
+      });
+    } catch (e) {
+      toast({
+        variant: 'destructive',
+        title: 'Approve failed',
+        description: e instanceof Error ? e.message : 'Unknown error',
+      });
+    } finally {
+      setApproving(false);
+    }
+  };
+
   return (
     <Card className="h-full border-primary/20 hover:shadow-md transition-shadow">
       <CardContent className="p-6 flex flex-col h-full">
@@ -144,7 +206,17 @@ export function DecibelCTABlock() {
               </Button>
             )}
             {address && !checking && hasSubaccount && (
-              <p className="text-sm text-muted-foreground">You&apos;re registered on Decibel</p>
+              <div className="flex flex-col gap-2 items-end">
+                <p className="text-sm text-muted-foreground">You&apos;re registered on Decibel</p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleApproveBuilderFee}
+                  disabled={approving || !signAndSubmitTransaction}
+                >
+                  {approving ? 'Approving…' : 'Approve builder fee'}
+                </Button>
+              </div>
             )}
             {address && !checking && canRegister === false && !hasSubaccount && (
               <p className="text-sm text-muted-foreground">Registration temporarily unavailable</p>
