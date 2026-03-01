@@ -39,6 +39,10 @@ export interface CloseAtMarketParams {
   slippageBps?: number;
   /** Use testnet package address (default: false = mainnet) */
   isTestnet?: boolean;
+  /** Builder address for fee (Step 3). If set, builderFeeBps must be set. */
+  builderAddr?: string | null;
+  /** Builder fee in basis points (e.g. 10 = 0.1%). Must be <= user-approved max. */
+  builderFeeBps?: number | null;
 }
 
 /**
@@ -89,6 +93,8 @@ export function buildCloseAtMarketPayload(params: CloseAtMarketParams): {
     marketConfig,
     slippageBps = 50,
     isTestnet = false,
+    builderAddr = null,
+    builderFeeBps = null,
   } = params;
 
   const pkg = isTestnet ? PACKAGE_TESTNET : PACKAGE_MAINNET;
@@ -129,8 +135,8 @@ export function buildCloseAtMarketPayload(params: CloseAtMarketParams): {
       null, // tp_limit_price
       null, // sl_trigger_price
       null, // sl_limit_price
-      null, // builder_addr
-      null, // builder_fee
+      builderAddr ?? null, // builder_addr
+      builderFeeBps ?? null, // builder_fee
     ],
   };
 }

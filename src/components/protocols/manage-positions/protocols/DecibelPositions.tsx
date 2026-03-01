@@ -109,6 +109,31 @@ export function DecibelPositions() {
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [pricesMap, setPricesMap] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
+  const [builderConfig, setBuilderConfig] = useState<{ builderAddress: string; builderFeeBps: number } | null>(null);
+
+  useEffect(() => {
+    if (!account?.address) {
+      setBuilderConfig(null);
+      return;
+    }
+    let cancelled = false;
+    fetch('/api/protocols/decibel/builder-config')
+      .then((r) => r.json())
+      .then((data: { success?: boolean; builderAddress?: string; builderFeeBps?: number }) => {
+        if (cancelled) return;
+        if (data?.success && data.builderAddress && typeof data.builderFeeBps === 'number') {
+          setBuilderConfig({ builderAddress: data.builderAddress, builderFeeBps: data.builderFeeBps });
+        } else {
+          setBuilderConfig(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setBuilderConfig(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [account?.address]);
 
   const fetchPositions = useCallback(async () => {
     if (!account?.address) {
@@ -360,6 +385,8 @@ export function DecibelPositions() {
         marketConfig,
         slippageBps: 50,
         isTestnet: decibelNetwork === 'testnet',
+        builderAddr: builderConfig?.builderAddress ?? undefined,
+        builderFeeBps: builderConfig?.builderFeeBps ?? undefined,
       });
 
       let txHash: string;
@@ -441,7 +468,7 @@ export function DecibelPositions() {
     } finally {
       setClosingPositionKey(null);
     }
-  }, [closeConfirmPosition, signTransaction, signAndSubmitTransaction, account?.address, marketsMap, decibelNetwork, fetchPositions, toast]);
+  }, [closeConfirmPosition, signTransaction, signAndSubmitTransaction, account?.address, marketsMap, decibelNetwork, fetchPositions, toast, builderConfig]);
 
   const handleCancelClose = useCallback(() => {
     setCloseConfirmPosition(null);

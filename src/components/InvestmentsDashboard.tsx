@@ -86,7 +86,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
   // New states for progressive loading
   // Initialize loading states immediately to show tabs and skeletons right away
   const [protocolsLoading, setProtocolsLoading] = useState<Record<string, boolean>>({
-    'Joule': true,
+    'Joule': false,
     'Hyperion': true,
     'Thala': true,
     'Tapp Exchange': true,
