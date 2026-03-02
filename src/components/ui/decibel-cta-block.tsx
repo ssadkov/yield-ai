@@ -15,12 +15,14 @@ type ReferralStatus = { success: boolean; canRegister?: boolean };
 type SubaccountItem = { subaccount_address?: string; is_primary?: boolean };
 type SubaccountsResponse = { success: boolean; data?: SubaccountItem[] };
 type BuilderConfigResponse = { success: boolean; builderAddress?: string; builderFeeBps?: number };
+type ApprovedMaxFeeResponse = { success: boolean; approvedMaxFeeBps?: number | null };
 
 export function DecibelCTABlock() {
   const { account, signAndSubmitTransaction } = useWallet();
   const { toast } = useToast();
   const [referralStatus, setReferralStatus] = useState<ReferralStatus | null>(null);
   const [subaccounts, setSubaccounts] = useState<SubaccountItem[]>([]);
+  const [approvedMaxFeeBps, setApprovedMaxFeeBps] = useState<number | null | undefined>(undefined);
   const [checking, setChecking] = useState(false);
   const [registering, setRegistering] = useState(false);
   const [approving, setApproving] = useState(false);
@@ -31,6 +33,7 @@ export function DecibelCTABlock() {
     if (!address) {
       setReferralStatus(null);
       setSubaccounts([]);
+      setApprovedMaxFeeBps(undefined);
       return;
     }
     let cancelled = false;
@@ -44,12 +47,28 @@ export function DecibelCTABlock() {
       .then(([status, subs]) => {
         if (cancelled) return;
         setReferralStatus(status);
-        setSubaccounts(subs?.success && Array.isArray(subs.data) ? subs.data : []);
+        const list = subs?.success && Array.isArray(subs.data) ? subs.data : [];
+        setSubaccounts(list);
+        const primary = list.find((s) => s.is_primary) ?? list[0];
+        const subAddr = primary?.subaccount_address?.trim();
+        if (subAddr) {
+          fetch(`/api/protocols/decibel/approved-max-fee?subaccount=${encodeURIComponent(subAddr)}`)
+            .then((r) => r.json() as Promise<ApprovedMaxFeeResponse>)
+            .then((data) => {
+              if (!cancelled && data?.success) setApprovedMaxFeeBps(data.approvedMaxFeeBps ?? null);
+            })
+            .catch(() => {
+              if (!cancelled) setApprovedMaxFeeBps(null);
+            });
+        } else {
+          setApprovedMaxFeeBps(undefined);
+        }
       })
       .catch(() => {
         if (!cancelled) {
           setReferralStatus(null);
           setSubaccounts([]);
+          setApprovedMaxFeeBps(undefined);
         }
       })
       .finally(() => {
@@ -143,8 +162,9 @@ export function DecibelCTABlock() {
         options: { maxGasAmount: 20000 },
       });
       const txHash = typeof result?.hash === 'string' ? result.hash : (result as { hash?: string })?.hash ?? '';
+      setApprovedMaxFeeBps(config.builderFeeBps);
       toast({
-        title: 'Builder fee approved',
+        title: 'Trading via Yield AI enabled',
         description: txHash ? `Transaction ${txHash.slice(0, 6)}...${txHash.slice(-4)}` : 'Transaction submitted',
         action: txHash ? (
           <ToastAction
@@ -208,14 +228,16 @@ export function DecibelCTABlock() {
             {address && !checking && hasSubaccount && (
               <div className="flex flex-col gap-2 items-end">
                 <p className="text-sm text-muted-foreground">You&apos;re registered on Decibel</p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleApproveBuilderFee}
-                  disabled={approving || !signAndSubmitTransaction}
-                >
-                  {approving ? 'Approving…' : 'Approve builder fee'}
-                </Button>
+                {approvedMaxFeeBps === null && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleApproveBuilderFee}
+                    disabled={approving || !signAndSubmitTransaction}
+                  >
+                    {approving ? 'Enabling…' : 'Enable trading via Yield AI'}
+                  </Button>
+                )}
               </div>
             )}
             {address && !checking && canRegister === false && !hasSubaccount && (

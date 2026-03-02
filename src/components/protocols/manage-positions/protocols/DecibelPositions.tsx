@@ -25,6 +25,7 @@ import {
   buildCloseAtMarketPayload,
   type DecibelMarketConfig,
 } from '@/lib/protocols/decibel/closePosition';
+import { buildApproveBuilderFeePayload } from '@/lib/protocols/decibel/approveBuilderFee';
 
 /** Decibel API position shape (snake_case from API) */
 export interface DecibelPosition {
@@ -390,6 +391,52 @@ export function DecibelPositions() {
     const key = positionKey(pos);
     setClosingPositionKey(key);
     try {
+      if (builderConfig) {
+        const approvalRes = await fetch(
+          `/api/protocols/decibel/approved-max-fee?subaccount=${encodeURIComponent(pos.user)}`
+        );
+        const approvalData = (await approvalRes.json()) as { success?: boolean; approvedMaxFeeBps?: number | null };
+        if (approvalRes.ok && approvalData?.success && approvalData.approvedMaxFeeBps == null) {
+          const approvePayload = buildApproveBuilderFeePayload({
+            subaccountAddr: pos.user,
+            builderAddr: builderConfig.builderAddress,
+            maxFeeBps: builderConfig.builderFeeBps,
+            isTestnet: decibelNetwork === 'testnet',
+          });
+          if (signAndSubmitTransaction) {
+            await signAndSubmitTransaction({
+              data: {
+                function: approvePayload.function as `${string}::${string}::${string}`,
+                typeArguments: approvePayload.typeArguments,
+                functionArguments: approvePayload.functionArguments as (string | number)[],
+              },
+              options: { maxGasAmount: 20000 },
+            });
+          } else if (signTransaction) {
+            const aptos = getDecibelAptosClient(decibelNetwork);
+            const senderAddr = AccountAddress.fromString(account.address.toString());
+            const transaction = await aptos.transaction.build.simple({
+              sender: senderAddr,
+              data: {
+                function: approvePayload.function as `${string}::${string}::${string}`,
+                typeArguments: approvePayload.typeArguments,
+                functionArguments: approvePayload.functionArguments as (string | number)[],
+              },
+              options: { maxGasAmount: 20000 },
+            });
+            const signResult = await signTransaction({ transactionOrPayload: transaction });
+            const { authenticator } = signResult;
+            await aptos.transaction.submit.simple({
+              transaction,
+              senderAuthenticator: normalizeAuthenticator(authenticator),
+            });
+          } else {
+            throw new Error('Wallet does not support signing transactions');
+          }
+          toast({ title: 'Trading via Yield AI enabled', description: 'Closing position…' });
+        }
+      }
+
       const pricesRes = await fetch(`/api/protocols/decibel/prices?market=${encodeURIComponent(pos.market)}`);
       const pricesData = await pricesRes.json();
       const pricesList = pricesData.success && Array.isArray(pricesData.data) ? pricesData.data : [];

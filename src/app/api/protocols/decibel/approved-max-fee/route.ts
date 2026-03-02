@@ -7,29 +7,29 @@ const FULLNODE_VIEW_URL_TESTNET = 'https://fullnode.testnet.aptoslabs.com/v1/vie
 
 /**
  * GET /api/protocols/decibel/approved-max-fee
- * Checks whether the user has approved a builder fee (on-chain view get_approved_max_fee).
- * user = Decibel account (subaccount) address.
+ * Checks whether the Decibel subaccount has approved a builder fee (on-chain view get_approved_max_fee).
+ * subaccount = Decibel subaccount address (the trading account, not the owner wallet).
  * builder = builder address (optional; defaults to DECIBEL_BUILDER_ADDRESS env).
  *
  * Returns: { approvedMaxFeeBps: number | null }
- * - null or missing when Option::None (no approval for that user/builder pair).
+ * - null when Option::None (no approval for that subaccount/builder pair).
  * - number when approved (max fee in basis points).
  */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const userParam = searchParams.get('user');
+    const subaccountParam = searchParams.get('subaccount') ?? searchParams.get('user');
     const builderParam = searchParams.get('builder');
     const isTestnet = searchParams.get('network') === 'testnet';
 
-    if (!userParam?.trim()) {
+    if (!subaccountParam?.trim()) {
       return NextResponse.json(
-        { success: false, error: 'Query parameter "user" is required (Decibel account address)' },
+        { success: false, error: 'Query parameter "subaccount" is required (Decibel subaccount address)' },
         { status: 400 }
       );
     }
 
-    const user = toCanonicalAddress(userParam.trim());
+    const subaccount = toCanonicalAddress(subaccountParam.trim());
     let builder: string;
 
     if (builderParam?.trim()) {
@@ -47,12 +47,12 @@ export async function GET(request: NextRequest) {
 
     const pkg = isTestnet ? PACKAGE_TESTNET : PACKAGE_MAINNET;
     const viewUrl = isTestnet ? FULLNODE_VIEW_URL_TESTNET : FULLNODE_VIEW_URL_MAINNET;
-    const functionName = `${pkg}::dex_accounts_entry::get_approved_max_fee`;
+    const functionName = `${pkg}::builder_code_registry::get_approved_max_fee`;
 
     const viewPayload = {
       function: functionName,
       type_arguments: [] as string[],
-      arguments: [user, builder],
+      arguments: [subaccount, builder],
     };
 
     const headers: Record<string, string> = {
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       approvedMaxFeeBps,
-      user,
+      subaccount,
       builder,
     });
   } catch (error) {
