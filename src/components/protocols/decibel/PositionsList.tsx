@@ -8,7 +8,7 @@ import Image from "next/image";
 import { useCollapsible } from "@/contexts/CollapsibleContext";
 import { ManagePositionsButton } from "../ManagePositionsButton";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
-import { formatCurrency } from "@/lib/utils/numberFormat";
+import { formatCurrency, formatNumber } from "@/lib/utils/numberFormat";
 import { Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -38,6 +38,7 @@ export function PositionsList({
   const [availableToTrade, setAvailableToTrade] = useState<number | null>(null);
   const [vaults, setVaults] = useState<{ name: string; current_value_of_shares?: number }[]>([]);
   const [preDepositSumUsdc, setPreDepositSumUsdc] = useState<number | null>(null);
+  const [totalAmps, setTotalAmps] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { isExpanded, toggleSection } = useCollapsible();
   const protocol = getProtocolByName("Decibel");
@@ -96,8 +97,9 @@ export function PositionsList({
         r.json()
       ),
       fetch("/api/protocols/decibel/prices").then((r) => r.json()),
+      fetch(`/api/protocols/decibel/amps?owner=${encodeURIComponent(address)}`).then((r) => r.json()),
     ])
-      .then(([overviewRes, positionsRes, vaultsRes, marketsRes, predepositRes, pricesRes]) => {
+      .then(([overviewRes, positionsRes, vaultsRes, marketsRes, predepositRes, pricesRes, ampsRes]) => {
         if (cancelled) return;
         const eq =
           overviewRes?.success && overviewRes?.data?.perp_equity_balance != null
@@ -168,6 +170,10 @@ export function PositionsList({
         setAvailableToTrade(avail);
         setVaults(vaultList);
         setPreDepositSumUsdc(preDeposit);
+        const amps = ampsRes?.success && typeof ampsRes?.data?.total_amps === "number"
+          ? ampsRes.data.total_amps
+          : null;
+        setTotalAmps(amps);
         onValueRef.current?.(totalValue);
         onMainnetRef.current?.(preDeposit);
       })
@@ -178,6 +184,7 @@ export function PositionsList({
           setMarketNames({});
           setAvailableToTrade(null);
           setVaults([]);
+          setTotalAmps(null);
           onValueRef.current?.(0);
         }
       })
@@ -297,6 +304,28 @@ export function PositionsList({
                   </div>
                   <span className="text-sm font-medium shrink-0 ml-2">
                     {formatCurrency(availableToTrade, 2)}
+                  </span>
+                </div>
+              )}
+              {totalAmps != null && (
+                <div className="flex items-center justify-between py-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm text-muted-foreground">AMPs (points)</span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex text-muted-foreground cursor-help" onClick={(e) => e.stopPropagation()}>
+                            <Info className="h-3.5 w-3.5" />
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="max-w-[220px]">
+                          <p>Trading points. Data is updated once per day.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                  <span className="text-sm font-medium shrink-0 ml-2">
+                    {formatNumber(totalAmps, 2)}
                   </span>
                 </div>
               )}

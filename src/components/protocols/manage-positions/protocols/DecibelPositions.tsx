@@ -110,6 +110,8 @@ export function DecibelPositions() {
   const [pricesMap, setPricesMap] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
   const [builderConfig, setBuilderConfig] = useState<{ builderAddress: string; builderFeeBps: number } | null>(null);
+  const [totalAmps, setTotalAmps] = useState<number | null>(null);
+  const [ampsLoading, setAmpsLoading] = useState(false);
 
   useEffect(() => {
     if (!account?.address) {
