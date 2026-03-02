@@ -55,10 +55,14 @@ export function DecibelCTABlock() {
           fetch(`/api/protocols/decibel/approved-max-fee?subaccount=${encodeURIComponent(subAddr)}`)
             .then((r) => r.json() as Promise<ApprovedMaxFeeResponse>)
             .then((data) => {
-              if (!cancelled && data?.success) setApprovedMaxFeeBps(data.approvedMaxFeeBps ?? null);
+              if (!cancelled && data?.success) {
+                setApprovedMaxFeeBps(data.approvedMaxFeeBps ?? null);
+              } else if (!cancelled) {
+                setApprovedMaxFeeBps(undefined);
+              }
             })
             .catch(() => {
-              if (!cancelled) setApprovedMaxFeeBps(null);
+              if (!cancelled) setApprovedMaxFeeBps(undefined);
             });
         } else {
           setApprovedMaxFeeBps(undefined);
