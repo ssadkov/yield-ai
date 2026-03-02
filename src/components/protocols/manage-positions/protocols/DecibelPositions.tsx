@@ -330,6 +330,33 @@ export function DecibelPositions() {
     fetchPreDeposit();
   }, [fetchPreDeposit]);
 
+  const fetchAmps = useCallback(async () => {
+    if (!account?.address) {
+      setTotalAmps(null);
+      return;
+    }
+    setAmpsLoading(true);
+    try {
+      const res = await fetch(
+        `/api/protocols/decibel/amps?owner=${encodeURIComponent(account.address.toString())}`
+      );
+      const data = await res.json();
+      if (data.success && typeof data.data?.total_amps === 'number') {
+        setTotalAmps(data.data.total_amps);
+      } else {
+        setTotalAmps(null);
+      }
+    } catch {
+      setTotalAmps(null);
+    } finally {
+      setAmpsLoading(false);
+    }
+  }, [account?.address]);
+
+  useEffect(() => {
+    fetchAmps();
+  }, [fetchAmps]);
+
   useEffect(() => {
     const handler = (e: CustomEvent<{ protocol: string; data?: DecibelPosition[] }>) => {
       if (e.detail?.protocol === 'decibel') {
@@ -341,11 +368,12 @@ export function DecibelPositions() {
         fetchOverview();
         fetchPreDeposit();
         fetchPrices();
+        fetchAmps();
       }
     };
     window.addEventListener('refreshPositions', handler as EventListener);
     return () => window.removeEventListener('refreshPositions', handler as EventListener);
-  }, [fetchVaults, fetchOverview, fetchPreDeposit, fetchPrices]);
+  }, [fetchVaults, fetchOverview, fetchPreDeposit, fetchPrices, fetchAmps]);
 
   const positionKey = (pos: DecibelPosition) => `${pos.market}-${pos.user}-${pos.size}-${pos.entry_price}`;
 
@@ -545,6 +573,28 @@ export function DecibelPositions() {
           </div>
           <span className="font-medium">
             {overviewLoading ? '…' : formatCurrency(availableToTrade ?? 0, 2)}
+          </span>
+        </div>
+      )}
+      {(totalAmps != null || ampsLoading) && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">AMPs (points)</span>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex text-muted-foreground cursor-help">
+                    <Info className="h-4 w-4" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[220px]">
+                  <p>Trading points. Data is updated once per day.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          <span className="font-medium">
+            {ampsLoading ? '…' : formatNumber(totalAmps ?? 0, 2)}
           </span>
         </div>
       )}
