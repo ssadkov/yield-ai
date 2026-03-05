@@ -60,11 +60,6 @@ export function ProtocolCardPosition({ position }: ProtocolCardPositionProps) {
                   {position.badge}
                 </Badge>
               )}
-              {position.apr && (
-                <Badge variant="info" className={styles.aprBadge}>
-                  APR {position.apr}%
-                </Badge>
-              )}
             </div>
             {position.price != null && (
               <span className={styles.price}>{formatCurrency(position.price, 2)}</span>
