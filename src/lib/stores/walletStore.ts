@@ -41,6 +41,14 @@ const CACHE_TTL = {
   PRICES: 60 * 1000,       // 1 minute
 } as const;
 
+// If NEXT_PUBLIC_DEBUG_PROTOCOLS is set (e.g. "decibel" or "decibel,thala"), use only those protocols
+const getDebugProtocols = (): string[] | null => {
+  const raw = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_DEBUG_PROTOCOLS;
+  if (!raw || typeof raw !== 'string') return null;
+  const list = raw.split(',').map((p) => p.trim()).filter(Boolean);
+  return list.length > 0 ? list : null;
+};
+
 // Store state interface
 interface WalletState {
   // Current wallet address
@@ -210,8 +218,11 @@ export const useWalletStore = create<WalletState>()(
             console.log('[WalletStore] Fetching positions for address:', address);
             console.log('[WalletStore] Base URL:', getBaseUrl());
             
-            // Define protocols to fetch if not specified (expanded list to cover all supported)
-            const protocolsToFetch = protocols || [
+            // If NEXT_PUBLIC_DEBUG_PROTOCOLS is set (e.g. "decibel" or "decibel,thala"), use only those protocols
+            const debugProtocols = typeof process.env.NEXT_PUBLIC_DEBUG_PROTOCOLS === 'string'
+              ? process.env.NEXT_PUBLIC_DEBUG_PROTOCOLS.split(',').map((p) => p.trim()).filter(Boolean)
+              : null;
+            const defaultPositionProtocols = [
               'echelon',
               'joule',
               'hyperion',
@@ -225,6 +236,7 @@ export const useWalletStore = create<WalletState>()(
               'moar',
               'decibel',
             ];
+            const protocolsToFetch = protocols ?? (debugProtocols?.length ? debugProtocols : defaultPositionProtocols);
             const newPositions: ProtocolPositions = { ...state.positions };
             
             // Fetch positions for each protocol
@@ -304,8 +316,12 @@ export const useWalletStore = create<WalletState>()(
               VERCEL_URL: process.env.VERCEL_URL
             });
             
-            // Define protocols to fetch if not specified
-            const protocolsToFetch = protocols || ['echelon', 'auro', 'hyperion', 'meso', 'earnium'];
+            // If NEXT_PUBLIC_DEBUG_PROTOCOLS is set, use only those protocols for rewards too
+            const debugProtocols = typeof process.env.NEXT_PUBLIC_DEBUG_PROTOCOLS === 'string'
+              ? process.env.NEXT_PUBLIC_DEBUG_PROTOCOLS.split(',').map((p) => p.trim()).filter(Boolean)
+              : null;
+            const defaultRewardProtocols = ['echelon', 'auro', 'hyperion', 'meso', 'earnium'];
+            const protocolsToFetch = protocols ?? (debugProtocols?.length ? debugProtocols : defaultRewardProtocols);
             const newRewards: ProtocolRewards = { ...state.rewards };
             
             console.log('[WalletStore] Protocols to fetch:', protocolsToFetch);

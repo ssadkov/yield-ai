@@ -45,6 +45,19 @@ export interface CloseAtMarketParams {
   builderFeeBps?: number | null;
 }
 
+export interface CloseAtLimitParams {
+  subaccountAddr: string;
+  marketAddr: string;
+  size: number;
+  isLong: boolean;
+  /** Limit price in human decimal (e.g. 5.67). Will be rounded to tick. */
+  limitPrice: number;
+  marketConfig: DecibelMarketConfig;
+  isTestnet?: boolean;
+  builderAddr?: string | null;
+  builderFeeBps?: number | null;
+}
+
 /**
  * Round price to valid tick size and return chain units directly.
  * Uses integer rounding to avoid floating-point errors that cause EPRICE_NOT_RESPECTING_TICKER_SIZE.
@@ -137,6 +150,65 @@ export function buildCloseAtMarketPayload(params: CloseAtMarketParams): {
       null, // sl_limit_price
       builderAddr ?? null, // builder_addr
       builderFeeBps ?? null, // builder_fee
+    ],
+  };
+}
+
+/**
+ * Builds the transaction payload for closing a position at limit (GTC).
+ * Same entry point as market close but time_in_force=GoodTillCanceled and user's limit price.
+ */
+export function buildCloseAtLimitPayload(params: CloseAtLimitParams): {
+  function: string;
+  typeArguments: string[];
+  functionArguments: unknown[];
+} {
+  const {
+    subaccountAddr,
+    marketAddr,
+    size,
+    isLong,
+    limitPrice,
+    marketConfig,
+    isTestnet = false,
+    builderAddr = null,
+    builderFeeBps = null,
+  } = params;
+
+  const pkg = isTestnet ? PACKAGE_TESTNET : PACKAGE_MAINNET;
+  const pxDecimals = marketConfig.px_decimals ?? 9;
+  const szDecimals = marketConfig.sz_decimals ?? 9;
+  const tickSize = marketConfig.tick_size ?? 1_000_000;
+  const lotSize = marketConfig.lot_size ?? 100_000_000;
+  const minSize = marketConfig.min_size ?? 1_000_000_000;
+
+  const chainPrice = roundPriceToTickChainUnits(limitPrice, tickSize, pxDecimals);
+  const absSize = Math.abs(size);
+  const chainSize = roundSizeToLotChainUnits(absSize, lotSize, minSize, szDecimals);
+  const isBuy = !isLong;
+
+  // time_in_force: 0=GoodTillCanceled (limit order stays in book until filled or cancelled)
+  const timeInForce = 0;
+
+  return {
+    function: `${pkg}::dex_accounts_entry::place_order_to_subaccount`,
+    typeArguments: [],
+    functionArguments: [
+      subaccountAddr,
+      marketAddr,
+      chainPrice,
+      chainSize,
+      isBuy,
+      timeInForce,
+      true, // is_reduce_only
+      null, // client_order_id
+      null, // stop_price
+      null, // tp_trigger_price
+      null, // tp_limit_price
+      null, // sl_trigger_price
+      null, // sl_limit_price
+      builderAddr ?? null,
+      builderFeeBps ?? null,
     ],
   };
 }

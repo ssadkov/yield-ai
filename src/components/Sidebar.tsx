@@ -90,6 +90,14 @@ export default function Sidebar() {
     "Decibel",
   ];
 
+  // When set (e.g. "decibel" or "decibel,thala"), only these protocols are shown in the positions list
+  const debugProtocolKeys =
+    typeof process.env.NEXT_PUBLIC_DEBUG_PROTOCOLS === "string"
+      ? process.env.NEXT_PUBLIC_DEBUG_PROTOCOLS.split(",")
+          .map((p) => p.trim().toLowerCase())
+          .filter(Boolean)
+      : null;
+
   const resetChecking = useCallback(() => {
     setCheckingProtocols(allProtocolNames);
   }, []);
@@ -336,24 +344,34 @@ export default function Sidebar() {
                     </div>
                   </div>
                 )}
-                {[
-                  { component: HyperionPositionsList, value: hyperionValue, name: 'Hyperion' },
-                  { component: EchelonPositionsList, value: echelonValue, name: 'Echelon' },
-                  { component: AriesPositionsList, value: ariesValue, name: 'Aries' },
-                  { component: JoulePositionsList, value: jouleValue, name: 'Joule' },
-                  { component: TappPositionsList, value: tappValue, name: 'Tapp Exchange' },
-                  { component: MesoPositionsList, value: mesoValue, name: 'Meso Finance' },
-                  { component: AuroPositionsList, value: auroValue, name: 'Auro Finance' },
-                  { component: AmnisPositionsList, value: amnisValue, name: 'Amnis Finance' },
-                  { component: EarniumPositionsList, value: earniumValue, name: 'Earnium' },
-                  { component: AavePositionsList, value: aaveValue, name: 'Aave' },
-                  { component: MoarPositionsList, value: moarValue, name: 'Moar Market' },
-                  { component: ThalaPositionsList, value: thalaValue, name: 'Thala' },
-				  { component: EchoPositionsList, value: echoValue, name: 'Echo Protocol' },
-                  { component: DecibelPositionsList, value: decibelValue, name: 'Decibel' },
-                ]
-                  .sort((a, b) => b.value - a.value)
-                  .map(({ component: Component, name }) => (
+                {(() => {
+                  const positionsListItems = [
+                    { component: HyperionPositionsList, value: hyperionValue, name: "Hyperion" },
+                    { component: EchelonPositionsList, value: echelonValue, name: "Echelon" },
+                    { component: AriesPositionsList, value: ariesValue, name: "Aries" },
+                    { component: JoulePositionsList, value: jouleValue, name: "Joule" },
+                    { component: TappPositionsList, value: tappValue, name: "Tapp Exchange" },
+                    { component: MesoPositionsList, value: mesoValue, name: "Meso Finance" },
+                    { component: AuroPositionsList, value: auroValue, name: "Auro Finance" },
+                    { component: AmnisPositionsList, value: amnisValue, name: "Amnis Finance" },
+                    { component: EarniumPositionsList, value: earniumValue, name: "Earnium" },
+                    { component: AavePositionsList, value: aaveValue, name: "Aave" },
+                    { component: MoarPositionsList, value: moarValue, name: "Moar Market" },
+                    { component: ThalaPositionsList, value: thalaValue, name: "Thala" },
+                    { component: EchoPositionsList, value: echoValue, name: "Echo Protocol" },
+                    { component: DecibelPositionsList, value: decibelValue, name: "Decibel" },
+                  ];
+                  const listToRender =
+                    debugProtocolKeys?.length &&
+                    debugProtocolKeys.length > 0
+                      ? positionsListItems.filter((item) => {
+                          const key = getProtocolByName(item.name)?.key;
+                          return key && debugProtocolKeys.includes(key.toLowerCase());
+                        })
+                      : positionsListItems;
+                  return listToRender
+                    .sort((a, b) => b.value - a.value)
+                    .map(({ component: Component, name }) => (
                     <Component
                       key={name}
                       address={account!.address.toString()}
@@ -381,7 +399,8 @@ export default function Sidebar() {
                         setCheckingProtocols((prev) => prev.filter((p) => p !== name))
                       }
                     />
-                  ))}
+                  ));
+                })()}
               </div>
             ) : (
               <div className="mt-4 p-4 bg-muted rounded-lg space-y-2">

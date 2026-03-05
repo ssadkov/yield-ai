@@ -23,9 +23,12 @@ import { normalizeAddress } from '@/lib/utils/addressNormalization';
 import { cn } from '@/lib/utils';
 import {
   buildCloseAtMarketPayload,
+  buildCloseAtLimitPayload,
   type DecibelMarketConfig,
 } from '@/lib/protocols/decibel/closePosition';
 import { buildApproveBuilderFeePayload } from '@/lib/protocols/decibel/approveBuilderFee';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 /** Decibel API position shape (snake_case from API) */
 export interface DecibelPosition {
@@ -101,6 +104,9 @@ export function DecibelPositions() {
   const [decibelNetwork, setDecibelNetwork] = useState<'testnet' | 'mainnet'>('testnet');
   const [closingPositionKey, setClosingPositionKey] = useState<string | null>(null);
   const [closeConfirmPosition, setCloseConfirmPosition] = useState<DecibelPosition | null>(null);
+  const [closeMode, setCloseMode] = useState<'market' | 'limit'>('market');
+  const [closeLimitPrice, setCloseLimitPrice] = useState('');
+  const [dialogMarkPx, setDialogMarkPx] = useState<number | null>(null);
   const [availableToTrade, setAvailableToTrade] = useState<number | null>(null);
   const [totalEquity, setTotalEquity] = useState<number | null>(null);
   const [preDepositSumUsdc, setPreDepositSumUsdc] = useState<number | null>(null);
@@ -380,11 +386,49 @@ export function DecibelPositions() {
 
   const handleCloseClick = (pos: DecibelPosition) => {
     setCloseConfirmPosition(pos);
+    setCloseMode('market');
+    setCloseLimitPrice('');
   };
+
+  // Fetch mark price when close dialog opens (for limit price hint)
+  useEffect(() => {
+    if (!closeConfirmPosition) {
+      setDialogMarkPx(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/protocols/decibel/prices?market=${encodeURIComponent(closeConfirmPosition.market)}`
+        );
+        const data = await res.json();
+        if (cancelled) return;
+        const list = data.success && Array.isArray(data.data) ? data.data : [];
+        const item =
+          list.find(
+            (p: { market?: string }) => normalizeAddress(p.market || '') === normalizeAddress(closeConfirmPosition.market)
+          ) ?? list[0];
+        const mark = item?.mark_px ?? item?.mid_px ?? closeConfirmPosition.entry_price;
+        const markNum = typeof mark === 'number' ? mark : null;
+        setDialogMarkPx(markNum);
+        // Prefill limit price when mark loads and user already switched to Limit
+        if (markNum != null) {
+          setCloseLimitPrice((prev) => (prev === '' ? formatNumber(markNum, 4) : prev));
+        }
+      } catch {
+        if (!cancelled) setDialogMarkPx(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [closeConfirmPosition]);
 
   const handleConfirmClose = useCallback(async () => {
     const pos = closeConfirmPosition;
-    if (!pos || (!signTransaction && !signAndSubmitTransaction) || !account?.address) {
+    const walletAddress = account?.address;
+    if (!pos || (!signTransaction && !signAndSubmitTransaction) || !walletAddress) {
       setCloseConfirmPosition(null);
       return;
     }
@@ -397,6 +441,14 @@ export function DecibelPositions() {
         );
         const approvalData = (await approvalRes.json()) as { success?: boolean; approvedMaxFeeBps?: number | null };
         if (approvalRes.ok && approvalData?.success && approvalData.approvedMaxFeeBps == null) {
+          if (!account?.address) {
+            toast({
+              title: 'Wallet not connected',
+              description: 'Please reconnect your Aptos wallet and try again.',
+              variant: 'destructive',
+            });
+            return;
+          }
           const approvePayload = buildApproveBuilderFeePayload({
             subaccountAddr: pos.user,
             builderAddr: builderConfig.builderAddress,
@@ -414,7 +466,7 @@ export function DecibelPositions() {
             });
           } else if (signTransaction) {
             const aptos = getDecibelAptosClient(decibelNetwork);
-            const senderAddr = AccountAddress.fromString(account.address.toString());
+            const senderAddr = AccountAddress.fromString(walletAddress.toString());
             const transaction = await aptos.transaction.build.simple({
               sender: senderAddr,
               data: {
@@ -453,18 +505,48 @@ export function DecibelPositions() {
         setClosingPositionKey(null);
         return;
       }
-      const payload = buildCloseAtMarketPayload({
-        subaccountAddr: pos.user,
-        marketAddr: pos.market,
-        size: Math.abs(pos.size),
-        isLong: pos.size > 0,
-        markPx,
-        marketConfig,
-        slippageBps: 50,
-        isTestnet: decibelNetwork === 'testnet',
-        builderAddr: builderConfig?.builderAddress ?? undefined,
-        builderFeeBps: builderConfig?.builderFeeBps ?? undefined,
-      });
+
+      const isLimit = closeMode === 'limit';
+      const limitPriceNum = isLimit ? parseFloat(closeLimitPrice) : NaN;
+      if (isLimit && (Number.isNaN(limitPriceNum) || limitPriceNum <= 0)) {
+        toast({ title: 'Error', description: 'Enter a valid limit price.', variant: 'destructive' });
+        setClosingPositionKey(null);
+        return;
+      }
+
+      const payload = isLimit
+        ? buildCloseAtLimitPayload({
+            subaccountAddr: pos.user,
+            marketAddr: pos.market,
+            size: Math.abs(pos.size),
+            isLong: pos.size > 0,
+            limitPrice: limitPriceNum,
+            marketConfig,
+            isTestnet: decibelNetwork === 'testnet',
+            builderAddr: builderConfig?.builderAddress ?? undefined,
+            builderFeeBps: builderConfig?.builderFeeBps ?? undefined,
+          })
+        : buildCloseAtMarketPayload({
+            subaccountAddr: pos.user,
+            marketAddr: pos.market,
+            size: Math.abs(pos.size),
+            isLong: pos.size > 0,
+            markPx,
+            marketConfig,
+            slippageBps: 50,
+            isTestnet: decibelNetwork === 'testnet',
+            builderAddr: builderConfig?.builderAddress ?? undefined,
+            builderFeeBps: builderConfig?.builderFeeBps ?? undefined,
+          });
+
+      if (!account?.address) {
+        toast({
+          title: 'Wallet not connected',
+          description: 'Please reconnect your Aptos wallet and try again.',
+          variant: 'destructive',
+        });
+        return;
+      }
 
       let txHash: string;
 
@@ -482,7 +564,7 @@ export function DecibelPositions() {
       } else if (signTransaction) {
         // Fallback: manual sign + submit (Decibel not in Gas Station rules)
         const aptos = getDecibelAptosClient(decibelNetwork);
-        const senderAddr = AccountAddress.fromString(account.address.toString());
+        const senderAddr = AccountAddress.fromString(walletAddress.toString());
         const transaction = await aptos.transaction.build.simple({
           sender: senderAddr,
           data: {
@@ -492,7 +574,7 @@ export function DecibelPositions() {
           },
           options: { maxGasAmount: 20000 },
         });
-        console.log('[Decibel] sender:', senderAddr.toString(), 'wallet:', account?.address);
+        console.log('[Decibel] sender:', senderAddr.toString(), 'wallet:', walletAddress.toString());
         const signResult = await signTransaction({ transactionOrPayload: transaction });
         console.log('[Decibel] signResult keys:', Object.keys(signResult ?? {}));
         const { authenticator } = signResult;
@@ -505,7 +587,7 @@ export function DecibelPositions() {
         throw new Error('Wallet does not support signing transactions');
       }
       toast({
-        title: 'Position closed',
+        title: isLimit ? 'Limit close order placed' : 'Position closed',
         description: txHash ? `Transaction ${txHash.slice(0, 6)}...${txHash.slice(-4)}` : 'Transaction submitted',
         action: txHash ? (
           <ToastAction
@@ -530,25 +612,33 @@ export function DecibelPositions() {
           : typeof err === 'object' && err !== null && 'message' in err
             ? String((err as { message: unknown }).message)
             : String(err);
+      const isWalletNotConnected =
+        (err instanceof Error && err.name === 'WalletNotConnectedError') ||
+        (typeof rawMsg === 'string' && rawMsg.includes('WalletNotConnectedError'));
       const testnetHint =
         decibelNetwork === 'testnet'
           ? ' Switch your wallet to Aptos Mainnet and try again.'
           : '';
-      const msg = rawMsg || 'Failed to close position';
+      const msg = isWalletNotConnected
+        ? 'Wallet disconnected or locked. Please unlock or reconnect your Aptos wallet and try again.'
+        : (rawMsg || 'Failed to close position') + testnetHint;
       console.error('[Decibel] Close position error:', err);
       toast({
-        title: 'Error',
-        description: msg + testnetHint,
+        title: isWalletNotConnected ? 'Wallet not connected' : 'Error',
+        description: msg,
         variant: 'destructive',
       });
       setCloseConfirmPosition(null);
     } finally {
       setClosingPositionKey(null);
     }
-  }, [closeConfirmPosition, signTransaction, signAndSubmitTransaction, account?.address, marketsMap, decibelNetwork, fetchPositions, toast, builderConfig]);
+  }, [closeConfirmPosition, closeMode, closeLimitPrice, signTransaction, signAndSubmitTransaction, account?.address, marketsMap, decibelNetwork, fetchPositions, toast, builderConfig]);
 
   const handleCancelClose = useCallback(() => {
     setCloseConfirmPosition(null);
+    setCloseMode('market');
+    setCloseLimitPrice('');
+    setDialogMarkPx(null);
   }, []);
 
   if (!account?.address) {
@@ -810,12 +900,75 @@ export function DecibelPositions() {
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>Close position</DialogTitle>
+                {closeConfirmPosition && (
+                  <>
+                    <p className="text-sm font-medium text-foreground mt-1">Close at:</p>
+                    <div className="flex gap-1 p-0.5 rounded-lg border bg-muted/40">
+                      <button
+                        type="button"
+                        onClick={() => setCloseMode('market')}
+                        className={cn(
+                          'flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                          closeMode === 'market'
+                            ? 'bg-background text-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        Market
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCloseMode('limit');
+                          if (dialogMarkPx != null) setCloseLimitPrice(formatNumber(dialogMarkPx, 4));
+                        }}
+                        className={cn(
+                          'flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                          closeMode === 'limit'
+                            ? 'bg-background text-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        Limit
+                      </button>
+                    </div>
+                    {closeMode === 'limit' && (
+                      <div className="space-y-2 pt-2">
+                        <Label htmlFor="close-limit-price">Limit price</Label>
+                        <Input
+                          id="close-limit-price"
+                          type="number"
+                          step="any"
+                          min="0"
+                          placeholder={dialogMarkPx != null ? String(dialogMarkPx) : '0'}
+                          value={closeLimitPrice}
+                          onChange={(e) => setCloseLimitPrice(e.target.value)}
+                          className="font-mono"
+                        />
+                        {dialogMarkPx != null && (
+                          <p className="text-xs text-muted-foreground">Mark: {formatNumber(dialogMarkPx, 4)}</p>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
                 <DialogDescription>
                   {closeConfirmPosition && (
                     <>
                       Close {formatSize(Math.abs(closeConfirmPosition.size))}{' '}
-                      {formatDecibelMarket(marketNames[normalizeAddress(closeConfirmPosition.market)] ?? closeConfirmPosition.market).displayPair}{' '}
-                      at market price? This will execute immediately (IOC).
+                      {formatDecibelMarket(marketNames[normalizeAddress(closeConfirmPosition.market)] ?? closeConfirmPosition.market).displayPair}
+                      {closeMode === 'market' ? (
+                        <>
+                          {' '}
+                          at market price
+                          {dialogMarkPx != null && (
+                            <> (~{formatNumber(dialogMarkPx, 4)})</>
+                          )}
+                          ? This will execute immediately (IOC).
+                        </>
+                      ) : (
+                        <> at your limit price? Order will stay in the book until filled or you cancel it.</>
+                      )}
                       {decibelNetwork === 'testnet' && (
                         <span className="mt-2 block text-amber-600 dark:text-amber-400 font-medium">
                           Switch your wallet to Aptos Mainnet before closing.
@@ -832,9 +985,22 @@ export function DecibelPositions() {
                 <Button
                   variant="destructive"
                   onClick={handleConfirmClose}
-                  disabled={!!closingPositionKey || !closeConfirmPosition}
+                  disabled={
+                    !!closingPositionKey ||
+                    !closeConfirmPosition ||
+                    (closeMode === 'limit' &&
+                      (!closeLimitPrice.trim() ||
+                        Number.isNaN(parseFloat(closeLimitPrice)) ||
+                        parseFloat(closeLimitPrice) <= 0))
+                  }
                 >
-                  {closingPositionKey ? 'Closing…' : 'Close at market'}
+                  {closingPositionKey
+                    ? closeMode === 'limit'
+                      ? 'Placing…'
+                      : 'Closing…'
+                    : closeMode === 'limit'
+                      ? 'Place limit close'
+                      : 'Close at market'}
                 </Button>
               </DialogFooter>
             </DialogContent>
