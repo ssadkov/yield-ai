@@ -31,7 +31,7 @@ export function mapMoarPositionToProtocolPosition(
     value,
     logoUrl: position.assetInfo?.logoUrl ?? undefined,
     badge: PositionBadge.Supply,
-    subLabel: symbol ? `${formattedAmount} ${symbol}` : formattedAmount,
+    subLabel: formattedAmount,
     price,
     apr: apr != null ? apr.toFixed(2) : undefined,
   };
