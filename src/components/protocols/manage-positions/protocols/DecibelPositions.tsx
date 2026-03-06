@@ -783,6 +783,8 @@ export function DecibelPositions() {
           ) : undefined,
         });
         fetchOpenOrders();
+        fetchPositions();
+        window.dispatchEvent(new CustomEvent('refreshPositions', { detail: { protocol: 'decibel' } }));
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         toast({ title: 'Error', description: msg, variant: 'destructive' });
@@ -790,7 +792,7 @@ export function DecibelPositions() {
         setCancelingOrderId(null);
       }
     },
-    [decibelNetwork, signTransaction, signAndSubmitTransaction, account?.address, toast, fetchOpenOrders]
+    [decibelNetwork, signTransaction, signAndSubmitTransaction, account?.address, toast, fetchOpenOrders, fetchPositions]
   );
 
   if (!account?.address) {
