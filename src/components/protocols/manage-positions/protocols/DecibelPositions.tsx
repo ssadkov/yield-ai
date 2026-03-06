@@ -24,6 +24,7 @@ import { cn } from '@/lib/utils';
 import {
   buildCloseAtMarketPayload,
   buildCloseAtLimitPayload,
+  buildCancelOrderPayload,
   type DecibelMarketConfig,
 } from '@/lib/protocols/decibel/closePosition';
 import { buildApproveBuilderFeePayload } from '@/lib/protocols/decibel/approveBuilderFee';
@@ -158,6 +159,7 @@ export function DecibelPositions() {
   const [ampsLoading, setAmpsLoading] = useState(false);
   const [openOrders, setOpenOrders] = useState<DecibelOpenOrder[]>([]);
   const [openOrdersLoading, setOpenOrdersLoading] = useState(false);
+  const [cancelingOrderId, setCancelingOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!account?.address) {
@@ -715,6 +717,82 @@ export function DecibelPositions() {
     setDialogMarkPx(null);
   }, []);
 
+  const handleCancelOrder = useCallback(
+    async (orderId: string, subaccountAddr: string, marketAddr: string) => {
+      if (!orderId || (!signTransaction && !signAndSubmitTransaction) || !account?.address) return;
+      setCancelingOrderId(orderId);
+      try {
+        const payload = buildCancelOrderPayload({
+          subaccountAddr,
+          marketAddr,
+          orderId,
+          isTestnet: decibelNetwork === 'testnet',
+        });
+        if (!account?.address) {
+          toast({ title: 'Wallet not connected', description: 'Please reconnect and try again.', variant: 'destructive' });
+          return;
+        }
+        let txHash: string;
+        if (signAndSubmitTransaction) {
+          const result = await signAndSubmitTransaction({
+            data: {
+              function: payload.function as `${string}::${string}::${string}`,
+              typeArguments: payload.typeArguments,
+              functionArguments: payload.functionArguments as (string | number | bigint)[],
+            },
+            options: { maxGasAmount: 20000 },
+          });
+          txHash = typeof result?.hash === 'string' ? result.hash : (result as { hash?: string })?.hash ?? '';
+        } else if (signTransaction) {
+          const aptos = getDecibelAptosClient(decibelNetwork);
+          const senderAddr = AccountAddress.fromString(account.address.toString());
+          const transaction = await aptos.transaction.build.simple({
+            sender: senderAddr,
+            data: {
+              function: payload.function as `${string}::${string}::${string}`,
+              typeArguments: payload.typeArguments,
+              functionArguments: payload.functionArguments as (string | number | bigint)[],
+            },
+            options: { maxGasAmount: 20000 },
+          });
+          const signResult = await signTransaction({ transactionOrPayload: transaction });
+          const { authenticator } = signResult;
+          const response = await aptos.transaction.submit.simple({
+            transaction,
+            senderAuthenticator: normalizeAuthenticator(authenticator),
+          });
+          txHash = typeof response?.hash === 'string' ? response.hash : (response as { hash?: string })?.hash ?? '';
+        } else {
+          throw new Error('Wallet does not support signing transactions');
+        }
+        toast({
+          title: 'Order cancelled',
+          description: txHash ? `Tx ${txHash.slice(0, 6)}...${txHash.slice(-4)}` : 'Transaction submitted',
+          action: txHash ? (
+            <ToastAction
+              altText="View in Explorer"
+              onClick={() =>
+                window.open(
+                  `https://explorer.aptoslabs.com/txn/${txHash}?network=${decibelNetwork === 'mainnet' ? 'mainnet' : 'testnet'}`,
+                  '_blank'
+                )
+              }
+            >
+              View in Explorer
+            </ToastAction>
+          ) : undefined,
+        });
+        fetchOpenOrders();
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        toast({ title: 'Error', description: msg, variant: 'destructive' });
+      } finally {
+        setCancelingOrderId(null);
+      }
+    },
+    [decibelNetwork, signTransaction, signAndSubmitTransaction, account?.address, toast, fetchOpenOrders]
+  );
+
   if (!account?.address) {
     return (
       <div className="text-sm text-muted-foreground py-4">
@@ -909,23 +987,37 @@ export function DecibelPositions() {
                             : 0;
                         const sizeStr = orderSizeHuman > 0 ? `${formatSize(orderSizeHuman)} @ ` : '';
                         const orderLabel = `Limit close order ${sizeStr || '@ '}${formatNumber(orderPriceHuman, 4)}`;
+                        const isCanceling = order.order_id && cancelingOrderId === order.order_id;
                         return (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div className="flex items-center gap-1.5 mt-0.5 rounded-md border-l-2 border-primary/40 bg-muted/50 pl-2 py-1 pr-2 w-fit">
-                                  <Target className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                                  <span className="text-sm text-muted-foreground">{orderLabel}</span>
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent side="bottom" className="max-w-[240px]">
-                                <p>
-                                  Limit close order is active. It will fill when price reaches{' '}
-                                  {formatNumber(orderPriceHuman, 4)} or you cancel it in Decibel.
-                                </p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="flex items-center gap-1.5 rounded-md border-l-2 border-primary/40 bg-muted/50 pl-2 py-1 pr-2 w-fit">
+                                    <Target className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                    <span className="text-sm text-muted-foreground">{orderLabel}</span>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom" className="max-w-[240px]">
+                                  <p>
+                                    Limit close order is active. It will fill when price reaches{' '}
+                                    {formatNumber(orderPriceHuman, 4)} or you cancel it.
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            {order.order_id && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs text-muted-foreground hover:text-destructive"
+                                disabled={!!cancelingOrderId}
+                                onClick={() => handleCancelOrder(order.order_id!, pos.user, pos.market)}
+                              >
+                                {isCanceling ? 'Canceling…' : 'Cancel order'}
+                              </Button>
+                            )}
+                          </div>
                         );
                       })()}
                     </div>

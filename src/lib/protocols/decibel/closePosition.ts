@@ -212,3 +212,29 @@ export function buildCloseAtLimitPayload(params: CloseAtLimitParams): {
     ],
   };
 }
+
+/**
+ * Build transaction payload to cancel an open order by order_id.
+ * @see https://docs.decibel.trade/developer-hub/on-chain/order-management/cancel-order
+ */
+export function buildCancelOrderPayload(params: {
+  subaccountAddr: string;
+  marketAddr: string;
+  /** Order ID from open_orders API (string, u128 on-chain) */
+  orderId: string;
+  isTestnet?: boolean;
+}): {
+  function: string;
+  typeArguments: string[];
+  functionArguments: unknown[];
+} {
+  const { subaccountAddr, marketAddr, orderId, isTestnet = false } = params;
+  const pkg = isTestnet ? PACKAGE_TESTNET : PACKAGE_MAINNET;
+  // order_id is u128 on-chain; pass as BigInt for SDK (large IDs exceed Number.MAX_SAFE_INTEGER)
+  const orderIdBigInt = BigInt(orderId);
+  return {
+    function: `${pkg}::dex_accounts_entry::cancel_order_to_subaccount`,
+    typeArguments: [],
+    functionArguments: [subaccountAddr, orderIdBigInt, marketAddr],
+  };
+}
