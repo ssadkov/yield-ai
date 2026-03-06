@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Info } from 'lucide-react';
+import { Info, Target } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import { formatNumber, formatCurrency } from '@/lib/utils/numberFormat';
@@ -54,6 +54,43 @@ export interface DecibelVaultItem {
   total_deposited?: number;
   /** APR as decimal (e.g. 0.15 = 15%), from API or derived from vault returns */
   apr?: number;
+}
+
+/** Open order from Decibel open_orders API (supports snake_case and common variants) */
+export interface DecibelOpenOrder {
+  market?: string;
+  market_address?: string;
+  price: number;
+  size?: number;
+  /** API returns human size (e.g. 0.00015) */
+  orig_size?: number;
+  remaining_size?: number;
+  size_delta?: number;
+  reduce_only?: boolean;
+  is_reduce_only?: boolean;
+  order_id?: string;
+}
+
+/** Normalize API response to array of orders (data may be array or { items, total_count }) */
+function normalizeOpenOrdersResponse(data: unknown): DecibelOpenOrder[] {
+  if (Array.isArray(data)) return data as DecibelOpenOrder[];
+  if (data && typeof data === 'object' && 'items' in data && Array.isArray((data as { items: unknown }).items)) {
+    return (data as { items: DecibelOpenOrder[] }).items;
+  }
+  return [];
+}
+
+/** Find reduce-only order for this position (same market) */
+function getOrderForPosition(
+  orders: DecibelOpenOrder[],
+  position: DecibelPosition
+): DecibelOpenOrder | undefined {
+  const posMarket = normalizeAddress(position.market);
+  return orders.find((o) => {
+    const orderMarket = normalizeAddress((o.market ?? o.market_address ?? ''));
+    const reduceOnly = o.reduce_only ?? o.is_reduce_only === true;
+    return orderMarket === posMarket && reduceOnly;
+  });
 }
 
 const DECIBEL_APP_URL = 'https://app.decibel.trade/';
@@ -119,6 +156,8 @@ export function DecibelPositions() {
   const [builderConfig, setBuilderConfig] = useState<{ builderAddress: string; builderFeeBps: number } | null>(null);
   const [totalAmps, setTotalAmps] = useState<number | null>(null);
   const [ampsLoading, setAmpsLoading] = useState(false);
+  const [openOrders, setOpenOrders] = useState<DecibelOpenOrder[]>([]);
+  const [openOrdersLoading, setOpenOrdersLoading] = useState(false);
 
   useEffect(() => {
     if (!account?.address) {
@@ -360,9 +399,42 @@ export function DecibelPositions() {
     }
   }, [account?.address]);
 
+  const fetchOpenOrders = useCallback(async () => {
+    if (!account?.address) {
+      setOpenOrders([]);
+      return;
+    }
+    // Decibel open_orders returns orders per subaccount, not per owner. Use subaccounts from positions.
+    const subaccounts = positions.length > 0
+      ? Array.from(new Set(positions.map((p) => p.user).filter(Boolean)))
+      : [account.address.toString()];
+    setOpenOrdersLoading(true);
+    try {
+      const allOrders: DecibelOpenOrder[] = [];
+      for (const addr of subaccounts) {
+        const res = await fetch(
+          `/api/protocols/decibel/openOrders?address=${encodeURIComponent(addr)}`
+        );
+        const data = await res.json();
+        if (data.success && data.data != null) {
+          allOrders.push(...normalizeOpenOrdersResponse(data.data));
+        }
+      }
+      setOpenOrders(allOrders);
+    } catch {
+      setOpenOrders([]);
+    } finally {
+      setOpenOrdersLoading(false);
+    }
+  }, [account?.address, positions]);
+
   useEffect(() => {
     fetchAmps();
   }, [fetchAmps]);
+
+  useEffect(() => {
+    fetchOpenOrders();
+  }, [fetchOpenOrders]);
 
   useEffect(() => {
     const handler = (e: CustomEvent<{ protocol: string; data?: DecibelPosition[] }>) => {
@@ -376,11 +448,12 @@ export function DecibelPositions() {
         fetchPreDeposit();
         fetchPrices();
         fetchAmps();
+        fetchOpenOrders();
       }
     };
     window.addEventListener('refreshPositions', handler as EventListener);
     return () => window.removeEventListener('refreshPositions', handler as EventListener);
-  }, [fetchVaults, fetchOverview, fetchPreDeposit, fetchPrices, fetchAmps]);
+  }, [fetchVaults, fetchOverview, fetchPreDeposit, fetchPrices, fetchAmps, fetchOpenOrders]);
 
   const positionKey = (pos: DecibelPosition) => `${pos.market}-${pos.user}-${pos.size}-${pos.entry_price}`;
 
@@ -605,6 +678,7 @@ export function DecibelPositions() {
       });
       setCloseConfirmPosition(null);
       fetchPositions();
+      fetchOpenOrders();
     } catch (err: unknown) {
       const rawMsg =
         err instanceof Error
@@ -632,7 +706,7 @@ export function DecibelPositions() {
     } finally {
       setClosingPositionKey(null);
     }
-  }, [closeConfirmPosition, closeMode, closeLimitPrice, signTransaction, signAndSubmitTransaction, account?.address, marketsMap, decibelNetwork, fetchPositions, toast, builderConfig]);
+  }, [closeConfirmPosition, closeMode, closeLimitPrice, signTransaction, signAndSubmitTransaction, account?.address, marketsMap, decibelNetwork, fetchPositions, fetchOpenOrders, toast, builderConfig]);
 
   const handleCancelClose = useCallback(() => {
     setCloseConfirmPosition(null);
@@ -796,23 +870,64 @@ export function DecibelPositions() {
                 >
                   {/* Top: pair info | Total PnL, Margin, Close */}
                   <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="flex items-center gap-2 flex-wrap min-w-0">
-                      <span className="font-medium">{displayPair}</span>
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          'text-xs font-medium shrink-0',
-                          isLong ? 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20' : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'
+                    <div className="flex flex-col gap-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium">{displayPair}</span>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'text-xs font-medium shrink-0',
+                            isLong ? 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20' : 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20'
+                          )}
+                        >
+                          {isLong ? 'Long' : 'Short'}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground shrink-0">{pos.user_leverage}x</span>
+                        {pos.is_isolated && (
+                          <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
+                            Isolated
+                          </span>
                         )}
-                      >
-                        {isLong ? 'Long' : 'Short'}
-                      </Badge>
-                      <span className="text-sm text-muted-foreground shrink-0">{pos.user_leverage}x</span>
-                      {pos.is_isolated && (
-                        <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
-                          Isolated
-                        </span>
-                      )}
+                      </div>
+                      {(() => {
+                        const order = getOrderForPosition(openOrders, pos);
+                        if (!order) return null;
+                        const marketConfig = marketsMap[marketKey] ?? Object.values(marketsMap).find((m) => normalizeAddress(m.market_addr || '') === marketKey);
+                        const pxDecimals = marketConfig?.px_decimals ?? 9;
+                        const szDecimals = marketConfig?.sz_decimals ?? 9;
+                        // API may return human price (e.g. 70000) or chain units; use as-is if in human range
+                        const orderPriceHuman =
+                          order.price > 0 && order.price < 1e12
+                            ? order.price
+                            : order.price / 10 ** pxDecimals;
+                        const rawSize = order.remaining_size ?? order.orig_size ?? order.size;
+                        const orderSizeHuman =
+                          rawSize != null
+                            ? rawSize > 0 && rawSize < 1e10
+                              ? Math.abs(rawSize)
+                              : Math.abs(rawSize) / 10 ** szDecimals
+                            : 0;
+                        const sizeStr = orderSizeHuman > 0 ? `${formatSize(orderSizeHuman)} @ ` : '';
+                        const orderLabel = `Limit close order ${sizeStr || '@ '}${formatNumber(orderPriceHuman, 4)}`;
+                        return (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="flex items-center gap-1.5 mt-0.5 rounded-md border-l-2 border-primary/40 bg-muted/50 pl-2 py-1 pr-2 w-fit">
+                                  <Target className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                  <span className="text-sm text-muted-foreground">{orderLabel}</span>
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom" className="max-w-[240px]">
+                                <p>
+                                  Limit close order is active. It will fill when price reaches{' '}
+                                  {formatNumber(orderPriceHuman, 4)} or you cancel it in Decibel.
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        );
+                      })()}
                     </div>
                     <div className="flex flex-col items-end shrink-0 ml-auto">
                       <span className={cn('text-2xl font-semibold text-right', pnlColor)}>
