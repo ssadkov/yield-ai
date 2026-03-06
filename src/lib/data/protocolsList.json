@@ -394,7 +394,31 @@
     "socialMedia": {
       "twitter": "https://x.com/DecibelTrade"
     },
-    "airdrop": "",
+    "airdrop": "points",
+    "airdropInfo": {
+      "title": "🎁 Decibel Amps",
+      "description": "Points called Amps. Earn by trading, providing liquidity, and referring users. Designed to reward sustained, organic participation on the exchange.",
+      "links": [
+        {
+          "text": "Decibel Points Program",
+          "url": "https://x.com/DecibelTrade/status/2026749177796215270",
+          "type": "docs"
+        },
+        {
+          "text": "Your points",
+          "url": "https://app.decibel.trade/points",
+          "type": "app"
+        }
+      ],
+      "requirements": [
+        "Trading: Amps based on activity, leverage, position duration, and market diversity",
+        "Liquidity: Provide capital to the Decibel vaults",
+        "Referrals: Earn additional Amps from referred traders",
+        "Daily emissions: Fixed daily distribution during Season 1",
+        "Consistency bonuses: Streaks and long-held positions increase rewards"
+      ],
+      "additionalInfo": "Amps measure ongoing participation and determine allocation during the Token Generation Event (TGE)."
+    },
     "contractAddresses": []
   }
 ] 
