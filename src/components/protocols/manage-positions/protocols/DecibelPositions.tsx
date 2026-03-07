@@ -106,6 +106,13 @@ function formatSize(size: number): string {
   return formatNumber(size, 2);
 }
 
+/** Decibel returns funding in bps; convert to percent for UI. */
+function formatFundingRatePercent(fundingRateBps: number): string {
+  const percent = fundingRateBps / 100;
+  const sign = percent > 0 ? '+' : percent < 0 ? '-' : '';
+  return `${sign}${formatNumber(Math.abs(percent), 6)}%`;
+}
+
 /** Shorten hex address for display */
 function shortenHex(hex: string, head = 6, tail = 4): string {
   if (!hex || !hex.startsWith('0x') || hex.length <= head + tail + 2) return hex;
@@ -153,10 +160,15 @@ export function DecibelPositions() {
   const [vaultsLoading, setVaultsLoading] = useState(false);
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [pricesMap, setPricesMap] = useState<Record<string, number>>({});
+  const [fundingRatesMap, setFundingRatesMap] = useState<
+    Record<string, { fundingRateBps: number; isFundingPositive: boolean }>
+  >({});
   const [error, setError] = useState<string | null>(null);
   const [builderConfig, setBuilderConfig] = useState<{ builderAddress: string; builderFeeBps: number } | null>(null);
   const [totalAmps, setTotalAmps] = useState<number | null>(null);
   const [ampsLoading, setAmpsLoading] = useState(false);
+  const [predepositPoints, setPredepositPoints] = useState<number | null>(null);
+  const [predepositPointsLoading, setPredepositPointsLoading] = useState(false);
   const [openOrders, setOpenOrders] = useState<DecibelOpenOrder[]>([]);
   const [openOrdersLoading, setOpenOrdersLoading] = useState(false);
   const [cancelingOrderId, setCancelingOrderId] = useState<string | null>(null);
@@ -327,19 +339,36 @@ export function DecibelPositions() {
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
         const map: Record<string, number> = {};
-        for (const item of data.data as { market?: string; mark_px?: number; mid_px?: number }[]) {
+        const fundingMap: Record<string, { fundingRateBps: number; isFundingPositive: boolean }> = {};
+        for (const item of data.data as {
+          market?: string;
+          mark_px?: number;
+          mid_px?: number;
+          funding_rate_bps?: number;
+          is_funding_positive?: boolean;
+        }[]) {
           const addr = item.market;
           if (addr != null) {
+            const key = normalizeAddress(String(addr));
             const mark = item.mark_px ?? item.mid_px;
-            if (typeof mark === 'number') map[normalizeAddress(String(addr))] = mark;
+            if (typeof mark === 'number') map[key] = mark;
+            if (typeof item.funding_rate_bps === 'number') {
+              fundingMap[key] = {
+                fundingRateBps: item.funding_rate_bps,
+                isFundingPositive: item.is_funding_positive === true,
+              };
+            }
           }
         }
         setPricesMap(map);
+        setFundingRatesMap(fundingMap);
       } else {
         setPricesMap({});
+        setFundingRatesMap({});
       }
     } catch {
       setPricesMap({});
+      setFundingRatesMap({});
     }
   }, []);
 
@@ -401,6 +430,29 @@ export function DecibelPositions() {
     }
   }, [account?.address]);
 
+  const fetchPredepositPoints = useCallback(async () => {
+    if (!account?.address) {
+      setPredepositPoints(null);
+      return;
+    }
+    setPredepositPointsLoading(true);
+    try {
+      const res = await fetch(
+        `/api/protocols/decibel/predepositPoints?address=${encodeURIComponent(account.address.toString())}`
+      );
+      const data = await res.json();
+      if (data.success && typeof data.data?.points === 'number') {
+        setPredepositPoints(data.data.points);
+      } else {
+        setPredepositPoints(null);
+      }
+    } catch {
+      setPredepositPoints(null);
+    } finally {
+      setPredepositPointsLoading(false);
+    }
+  }, [account?.address]);
+
   const fetchOpenOrders = useCallback(async () => {
     if (!account?.address) {
       setOpenOrders([]);
@@ -435,6 +487,10 @@ export function DecibelPositions() {
   }, [fetchAmps]);
 
   useEffect(() => {
+    fetchPredepositPoints();
+  }, [fetchPredepositPoints]);
+
+  useEffect(() => {
     fetchOpenOrders();
   }, [fetchOpenOrders]);
 
@@ -450,12 +506,13 @@ export function DecibelPositions() {
         fetchPreDeposit();
         fetchPrices();
         fetchAmps();
+        fetchPredepositPoints();
         fetchOpenOrders();
       }
     };
     window.addEventListener('refreshPositions', handler as EventListener);
     return () => window.removeEventListener('refreshPositions', handler as EventListener);
-  }, [fetchVaults, fetchOverview, fetchPreDeposit, fetchPrices, fetchAmps, fetchOpenOrders]);
+  }, [fetchVaults, fetchOverview, fetchPreDeposit, fetchPrices, fetchAmps, fetchPredepositPoints, fetchOpenOrders]);
 
   const positionKey = (pos: DecibelPosition) => `${pos.market}-${pos.user}-${pos.size}-${pos.entry_price}`;
 
@@ -867,28 +924,32 @@ export function DecibelPositions() {
           </span>
         </div>
       )}
-      {(totalAmps != null || ampsLoading) && (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground">AMPs (points)</span>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-flex text-muted-foreground cursor-help">
-                    <Info className="h-4 w-4" />
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-[220px]">
-                  <p>Trading points. Data is updated once per day.</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-          <span className="font-medium">
-            {ampsLoading ? '…' : formatNumber(totalAmps ?? 0, 2)}
-          </span>
+      {/* AMPs: trading + predeposit points, breakdown in tooltip */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground">AMPs</span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex text-muted-foreground cursor-help">
+                  <Info className="h-4 w-4" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[260px]">
+                <p className="font-medium mb-1.5">Points breakdown</p>
+                <ul className="text-sm text-muted-foreground space-y-0.5">
+                  <li>• Trading (AMPs): {ampsLoading ? '…' : formatNumber(totalAmps ?? 0, 2)}</li>
+                  <li>• Predeposit points: {predepositPointsLoading ? '…' : formatNumber(predepositPoints ?? 0, 2)}</li>
+                </ul>
+                <p className="text-xs text-muted-foreground mt-1.5">Trading data is updated once per day.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
-      )}
+        <span className={cn("font-medium", totalAmps == null && predepositPoints == null && !ampsLoading && !predepositPointsLoading && "text-muted-foreground")}>
+          {ampsLoading || predepositPointsLoading ? '…' : formatNumber((totalAmps ?? 0) + (predepositPoints ?? 0), 2)}
+        </span>
+      </div>
       {positions.length === 0 && !vaultsLoading && vaults.length === 0 && (
         <p className="text-base text-muted-foreground py-2">
           No open positions on Decibel. Open positions at{' '}
@@ -940,6 +1001,7 @@ export function DecibelPositions() {
               const totalPnl = pricePnl + fundingDisplay;
               const pnlPercent = marginUsd > 0 ? (totalPnl / marginUsd) * 100 : 0;
               const isLong = pos.size > 0;
+              const fundingRateInfo = fundingRatesMap[marketKey];
               const pnlColor = totalPnl > 0 ? 'text-green-600 dark:text-green-400' : totalPnl < 0 ? 'text-destructive' : 'text-muted-foreground';
               const pricePnlColor = pricePnl > 0 ? 'text-green-600 dark:text-green-400' : pricePnl < 0 ? 'text-destructive' : 'text-muted-foreground';
               const fundingColor = fundingDisplay > 0 ? 'text-green-600 dark:text-green-400' : fundingDisplay < 0 ? 'text-destructive' : 'text-muted-foreground';
@@ -1099,6 +1161,36 @@ export function DecibelPositions() {
                     <div>
                       <span className="text-muted-foreground">Value (USD)</span>
                       <span className="ml-2 font-medium">{formatCurrency(notionalUsd, 2)}</span>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-muted-foreground">Funding rate</span>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="inline-flex text-muted-foreground cursor-help">
+                                <Info className="h-3.5 w-3.5" />
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="max-w-[260px]">
+                              <p>
+                                Current market funding rate for this perp. Decibel uses continuous
+                                funding, so this is not an hourly rate.
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                      <span className="ml-0">
+                        {fundingRateInfo
+                          ? formatFundingRatePercent(fundingRateInfo.fundingRateBps)
+                          : '—'}
+                      </span>
+                      {fundingRateInfo && (
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {fundingRateInfo.isFundingPositive ? 'Longs pay shorts' : 'Shorts pay longs'}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </li>

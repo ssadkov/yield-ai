@@ -28,6 +28,7 @@ import { Logo } from "./ui/logo";
 import { CollapsibleProvider } from "@/contexts/CollapsibleContext";
 import { MobileManagementProvider } from "@/contexts/MobileManagementContext";
 import { useSolanaPortfolio } from "@/hooks/useSolanaPortfolio";
+import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 
 function MobileTabsContent() {
   const [tab, setTab] = useState<"ideas" | "assets" | "chat">("assets");
@@ -60,6 +61,14 @@ function MobileTabsContent() {
   const [decibelValue, setDecibelValue] = useState<number>(0);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [refreshKey, setRefreshKey] = useState<number>(0);
+
+  // When set (e.g. "decibel" or "decibel,thala"), only these protocols are shown and fetched
+  const debugProtocolKeys =
+    typeof process.env.NEXT_PUBLIC_DEBUG_PROTOCOLS === "string"
+      ? process.env.NEXT_PUBLIC_DEBUG_PROTOCOLS.split(",")
+          .map((p) => p.trim().toLowerCase())
+          .filter(Boolean)
+      : null;
 
   // Функция для скролла к верху
   const scrollToTop = () => {
@@ -216,97 +225,42 @@ function MobileTabsContent() {
                       isRefreshing={isRefreshing}
                       hasSolanaWallet={!!solanaAddress}
                     />
-                    {[
-                      { 
-                        component: HyperionPositionsList, 
-                        value: hyperionValue, 
-                        name: 'Hyperion',
-                        handler: handleHyperionValueChange
-                      },
-                      { 
-                        component: EchelonPositionsList, 
-                        value: echelonValue, 
-                        name: 'Echelon',
-                        handler: handleEchelonValueChange
-                      },
-                      { 
-                        component: AriesPositionsList, 
-                        value: ariesValue, 
-                        name: 'Aries',
-                        handler: handleAriesValueChange
-                      },
-                      { 
-                        component: JoulePositionsList, 
-                        value: jouleValue, 
-                        name: 'Joule',
-                        handler: handleJouleValueChange
-                      },
-                      { 
-                        component: TappPositionsList, 
-                        value: tappValue, 
-                        name: 'Tapp Exchange',
-                        handler: handleTappValueChange
-                      },
-                      { 
-                        component: MesoPositionsList, 
-                        value: mesoValue, 
-                        name: 'Meso Finance',
-                        handler: handleMesoValueChange
-                      },
-                      { 
-                        component: AuroPositionsList, 
-                        value: auroValue, 
-                        name: 'Auro Finance',
-                        handler: handleAuroValueChange
-                      },
-                      { 
-                        component: EarniumPositionsList, 
-                        value: earniumValue, 
-                        name: 'Earnium',
-                        handler: handleEarniumValueChange
-                      },
-                      { 
-                        component: AavePositionsList, 
-                        value: aaveValue, 
-                        name: 'Aave',
-                        handler: handleAaveValueChange
-                      },
-                      { 
-                        component: MoarPositionsList, 
-                        value: moarValue, 
-                        name: 'Moar Market',
-                        handler: handleMoarValueChange
-                      },
-                      { 
-                        component: ThalaPositionsList, 
-                        value: thalaValue, 
-                        name: 'Thala',
-                        handler: handleThalaValueChange
-                      },
-                      { 
-                        component: EchoPositionsList, 
-                        value: echoValue, 
-                        name: 'Echo Protocol',
-                        handler: handleEchoValueChange
-                      },
-                      { 
-                        component: DecibelPositionsList, 
-                        value: decibelValue, 
-                        name: 'Decibel',
-                        handler: handleDecibelValueChange
-                      }
-                    ]
-                      .sort((a, b) => b.value - a.value)
-                      .map(({ component: Component, name, handler }) => (
-                        <Component
-                          key={name}
-                          address={account.address.toString()}
-                          onPositionsValueChange={handler}
-                          walletTokens={tokens}
-                          refreshKey={refreshKey}
-                          onPositionsCheckComplete={() => {}}
-                        />
-                      ))}
+                    {(() => {
+                      const protocolItems = [
+                        { component: HyperionPositionsList, value: hyperionValue, name: 'Hyperion', handler: handleHyperionValueChange },
+                        { component: EchelonPositionsList, value: echelonValue, name: 'Echelon', handler: handleEchelonValueChange },
+                        { component: AriesPositionsList, value: ariesValue, name: 'Aries', handler: handleAriesValueChange },
+                        { component: JoulePositionsList, value: jouleValue, name: 'Joule', handler: handleJouleValueChange },
+                        { component: TappPositionsList, value: tappValue, name: 'Tapp Exchange', handler: handleTappValueChange },
+                        { component: MesoPositionsList, value: mesoValue, name: 'Meso Finance', handler: handleMesoValueChange },
+                        { component: AuroPositionsList, value: auroValue, name: 'Auro Finance', handler: handleAuroValueChange },
+                        { component: EarniumPositionsList, value: earniumValue, name: 'Earnium', handler: handleEarniumValueChange },
+                        { component: AavePositionsList, value: aaveValue, name: 'Aave', handler: handleAaveValueChange },
+                        { component: MoarPositionsList, value: moarValue, name: 'Moar Market', handler: handleMoarValueChange },
+                        { component: ThalaPositionsList, value: thalaValue, name: 'Thala', handler: handleThalaValueChange },
+                        { component: EchoPositionsList, value: echoValue, name: 'Echo Protocol', handler: handleEchoValueChange },
+                        { component: DecibelPositionsList, value: decibelValue, name: 'Decibel', handler: handleDecibelValueChange },
+                      ];
+                      const listToRender =
+                        debugProtocolKeys?.length && debugProtocolKeys.length > 0
+                          ? protocolItems.filter((item) => {
+                              const key = getProtocolByName(item.name)?.key;
+                              return key && debugProtocolKeys.includes(key.toLowerCase());
+                            })
+                          : protocolItems;
+                      return listToRender
+                        .sort((a, b) => b.value - a.value)
+                        .map(({ component: Component, name, handler }) => (
+                          <Component
+                            key={name}
+                            address={account.address.toString()}
+                            onPositionsValueChange={handler}
+                            walletTokens={tokens}
+                            refreshKey={refreshKey}
+                            onPositionsCheckComplete={() => {}}
+                          />
+                        ));
+                    })()}
                   </>
                 )}
                 

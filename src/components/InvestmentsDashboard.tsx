@@ -658,8 +658,23 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
           }
         ];
 
+        // When NEXT_PUBLIC_DEBUG_PROTOCOLS is set (e.g. "decibel"), fetch only those protocols' pools
+        const debugProtocolKeys =
+          typeof process.env.NEXT_PUBLIC_DEBUG_PROTOCOLS === "string"
+            ? process.env.NEXT_PUBLIC_DEBUG_PROTOCOLS.split(",")
+                .map((p) => p.trim().toLowerCase())
+                .filter(Boolean)
+            : null;
+        const endpointsToFetch =
+          debugProtocolKeys?.length && debugProtocolKeys.length > 0
+            ? protocolEndpoints.filter((ep) => {
+                const key = getProtocolByName(ep.name)?.key;
+                return key && debugProtocolKeys.includes(key.toLowerCase());
+              })
+            : protocolEndpoints;
+
         // Fetch all protocols in parallel
-        const fetchPromises = protocolEndpoints.map(async (endpoint) => {
+        const fetchPromises = endpointsToFetch.map(async (endpoint) => {
           try {
             const response = await fetch(endpoint.url, {
               headers: {

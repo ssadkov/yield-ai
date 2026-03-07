@@ -39,6 +39,7 @@ export function PositionsList({
   const [vaults, setVaults] = useState<{ name: string; current_value_of_shares?: number }[]>([]);
   const [preDepositSumUsdc, setPreDepositSumUsdc] = useState<number | null>(null);
   const [totalAmps, setTotalAmps] = useState<number | null>(null);
+  const [predepositPoints, setPredepositPoints] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { isExpanded, toggleSection } = useCollapsible();
   const protocol = getProtocolByName("Decibel");
@@ -98,8 +99,9 @@ export function PositionsList({
       ),
       fetch("/api/protocols/decibel/prices").then((r) => r.json()),
       fetch(`/api/protocols/decibel/amps?owner=${encodeURIComponent(address)}`).then((r) => r.json()),
+      fetch(`/api/protocols/decibel/predepositPoints?address=${encodeURIComponent(address)}`).then((r) => r.json()),
     ])
-      .then(([overviewRes, positionsRes, vaultsRes, marketsRes, predepositRes, pricesRes, ampsRes]) => {
+      .then(([overviewRes, positionsRes, vaultsRes, marketsRes, predepositRes, pricesRes, ampsRes, predepositPointsRes]) => {
         if (cancelled) return;
         const eq =
           overviewRes?.success && overviewRes?.data?.perp_equity_balance != null
@@ -174,6 +176,10 @@ export function PositionsList({
           ? ampsRes.data.total_amps
           : null;
         setTotalAmps(amps);
+        const points = predepositPointsRes?.success && typeof predepositPointsRes?.data?.points === "number"
+          ? predepositPointsRes.data.points
+          : null;
+        setPredepositPoints(points);
         onValueRef.current?.(totalValue);
         onMainnetRef.current?.(preDeposit);
       })
@@ -185,6 +191,7 @@ export function PositionsList({
           setAvailableToTrade(null);
           setVaults([]);
           setTotalAmps(null);
+          setPredepositPoints(null);
           onValueRef.current?.(0);
         }
       })
@@ -329,6 +336,48 @@ export function PositionsList({
                   </span>
                 </div>
               )}
+              {/* Always show AMPs row so it does not disappear when API fails */}
+              {totalAmps == null && (
+                <div className="flex items-center justify-between py-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm text-muted-foreground">AMPs (points)</span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex text-muted-foreground cursor-help" onClick={(e) => e.stopPropagation()}>
+                            <Info className="h-3.5 w-3.5" />
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="max-w-[220px]">
+                          <p>Trading points. Data is updated once per day.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                  <span className="text-sm font-medium shrink-0 ml-2 text-muted-foreground">—</span>
+                </div>
+              )}
+              {/* Predeposit points (Season 0) */}
+              <div className="flex items-center justify-between py-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm text-muted-foreground">Predeposit points</span>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex text-muted-foreground cursor-help" onClick={(e) => e.stopPropagation()}>
+                          <Info className="h-3.5 w-3.5" />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="max-w-[220px]">
+                        <p>Season 0 predeposit reward points.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <span className={cn("text-sm font-medium shrink-0 ml-2", predepositPoints == null && "text-muted-foreground")}>
+                  {predepositPoints != null ? formatNumber(predepositPoints, 2) : "—"}
+                </span>
+              </div>
               {positions.length > 0 && (
                 <div className="space-y-2 mt-1">
                   <div className="flex items-center gap-2 py-0.5">

@@ -66,14 +66,14 @@ export const WalletProvider = ({ children }: PropsWithChildren) => {
     ? gasStationService.getTransactionSubmitter() 
     : undefined;
   
-  if (gasStationTransactionSubmitter) {
-    console.log('[gas-station] WalletProvider: Gas Station available globally:', {
-      type: gasStationTransactionSubmitter.constructor?.name,
-      available: Boolean(gasStationTransactionSubmitter)
-    });
-  } else {
-    console.warn('[gas-station] WalletProvider: Gas Station is not available - native Aptos wallets will pay gas fees');
-  }
+  // if (gasStationTransactionSubmitter) {
+  //   console.log('[gas-station] WalletProvider: Gas Station available globally:', {
+  //     type: gasStationTransactionSubmitter.constructor?.name,
+  //     available: Boolean(gasStationTransactionSubmitter)
+  //   });
+  // } else {
+  //   console.warn('[gas-station] WalletProvider: Gas Station is not available - native Aptos wallets will pay gas fees');
+  // }
 
   // Don't render wallet provider until client-side
   if (!isClient) {
