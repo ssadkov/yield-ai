@@ -197,11 +197,17 @@ function MobileTabsContent() {
         <div className="flex flex-col min-h-screen max-h-screen">
           {/* Header - fixed at top */}
           <div className="flex-shrink-0 p-4 border-b bg-background">
-            <div className="flex items-center gap-3">
-              <Logo size="md" />
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold">Yield AI</h1>
-                { /*<AlphaBadge />*/ }
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <Logo size="md" />
+                <div className="flex items-center gap-2 min-w-0">
+                  <h1 className="text-xl font-bold truncate">Yield AI</h1>
+                  { /*<AlphaBadge />*/ }
+                </div>
+              </div>
+
+              <div className="shrink-0">
+                <WalletSelector />
               </div>
             </div>
           </div>
@@ -213,8 +219,6 @@ function MobileTabsContent() {
             </div>
             <div className={tab === "assets" ? "block w-full max-w-full" : "hidden w-full max-w-full"}>
               <div className="p-4 space-y-4 w-full max-w-full">
-                <WalletSelector />
-                
                 {/* Aptos wallet card and protocols - only when Aptos is connected */}
                 {account?.address && (
                   <>
