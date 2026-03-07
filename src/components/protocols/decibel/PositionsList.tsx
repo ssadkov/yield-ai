@@ -314,53 +314,10 @@ export function PositionsList({
                   </span>
                 </div>
               )}
-              {totalAmps != null && (
-                <div className="flex items-center justify-between py-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm text-muted-foreground">AMPs (points)</span>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="inline-flex text-muted-foreground cursor-help" onClick={(e) => e.stopPropagation()}>
-                            <Info className="h-3.5 w-3.5" />
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" className="max-w-[220px]">
-                          <p>Trading points. Data is updated once per day.</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                  <span className="text-sm font-medium shrink-0 ml-2">
-                    {formatNumber(totalAmps, 2)}
-                  </span>
-                </div>
-              )}
-              {/* Always show AMPs row so it does not disappear when API fails */}
-              {totalAmps == null && (
-                <div className="flex items-center justify-between py-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm text-muted-foreground">AMPs (points)</span>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="inline-flex text-muted-foreground cursor-help" onClick={(e) => e.stopPropagation()}>
-                            <Info className="h-3.5 w-3.5" />
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" className="max-w-[220px]">
-                          <p>Trading points. Data is updated once per day.</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                  <span className="text-sm font-medium shrink-0 ml-2 text-muted-foreground">—</span>
-                </div>
-              )}
-              {/* Predeposit points (Season 0) */}
+              {/* AMPs: trading + predeposit points, breakdown in tooltip */}
               <div className="flex items-center justify-between py-1">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-sm text-muted-foreground">Predeposit points</span>
+                  <span className="text-sm text-muted-foreground">AMPs</span>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -368,14 +325,19 @@ export function PositionsList({
                           <Info className="h-3.5 w-3.5" />
                         </span>
                       </TooltipTrigger>
-                      <TooltipContent side="bottom" className="max-w-[220px]">
-                        <p>Season 0 predeposit reward points.</p>
+                      <TooltipContent side="bottom" className="max-w-[260px]">
+                        <p className="font-medium mb-1.5">Points breakdown</p>
+                        <ul className="text-sm text-muted-foreground space-y-0.5">
+                          <li>• Trading (AMPs): {formatNumber(totalAmps ?? 0, 2)}</li>
+                          <li>• Predeposit points: {formatNumber(predepositPoints ?? 0, 2)}</li>
+                        </ul>
+                        <p className="text-xs text-muted-foreground mt-1.5">Trading data is updated once per day.</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 </div>
-                <span className={cn("text-sm font-medium shrink-0 ml-2", predepositPoints == null && "text-muted-foreground")}>
-                  {predepositPoints != null ? formatNumber(predepositPoints, 2) : "—"}
+                <span className={cn("text-sm font-medium shrink-0 ml-2", totalAmps == null && predepositPoints == null && "text-muted-foreground")}>
+                  {totalAmps != null || predepositPoints != null ? formatNumber((totalAmps ?? 0) + (predepositPoints ?? 0), 2) : "—"}
                 </span>
               </div>
               {positions.length > 0 && (
