@@ -37,7 +37,6 @@ import { RefreshCw } from "lucide-react";
 import { CollapsibleControls } from "@/components/ui/collapsible-controls";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/utils/numberFormat";
-
 export default function Sidebar() {
   // Use native restore hook to ensure native Aptos wallets are reconnected
   const { account } = useAptosNativeRestore();
@@ -114,7 +113,7 @@ export default function Sidebar() {
       const portfolioService = new AptosPortfolioService();
       const portfolio = await portfolioService.getPortfolio(account.address.toString());
       setTokens(portfolio.tokens);
-      
+
       // Вычисляем общую стоимость из токенов
       const total = portfolio.tokens.reduce((sum, token) => {
         return sum + (token.value ? parseFloat(token.value) : 0);
@@ -314,9 +313,9 @@ export default function Sidebar() {
             {/* Aptos-портфель и протоколы — только если есть Aptos-аккаунт */}
             {account?.address ? (
               <div className="space-y-4">
-                <PortfolioCard 
-                  totalValue={totalAssets.toString()} 
-                  tokens={tokens} 
+                <PortfolioCard
+                  totalValue={totalAssets.toString()}
+                  tokens={tokens}
                   onRefresh={handleRefresh}
                   isRefreshing={isRefreshing}
                   hasSolanaWallet={!!solanaAddress}
@@ -428,4 +427,4 @@ export default function Sidebar() {
       </div>
     </CollapsibleProvider>
   );
-} 
+}

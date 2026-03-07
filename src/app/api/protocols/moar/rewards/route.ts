@@ -205,14 +205,14 @@ export async function GET(request: NextRequest) {
       try {
         const pricesService = PanoraPricesService.getInstance();
         const pricesResponse = await pricesService.getPrices(1, Array.from(tokenAddresses));
-        const prices = pricesResponse.data || pricesResponse;
+        const raw = pricesResponse?.data ?? pricesResponse;
+        const pricesArray = Array.isArray(raw) ? raw : (raw?.data ?? []);
         
-        console.log('💰 Got prices for', prices.length, 'tokens');
+        console.log('💰 Got prices for', pricesArray.length, 'tokens');
         
-        // Update rewards with prices and USD values
         let totalUsd = 0;
         rewards.forEach(reward => {
-          const priceData = prices.find((p: any) => 
+          const priceData = pricesArray.find((p: any) => 
             p.tokenAddress === reward.tokenAddress || p.faAddress === reward.tokenAddress
           );
           
