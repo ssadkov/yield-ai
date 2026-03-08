@@ -1350,36 +1350,36 @@ export function DecibelPositions() {
                 >
                   <div className="flex items-start justify-between gap-2 py-1">
                     <div className="min-w-0 text-base font-medium">{v.vault?.name ?? 'Vault'}</div>
-                    <div className="shrink-0 text-right">
-                      <div className="text-base font-medium">
-                        {v.current_value_of_shares != null
-                          ? formatCurrency(v.current_value_of_shares, 2)
-                          : '—'}
+                    <div className="shrink-0 flex items-center gap-2 text-right">
+                      {v.apr != null && Number.isFinite(v.apr) && (
+                        <Badge
+                          variant="outline"
+                          className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs font-normal px-2 py-0.5 h-5"
+                        >
+                          APR: {v.apr.toFixed(2)}%
+                        </Badge>
+                      )}
+                      <div>
+                        <div className="text-base font-medium">
+                          {v.current_value_of_shares != null
+                            ? formatCurrency(v.current_value_of_shares, 2)
+                            : '—'}
+                        </div>
+                        {(typeof v.all_time_earned === 'number' && Number.isFinite(v.all_time_earned)) ||
+                        (v.current_value_of_shares != null && v.total_deposited != null && Number.isFinite(v.current_value_of_shares) && Number.isFinite(v.total_deposited)) ? (
+                          (() => {
+                            const userPnl = typeof v.all_time_earned === 'number' && Number.isFinite(v.all_time_earned)
+                              ? v.all_time_earned
+                              : v.current_value_of_shares! - (v.total_deposited! - (v.total_withdrawn ?? 0));
+                            return (
+                              <div className={cn('text-sm', userPnl >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400')}>
+                                PnL: {userPnl >= 0 ? '+' : ''}{formatCurrency(userPnl, 2)}
+                              </div>
+                            );
+                          })()
+                        ) : null}
                       </div>
-                      {(typeof v.all_time_earned === 'number' && Number.isFinite(v.all_time_earned)) ||
-                      (v.current_value_of_shares != null && v.total_deposited != null && Number.isFinite(v.current_value_of_shares) && Number.isFinite(v.total_deposited)) ? (
-                        (() => {
-                          const userPnl = typeof v.all_time_earned === 'number' && Number.isFinite(v.all_time_earned)
-                            ? v.all_time_earned
-                            : v.current_value_of_shares! - (v.total_deposited! - (v.total_withdrawn ?? 0));
-                          return (
-                            <div className={cn('text-sm', userPnl >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400')}>
-                              PnL: {userPnl >= 0 ? '+' : ''}{formatCurrency(userPnl, 2)}
-                            </div>
-                          );
-                        })()
-                      ) : null}
                     </div>
-                  </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-base text-muted-foreground">
-                    {v.apr != null && Number.isFinite(v.apr) && (
-                      <Badge
-                        variant="outline"
-                        className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs font-normal px-2 py-0.5 h-5"
-                      >
-                        APR: {v.apr.toFixed(2)}%
-                      </Badge>
-                    )}
                   </div>
                 </li>
               ))}
