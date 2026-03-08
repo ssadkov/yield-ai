@@ -10,6 +10,11 @@ const nextConfig: NextConfig = {
         tls: false,
         "pino-pretty": false,
       };
+    } else {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        "pino-pretty": false,
+      };
     }
     return config;
   },

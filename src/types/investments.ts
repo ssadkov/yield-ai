@@ -73,6 +73,9 @@ export interface InvestmentData {
   swapFee?: number;
   // Original pool data (for protocol-specific fields)
   originalPool?: any;
+  // Decibel vault–specific (from public vaults API)
+  decibelAllTimeReturn?: number; // decimal, e.g. 0.1388 → display as 13.88%
+  decibelVaultPnl?: number;     // all_time_pnl in USD
 }
 
 export interface InvestmentsResponse {

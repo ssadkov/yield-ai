@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 const DECIBEL_API_KEY = process.env.DECIBEL_API_KEY;
 const DECIBEL_API_BASE_URL =
   process.env.DECIBEL_API_BASE_URL || 'https://api.testnet.aptoslabs.com/decibel';
-const DECIBEL_MAINNET_URL = 'https://api.netna.aptoslabs.com/decibel';
+const DECIBEL_MAINNET_URL = 'https://api.mainnet.aptoslabs.com/decibel';
 
 /**
  * GET /api/protocols/decibel/prices

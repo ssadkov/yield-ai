@@ -52,8 +52,13 @@ export interface DecibelPosition {
 export interface DecibelVaultItem {
   vault?: { name?: string };
   current_value_of_shares?: number;
+  /** Total amount deposited (gross). */
   total_deposited?: number;
-  /** APR as decimal (e.g. 0.15 = 15%), from API or derived from vault returns */
+  /** Total amount withdrawn. Used for PnL when all_time_earned is not present. */
+  total_withdrawn?: number;
+  /** All-time PnL in USDC (realized + unrealized). Prefer for "Your PnL" when API provides it. */
+  all_time_earned?: number;
+  /** APR in % (e.g. 2.98 = 2.98%), from API; display as-is, do not multiply by 100 */
   apr?: number;
 }
 
@@ -1345,22 +1350,34 @@ export function DecibelPositions() {
                 >
                   <div className="flex items-start justify-between gap-2 py-1">
                     <div className="min-w-0 text-base font-medium">{v.vault?.name ?? 'Vault'}</div>
-                    <div className="shrink-0 text-right text-base font-medium">
-                      {v.current_value_of_shares != null
-                        ? formatCurrency(v.current_value_of_shares, 2)
-                        : '—'}
+                    <div className="shrink-0 text-right">
+                      <div className="text-base font-medium">
+                        {v.current_value_of_shares != null
+                          ? formatCurrency(v.current_value_of_shares, 2)
+                          : '—'}
+                      </div>
+                      {(typeof v.all_time_earned === 'number' && Number.isFinite(v.all_time_earned)) ||
+                      (v.current_value_of_shares != null && v.total_deposited != null && Number.isFinite(v.current_value_of_shares) && Number.isFinite(v.total_deposited)) ? (
+                        (() => {
+                          const userPnl = typeof v.all_time_earned === 'number' && Number.isFinite(v.all_time_earned)
+                            ? v.all_time_earned
+                            : v.current_value_of_shares! - (v.total_deposited! - (v.total_withdrawn ?? 0));
+                          return (
+                            <div className={cn('text-sm', userPnl >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400')}>
+                              PnL: {userPnl >= 0 ? '+' : ''}{formatCurrency(userPnl, 2)}
+                            </div>
+                          );
+                        })()
+                      ) : null}
                     </div>
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-base text-muted-foreground">
-                    {v.total_deposited != null && (
-                      <span>Deposited: {formatCurrency(v.total_deposited, 2)}</span>
-                    )}
                     {v.apr != null && Number.isFinite(v.apr) && (
                       <Badge
                         variant="outline"
                         className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs font-normal px-2 py-0.5 h-5"
                       >
-                        APR: {(v.apr * 100).toFixed(2)}%
+                        APR: {v.apr.toFixed(2)}%
                       </Badge>
                     )}
                   </div>

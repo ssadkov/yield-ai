@@ -640,7 +640,14 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   v.address === '0x06ad70a9a4f30349b489791e2f2bcf58363dad30e54a9d2d4095d6213d7a9bf9'
               );
               if (!vault) return [];
-              const aprPct = typeof vault.apr === 'number' ? vault.apr * 100 : 0;
+              // API returns apr in % (e.g. 2.98 = 2.98%), do not multiply by 100
+              const aprPct = typeof vault.apr === 'number' ? vault.apr : 0;
+              const allTimeReturn = typeof (vault as { all_time_return?: number }).all_time_return === 'number'
+                ? (vault as { all_time_return: number }).all_time_return
+                : undefined;
+              const vaultPnl = typeof (vault as { all_time_pnl?: number }).all_time_pnl === 'number'
+                ? (vault as { all_time_pnl: number }).all_time_pnl
+                : undefined;
               return [
                 {
                   asset: 'USDC',
@@ -651,7 +658,9 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   token: '0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b',
                   protocol: 'Decibel',
                   tvlUSD: typeof vault.tvl === 'number' ? vault.tvl : 0,
-                  marketAddress: vault.address
+                  marketAddress: vault.address,
+                  decibelAllTimeReturn: allTimeReturn,
+                  decibelVaultPnl: vaultPnl
                 }
               ];
             }
@@ -1057,6 +1066,16 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                         <CardContent>
                           <div className="text-2xl font-bold">{item.totalAPY?.toFixed(2) || "0.00"}%</div>
                           <p className="text-xs text-muted-foreground">Total APR</p>
+                          {item.protocol === 'Decibel' && ((item as any).decibelAllTimeReturn != null || (item as any).decibelVaultPnl != null) && (
+                            <div className="mt-2 text-xs text-muted-foreground space-y-0.5">
+                              {(item as any).decibelAllTimeReturn != null && (
+                                <p>All time return: {Number((item as any).decibelAllTimeReturn).toFixed(2)}%</p>
+                              )}
+                              {(item as any).decibelVaultPnl != null && (
+                                <p>Vault PnL: ${Number((item as any).decibelVaultPnl).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
+                              )}
+                            </div>
+                          )}
                           <DepositButton
                             protocol={protocol!}
                             className="mt-4 w-full"
@@ -1592,6 +1611,22 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                         <span>Farming APY:</span>
                                         <span className="text-yellow-400">{item.farmingAPY.toFixed(2)}%</span>
                                       </div>
+                                    )}
+                                    {item.protocol === 'Decibel' && (typeof (item as any).decibelAllTimeReturn === 'number' || typeof (item as any).decibelVaultPnl === 'number') && (
+                                      <>
+                                        {(item as any).decibelAllTimeReturn != null && (
+                                          <div className="flex justify-between">
+                                            <span>All time return:</span>
+                                            <span className="text-white">{Number((item as any).decibelAllTimeReturn).toFixed(2)}%</span>
+                                          </div>
+                                        )}
+                                        {(item as any).decibelVaultPnl != null && (
+                                          <div className="flex justify-between">
+                                            <span>Vault PnL:</span>
+                                            <span className="text-white">${Number((item as any).decibelVaultPnl).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                                          </div>
+                                        )}
+                                      </>
                                     )}
                                     <div className="border-t border-gray-600 pt-1 mt-1">
                                       <div className="flex justify-between font-semibold">
