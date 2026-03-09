@@ -1,16 +1,18 @@
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import Image from "next/image";
-import { cn } from "@/lib/utils";
 import tokenList from "@/lib/data/tokenList.json";
 import { useClaimRewards } from '@/lib/hooks/useClaimRewards';
 import { useWithdraw } from '@/lib/hooks/useWithdraw';
 import { useToast } from '@/components/ui/use-toast';
 import { useWalletStore } from '@/lib/stores/walletStore';
+import { queryKeys } from '@/lib/query/queryKeys';
+import { useMoarPositions, useMoarRewards, useMoarPools, type MoarPosition } from '@/lib/query/hooks/protocols/moar';
 import { WithdrawModal } from '@/components/ui/withdraw-modal';
 import { DepositModal } from '@/components/ui/deposit-modal';
 import { ClaimSuccessModal } from '@/components/ui/claim-success-modal';
@@ -21,90 +23,74 @@ interface MoarPositionsProps {
   onPositionsValueChange?: (value: number) => void;
 }
 
-interface Position {
-  poolId: string;
-  assetInfo: {
-    symbol: string;
-    logoUrl: string;
-    decimals: number;
-  };
-  amount: number;
-  value: string;
-  balance: string;
-}
-
 export function MoarPositions({ address, onPositionsValueChange }: MoarPositionsProps) {
   const { account } = useWallet();
+  const queryClient = useQueryClient();
+  const walletAddress = address || account?.address?.toString();
   const { claimRewards, isLoading: isClaiming } = useClaimRewards();
   const { withdraw, isLoading: isWithdrawing } = useWithdraw();
   const { toast } = useToast();
   const { setRewards, getTokenPrice } = useWalletStore();
-  const [positions, setPositions] = useState<Position[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [totalValue, setTotalValue] = useState<number>(0);
-  const [rewardsData, setRewardsData] = useState<any[]>([]);
-  const [totalRewardsValue, setTotalRewardsValue] = useState<number>(0);
-  const [poolsAPR, setPoolsAPR] = useState<Record<number, any>>({});
+
+  const { data: positions = [], isLoading: positionsLoading, error: positionsError } = useMoarPositions(walletAddress, {
+    refetchOnMount: 'always',
+  });
+  const { data: rewardsResponse, isLoading: rewardsLoading } = useMoarRewards(walletAddress, {
+    refetchOnMount: 'always',
+  });
+  const { data: poolsResponse } = useMoarPools();
+
+  const rewardsData = rewardsResponse?.data ?? [];
+  const totalRewardsValue = rewardsResponse?.totalUsd ?? 0;
+  const totalValue = useMemo(
+    () => positions.reduce((sum, p) => sum + parseFloat(p.value || "0"), 0),
+    [positions]
+  );
+  const loading = positionsLoading || rewardsLoading;
+  const error = positionsError ? "Failed to load Moar Market data" : null;
+
+  const poolsAPR = useMemo(() => {
+    if (!poolsResponse?.data) return {} as Record<number, { totalAPR: number; interestRateComponent: number; farmingAPY: number }>;
+    const map: Record<number, { totalAPR: number; interestRateComponent: number; farmingAPY: number }> = {};
+    poolsResponse.data.forEach((pool: { poolId?: number; totalAPY?: number; interestRateComponent?: number; farmingAPY?: number }) => {
+      if (pool.poolId !== undefined) {
+        map[pool.poolId] = {
+          totalAPR: pool.totalAPY ?? 0,
+          interestRateComponent: pool.interestRateComponent ?? 0,
+          farmingAPY: pool.farmingAPY ?? 0,
+        };
+      }
+    });
+    return map;
+  }, [poolsResponse?.data]);
+
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
-  const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
+  const [selectedPosition, setSelectedPosition] = useState<MoarPosition | null>(null);
   const [showDepositModal, setShowDepositModal] = useState(false);
-  const [selectedDepositPosition, setSelectedDepositPosition] = useState<Position | null>(null);
+  const [selectedDepositPosition, setSelectedDepositPosition] = useState<MoarPosition | null>(null);
   const [showClaimSuccessModal, setShowClaimSuccessModal] = useState(false);
   const [claimedRewards, setClaimedRewards] = useState<any[]>([]);
   const [claimTransactionHash, setClaimTransactionHash] = useState<string>('');
-  
-  // Protect modal state from re-renders
   const isModalOpeningRef = useRef(false);
 
-  const walletAddress = address || account?.address;
-
-  // Fetch pools APR data
-  const fetchPoolsAPR = useCallback(async () => {
-    try {
-      console.log('🔍 Fetching Moar Market pools APR...');
-      const response = await fetch('/api/protocols/moar/pools');
-      console.log('📊 APR API response status:', response.status);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('📊 APR API response data:', data);
-        
-        if (data.success && data.data) {
-          const aprMap: Record<number, any> = {};
-          data.data.forEach((pool: any) => {
-            if (pool.poolId !== undefined) {
-              // totalAPY already comes in percentage format from API (e.g., 8.4, not 0.084)
-              aprMap[pool.poolId] = {
-                totalAPR: pool.totalAPY || 0,
-                interestRateComponent: pool.interestRateComponent || 0,
-                farmingAPY: pool.farmingAPY || 0
-              };
-            }
-          });
-          setPoolsAPR(aprMap);
-          console.log('📊 Loaded APR data for pools:', aprMap);
-        } else {
-          console.warn('📊 APR API returned no data or success=false:', data);
-        }
-      } else {
-        console.error('📊 APR API failed with status:', response.status);
-        const errorText = await response.text();
-        console.error('📊 APR API error response:', errorText);
-      }
-    } catch (error) {
-      console.error('📊 Failed to fetch pools APR:', error);
+  useEffect(() => {
+    if (rewardsData.length > 0) {
+      setRewards("moar", rewardsData);
+    } else if (!rewardsLoading && walletAddress) {
+      setRewards("moar", []);
     }
-  }, []);
+  }, [rewardsData, rewardsLoading, walletAddress, setRewards]);
 
-  // Обработчик открытия модального окна withdraw
-  const handleWithdrawClick = (position: Position) => {
+  useEffect(() => {
+    onPositionsValueChange?.(totalValue + totalRewardsValue);
+  }, [totalValue, totalRewardsValue, onPositionsValueChange]);
+
+  const handleWithdrawClick = (position: MoarPosition) => {
     setSelectedPosition(position);
     setShowWithdrawModal(true);
   };
 
-  // Обработчик открытия модального окна deposit
-  const handleDepositClick = (position: Position) => {
+  const handleDepositClick = (position: MoarPosition) => {
     setSelectedDepositPosition(position);
     setShowDepositModal(true);
   };
@@ -112,7 +98,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
   // Обработчик подтверждения withdraw
   const handleWithdrawConfirm = async (amount: bigint) => {
     if (!selectedPosition) return;
-    
+
     try {
       // Получаем token address из underlying_asset
       let tokenAddress = '';
@@ -125,7 +111,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
         const tokenInfo = getTokenInfo(selectedPosition.assetInfo.symbol);
         tokenAddress = tokenInfo.address || selectedPosition.assetInfo.symbol;
       }
-      
+
       // Вызываем withdraw через useWithdraw hook
       // Для Moar Market: marketAddress = poolId, token = underlying_asset
       console.log('Calling withdraw with:', {
@@ -134,26 +120,28 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
         amount: amount.toString(),
         tokenAddress
       });
-      
-      await withdraw('moar', selectedPosition.poolId, amount, tokenAddress);
-      
+
+      await withdraw('moar', String(selectedPosition.poolId), amount, tokenAddress);
+
       // Закрываем модал и обновляем состояние
       setShowWithdrawModal(false);
       setSelectedPosition(null);
-      
-      // Обновляем позиции после успешного withdraw
+
+      // Invalidate TanStack Query cache so Sidebar/Portfolio Moar card refetches
+      if (walletAddress) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.protocols.moar.userPositions(walletAddress) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.protocols.moar.rewards(walletAddress) });
+      }
       setTimeout(() => {
-        window.dispatchEvent(new CustomEvent('refreshPositions', { 
-          detail: { protocol: 'moar' }
-        }));
+        window.dispatchEvent(new CustomEvent('refreshPositions', { detail: { protocol: 'moar' } }));
       }, 2000);
-      
+
     } catch (error) {
       console.error('Withdraw failed:', error);
-      
+
       // Показываем пользователю понятное сообщение об ошибке
       let errorMessage = 'Withdraw failed. Please try again.';
-      
+
       if (error instanceof Error) {
         if (error.message.includes('rate limit') || error.message.includes('Too Many Requests')) {
           errorMessage = 'Rate limit exceeded. Please wait a moment and try again.';
@@ -165,7 +153,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
           errorMessage = `Withdraw failed: ${error.message}`;
         }
       }
-      
+
       toast({
         title: "Withdraw Failed",
         description: errorMessage,
@@ -218,19 +206,19 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
       // Claim rewards for each pool
       for (const [farmingIdentifier, rewardIds] of rewardsByPool) {
         console.log(`Claiming rewards for pool ${farmingIdentifier}:`, rewardIds);
-        
+
         // Find rewards that match this pool
         const poolRewards = rewardsToClaim.filter(
           (r) => r.farming_identifier === farmingIdentifier && rewardIds.includes(r.reward_id)
         );
-        
+
         const result = await claimRewards('moar', [farmingIdentifier], rewardIds);
-        
+
         // Extract transaction hash if available
         if (result && result.hash) {
           lastTransactionHash = result.hash;
         }
-        
+
         // Add claimed rewards to list
         poolRewards.forEach((reward) => {
           claimedRewardsList.push({
@@ -241,7 +229,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
             tokenAddress: reward.tokenAddress // Add tokenAddress for aggregation
           });
         });
-        
+
         // Small delay between claims to avoid rate limiting
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
@@ -263,7 +251,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
       const aggregatedRewards = claimedRewardsList.reduce((acc, reward) => {
         // Use normalized tokenAddress as key, fallback to symbol if tokenAddress is missing
         const key = normalizeKey(reward.tokenAddress, reward.symbol);
-        
+
         if (!acc[key]) {
           acc[key] = {
             symbol: reward.symbol,
@@ -273,10 +261,10 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
             tokenAddress: reward.tokenAddress
           };
         }
-        
+
         acc[key].amount += reward.amount || 0;
         acc[key].usdValue += reward.usdValue || 0;
-        
+
         return acc;
       }, {} as Record<string, { symbol: string; amount: number; usdValue: number; logoUrl?: string | null; tokenAddress?: string }>);
 
@@ -286,19 +274,19 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
       // Set rewards data first
       setClaimedRewards(aggregatedRewardsArray);
       setClaimTransactionHash(lastTransactionHash);
-      
+
       // Mark that modal is opening to protect from re-renders
       isModalOpeningRef.current = true;
-      
+
       // Show success modal with aggregated rewards after delay (to let toast appear first)
       setTimeout(() => {
         setShowClaimSuccessModal(true);
       }, 250);
 
-      // Refresh rewards data after successful claim
-      setTimeout(() => {
-        fetchRewards();
-      }, 2000);
+      if (walletAddress) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.protocols.moar.userPositions(walletAddress) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.protocols.moar.rewards(walletAddress) });
+      }
     } catch (error) {
       console.error('Error claiming all rewards:', error);
       // Reset ref on error
@@ -312,46 +300,11 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
   };
 
 
-  // Загрузка rewards
-  const fetchRewards = useCallback(async () => {
-    if (!walletAddress) return;
-    
-    try {
-      const response = await fetch(`/api/protocols/moar/rewards?address=${walletAddress}`);
-      const data = await response.json();
-      
-      if (data.success && Array.isArray(data.data)) {
-        setRewardsData(data.data);
-        
-        // Сохраняем rewards в store для общего claim all
-        console.log('[MoarPositions] Saving rewards to store:', data.data);
-        setRewards('moar', data.data);
-        
-        // Вычисляем общую стоимость rewards
-        const totalRewards = data.data.reduce((sum: number, reward: any) => {
-          return sum + (reward.usdValue || 0);
-        }, 0);
-        
-        setTotalRewardsValue(totalRewards);
-      } else {
-        setRewardsData([]);
-        setRewards('moar', []); // Очищаем store если нет данных
-        setTotalRewardsValue(0);
-      }
-    } catch (err) {
-      console.error('Error fetching Moar rewards:', err);
-      setRewardsData([]);
-      setRewards('moar', []); // Очищаем store при ошибке
-      setTotalRewardsValue(0);
-    }
-  }, [walletAddress, setRewards]);
-
-  // Получаем информацию о токене
   const getTokenInfo = useCallback((symbol: string) => {
-    const token = (tokenList as any).data.data.find((token: any) => 
+    const token = (tokenList as any).data.data.find((token: any) =>
       token.symbol === symbol
     );
-    
+
     if (!token) {
       return {
         symbol: symbol,
@@ -360,7 +313,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
         address: symbol // Fallback to symbol if no token found
       };
     }
-    
+
     return {
       symbol: token.symbol,
       logoUrl: token.logoUrl,
@@ -369,185 +322,18 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
     };
   }, []);
 
-  // Загрузка позиций и rewards
-  useEffect(() => {
-    if (!walletAddress) {
-      setPositions([]);
-      setTotalValue(0);
-      setRewardsData([]);
-      setTotalRewardsValue(0);
-      return;
-    }
-
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      
-      try {
-        // Загружаем позиции и rewards параллельно
-        const [positionsResponse, rewardsResponse] = await Promise.all([
-          fetch(`/api/protocols/moar/userPositions?address=${walletAddress}`),
-          fetch(`/api/protocols/moar/rewards?address=${walletAddress}`)
-        ]);
-        
-        const positionsData = await positionsResponse.json();
-        const rewardsData = await rewardsResponse.json();
-        
-        // Обрабатываем позиции
-        if (positionsData.success && Array.isArray(positionsData.data)) {
-          setPositions(positionsData.data);
-          
-          // Вычисляем общую стоимость позиций
-          const total = positionsData.data.reduce((sum: number, position: Position) => {
-            return sum + parseFloat(position.value || "0");
-          }, 0);
-          
-          setTotalValue(total);
-        } else {
-          setPositions([]);
-          setTotalValue(0);
-        }
-        
-        // Обрабатываем rewards
-        if (rewardsData.success && Array.isArray(rewardsData.data)) {
-          setRewardsData(rewardsData.data);
-          
-          // Вычисляем общую стоимость rewards
-          const totalRewards = rewardsData.data.reduce((sum: number, reward: any) => {
-            return sum + (reward.usdValue || 0);
-          }, 0);
-          
-          setTotalRewardsValue(totalRewards);
-        } else {
-          setRewardsData([]);
-          setTotalRewardsValue(0);
-        }
-        
-        // Обновляем общую стоимость (позиции + rewards)
-        const totalPositions = positionsData.success ? positionsData.data.reduce((sum: number, position: Position) => {
-          return sum + parseFloat(position.value || "0");
-        }, 0) : 0;
-        
-        const totalRewards = rewardsData.success ? rewardsData.data.reduce((sum: number, reward: any) => {
-          return sum + (reward.usdValue || 0);
-        }, 0) : 0;
-        
-        onPositionsValueChange?.(totalPositions + totalRewards);
-        
-      } catch (err) {
-        console.error('Error fetching Moar data:', err);
-        setError("Failed to load Moar Market data");
-        setPositions([]);
-        setTotalValue(0);
-        setRewardsData([]);
-        setTotalRewardsValue(0);
-        onPositionsValueChange?.(0);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [walletAddress, onPositionsValueChange]);
-
-  // Fetch pools APR data separately
-  useEffect(() => {
-    console.log('🔄 MoarPositions useEffect triggered - calling fetchPoolsAPR');
-    fetchPoolsAPR();
-  }, []); // Empty deps - call once on mount
-
-  // Подписка на глобальное событие обновления позиций
   useEffect(() => {
     const handleRefresh = (event: CustomEvent) => {
-      console.log('MoarPositions - Received refreshPositions event:', event.detail);
-      
-      // Don't refresh if modal is opening/opened - protect modal state
-      if (isModalOpeningRef.current || showClaimSuccessModal) {
-        console.log('MoarPositions - Modal is open, skipping refresh to prevent flicker');
-        return;
-      }
-      
-      if (event.detail?.protocol === 'moar') {
-        console.log('MoarPositions - Protocol matches moar, refreshing data');
-        // Перезагружаем данные
-        const fetchData = async () => {
-          try {
-            setLoading(true);
-            setError(null);
-            
-            // Загружаем позиции и rewards параллельно
-            const [positionsResponse, rewardsResponse] = await Promise.all([
-              fetch(`/api/protocols/moar/userPositions?address=${walletAddress}`),
-              fetch(`/api/protocols/moar/rewards?address=${walletAddress}`)
-            ]);
-            
-            const positionsData = await positionsResponse.json();
-            const rewardsData = await rewardsResponse.json();
-            
-            console.log('Moar Market positions refreshed:', positionsData);
-            console.log('Moar Market rewards refreshed:', rewardsData);
-            
-            // Обрабатываем позиции
-            if (positionsData.success && Array.isArray(positionsData.data)) {
-              setPositions(positionsData.data);
-              
-              // Вычисляем общую стоимость позиций
-              const total = positionsData.data.reduce((sum: number, position: Position) => {
-                return sum + parseFloat(position.value || "0");
-              }, 0);
-              
-              setTotalValue(total);
-            } else {
-              setPositions([]);
-              setTotalValue(0);
-            }
-            
-            // Обрабатываем rewards
-            if (rewardsData.success && Array.isArray(rewardsData.data)) {
-              setRewardsData(rewardsData.data);
-              
-              // Вычисляем общую стоимость rewards
-              const totalRewards = rewardsData.data.reduce((sum: number, reward: any) => {
-                return sum + (reward.usdValue || 0);
-              }, 0);
-              
-              setTotalRewardsValue(totalRewards);
-            } else {
-              setRewardsData([]);
-              setTotalRewardsValue(0);
-            }
-            
-            // Обновляем общую стоимость (позиции + rewards)
-            const totalPositions = positionsData.success ? positionsData.data.reduce((sum: number, position: Position) => {
-              return sum + parseFloat(position.value || "0");
-            }, 0) : 0;
-            
-            const totalRewards = rewardsData.success ? rewardsData.data.reduce((sum: number, reward: any) => {
-              return sum + (reward.usdValue || 0);
-            }, 0) : 0;
-            
-            onPositionsValueChange?.(totalPositions + totalRewards);
-            
-          } catch (err) {
-            console.error('Error refreshing Moar data:', err);
-            setError("Failed to refresh Moar Market data");
-          } finally {
-            setLoading(false);
-          }
-        };
-        
-        fetchData();
-        
-        // Также обновляем APR данные
-        fetchPoolsAPR();
+      if (isModalOpeningRef.current || showClaimSuccessModal) return;
+      if (event.detail?.protocol === 'moar' && walletAddress) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.protocols.moar.userPositions(walletAddress) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.protocols.moar.rewards(walletAddress) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.protocols.moar.pools() });
       }
     };
-
     window.addEventListener('refreshPositions', handleRefresh as unknown as EventListener);
-    return () => {
-      window.removeEventListener('refreshPositions', handleRefresh as unknown as EventListener);
-    };
-  }, [walletAddress, onPositionsValueChange, showClaimSuccessModal]);
+    return () => window.removeEventListener('refreshPositions', handleRefresh as unknown as EventListener);
+  }, [walletAddress, queryClient, showClaimSuccessModal]);
 
   if (loading) {
     return <div>Loading Moar Market positions...</div>;
@@ -570,27 +356,27 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
         {sortedPositions.map((position, index) => {
           const tokenInfo = getTokenInfo(position.assetInfo.symbol);
           const value = parseFloat(position.value || "0");
-          
+
           // Получаем количество токенов из balance (raw) и конвертируем в human-readable
           const rawBalance = position.balance || "0";
           const amount = parseFloat(rawBalance) / Math.pow(10, tokenInfo.decimals);
           const tokenPrice = amount > 0 ? value / amount : 0;
-          
-          
+
+
           // Находим rewards для этой позиции (если есть)
           // Сопоставляем по poolId с farming_identifier (приводим к строке для сравнения)
-          const positionRewards = rewardsData.filter((reward: any) => 
+          const positionRewards = rewardsData.filter((reward: any) =>
             reward.farming_identifier && reward.farming_identifier === position.poolId.toString()
           );
-          
+
           // Получаем APR данные для этого пула
-          const poolId = parseInt(position.poolId);
+          const poolId = position.poolId;
           const poolAPR = poolsAPR[poolId];
-          
-          
+
+
           return (
-            <div 
-              key={`${position.poolId}-${index}`} 
+            <div
+              key={`${position.poolId}-${index}`}
               className="p-3 sm:p-4 border-b last:border-b-0 transition-colors"
             >
               {/* Desktop Layout */}
@@ -598,8 +384,8 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                 <div className="flex items-center gap-2">
                   {tokenInfo.logoUrl && (
                     <div className="w-8 h-8 relative">
-                      <Image 
-                        src={tokenInfo.logoUrl} 
+                      <Image
+                        src={tokenInfo.logoUrl}
                         alt={tokenInfo.symbol}
                         width={32}
                         height={32}
@@ -610,8 +396,8 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                   <div>
                     <div className="flex items-center gap-2">
                       <div className="text-lg font-semibold">{tokenInfo.symbol}</div>
-                      <Badge 
-                        variant="outline" 
+                      <Badge
+                        variant="outline"
                         className="bg-green-500/10 text-green-600 border-green-500/20 text-xs font-normal px-2 py-0.5 h-5"
                       >
                         Supply
@@ -628,8 +414,8 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Badge 
-                              variant="outline" 
+                            <Badge
+                              variant="outline"
                               className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs font-normal px-2 py-0.5 h-5 cursor-help"
                             >
                               APR: {formatNumber(poolAPR.totalAPR, 2)}%
@@ -675,7 +461,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                   </div>
                 </div>
               </div>
-              
+
               {/* Rewards section для Desktop */}
               {positionRewards.length > 0 && (
                 <div className="mt-2 pt-2 border-t border-gray-200">
@@ -688,8 +474,8 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                             <div className="flex items-center justify-between text-xs cursor-help">
                               <div className="flex items-center gap-1">
                                 {reward.logoUrl && (
-                                  <Image 
-                                    src={reward.logoUrl} 
+                                  <Image
+                                    src={reward.logoUrl}
                                     alt={reward.symbol}
                                     width={12}
                                     height={12}
@@ -713,7 +499,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                       </TooltipProvider>
                     ))}
                   </div>
-                  
+
                 </div>
               )}
 
@@ -724,8 +510,8 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                   <div className="flex items-center gap-2">
                     {tokenInfo.logoUrl && (
                       <div className="w-8 h-8 relative">
-                        <Image 
-                          src={tokenInfo.logoUrl} 
+                        <Image
+                          src={tokenInfo.logoUrl}
                           alt={tokenInfo.symbol}
                           width={32}
                           height={32}
@@ -746,8 +532,8 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Badge 
-                                variant="outline" 
+                              <Badge
+                                variant="outline"
                                 className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs font-normal px-2 py-0.5 h-5 cursor-help"
                               >
                                 APR: {formatNumber(poolAPR.totalAPR, 2)}%
@@ -756,7 +542,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                             <TooltipContent>
                               <div className="space-y-1">
                                 <p className="font-medium">APR Breakdown</p>
-                                <p className="text-xs">Interest Rate: {(poolAPR.interestRateComponent * 100).toFixed(2)}%</p>
+                                <p className="text-xs">Interest Rate: {poolAPR.interestRateComponent.toFixed(2)}%</p>
                                 <p className="text-xs">Farming APY: {poolAPR.farmingAPY.toFixed(2)}%</p>
                                 <p className="text-xs font-semibold">Total: {poolAPR.totalAPR.toFixed(2)}%</p>
                               </div>
@@ -793,17 +579,17 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Средняя строка - бейджи */}
                 <div className="flex flex-wrap gap-2">
-                  <Badge 
-                    variant="outline" 
+                  <Badge
+                    variant="outline"
                     className="bg-green-500/10 text-green-600 border-green-500/20 text-xs font-normal px-2 py-1 h-6"
                   >
                     Supply
                   </Badge>
                 </div>
-                
+
                 {/* Rewards section для Mobile */}
                 {positionRewards.length > 0 && (
                   <div className="pt-2 border-t border-gray-200">
@@ -816,8 +602,8 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                               <div className="flex items-center justify-between text-xs cursor-help">
                                 <div className="flex items-center gap-1">
                                   {reward.token_info?.logoUrl && (
-                                    <Image 
-                                      src={reward.token_info.logoUrl} 
+                                    <Image
+                                      src={reward.token_info.logoUrl}
                                       alt={reward.token_info.symbol}
                                       width={12}
                                       height={12}
@@ -841,7 +627,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                         </TooltipProvider>
                       ))}
                     </div>
-                    
+
                   </div>
                 )}
               </div>
@@ -849,7 +635,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
           );
         })}
       </ScrollArea>
-      
+
       {/* Total Value Summary */}
       <div className="pt-6 pb-6">
         {/* Desktop layout */}
@@ -900,7 +686,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
             </div>
           )}
         </div>
-        
+
         {/* Mobile layout */}
         <div className="md:hidden space-y-3">
           <div className="flex items-center justify-between">
@@ -948,7 +734,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
           )}
         </div>
       </div>
-      
+
       {/* Withdraw Modal */}
       {selectedPosition && (
         <WithdrawModal
@@ -961,15 +747,15 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
           position={{
             coin: selectedPosition.assetInfo.symbol,
             supply: selectedPosition.balance,
-            market: selectedPosition.poolId
+            market: String(selectedPosition.poolId)
           }}
           tokenInfo={{
             symbol: selectedPosition.assetInfo.symbol,
-            logoUrl: selectedPosition.assetInfo.logoUrl,
+            logoUrl: selectedPosition.assetInfo.logoUrl ?? undefined,
             decimals: selectedPosition.assetInfo.decimals
           }}
           isLoading={isWithdrawing}
-          userAddress={walletAddress?.toString()}
+          userAddress={walletAddress != null ? String(walletAddress) : undefined}
         />
       )}
 
@@ -985,7 +771,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
             name: "Moar Market",
             logo: "/protocol_ico/moar-market-logo-primary.png",
             apy: (() => {
-              const poolId = parseInt(selectedDepositPosition.poolId);
+              const poolId = selectedDepositPosition.poolId;
               const poolAPR = poolsAPR[poolId];
               return poolAPR ? poolAPR.totalAPR : 0;
             })(),
@@ -993,7 +779,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
           }}
           tokenIn={{
             symbol: selectedDepositPosition.assetInfo.symbol,
-            logo: selectedDepositPosition.assetInfo.logoUrl,
+            logo: selectedDepositPosition.assetInfo.logoUrl ?? '',
             decimals: selectedDepositPosition.assetInfo.decimals,
             address: (() => {
               if (selectedDepositPosition.assetInfo.symbol === 'APT') {
@@ -1006,7 +792,7 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
           }}
           tokenOut={{
             symbol: selectedDepositPosition.assetInfo.symbol,
-            logo: selectedDepositPosition.assetInfo.logoUrl,
+            logo: selectedDepositPosition.assetInfo.logoUrl ?? '',
             decimals: selectedDepositPosition.assetInfo.decimals,
             address: (() => {
               if (selectedDepositPosition.assetInfo.symbol === 'APT') {

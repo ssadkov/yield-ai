@@ -110,6 +110,10 @@ export async function GET(request: NextRequest) {
 
     const positions: any[] = [];
     const tokenAddresses = new Set<string>();
+    const normalizeHex = (addr: string) => {
+      if (!addr || !addr.startsWith('0x')) return addr;
+      return '0x' + addr.slice(2).replace(/^0+/, '') || '0x0';
+    };
 
     // Step 2: Check user positions for each pool and collect token addresses
     for (let poolId = 0; poolId < pools.length; poolId++) {
@@ -141,32 +145,25 @@ export async function GET(request: NextRequest) {
         // Force refresh prices by clearing cache first
         pricesService.clearCache();
         const pricesResponse = await pricesService.getPrices(1, Array.from(tokenAddresses));
-        const pricesData = pricesResponse.data || pricesResponse;
+        // Panora returns { data: TokenPrice[], status }; our wrapper may return { data: that } — normalize to array
+        const raw = pricesResponse?.data ?? pricesResponse;
+        const pricesArray = Array.isArray(raw) ? raw : (raw?.data ?? []);
         
-        console.log('💰 Got prices for', pricesData.length, 'tokens');
+        console.log('💰 Got prices for', pricesArray.length, 'tokens');
         
         // Build prices lookup with all possible address variations
-        pricesData.forEach((priceData: any) => {
+        pricesArray.forEach((priceData: any) => {
           const tokenAddress = priceData.tokenAddress;
           const faAddress = priceData.faAddress;
           
           if (priceData.usdPrice) {
-            // Store price under all possible address variations
-            if (tokenAddress) {
-              prices[tokenAddress] = priceData.usdPrice;
-              console.log(`💰 Price for ${tokenAddress}: $${priceData.usdPrice}`);
-            }
-            
-            if (faAddress) {
-              prices[faAddress] = priceData.usdPrice;
-              console.log(`💰 Price for ${faAddress}: $${priceData.usdPrice}`);
-            }
-            
-            // Also store under normalized versions
-            if (faAddress && faAddress.startsWith('0x')) {
-              const shortAddress = faAddress.slice(2); // Remove 0x prefix
-              prices[shortAddress] = priceData.usdPrice;
-              console.log(`💰 Price for ${shortAddress}: $${priceData.usdPrice}`);
+            for (const addr of [tokenAddress, faAddress].filter(Boolean)) {
+              if (!addr) continue;
+              prices[addr] = priceData.usdPrice;
+              if (addr.startsWith('0x')) {
+                prices[addr.slice(2)] = priceData.usdPrice;
+                prices[normalizeHex(addr)] = priceData.usdPrice;
+              }
             }
           }
         });
@@ -192,13 +189,13 @@ export async function GET(request: NextRequest) {
             // Get token info from tokenList
             const tokenInfo = await getTokenInfo(underlyingAsset);
             
-            // Get fresh price from Panora API - try all possible address variations
             const normalizedAsset = underlyingAsset.startsWith('0x') ? underlyingAsset : `0x${underlyingAsset}`;
-            const shortAsset = underlyingAsset.startsWith('0x') ? underlyingAsset.slice(2) : underlyingAsset;
-            
-            const freshPrice = prices[underlyingAsset] || 
-                              prices[normalizedAsset] || 
-                              prices[shortAsset] || 
+            const shortAsset = normalizedAsset.startsWith('0x') ? normalizedAsset.slice(2) : normalizedAsset;
+            const normalizedKey = normalizeHex(normalizedAsset);
+            const freshPrice = prices[underlyingAsset] ||
+                              prices[normalizedAsset] ||
+                              prices[shortAsset] ||
+                              prices[normalizedKey] ||
                               '0';
             
             const priceSource = 'Panora API';
