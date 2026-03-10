@@ -76,6 +76,12 @@ const nextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'app.decibel.trade',
+        port: '',
+        pathname: '/images/**',
+      },
     ],
     domains: [
       'hyperion.xyz',

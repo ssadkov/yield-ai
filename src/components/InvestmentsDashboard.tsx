@@ -46,6 +46,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { InvestmentsDashboardLoading } from "./InvestmentsDashboardLoading";
+import { DecibelIdeasBlock } from "./decibel-ideas-block";
 
 // Список адресов токенов Echelon, которые нужно исключить из отображения
 const EXCLUDED_ECHELON_TOKENS = [
@@ -960,162 +961,37 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
         {activeTab === "lite" && (
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-semibold mb-4">Stables</h3>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {allLoadedData
-                  .filter(item => {
-                    // Фильтруем исключенные токены Echelon
-                    if (item.protocol === 'Echelon' && EXCLUDED_ECHELON_TOKENS.includes(item.token)) {
-                      return false;
-                    }
-                    // Показываем только протоколы с нативным депозитом в Lite вкладке
-                    const protocol = getProtocolByName(item.protocol);
-                    if (!protocol || protocol.depositType !== 'native') {
-                      return false;
-                    }
-                    return item.asset.toUpperCase().includes('USDT') ||
-                           item.asset.toUpperCase().includes('USDC') ||
-                           item.asset.toUpperCase().includes('DAI') ||
-                           item.asset.toUpperCase().includes('SUSD');
-                  })
-                  .sort((a, b) => b.totalAPY - a.totalAPY)
-                  .slice(0, 3)
-                  .map((item, index) => {
-                    const tokenInfo = getTokenInfo(item.asset, item.token);
-                    const displaySymbol = tokenInfo?.symbol || item.asset;
-                    const logoUrl = tokenInfo?.logoUrl;
-                    const protocol = getProtocolByName(item.protocol);
-
-                    // Check if this is a DEX pool with two or more tokens
-                    const isDex = !!(item.token1Info && item.token2Info) || !!(item as any).tokensInfo?.length;
-
-                    return (
-                      <Card
-                        key={index}
-                        className={cn("border-2", getDropZoneClassName(item))}
-                        onDragOver={(e) => handleDragOver(e, item)}
-                        onDragLeave={handleDragLeave}
-                        onDrop={(e) => handleDropEvent(e, item)}
-                      >
-                        <CardHeader>
-                          <CardTitle className="flex items-center gap-2 w-full flex-wrap">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger className="cursor-default">
-                                  <div className="flex items-center gap-2">
-                                    {isDex ? (
-                                      // DEX pool display with up to three tokens
-                                      <div className="flex items-center gap-2">
-                                        <div className="flex">
-                                          {(item as any).tokensInfo?.slice(0,3)?.map((t: any, idx: number) => (
-                                            <Avatar key={idx} className={`w-6 h-6 ${idx > 0 ? '-ml-2' : ''}`}>
-                                              {t.logoUrl ? (
-                                                <img src={t.logoUrl} alt={t.symbol} className="object-contain" />
-                                              ) : null}
-                                            </Avatar>
-                                          )) || (
-                                            <>
-                                              {item.token1Info?.logoUrl && (
-                                                <Avatar className="w-6 h-6">
-                                                  <img src={item.token1Info.logoUrl} alt={item.token1Info.symbol} className="object-contain" />
-                                                </Avatar>
-                                              )}
-                                              {item.token2Info?.logoUrl && (
-                                                <Avatar className="w-6 h-6 -ml-2">
-                                                  <img src={item.token2Info.logoUrl} alt={item.token2Info.symbol} className="object-contain" />
-                                                </Avatar>
-                                              )}
-                                            </>
-                                          )}
-                                        </div>
-                                        <span>{((item as any).tokensInfo?.slice(0,3)?.map((t: any) => t.symbol) || [item.token1Info?.symbol, item.token2Info?.symbol]).filter(Boolean).join(' / ')}</span>
-                                      </div>
-                                    ) : (
-                                      // Lending pool display (existing logic)
-                                      <>
-                                        {logoUrl && (
-                                          <div className="w-6 h-6 relative">
-                                            <Image
-                                              src={logoUrl}
-                                              alt={displaySymbol}
-                                              width={24}
-                                              height={24}
-                                              className="object-contain"
-                                            />
-                                          </div>
-                                        )}
-                                        <span>{displaySymbol}</span>
-                                      </>
-                                    )}
-                                  </div>
-                                </TooltipTrigger>
-                              </Tooltip>
-                            </TooltipProvider>
-                            <div className="ml-auto shrink-0 flex items-center gap-2">
-                              <Badge variant="outline">{item.protocol}</Badge>
-                              {protocol?.airdropInfo && (
-                                <AirdropInfoTooltip airdropInfo={protocol.airdropInfo} size="sm">
-                                  <div className="flex items-center justify-center w-5 h-5 rounded-full bg-muted hover:bg-muted/80 transition-colors cursor-help">
-                                    <Gift className="h-3 w-3 text-muted-foreground" />
-                                  </div>
-                                </AirdropInfoTooltip>
-                              )}
-                            </div>
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="text-2xl font-bold">{item.totalAPY?.toFixed(2) || "0.00"}%</div>
-                          <p className="text-xs text-muted-foreground">Total APR</p>
-                          {item.protocol === 'Decibel' && ((item as any).decibelAllTimeReturn != null || (item as any).decibelVaultPnl != null) && (
-                            <div className="mt-2 text-xs text-muted-foreground space-y-0.5">
-                              {(item as any).decibelAllTimeReturn != null && (
-                                <p>All time return: {Number((item as any).decibelAllTimeReturn).toFixed(2)}%</p>
-                              )}
-                              {(item as any).decibelVaultPnl != null && (
-                                <p>Vault PnL: ${Number((item as any).decibelVaultPnl).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
-                              )}
-                            </div>
-                          )}
-                          <DepositButton
-                            protocol={protocol!}
-                            className="mt-4 w-full"
-                            tokenIn={{
-                              symbol: isDex ? (item.token1Info?.symbol || 'Unknown') : displaySymbol,
-                              logo: isDex ? (item.token1Info?.logoUrl || '/file.svg') : (tokenInfo?.logoUrl || '/file.svg'),
-                              decimals: isDex ? (item.token1Info?.decimals || 8) : (tokenInfo?.decimals || 8),
-                              address: item.token
-                            }}
-                            balance={BigInt(1000000000)} // TODO: Get real balance
-                            priceUSD={Number(tokenInfo?.usdPrice || 0)}
-                          />
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-              </div>
-            </div>
-
-            <div>
               <h3 className="text-lg font-semibold mb-4">Fundamentals</h3>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {[
-                  { symbol: 'APT', exact: false },
-                  { symbol: 'BTC', exact: false },
-                  { symbol: 'ETH', exact: false }
-                ].map(({ symbol, exact }) => {
-
-                  const bestPool = allLoadedData
-                    .filter(item => {
-                      // Показываем только протоколы с нативным депозитом в Lite вкладке
-                      const protocol = getProtocolByName(item.protocol);
-                      if (!protocol || protocol.depositType !== 'native') {
-                        return false;
-                      }
-                      return exact
-                        ? item.asset.toUpperCase() === symbol
-                        : item.asset.toUpperCase().includes(symbol);
-                    })
-                    .sort((a, b) => b.totalAPY - a.totalAPY)[0];
+                {([
+                  { key: 'APT', symbol: 'APT', exact: false },
+                  { key: 'BTC', symbol: 'BTC', exact: false },
+                  {
+                    key: 'stable',
+                    stable: true as const,
+                  },
+                ] as const).map((item) => {
+                  const bestPool = 'stable' in item && item.stable
+                    ? allLoadedData
+                        .filter(pool => {
+                          if (pool.protocol === 'Echelon' && EXCLUDED_ECHELON_TOKENS.includes(pool.token)) return false;
+                          const protocol = getProtocolByName(pool.protocol);
+                          if (!protocol || protocol.depositType !== 'native') return false;
+                          return pool.asset.toUpperCase().includes('USDT') ||
+                            pool.asset.toUpperCase().includes('USDC') ||
+                            pool.asset.toUpperCase().includes('DAI') ||
+                            pool.asset.toUpperCase().includes('SUSD');
+                        })
+                        .sort((a, b) => b.totalAPY - a.totalAPY)[0]
+                    : allLoadedData
+                        .filter(pool => {
+                          const protocol = getProtocolByName(pool.protocol);
+                          if (!protocol || protocol.depositType !== 'native') return false;
+                          return item.exact
+                            ? pool.asset.toUpperCase() === item.symbol
+                            : pool.asset.toUpperCase().includes(item.symbol);
+                        })
+                        .sort((a, b) => b.totalAPY - a.totalAPY)[0];
 
                   if (!bestPool) return null;
 
@@ -1130,7 +1006,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 
                   return (
                     <Card
-                      key={symbol}
+                      key={item.key}
                       className={cn("border-2", getDropZoneClassName(bestPool))}
                       onDragOver={(e) => handleDragOver(e, bestPool)}
                       onDragLeave={handleDragLeave}
@@ -1222,6 +1098,11 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   );
                 })}
               </div>
+            </div>
+
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Decibel Perps</h3>
+              <DecibelIdeasBlock />
             </div>
           </div>
         )}
