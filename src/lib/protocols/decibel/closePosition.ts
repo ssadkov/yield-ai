@@ -2,6 +2,7 @@
  * Build transaction payload for closing a Decibel perps position at market (IOC).
  * Uses place_order_to_subaccount with time_in_force=ImmediateOrCancel and is_reduce_only=true.
  *
+ * Argument order and types must match the contract ABI (15 args):
  * @see https://docs.decibel.trade/developer-hub/on-chain/order-management/place-order
  * @see https://docs.decibel.trade/developer-hub/on-chain/overview/formatting-prices-sizes
  * @see https://docs.decibel.trade/developer-hub/on-chain/overview/contract-reference
@@ -155,8 +156,8 @@ export function buildCloseAtMarketPayload(params: CloseAtMarketParams): {
       null, // tp_limit_price
       null, // sl_trigger_price
       null, // sl_limit_price
-      builderAddrCanonical ?? null, // builder_addr
-      builderFeeBps ?? null, // builder_fee
+      builderAddrCanonical ?? null, // builder_address (Option<address>) — per Decibel docs
+      builderFeeBps ?? null, // builder_fees (Option<u64>) — per Decibel docs
     ],
   };
 }
@@ -219,8 +220,8 @@ export function buildCloseAtLimitPayload(params: CloseAtLimitParams): {
       null, // tp_limit_price
       null, // sl_trigger_price
       null, // sl_limit_price
-      builderAddrCanonical ?? null,
-      builderFeeBps ?? null,
+      builderAddrCanonical ?? null, // builder_address (Option<address>) — per Decibel docs
+      builderFeeBps ?? null, // builder_fees (Option<u64>) — per Decibel docs
     ],
   };
 }
@@ -337,15 +338,14 @@ export function buildOpenMarketOrderPayload(params: OpenMarketOrderParams): {
       isBuy,
       timeInForce,
       false, // is_reduce_only
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      builderAddrCanonical ?? null,
-      builderFeeBps ?? null,
+      null, // client_order_id
+      null, // stop_price
+      null, // tp_trigger_price
+      null, // tp_limit_price
+      null, // sl_trigger_price
+      null, // sl_limit_price
+      builderAddrCanonical ?? null, // builder_address (Option<address>) — per Decibel docs
+      builderFeeBps ?? null, // builder_fees (Option<u64>) — per Decibel docs
     ],
   };
 }

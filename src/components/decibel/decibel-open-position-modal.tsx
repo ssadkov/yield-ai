@@ -243,6 +243,15 @@ export function DecibelOpenPositionModal({
     }
     setPlacing(true);
     try {
+      // Debug: log raw addresses before payload build (to see if decimal form comes from API)
+      console.log('[Decibel Open] raw inputs:', {
+        subaccountAddr: typeof subaccountAddr === 'string' && subaccountAddr.length > 30
+          ? `${subaccountAddr.slice(0, 24)}... (len=${subaccountAddr.length}, startsWith0x=${subaccountAddr.startsWith('0x')})`
+          : subaccountAddr,
+        marketAddr: typeof market.marketAddr === 'string' && market.marketAddr.length > 30
+          ? `${market.marketAddr.slice(0, 24)}... (len=${market.marketAddr.length}, startsWith0x=${market.marketAddr.startsWith('0x')})`
+          : market.marketAddr,
+      });
       const payload = buildOpenMarketOrderPayload({
         subaccountAddr,
         marketAddr: market.marketAddr,
@@ -254,6 +263,45 @@ export function DecibelOpenPositionModal({
         isTestnet: decibelNetwork === 'testnet',
         builderAddr: builderConfig?.builderAddress ?? undefined,
         builderFeeBps: builderConfig?.builderFeeBps ?? undefined,
+      });
+      // Debug: log each argument before sending (identify which one causes u64 "out of range")
+      const args = payload.functionArguments;
+      const argNames = [
+        'subaccountAddr',
+        'marketAddr',
+        'chainPrice',
+        'chainSize',
+        'isBuy',
+        'timeInForce',
+        'is_reduce_only',
+        'client_order_id',
+        'stop_price',
+        'tp_trigger_price',
+        'tp_limit_price',
+        'sl_trigger_price',
+        'sl_limit_price',
+        'builderAddr',
+        'builderFeeBps',
+      ];
+      const errNum = '12915772216665040055001747197620699795071116263423152195544898556698503341355';
+      args.forEach((v, i) => {
+        const name = argNames[i] ?? `arg${i}`;
+        const type = typeof v;
+        let detail: string;
+        if (typeof v === 'string') {
+          const asDecimal = v.startsWith('0x') ? BigInt(v).toString() : v;
+          detail = v.length > 40 ? `"${v.slice(0, 18)}...${v.slice(-10)}" (len=${v.length})` : `"${v}"`;
+          if (asDecimal === errNum || (v.length > 50 && asDecimal.length > 50)) {
+            console.warn(`[Decibel Open] arg[${i}] ${name} decimal form: ${asDecimal.slice(0, 30)}... (matches error? ${asDecimal === errNum})`);
+          }
+        } else {
+          detail = String(v);
+        }
+        console.log(`[Decibel Open] arg[${i}] ${name} (${type}): ${detail}`);
+      });
+      console.log('[Decibel Open] place_order payload.functionArguments summary:', {
+        function: payload.function,
+        argCount: args.length,
       });
       const result = await signAndSubmitTransaction({
         data: {
