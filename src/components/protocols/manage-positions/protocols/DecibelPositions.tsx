@@ -28,6 +28,7 @@ import {
   type DecibelMarketConfig,
 } from '@/lib/protocols/decibel/closePosition';
 import { buildApproveBuilderFeePayload } from '@/lib/protocols/decibel/approveBuilderFee';
+import { useDecibelAptosAddress } from '@/hooks/useDecibelAptosAddress';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -146,6 +147,7 @@ function getDecibelAptosClient(network: 'testnet' | 'mainnet'): Aptos {
 
 export function DecibelPositions() {
   const { account, signTransaction, signAndSubmitTransaction } = useWallet();
+  const { decibelAddress, isLoading: isLoadingDecibelAddress } = useDecibelAptosAddress();
   const { toast } = useToast();
   const [positions, setPositions] = useState<DecibelPosition[]>([]);
   const [vaults, setVaults] = useState<DecibelVaultItem[]>([]);
@@ -179,7 +181,7 @@ export function DecibelPositions() {
   const [cancelingOrderId, setCancelingOrderId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!account?.address) {
+    if (!decibelAddress) {
       setBuilderConfig(null);
       return;
     }
@@ -200,10 +202,10 @@ export function DecibelPositions() {
     return () => {
       cancelled = true;
     };
-  }, [account?.address]);
+  }, [decibelAddress]);
 
   const fetchPositions = useCallback(async () => {
-    if (!account?.address) {
+    if (!decibelAddress) {
       setPositions([]);
       return;
     }
@@ -211,7 +213,7 @@ export function DecibelPositions() {
     setError(null);
     try {
       const res = await fetch(
-        `/api/protocols/decibel/userPositions?address=${encodeURIComponent(account.address.toString())}`
+        `/api/protocols/decibel/userPositions?address=${encodeURIComponent(decibelAddress)}`
       );
       const data = await res.json();
       if (!res.ok) {
@@ -233,17 +235,17 @@ export function DecibelPositions() {
     } finally {
       setLoading(false);
     }
-  }, [account?.address, toast]);
+  }, [decibelAddress, toast]);
 
   const fetchVaults = useCallback(async () => {
-    if (!account?.address) {
+    if (!decibelAddress) {
       setVaults([]);
       return;
     }
     setVaultsLoading(true);
     try {
       const res = await fetch(
-        `/api/protocols/decibel/accountVaultPerformance?address=${encodeURIComponent(account.address.toString())}`
+        `/api/protocols/decibel/accountVaultPerformance?address=${encodeURIComponent(decibelAddress)}`
       );
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
@@ -256,7 +258,7 @@ export function DecibelPositions() {
     } finally {
       setVaultsLoading(false);
     }
-  }, [account?.address]);
+  }, [decibelAddress]);
 
   useEffect(() => {
     fetchPositions();
@@ -303,7 +305,7 @@ export function DecibelPositions() {
   }, [fetchVaults]);
 
   const fetchOverview = useCallback(async () => {
-    if (!account?.address) {
+    if (!decibelAddress) {
       setAvailableToTrade(null);
       setTotalEquity(null);
       return;
@@ -311,7 +313,7 @@ export function DecibelPositions() {
     setOverviewLoading(true);
     try {
       const res = await fetch(
-        `/api/protocols/decibel/accountOverview?address=${encodeURIComponent(account.address.toString())}`
+        `/api/protocols/decibel/accountOverview?address=${encodeURIComponent(decibelAddress)}`
       );
       const data = await res.json();
       if (data.success && data.data) {
@@ -332,7 +334,7 @@ export function DecibelPositions() {
     } finally {
       setOverviewLoading(false);
     }
-  }, [account?.address]);
+  }, [decibelAddress]);
 
   useEffect(() => {
     fetchMarkets();
@@ -386,14 +388,14 @@ export function DecibelPositions() {
   }, [positions.length, fetchPrices]);
 
   const fetchPreDeposit = useCallback(async () => {
-    if (!account?.address) {
+    if (!decibelAddress) {
       setPreDepositSumUsdc(null);
       return;
     }
     setPreDepositLoading(true);
     try {
       const res = await fetch(
-        `/api/protocols/decibel/predepositorBalance?address=${encodeURIComponent(account.address.toString())}`
+        `/api/protocols/decibel/predepositorBalance?address=${encodeURIComponent(decibelAddress)}`
       );
       const data = await res.json();
       if (data.success && typeof data.data?.sumUsdc === 'number') {
@@ -406,21 +408,21 @@ export function DecibelPositions() {
     } finally {
       setPreDepositLoading(false);
     }
-  }, [account?.address]);
+  }, [decibelAddress]);
 
   useEffect(() => {
     fetchPreDeposit();
   }, [fetchPreDeposit]);
 
   const fetchAmps = useCallback(async () => {
-    if (!account?.address) {
+    if (!decibelAddress) {
       setTotalAmps(null);
       return;
     }
     setAmpsLoading(true);
     try {
       const res = await fetch(
-        `/api/protocols/decibel/amps?owner=${encodeURIComponent(account.address.toString())}`
+        `/api/protocols/decibel/amps?owner=${encodeURIComponent(decibelAddress)}`
       );
       const data = await res.json();
       if (data.success && typeof data.data?.total_amps === 'number') {
@@ -433,17 +435,17 @@ export function DecibelPositions() {
     } finally {
       setAmpsLoading(false);
     }
-  }, [account?.address]);
+  }, [decibelAddress]);
 
   const fetchPredepositPoints = useCallback(async () => {
-    if (!account?.address) {
+    if (!decibelAddress) {
       setPredepositPoints(null);
       return;
     }
     setPredepositPointsLoading(true);
     try {
       const res = await fetch(
-        `/api/protocols/decibel/predepositPoints?address=${encodeURIComponent(account.address.toString())}`
+        `/api/protocols/decibel/predepositPoints?address=${encodeURIComponent(decibelAddress)}`
       );
       const data = await res.json();
       if (data.success && typeof data.data?.points === 'number') {
@@ -456,17 +458,17 @@ export function DecibelPositions() {
     } finally {
       setPredepositPointsLoading(false);
     }
-  }, [account?.address]);
+  }, [decibelAddress]);
 
   const fetchOpenOrders = useCallback(async () => {
-    if (!account?.address) {
+    if (!decibelAddress) {
       setOpenOrders([]);
       return;
     }
     // Decibel open_orders returns orders per subaccount, not per owner. Use subaccounts from positions.
     const subaccounts = positions.length > 0
       ? Array.from(new Set(positions.map((p) => p.user).filter(Boolean)))
-      : [account.address.toString()];
+      : [decibelAddress];
     setOpenOrdersLoading(true);
     try {
       const allOrders: DecibelOpenOrder[] = [];
@@ -485,7 +487,7 @@ export function DecibelPositions() {
     } finally {
       setOpenOrdersLoading(false);
     }
-  }, [account?.address, positions]);
+  }, [decibelAddress, positions]);
 
   useEffect(() => {
     fetchAmps();
@@ -861,6 +863,22 @@ export function DecibelPositions() {
     return (
       <div className="text-sm text-muted-foreground py-4">
         Connect your Aptos wallet to view Decibel positions.
+      </div>
+    );
+  }
+
+  if (isLoadingDecibelAddress) {
+    return (
+      <div className="text-sm text-muted-foreground py-4">
+        Loading Decibel address…
+      </div>
+    );
+  }
+
+  if (!decibelAddress) {
+    return (
+      <div className="text-sm text-muted-foreground py-4">
+        Unable to load Decibel address. Try reconnecting your wallet.
       </div>
     );
   }

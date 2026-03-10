@@ -2,6 +2,10 @@
 
 import React, { useEffect, useState } from 'react';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
+import { AccountAddress } from '@aptos-labs/ts-sdk';
+import { signAptosTransactionWithSolana } from '@aptos-labs/derived-wallet-solana';
+import { StandardWalletAdapter as SolanaWalletAdapter } from '@solana/wallet-standard-wallet-adapter-base';
+import { UserResponseStatus } from '@aptos-labs/wallet-standard';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
@@ -9,6 +13,14 @@ import { useToast } from '@/components/ui/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import { buildApproveBuilderFeePayload } from '@/lib/protocols/decibel/approveBuilderFee';
 import { DecibelDepositModal } from '@/components/ui/decibel-deposit-modal';
+import { useDecibelAptosAddress } from '@/hooks/useDecibelAptosAddress';
+import { isDerivedAptosWallet } from '@/lib/aptosWalletUtils';
+import { normalizeAuthenticator } from '@/lib/hooks/useTransactionSubmitter';
+import { useAptosClient } from '@/contexts/AptosClientContext';
+import { GasStationService } from '@/lib/services/gasStation';
+
+const DECIBEL_DOMAIN = 'app.decibel.trade';
+const AUTH_FUNCTION = '0x1::solana_derivable_account::authenticate';
 
 const DECIBEL_LOGO = '/protocol_ico/decibel.png';
 
@@ -19,8 +31,11 @@ type BuilderConfigResponse = { success: boolean; builderAddress?: string; builde
 type ApprovedMaxFeeResponse = { success: boolean; approvedMaxFeeBps?: number | null };
 
 export function DecibelCTABlock() {
-  const { account, signAndSubmitTransaction } = useWallet();
+  const { account, wallet, signAndSubmitTransaction } = useWallet();
+  const aptos = useAptosClient();
+  const { decibelAddress, isLoading: isLoadingDecibelAddress } = useDecibelAptosAddress();
   const { toast } = useToast();
+  const isDerived = Boolean(wallet && isDerivedAptosWallet(wallet));
   const [referralStatus, setReferralStatus] = useState<ReferralStatus | null>(null);
   const [subaccounts, setSubaccounts] = useState<SubaccountItem[]>([]);
   const [approvedMaxFeeBps, setApprovedMaxFeeBps] = useState<number | null | undefined>(undefined);
@@ -29,10 +44,8 @@ export function DecibelCTABlock() {
   const [approving, setApproving] = useState(false);
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
 
-  const address = account?.address?.toString();
-
   useEffect(() => {
-    if (!address) {
+    if (!decibelAddress) {
       setReferralStatus(null);
       setSubaccounts([]);
       setApprovedMaxFeeBps(undefined);
@@ -42,7 +55,7 @@ export function DecibelCTABlock() {
     setChecking(true);
     Promise.all([
       fetch('/api/protocols/decibel/referral-status').then((r) => r.json() as Promise<ReferralStatus>),
-      fetch(`/api/protocols/decibel/subaccounts?address=${encodeURIComponent(address)}`).then(
+      fetch(`/api/protocols/decibel/subaccounts?address=${encodeURIComponent(decibelAddress)}`).then(
         (r) => r.json() as Promise<SubaccountsResponse>
       ),
     ])
@@ -83,22 +96,57 @@ export function DecibelCTABlock() {
     return () => {
       cancelled = true;
     };
-  }, [address]);
+  }, [decibelAddress]);
 
   const canRegister = Boolean(referralStatus?.success && referralStatus?.canRegister);
   const hasSubaccount = subaccounts.length > 0;
-  const needsRegister = canRegister && !hasSubaccount && !!address;
+  const needsRegister = canRegister && !hasSubaccount && !!decibelAddress;
   const primarySubaccount = subaccounts.find((s) => s.is_primary) ?? subaccounts[0];
   const primarySubaccountAddr = primarySubaccount?.subaccount_address?.trim() ?? '';
 
+  const formatAptosErrorForToast = (err: unknown): string => {
+    const anyErr = err as any;
+    const data = anyErr?.data;
+
+    const message =
+      typeof data?.message === 'string'
+        ? data.message
+        : anyErr instanceof Error
+          ? anyErr.message
+          : String(err);
+
+    const errorCode = typeof data?.error_code === 'string' ? data.error_code : undefined;
+    const vmErrorCode = typeof data?.vm_error_code === 'number' ? data.vm_error_code : undefined;
+    const vmStatus = typeof data?.vm_status === 'string' ? data.vm_status : undefined;
+    const aptosMessage = typeof data?.aptos_message === 'string' ? data.aptos_message : undefined;
+
+    const parts: string[] = [];
+    parts.push(message || 'Unknown error');
+    if (errorCode) parts.push(`error_code=${errorCode}`);
+    if (vmErrorCode != null) parts.push(`vm_error_code=${vmErrorCode}`);
+    if (vmStatus) parts.push(vmStatus);
+    if (aptosMessage) parts.push(aptosMessage);
+
+    // If node didn't include vm_status, include compact payload to debug quickly.
+    if (!vmStatus && data && typeof data === 'object') {
+      try {
+        const compact = JSON.stringify(data);
+        if (compact && compact !== '{}' && compact !== '[]') parts.push(compact);
+      } catch {
+        // ignore
+      }
+    }
+    return parts.join(' | ');
+  };
+
   const handleRegister = async () => {
-    if (!address || registering) return;
+    if (!decibelAddress || registering) return;
     setRegistering(true);
     try {
       const res = await fetch('/api/protocols/decibel/onboard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ account: address }),
+        body: JSON.stringify({ account: decibelAddress }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -121,7 +169,7 @@ export function DecibelCTABlock() {
           ? 'You already had a subaccount.'
           : 'Your Decibel subaccount was created. You can trade on mainnet.',
       });
-      const subsRes = await fetch(`/api/protocols/decibel/subaccounts?address=${encodeURIComponent(address)}`);
+      const subsRes = await fetch(`/api/protocols/decibel/subaccounts?address=${encodeURIComponent(decibelAddress)}`);
       const subsData = (await subsRes.json()) as SubaccountsResponse;
       if (subsData?.success && Array.isArray(subsData.data)) {
         setSubaccounts(subsData.data);
@@ -139,7 +187,7 @@ export function DecibelCTABlock() {
   };
 
   const handleApproveBuilderFee = async () => {
-    if (!address || approving || !signAndSubmitTransaction || subaccounts.length === 0) return;
+    if (!decibelAddress || approving || subaccounts.length === 0) return;
     const subaccountAddr = primarySubaccountAddr;
     if (!subaccountAddr) {
       toast({ variant: 'destructive', title: 'Error', description: 'No subaccount address' });
@@ -163,33 +211,120 @@ export function DecibelCTABlock() {
         maxFeeBps: config.builderFeeBps,
         isTestnet: false,
       });
-      const result = await signAndSubmitTransaction({
-        data: {
-          function: payload.function as `${string}::${string}::${string}`,
-          typeArguments: payload.typeArguments,
-          functionArguments: payload.functionArguments as (string | number)[],
-        },
-        options: { maxGasAmount: 20000 },
-      });
-      const txHash = typeof result?.hash === 'string' ? result.hash : (result as { hash?: string })?.hash ?? '';
-      setApprovedMaxFeeBps(config.builderFeeBps);
-      toast({
-        title: 'Trading via Yield AI enabled',
-        description: txHash ? `Transaction ${txHash.slice(0, 6)}...${txHash.slice(-4)}` : 'Transaction submitted',
-        action: txHash ? (
-          <ToastAction
-            altText="View in Explorer"
-            onClick={() => window.open('https://explorer.aptoslabs.com/txn/' + txHash + '?network=mainnet', '_blank')}
-          >
-            View in Explorer
-          </ToastAction>
-        ) : undefined,
-      });
+
+      if (isDerived && wallet) {
+        const solanaWalletRef = (wallet as unknown as { solanaWallet?: SolanaWalletAdapter }).solanaWallet;
+        if (!solanaWalletRef?.publicKey || (!solanaWalletRef.signMessage && !solanaWalletRef.signIn)) {
+          toast({ variant: 'destructive', title: 'Approve failed', description: 'Solana wallet not available or does not support signing' });
+          return;
+        }
+        const sender = AccountAddress.fromString(decibelAddress);
+        // Ensure the derived account exists on-chain; otherwise the transaction will be rejected as invalid.
+        // (Decibel onboarding via API can create a subaccount without creating the Aptos account itself.)
+        try {
+          const accountRes = await fetch(`https://fullnode.mainnet.aptoslabs.com/v1/accounts/${sender.toString()}`);
+          if (accountRes.status === 404) {
+            toast({
+              variant: 'destructive',
+              title: 'Approve failed',
+              description: 'Derived Aptos account is not initialized on-chain yet. Open app.decibel.trade and complete an on-chain action (e.g. deposit) to initialize it, then try again.',
+            });
+            return;
+          }
+        } catch {
+          // ignore and let submission path surface the real error
+        }
+        const gasStation = GasStationService.getInstance();
+        const transactionSubmitter = gasStation.isAvailable() ? gasStation.getTransactionSubmitter() : null;
+
+        const transaction = await aptos.transaction.build.simple({
+          sender,
+          withFeePayer: Boolean(transactionSubmitter),
+          data: {
+            function: payload.function as `${string}::${string}::${string}`,
+            typeArguments: payload.typeArguments,
+            functionArguments: payload.functionArguments as (string | number)[],
+          },
+          options: { maxGasAmount: 20000 },
+        });
+        const signResult = await signAptosTransactionWithSolana({
+          solanaWallet: solanaWalletRef,
+          authenticationFunction: AUTH_FUNCTION,
+          rawTransaction: transaction,
+          domain: DECIBEL_DOMAIN,
+        });
+        if (signResult.status === UserResponseStatus.REJECTED) {
+          toast({ variant: 'destructive', title: 'Rejected', description: 'You rejected the transaction' });
+          return;
+        }
+        if (signResult.status !== UserResponseStatus.APPROVED || !signResult.args) {
+          toast({ variant: 'destructive', title: 'Approve failed', description: 'Transaction signing failed' });
+          return;
+        }
+        const senderAuthenticator = normalizeAuthenticator(signResult.args);
+        let txHash = '';
+        if (transactionSubmitter) {
+          // Preferred: sponsored submit (derived wallets often have 0 APT).
+          const resp = await transactionSubmitter.submitTransaction({
+            aptosConfig: aptos.config as any,
+            transaction: transaction as any,
+            senderAuthenticator: senderAuthenticator as any,
+          });
+          txHash = typeof resp?.hash === 'string' ? resp.hash : (resp as { hash?: string })?.hash ?? '';
+        } else {
+          // Fallback: sender pays gas.
+          const response = await aptos.transaction.submit.simple({
+            transaction,
+            senderAuthenticator,
+          });
+          txHash = typeof response?.hash === 'string' ? response.hash : (response as { hash?: string })?.hash ?? '';
+        }
+        setApprovedMaxFeeBps(config.builderFeeBps);
+        toast({
+          title: 'Trading via Yield AI enabled',
+          description: txHash ? `Transaction ${txHash.slice(0, 6)}...${txHash.slice(-4)}` : 'Transaction submitted',
+          action: txHash ? (
+            <ToastAction
+              altText="View in Explorer"
+              onClick={() => window.open('https://explorer.aptoslabs.com/txn/' + txHash + '?network=mainnet', '_blank')}
+            >
+              View in Explorer
+            </ToastAction>
+          ) : undefined,
+        });
+      } else {
+        if (!signAndSubmitTransaction) {
+          toast({ variant: 'destructive', title: 'Approve failed', description: 'Wallet does not support signing' });
+          return;
+        }
+        const result = await signAndSubmitTransaction({
+          data: {
+            function: payload.function as `${string}::${string}::${string}`,
+            typeArguments: payload.typeArguments,
+            functionArguments: payload.functionArguments as (string | number)[],
+          },
+          options: { maxGasAmount: 20000 },
+        });
+        const txHash = typeof result?.hash === 'string' ? result.hash : (result as { hash?: string })?.hash ?? '';
+        setApprovedMaxFeeBps(config.builderFeeBps);
+        toast({
+          title: 'Trading via Yield AI enabled',
+          description: txHash ? `Transaction ${txHash.slice(0, 6)}...${txHash.slice(-4)}` : 'Transaction submitted',
+          action: txHash ? (
+            <ToastAction
+              altText="View in Explorer"
+              onClick={() => window.open('https://explorer.aptoslabs.com/txn/' + txHash + '?network=mainnet', '_blank')}
+            >
+              View in Explorer
+            </ToastAction>
+          ) : undefined,
+        });
+      }
     } catch (e) {
       toast({
         variant: 'destructive',
         title: 'Approve failed',
-        description: e instanceof Error ? e.message : 'Unknown error',
+        description: formatAptosErrorForToast(e),
       });
     } finally {
       setApproving(false);
@@ -222,13 +357,13 @@ export function DecibelCTABlock() {
             </div>
           </div>
           <div className="shrink-0">
-            {!address && (
+            {!account?.address && (
               <p className="text-sm text-muted-foreground">Connect Aptos wallet to register</p>
             )}
-            {address && checking && (
+            {account?.address && (checking || isLoadingDecibelAddress) && (
               <p className="text-sm text-muted-foreground">Checking…</p>
             )}
-            {address && !checking && needsRegister && (
+            {decibelAddress && !checking && !isLoadingDecibelAddress && needsRegister && (
               <Button
                 size="sm"
                 onClick={handleRegister}
@@ -237,20 +372,20 @@ export function DecibelCTABlock() {
                 {registering ? 'Registering…' : 'Register on Decibel Mainnet'}
               </Button>
             )}
-            {address && !checking && hasSubaccount && approvedMaxFeeBps === null && (
+            {decibelAddress && !checking && !isLoadingDecibelAddress && hasSubaccount && approvedMaxFeeBps === null && (
               <div className="flex flex-col gap-2 items-end">
                 <p className="text-sm text-muted-foreground">You&apos;re registered on Decibel</p>
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={handleApproveBuilderFee}
-                  disabled={approving || !signAndSubmitTransaction}
+                  disabled={approving || (!isDerived && !signAndSubmitTransaction)}
                 >
                   {approving ? 'Enabling…' : 'Enable trading via Yield AI'}
                 </Button>
               </div>
             )}
-            {address && !checking && hasSubaccount && approvedMaxFeeBps != null && primarySubaccountAddr && (
+            {decibelAddress && !checking && !isLoadingDecibelAddress && hasSubaccount && approvedMaxFeeBps != null && primarySubaccountAddr && (
               <Button
                 onClick={() => setIsDepositModalOpen(true)}
                 disabled={!signAndSubmitTransaction}
@@ -259,7 +394,7 @@ export function DecibelCTABlock() {
                 Deposit
               </Button>
             )}
-            {address && !checking && canRegister === false && !hasSubaccount && (
+            {decibelAddress && !checking && !isLoadingDecibelAddress && canRegister === false && !hasSubaccount && (
               <p className="text-sm text-muted-foreground">Registration temporarily unavailable</p>
             )}
           </div>
