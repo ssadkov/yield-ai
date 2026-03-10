@@ -7,9 +7,7 @@ import { Button } from '@/components/ui/button';
 import { normalizeAddress } from '@/lib/utils/addressNormalization';
 import { formatNumber } from '@/lib/utils/numberFormat';
 import Image from 'next/image';
-import { ExternalLink } from 'lucide-react';
-
-const DECIBEL_APP_BASE = 'https://app.decibel.trade/trade/';
+import { DecibelOpenPositionModal } from '@/components/decibel/decibel-open-position-modal';
 
 /** Logo URLs for the three fixed perp markets. BTC and ETH from Decibel app; APT from Panora. */
 const MARKET_LOGOS: Record<string, string> = {
@@ -39,16 +37,16 @@ function formatFundingRatePercent(fundingRateBps: number): string {
   return `${sign}${formatNumber(Math.abs(percent), 6)}%`;
 }
 
-function tradeUrl(marketName: string): string {
-  const slug = (marketName || '').replace(/\//g, '-').trim();
-  return slug ? `${DECIBEL_APP_BASE}${slug}` : DECIBEL_APP_BASE.replace('/trade/', '');
-}
-
 export function DecibelIdeasBlock() {
   const [markets, setMarkets] = useState<DecibelMarket[]>([]);
   const [pricesByMarket, setPricesByMarket] = useState<Record<string, DecibelPrice>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedMarket, setSelectedMarket] = useState<{
+    marketAddr: string;
+    marketName: string;
+    marketLogoUrl?: string;
+  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -150,14 +148,14 @@ export function DecibelIdeasBlock() {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+    <>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {threeMarkets.map((m) => {
         const priceInfo = pricesByMarket[m.key];
         const markPx = priceInfo?.mark_px;
         const fundingBps = priceInfo?.funding_rate_bps ?? 0;
         const isFundingPositive = priceInfo?.is_funding_positive === true;
         const marketName = m.market_name || '—';
-        const url = tradeUrl(marketName);
         const logoUrl = MARKET_LOGOS[marketName];
         const priceDecimals = marketName.toUpperCase().includes('BTC/USD') ? 0 : marketName.toUpperCase().includes('ETH/USD') ? 1 : 4;
 
@@ -188,17 +186,26 @@ export function DecibelIdeasBlock() {
               </div>
               <Button
                 className="mt-4 w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
-                asChild
+                onClick={() =>
+                  setSelectedMarket({
+                    marketAddr: m.key,
+                    marketName,
+                    marketLogoUrl: logoUrl,
+                  })
+                }
               >
-                <a href={url} target="_blank" rel="noopener noreferrer">
-                  Open position
-                  <ExternalLink className="ml-2 h-4 w-4" />
-                </a>
+                Open position
               </Button>
             </CardContent>
           </Card>
         );
       })}
-    </div>
+      </div>
+      <DecibelOpenPositionModal
+        open={!!selectedMarket}
+        onOpenChange={(open) => !open && setSelectedMarket(null)}
+        market={selectedMarket}
+      />
+    </>
   );
 }
