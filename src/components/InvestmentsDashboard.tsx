@@ -987,6 +987,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                         .filter(pool => {
                           const protocol = getProtocolByName(pool.protocol);
                           if (!protocol || protocol.depositType !== 'native') return false;
+                          if (!('symbol' in item) || !('exact' in item)) return false;
                           return item.exact
                             ? pool.asset.toUpperCase() === item.symbol
                             : pool.asset.toUpperCase().includes(item.symbol);
