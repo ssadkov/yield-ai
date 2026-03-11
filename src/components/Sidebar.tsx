@@ -27,6 +27,7 @@ import { PositionsList as AavePositionsList } from "./protocols/aave/PositionsLi
 import { PositionsList as ThalaPositionsList } from "./protocols/thala/PositionsList";
 import { PositionsList as EchoPositionsList } from "./protocols/echo/PositionsList";
 import { PositionsList as DecibelPositionsList } from "./protocols/decibel/PositionsList";
+import { PositionsList as AptreePositionsList } from "./protocols/aptree/PositionsList";
 import { useSolanaPortfolio } from "@/hooks/useSolanaPortfolio";
 import { ProtocolIcon } from "@/shared/ProtocolIcon/ProtocolIcon";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -66,6 +67,7 @@ export default function Sidebar() {
   const [echoValue, setEchoValue] = useState(0);
   const [decibelValue, setDecibelValue] = useState(0);
   const [decibelMainnetValue, setDecibelMainnetValue] = useState(0);
+  const [aptreeValue, setAptreeValue] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [checkingProtocols, setCheckingProtocols] = useState<string[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -87,6 +89,7 @@ export default function Sidebar() {
     "Thala",
 	"Echo Protocol",
     "Decibel",
+    "Aptree",
   ];
 
   // When set (e.g. "decibel" or "decibel,thala"), only these protocols are shown in the positions list
@@ -144,6 +147,7 @@ export default function Sidebar() {
 	setEchoValue(0);
     setDecibelValue(0);
     setDecibelMainnetValue(0);
+    setAptreeValue(0);
     resetChecking();
     setRefreshKey((k) => k + 1);
   }, [loadPortfolio, resetChecking]);
@@ -212,6 +216,9 @@ export default function Sidebar() {
   const handleDecibelMainnetValueChange = useCallback((value: number) => {
     setDecibelMainnetValue(value);
   }, []);
+  const handleAptreeValueChange = useCallback((value: number) => {
+    setAptreeValue(value);
+  }, []);
 
   // Считаем сумму по кошельку
   const walletTotal = tokens.reduce((sum, token) => {
@@ -221,7 +228,7 @@ export default function Sidebar() {
 
   // Считаем сумму по всем протоколам (Decibel: full assets when available, else pre-deposit fallback)
   const decibelTotal = decibelValue > 0 ? decibelValue : decibelMainnetValue;
-  const totalProtocolsValue = hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + amnisValue + earniumValue + aaveValue + moarValue + thalaValue + echoValue + decibelTotal;
+  const totalProtocolsValue = hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + amnisValue + earniumValue + aaveValue + moarValue + thalaValue + echoValue + decibelTotal + aptreeValue;
 
   // Итоговая сумма
   const totalAssets = walletTotal + totalProtocolsValue;
@@ -359,6 +366,7 @@ export default function Sidebar() {
                     { component: ThalaPositionsList, value: thalaValue, name: "Thala" },
                     { component: EchoPositionsList, value: echoValue, name: "Echo Protocol" },
                     { component: DecibelPositionsList, value: decibelValue, name: "Decibel" },
+                    { component: AptreePositionsList, value: aptreeValue, name: "Aptree" },
                   ];
                   const listToRender =
                     debugProtocolKeys?.length &&
@@ -391,6 +399,7 @@ export default function Sidebar() {
                         name === 'Thala' ? handleThalaValueChange :
 						name === 'Echo Protocol' ? handleEchoValueChange :
                       name === 'Decibel' ? handleDecibelValueChange :
+                        name === 'Aptree' ? handleAptreeValueChange :
                         undefined
                       }
                     onMainnetValueChange={name === 'Decibel' ? handleDecibelMainnetValueChange : undefined}

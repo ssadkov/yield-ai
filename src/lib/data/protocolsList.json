@@ -420,5 +420,22 @@
       "additionalInfo": "Amps measure ongoing participation and determine allocation during the Token Generation Event (TGE)."
     },
     "contractAddresses": []
+  },
+  {
+    "name": "Aptree",
+    "key": "aptree",
+    "category": "Yield",
+    "url": "https://www.aptree.io/earn",
+    "logoUrl": "/favicon.ico",
+    "description": "Simplified yield access layer on Aptos. Deposit stablecoins into optimized earn strategies.",
+    "depositType": "external",
+    "depositUrl": "https://www.aptree.io/earn",
+    "isDepositEnabled": true,
+    "managedType": "external",
+    "socialMedia": {
+      "twitter": "https://x.com/APTreeFinance"
+    },
+    "airdrop": "",
+    "contractAddresses": []
   }
 ] 

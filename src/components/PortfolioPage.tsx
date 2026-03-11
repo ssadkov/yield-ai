@@ -25,6 +25,7 @@ import { PositionsList as MoarPositionsList } from "./protocols/moar/PositionsLi
 import { PositionsList as ThalaPositionsList } from "./protocols/thala/PositionsList";
 import { PositionsList as EchoPositionsList } from "./protocols/echo/PositionsList";
 import { PositionsList as DecibelPositionsList } from "./protocols/decibel/PositionsList";
+import { PositionsList as AptreePositionsList } from "./protocols/aptree/PositionsList";
 import { CardTitle } from '@/components/ui/card';
 import { useAptosAddressResolver } from '@/lib/hooks/useAptosAddressResolver';
 import { YieldCalculatorModal } from '@/components/ui/yield-calculator-modal';
@@ -63,6 +64,7 @@ export default function PortfolioPage() {
   const [echoValue, setEchoValue] = useState(0);
   const [decibelValue, setDecibelValue] = useState(0);
   const [decibelMainnetValue, setDecibelMainnetValue] = useState(0);
+  const [aptreeValue, setAptreeValue] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [checkingProtocols, setCheckingProtocols] = useState<string[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -95,6 +97,7 @@ export default function PortfolioPage() {
     "Thala",
     "Echo Protocol",
     "Decibel",
+    "Aptree",
   ];
 
   const resetChecking = useCallback(() => {
@@ -154,6 +157,7 @@ export default function PortfolioPage() {
     setEchoValue(0);
     setDecibelValue(0);
     setDecibelMainnetValue(0);
+    setAptreeValue(0);
     resetChecking();
     setRefreshKey((k) => k + 1);
   }, [loadPortfolio, resetChecking]);
@@ -245,6 +249,9 @@ export default function PortfolioPage() {
   const handleDecibelMainnetValueChange = useCallback((value: number) => {
     setDecibelMainnetValue(value);
   }, []);
+  const handleAptreeValueChange = useCallback((value: number) => {
+    setAptreeValue(value);
+  }, []);
 
   // Считаем сумму по кошельку
   const walletTotal = tokens.reduce((sum, token) => {
@@ -254,7 +261,7 @@ export default function PortfolioPage() {
 
   // Считаем сумму по всем протоколам (Decibel: full assets when available, else pre-deposit fallback)
   const decibelTotal = decibelValue > 0 ? decibelValue : decibelMainnetValue;
-  const totalProtocolsValue = hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + amnisValue + earniumValue + aaveValue + moarValue + thalaValue + echoValue + decibelTotal;
+  const totalProtocolsValue = hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + amnisValue + earniumValue + aaveValue + moarValue + thalaValue + echoValue + decibelTotal + aptreeValue;
 
   // Итоговая сумма
   const totalAssets = walletTotal + totalProtocolsValue;
@@ -280,6 +287,7 @@ export default function PortfolioPage() {
     { name: 'Thala', value: thalaValue },
     { name: 'Echo Protocol', value: echoValue },
     { name: 'Decibel', value: decibelTotal },
+    { name: 'Aptree', value: aptreeValue },
   ];
 
   // Показываем скелетон во время начальной загрузки
@@ -527,6 +535,12 @@ export default function PortfolioPage() {
 					          name: 'Decibel',
 					          showManageButton: false
 					        },
+                            {
+					          component: AptreePositionsList,
+					          value: aptreeValue,
+					          name: 'Aptree',
+					          showManageButton: false
+					        },
                           ]
                           .sort((a, b) => b.value - a.value)
                           .map(({ component: Component, name }) => (
@@ -551,6 +565,7 @@ export default function PortfolioPage() {
                                 name === 'Thala' ? handleThalaValueChange :
                                 name === 'Echo Protocol' ? handleEchoValueChange :
                                 name === 'Decibel' ? handleDecibelValueChange :
+                                name === 'Aptree' ? handleAptreeValueChange :
                                 undefined
                               }
                               onMainnetValueChange={name === 'Decibel' ? handleDecibelMainnetValueChange : undefined}

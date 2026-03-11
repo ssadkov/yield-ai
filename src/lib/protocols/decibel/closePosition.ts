@@ -2,13 +2,10 @@
  * Build transaction payload for closing a Decibel perps position at market (IOC).
  * Uses place_order_to_subaccount with time_in_force=ImmediateOrCancel and is_reduce_only=true.
  *
- * Argument order and types must match the contract ABI (15 args):
  * @see https://docs.decibel.trade/developer-hub/on-chain/order-management/place-order
  * @see https://docs.decibel.trade/developer-hub/on-chain/overview/formatting-prices-sizes
  * @see https://docs.decibel.trade/developer-hub/on-chain/overview/contract-reference
  */
-
-import { toCanonicalAddressFromAny } from '@/lib/utils/addressNormalization';
 
 // Must match DECIBEL_PACKAGE_ADDRESS_MAINNET / deployed mainnet contract (e.g. explorer.aptoslabs.com)
 export const PACKAGE_MAINNET = '0x50ead22afd6ffd9769e3b3d6e0e64a2a350d68e8b102c4e72e33d0b8cfdfdb06';
@@ -79,7 +76,7 @@ function roundPriceToTickChainUnits(
  * Round size to lot_size and return chain units directly. Avoids float conversion
  * to prevent ESIZE_NOT_RESPECTING_LOT_SIZE from floating-point drift.
  */
-export function roundSizeToLotChainUnits(
+function roundSizeToLotChainUnits(
   size: number,
   lotSize: number,
   minSize: number,
@@ -101,8 +98,8 @@ export function buildCloseAtMarketPayload(params: CloseAtMarketParams): {
   functionArguments: unknown[];
 } {
   const {
-    subaccountAddr: subaccountAddrRaw,
-    marketAddr: marketAddrRaw,
+    subaccountAddr,
+    marketAddr,
     size,
     isLong,
     markPx,
@@ -112,11 +109,6 @@ export function buildCloseAtMarketPayload(params: CloseAtMarketParams): {
     builderAddr = null,
     builderFeeBps = null,
   } = params;
-
-  const subaccountAddr = toCanonicalAddressFromAny(subaccountAddrRaw);
-  const marketAddr = toCanonicalAddressFromAny(marketAddrRaw);
-  const builderAddrCanonical =
-    builderAddr != null && builderAddr !== '' ? toCanonicalAddressFromAny(builderAddr) : null;
 
   const pkg = isTestnet ? PACKAGE_TESTNET : PACKAGE_MAINNET;
   const pxDecimals = marketConfig.px_decimals ?? 9;
@@ -156,8 +148,8 @@ export function buildCloseAtMarketPayload(params: CloseAtMarketParams): {
       null, // tp_limit_price
       null, // sl_trigger_price
       null, // sl_limit_price
-      builderAddrCanonical ?? null, // builder_address (Option<address>) — per Decibel docs
-      builderFeeBps ?? null, // builder_fees (Option<u64>) — per Decibel docs
+      builderAddr ?? null, // builder_addr
+      builderFeeBps ?? null, // builder_fee
     ],
   };
 }
@@ -172,8 +164,8 @@ export function buildCloseAtLimitPayload(params: CloseAtLimitParams): {
   functionArguments: unknown[];
 } {
   const {
-    subaccountAddr: subaccountAddrRaw,
-    marketAddr: marketAddrRaw,
+    subaccountAddr,
+    marketAddr,
     size,
     isLong,
     limitPrice,
@@ -182,11 +174,6 @@ export function buildCloseAtLimitPayload(params: CloseAtLimitParams): {
     builderAddr = null,
     builderFeeBps = null,
   } = params;
-
-  const subaccountAddr = toCanonicalAddressFromAny(subaccountAddrRaw);
-  const marketAddr = toCanonicalAddressFromAny(marketAddrRaw);
-  const builderAddrCanonical =
-    builderAddr != null && builderAddr !== '' ? toCanonicalAddressFromAny(builderAddr) : null;
 
   const pkg = isTestnet ? PACKAGE_TESTNET : PACKAGE_MAINNET;
   const pxDecimals = marketConfig.px_decimals ?? 9;
@@ -220,8 +207,8 @@ export function buildCloseAtLimitPayload(params: CloseAtLimitParams): {
       null, // tp_limit_price
       null, // sl_trigger_price
       null, // sl_limit_price
-      builderAddrCanonical ?? null, // builder_address (Option<address>) — per Decibel docs
-      builderFeeBps ?? null, // builder_fees (Option<u64>) — per Decibel docs
+      builderAddr ?? null,
+      builderFeeBps ?? null,
     ],
   };
 }
@@ -241,9 +228,7 @@ export function buildCancelOrderPayload(params: {
   typeArguments: string[];
   functionArguments: unknown[];
 } {
-  const { subaccountAddr: subaccountAddrRaw, marketAddr: marketAddrRaw, orderId, isTestnet = false } = params;
-  const subaccountAddr = toCanonicalAddressFromAny(subaccountAddrRaw);
-  const marketAddr = toCanonicalAddressFromAny(marketAddrRaw);
+  const { subaccountAddr, marketAddr, orderId, isTestnet = false } = params;
   const pkg = isTestnet ? PACKAGE_TESTNET : PACKAGE_MAINNET;
   // order_id is u128 on-chain; pass as BigInt for SDK (large IDs exceed Number.MAX_SAFE_INTEGER)
   const orderIdBigInt = BigInt(orderId);
@@ -251,101 +236,5 @@ export function buildCancelOrderPayload(params: {
     function: `${pkg}::dex_accounts_entry::cancel_order_to_subaccount`,
     typeArguments: [],
     functionArguments: [subaccountAddr, orderIdBigInt, marketAddr],
-  };
-}
-
-/** Params for opening a market order (IOC). Order size in USD, converted to base using mark price. */
-export interface OpenMarketOrderParams {
-  subaccountAddr: string;
-  marketAddr: string;
-  /** Order size in USD (will be converted to base size = orderSizeUsd / markPx) */
-  orderSizeUsd: number;
-  markPx: number;
-  marketConfig: DecibelMarketConfig;
-  /** true = long (buy), false = short (sell) */
-  isLong: boolean;
-  slippageBps?: number;
-  isTestnet?: boolean;
-  builderAddr?: string | null;
-  builderFeeBps?: number | null;
-}
-
-/**
- * Builds the transaction payload for opening a position at market (IOC).
- * Same entry point as close but is_reduce_only=false and size derived from orderSizeUsd / markPx.
- */
-export function buildOpenMarketOrderPayload(params: OpenMarketOrderParams): {
-  function: string;
-  typeArguments: string[];
-  functionArguments: unknown[];
-} {
-  const {
-    subaccountAddr: subaccountAddrRaw,
-    marketAddr: marketAddrRaw,
-    orderSizeUsd,
-    markPx,
-    marketConfig,
-    isLong,
-    slippageBps = 50,
-    isTestnet = false,
-    builderAddr = null,
-    builderFeeBps = null,
-  } = params;
-
-  // Decibel API may return addresses as decimal strings; chain/wallet expect 0x hex. Otherwise we get "X is out of range: [0, u64_max]".
-  const subaccountAddr = toCanonicalAddressFromAny(subaccountAddrRaw);
-  const marketAddr = toCanonicalAddressFromAny(marketAddrRaw);
-  const builderAddrCanonical =
-    builderAddr != null && builderAddr !== '' ? toCanonicalAddressFromAny(builderAddr) : null;
-
-  const pkg = isTestnet ? PACKAGE_TESTNET : PACKAGE_MAINNET;
-  const pxDecimals = Math.min(Number(marketConfig.px_decimals) || 9, 24);
-  const szDecimals = Math.min(Number(marketConfig.sz_decimals) || 9, 24);
-  const tickSize = Number(marketConfig.tick_size) || 1_000_000;
-  const lotSize = Number(marketConfig.lot_size) || 100_000_000;
-  const minSize = Number(marketConfig.min_size) || 1_000_000_000;
-
-  const sizeInBase = orderSizeUsd / markPx;
-  const chainSize = roundSizeToLotChainUnits(sizeInBase, lotSize, minSize, szDecimals);
-  if (chainSize <= 0) {
-    throw new Error('Order size too small after rounding to lot size');
-  }
-
-  const isBuy = isLong;
-  const mult = isBuy ? 1 + slippageBps / 10_000 : 1 - slippageBps / 10_000;
-  const priceWithSlippage = markPx * mult;
-  const chainPrice = roundPriceToTickChainUnits(priceWithSlippage, tickSize, pxDecimals);
-
-  const timeInForce = 2; // ImmediateOrCancel
-
-  // Same format as buildCloseAtMarketPayload / buildCloseAtLimitPayload: pass u64 as number (works in Decibel close flow)
-  const MAX_SAFE_U64 = Number.MAX_SAFE_INTEGER; // 2^53-1; larger numbers lose precision as JS number
-  if (chainPrice > MAX_SAFE_U64 || chainPrice < 0 || !Number.isFinite(chainPrice)) {
-    throw new Error(`Chain price out of safe range: ${chainPrice}. Check market config (px_decimals, tick_size).`);
-  }
-  if (chainSize > MAX_SAFE_U64 || chainSize < 0 || !Number.isFinite(chainSize)) {
-    throw new Error(`Chain size out of safe range: ${chainSize}. Check market config (sz_decimals, lot_size).`);
-  }
-
-  return {
-    function: `${pkg}::dex_accounts_entry::place_order_to_subaccount`,
-    typeArguments: [],
-    functionArguments: [
-      subaccountAddr,
-      marketAddr,
-      chainPrice,
-      chainSize,
-      isBuy,
-      timeInForce,
-      false, // is_reduce_only
-      null, // client_order_id
-      null, // stop_price
-      null, // tp_trigger_price
-      null, // tp_limit_price
-      null, // sl_trigger_price
-      null, // sl_limit_price
-      builderAddrCanonical ?? null, // builder_address (Option<address>) — per Decibel docs
-      builderFeeBps ?? null, // builder_fees (Option<u64>) — per Decibel docs
-    ],
   };
 }
