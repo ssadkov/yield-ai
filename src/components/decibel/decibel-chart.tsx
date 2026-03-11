@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { createChart, CandlestickSeries, ColorType } from 'lightweight-charts';
+import { createChart, CandlestickSeries, ColorType, type UTCTimestamp } from 'lightweight-charts';
 
 /** Decibel candlestick item: t (open time ms), o, h, l, c, v, i */
 interface DecibelCandle {
@@ -66,7 +66,7 @@ export function DecibelChart({
         }
         const raw = json.data as DecibelCandle[];
         const data = raw.map((c) => ({
-          time: Math.floor(c.t / 1000),
+          time: Math.floor(c.t / 1000) as UTCTimestamp,
           open: c.o,
           high: c.h,
           low: c.l,
