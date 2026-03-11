@@ -21,6 +21,7 @@ import { ToastAction } from '@/components/ui/toast';
 import { formatNumber, formatCurrency } from '@/lib/utils/numberFormat';
 import { normalizeAddress } from '@/lib/utils/addressNormalization';
 import { cn } from '@/lib/utils';
+import { DecibelOpenPositionModal, type DecibelOpenPositionMarket } from '@/components/decibel/decibel-open-position-modal';
 import {
   buildCloseAtMarketPayload,
   buildCloseAtLimitPayload,
@@ -177,6 +178,8 @@ export function DecibelPositions() {
   const [openOrders, setOpenOrders] = useState<DecibelOpenOrder[]>([]);
   const [openOrdersLoading, setOpenOrdersLoading] = useState(false);
   const [cancelingOrderId, setCancelingOrderId] = useState<string | null>(null);
+  const [tradeModalOpen, setTradeModalOpen] = useState(false);
+  const [tradeMarket, setTradeMarket] = useState<DecibelOpenPositionMarket | null>(null);
 
   useEffect(() => {
     if (!account?.address) {
@@ -525,6 +528,16 @@ export function DecibelPositions() {
     setCloseConfirmPosition(pos);
     setCloseMode('market');
     setCloseLimitPrice('');
+  };
+
+  const handleViewChartClick = (pos: DecibelPosition) => {
+    const marketKey = normalizeAddress(pos.market);
+    const marketName = marketNames[marketKey] ?? pos.market;
+    setTradeMarket({
+      marketAddr: pos.market,
+      marketName,
+    });
+    setTradeModalOpen(true);
   };
 
   // Fetch mark price when close dialog opens (for limit price hint)
@@ -1109,15 +1122,24 @@ export function DecibelPositions() {
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        className="mt-2 self-end"
-                        onClick={() => handleCloseClick(pos)}
-                        disabled={!!closingPositionKey}
-                      >
-                        {closingPositionKey === positionKey(pos) ? 'Closing…' : 'Close'}
-                      </Button>
+                      <div className="mt-2 flex items-center gap-2 self-end">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewChartClick(pos)}
+                          disabled={!!closingPositionKey}
+                        >
+                          View chart
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleCloseClick(pos)}
+                          disabled={!!closingPositionKey}
+                        >
+                          {closingPositionKey === positionKey(pos) ? 'Closing…' : 'Close'}
+                        </Button>
+                      </div>
                     </div>
                   </div>
                   {/* PnL breakdown below, with horizontal line */}
@@ -1391,6 +1413,15 @@ export function DecibelPositions() {
         <span className="text-lg">Total assets in Decibel:</span>
         <span className="text-lg font-bold text-primary">{formatCurrency(totalAssets, 2)}</span>
       </div>
+
+      <DecibelOpenPositionModal
+        open={tradeModalOpen}
+        onOpenChange={(open) => {
+          setTradeModalOpen(open);
+          if (!open) setTradeMarket(null);
+        }}
+        market={tradeMarket}
+      />
     </div>
   );
 }
