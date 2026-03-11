@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { createChart, CandlestickSeries } from 'lightweight-charts';
+import { createChart, CandlestickSeries, ColorType } from 'lightweight-charts';
 
 /** Decibel candlestick item: t (open time ms), o, h, l, c, v, i */
 interface DecibelCandle {
@@ -84,7 +84,7 @@ export function DecibelChart({
 
         const chart = createChart(container, {
           autoSize: true,
-          layout: { background: { type: 'solid', color: 'transparent' }, textColor: '#888' },
+          layout: { background: { type: ColorType.Solid, color: 'transparent' }, textColor: '#888' },
           grid: { vertLines: { visible: false }, horzLines: { color: 'rgba(255,255,255,0.05)' } },
           timeScale: { timeVisible: true, secondsVisible: false },
         });
