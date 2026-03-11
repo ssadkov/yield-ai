@@ -9,6 +9,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import {
   Select,
@@ -28,6 +30,9 @@ import { useToast } from '@/components/ui/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import {
   buildOpenMarketOrderPayload,
+  buildCloseAtMarketPayload,
+  buildCloseAtLimitPayload,
+  buildCancelOrderPayload,
   type DecibelMarketConfig,
 } from '@/lib/protocols/decibel/closePosition';
 
@@ -121,6 +126,11 @@ export function DecibelOpenPositionModal({
   const [marketPositions, setMarketPositions] = useState<DecibelPositionRow[]>([]);
   const [marketOrders, setMarketOrders] = useState<DecibelOrderRow[]>([]);
   const [positionsOrdersLoading, setPositionsOrdersLoading] = useState(false);
+  const [closeDialogPosition, setCloseDialogPosition] = useState<DecibelPositionRow | null>(null);
+  const [closingPosition, setClosingPosition] = useState(false);
+  const [closeMode, setCloseMode] = useState<'market' | 'limit'>('market');
+  const [closeLimitPrice, setCloseLimitPrice] = useState('');
+  const [cancelingOrderId, setCancelingOrderId] = useState<string | null>(null);
 
   const fetchOverview = useCallback(async () => {
     if (!account?.address || !open) {
@@ -287,7 +297,17 @@ export function DecibelOpenPositionModal({
       const marketOrdersFiltered = allOrders.filter(
         (o) => normalizeAddress(o.market ?? o.market_address ?? '') === marketKey
       );
-      setMarketOrders(marketOrdersFiltered);
+      // Exclude invalid/stale orders: zero price or zero remaining size (filled/cancelled)
+      const validOrders = marketOrdersFiltered.filter((o) => {
+        if (o.price <= 0 || !Number.isFinite(o.price)) return false;
+        const remaining = o.remaining_size ?? o.orig_size;
+        if (remaining != null && remaining <= 0) return false;
+        const pxDec = 9;
+        const priceHuman = o.price < 1e12 ? o.price : o.price / 10 ** pxDec;
+        if (priceHuman <= 0 || !Number.isFinite(priceHuman)) return false;
+        return true;
+      });
+      setMarketOrders(validOrders);
     } catch {
       setMarketPositions([]);
       setMarketOrders([]);
@@ -418,7 +438,11 @@ export function DecibelOpenPositionModal({
       });
       setOrderSizeUsd('');
       fetchOverview();
-      fetchPositionsAndOrders();
+      // Refresh positions/orders after 1s so the API has time to reflect the new state
+      setTimeout(() => {
+        fetchOverview();
+        fetchPositionsAndOrders();
+      }, 1000);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const isRejected = /reject|denied|cancel/i.test(msg);
@@ -457,12 +481,173 @@ export function DecibelOpenPositionModal({
     isValidSize &&
     !placing;
 
+  const handleClosePosition = useCallback(async () => {
+    const pos = closeDialogPosition;
+    if (
+      !pos ||
+      !market ||
+      !marketConfig ||
+      !signAndSubmitTransaction ||
+      !account?.address
+    ) {
+      setCloseDialogPosition(null);
+      return;
+    }
+    const isLimit = closeMode === 'limit';
+    const limitPriceNum = isLimit ? parseFloat(closeLimitPrice) : NaN;
+    if (isLimit && (Number.isNaN(limitPriceNum) || limitPriceNum <= 0)) {
+      toast({ title: 'Error', description: 'Enter a valid limit price.', variant: 'destructive' });
+      return;
+    }
+    if (!isLimit && (markPx == null || markPx <= 0)) {
+      setCloseDialogPosition(null);
+      return;
+    }
+    setClosingPosition(true);
+    try {
+      const payload = isLimit
+        ? buildCloseAtLimitPayload({
+            subaccountAddr: pos.user,
+            marketAddr: pos.market,
+            size: Math.abs(pos.size),
+            isLong: pos.size > 0,
+            limitPrice: limitPriceNum,
+            marketConfig,
+            isTestnet: decibelNetwork === 'testnet',
+            builderAddr: builderConfig?.builderAddress ?? undefined,
+            builderFeeBps: builderConfig?.builderFeeBps ?? undefined,
+          })
+        : buildCloseAtMarketPayload({
+            subaccountAddr: pos.user,
+            marketAddr: pos.market,
+            size: Math.abs(pos.size),
+            isLong: pos.size > 0,
+            markPx: markPx!,
+            marketConfig,
+            slippageBps: 50,
+            isTestnet: decibelNetwork === 'testnet',
+            builderAddr: builderConfig?.builderAddress ?? undefined,
+            builderFeeBps: builderConfig?.builderFeeBps ?? undefined,
+          });
+      const result = await signAndSubmitTransaction({
+        data: {
+          function: payload.function as `${string}::${string}::${string}`,
+          typeArguments: payload.typeArguments,
+          functionArguments: payload.functionArguments as (string | number | boolean | null)[],
+        },
+        options: { maxGasAmount: 20000 },
+      });
+      const txHash = typeof result?.hash === 'string' ? result.hash : (result as { hash?: string })?.hash ?? '';
+      toast({
+        title: isLimit ? 'Limit close order placed' : 'Position closed',
+        description: txHash ? `Tx ${txHash.slice(0, 6)}...${txHash.slice(-4)}` : 'Submitted',
+        action: txHash ? (
+          <ToastAction
+            altText="View in Explorer"
+            onClick={() =>
+              window.open(
+                `https://explorer.aptoslabs.com/txn/${txHash}?network=${decibelNetwork}`,
+                '_blank'
+              )
+            }
+          >
+            View in Explorer
+          </ToastAction>
+        ) : undefined,
+      });
+      setCloseDialogPosition(null);
+      fetchOverview();
+      setTimeout(() => {
+        fetchOverview();
+        fetchPositionsAndOrders();
+      }, 1000);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast({ title: 'Close failed', description: msg, variant: 'destructive' });
+    } finally {
+      setClosingPosition(false);
+    }
+  }, [
+    closeDialogPosition,
+    closeMode,
+    closeLimitPrice,
+    market,
+    marketConfig,
+    markPx,
+    signAndSubmitTransaction,
+    account?.address,
+    decibelNetwork,
+    builderConfig,
+    toast,
+    fetchOverview,
+    fetchPositionsAndOrders,
+  ]);
+
+  const handleCancelOrder = useCallback(
+    async (orderId: string) => {
+      if (!orderId || !signAndSubmitTransaction || !account?.address || !subaccountAddr || !market) return;
+      setCancelingOrderId(orderId);
+      try {
+        const payload = buildCancelOrderPayload({
+          subaccountAddr,
+          marketAddr: market.marketAddr,
+          orderId,
+          isTestnet: decibelNetwork === 'testnet',
+        });
+        const result = await signAndSubmitTransaction({
+          data: {
+            function: payload.function as `${string}::${string}::${string}`,
+            typeArguments: payload.typeArguments,
+            functionArguments: payload.functionArguments as (string | number | bigint)[],
+          },
+          options: { maxGasAmount: 20000 },
+        });
+        const txHash = typeof result?.hash === 'string' ? result.hash : (result as { hash?: string })?.hash ?? '';
+        toast({
+          title: 'Order cancelled',
+          description: txHash ? `Tx ${txHash.slice(0, 6)}...${txHash.slice(-4)}` : 'Submitted',
+          action: txHash ? (
+            <ToastAction
+              altText="View in Explorer"
+              onClick={() =>
+                window.open(
+                  `https://explorer.aptoslabs.com/txn/${txHash}?network=${decibelNetwork}`,
+                  '_blank'
+                )
+              }
+            >
+              View in Explorer
+            </ToastAction>
+          ) : undefined,
+        });
+        setTimeout(() => {
+          fetchPositionsAndOrders();
+        }, 1000);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        toast({ title: 'Error', description: msg, variant: 'destructive' });
+      } finally {
+        setCancelingOrderId(null);
+      }
+    },
+    [
+      signAndSubmitTransaction,
+      account?.address,
+      subaccountAddr,
+      market,
+      decibelNetwork,
+      toast,
+      fetchPositionsAndOrders,
+    ]
+  );
+
   const truncateAddress = (addr: string) => {
     if (addr.length <= 14) return addr;
     return `${addr.slice(0, 6)}...${addr.slice(-6)}`;
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[96vw] max-w-[96vw] h-[92vh] max-h-[92vh] overflow-hidden flex flex-col p-3 sm:p-4 rounded-2xl [&>button:last-child]:hidden">
         <DialogHeader className="shrink-0">
@@ -480,8 +665,22 @@ export function DecibelOpenPositionModal({
                   />
                 </div>
               )}
-              <DialogTitle className="truncate">
+              <DialogTitle className="truncate flex items-center gap-1.5 flex-wrap">
                 {market ? `Trade — ${market.marketName}` : 'Trade'}
+                {market && (
+                  <span className="inline-flex items-center gap-1.5 text-muted-foreground font-normal text-sm">
+                    on
+                    <Image
+                      src="/protocol_ico/decibel.png"
+                      alt=""
+                      width={18}
+                      height={18}
+                      className="rounded-full object-contain shrink-0"
+                      unoptimized
+                    />
+                    Decibel
+                  </span>
+                )}
               </DialogTitle>
             </div>
             <Button
@@ -652,15 +851,32 @@ export function DecibelOpenPositionModal({
                         const isLong = pos.size > 0;
                         const baseName = market?.marketName?.split('/')[0]?.trim() || '—';
                         return (
-                          <p key={`${pos.market}-${pos.user}-${pos.entry_price}`} className="text-xs text-muted-foreground">
-                            <span className="font-medium text-foreground">Position:</span>{' '}
-                            <span className={isLong ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>
-                              {isLong ? 'Long' : 'Short'}
-                            </span>{' '}
-                            {formatSizeShort(Math.abs(pos.size))} {baseName}
-                            {' · '}
-                            Entry {formatNumber(pos.entry_price, 2)}
-                          </p>
+                          <div
+                            key={`${pos.market}-${pos.user}-${pos.entry_price}`}
+                            className="flex items-center justify-between gap-2 flex-wrap"
+                          >
+                            <p className="text-xs text-muted-foreground">
+                              <span className="font-medium text-foreground">Position:</span>{' '}
+                              <span className={isLong ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>
+                                {isLong ? 'Long' : 'Short'}
+                              </span>{' '}
+                              {formatSizeShort(Math.abs(pos.size))} {baseName}
+                              {' · '}
+                              Entry {formatNumber(pos.entry_price, 2)}
+                            </p>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="h-7 text-xs shrink-0"
+                              onClick={() => {
+                                setCloseDialogPosition(pos);
+                                setCloseMode('market');
+                                setCloseLimitPrice(markPx != null ? formatNumber(markPx, 4) : '');
+                              }}
+                            >
+                              Close
+                            </Button>
+                          </div>
                         );
                       })}
                       {marketOrders.map((o) => {
@@ -684,10 +900,27 @@ export function DecibelOpenPositionModal({
                           : sizeHuman > 0
                             ? `Limit ${formatSizeShort(sizeHuman)} ${baseName} @ ${formatNumber(priceHuman, 2)}`
                             : `Limit @ ${formatNumber(priceHuman, 2)}`;
+                        const isCanceling = o.order_id && cancelingOrderId === o.order_id;
                         return (
-                          <p key={o.order_id ?? `${o.price}-${o.remaining_size ?? o.orig_size}`} className="text-xs text-muted-foreground">
-                            <span className="font-medium text-foreground">Order:</span> {label}
-                          </p>
+                          <div
+                            key={o.order_id ?? `${o.price}-${o.remaining_size ?? o.orig_size}`}
+                            className="flex items-center justify-between gap-2 flex-wrap"
+                          >
+                            <p className="text-xs text-muted-foreground">
+                              <span className="font-medium text-foreground">Order:</span> {label}
+                            </p>
+                            {o.order_id && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs text-muted-foreground hover:text-destructive shrink-0"
+                                disabled={!!cancelingOrderId}
+                                onClick={() => handleCancelOrder(o.order_id!)}
+                              >
+                                {isCanceling ? 'Canceling…' : 'Cancel'}
+                              </Button>
+                            )}
+                          </div>
                         );
                       })}
                     </>
@@ -699,5 +932,127 @@ export function DecibelOpenPositionModal({
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Close position confirmation dialog */}
+    <Dialog
+      open={!!closeDialogPosition}
+      onOpenChange={(open) => {
+        if (!open) {
+          setCloseDialogPosition(null);
+          setCloseMode('market');
+          setCloseLimitPrice('');
+        }
+      }}
+    >
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Close position</DialogTitle>
+          {closeDialogPosition && market && (
+            <>
+              <p className="text-sm font-medium text-foreground mt-1">Close at:</p>
+              <div className="flex gap-1 p-0.5 rounded-lg border bg-muted/40">
+                <button
+                  type="button"
+                  onClick={() => setCloseMode('market')}
+                  className={cn(
+                    'flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                    closeMode === 'market'
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  Market
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCloseMode('limit');
+                    if (markPx != null) setCloseLimitPrice(formatNumber(markPx, 4));
+                  }}
+                  className={cn(
+                    'flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                    closeMode === 'limit'
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  Limit
+                </button>
+              </div>
+              {closeMode === 'limit' && (
+                <div className="space-y-2 pt-2">
+                  <Label htmlFor="close-limit-price">Limit price</Label>
+                  <Input
+                    id="close-limit-price"
+                    type="number"
+                    step="any"
+                    min="0"
+                    placeholder={markPx != null ? String(markPx) : '0'}
+                    value={closeLimitPrice}
+                    onChange={(e) => setCloseLimitPrice(e.target.value)}
+                    className="font-mono"
+                  />
+                  {markPx != null && (
+                    <p className="text-xs text-muted-foreground">Mark: {formatNumber(markPx, 4)}</p>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+          {closeDialogPosition && market && (
+            <DialogDescription>
+              Close {formatSizeShort(Math.abs(closeDialogPosition.size))}{' '}
+              {market.marketName?.split('/')[0] ?? 'position'}
+              {closeMode === 'market' ? (
+                <>
+                  {' '}
+                  at market price
+                  {markPx != null && ` (~${formatNumber(markPx, 2)})`}
+                  ? This will execute immediately (IOC).
+                </>
+              ) : (
+                ' at your limit price? Order will stay in the book until filled or you cancel it.'
+              )}
+            </DialogDescription>
+          )}
+        </DialogHeader>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setCloseDialogPosition(null);
+              setCloseMode('market');
+              setCloseLimitPrice('');
+            }}
+            disabled={closingPosition}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={handleClosePosition}
+            disabled={
+              closingPosition ||
+              !closeDialogPosition ||
+              !marketConfig ||
+              (closeMode === 'market' && (markPx == null || markPx <= 0)) ||
+              (closeMode === 'limit' &&
+                (!closeLimitPrice.trim() ||
+                  Number.isNaN(parseFloat(closeLimitPrice)) ||
+                  parseFloat(closeLimitPrice) <= 0))
+            }
+          >
+            {closingPosition
+              ? closeMode === 'limit'
+                ? 'Placing…'
+                : 'Closing…'
+              : closeMode === 'limit'
+                ? 'Place limit close'
+                : 'Close at market'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
