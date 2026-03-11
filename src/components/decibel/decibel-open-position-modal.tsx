@@ -22,7 +22,7 @@ import { DecibelChart } from './decibel-chart';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { formatCurrency } from '@/lib/utils/numberFormat';
+import { formatCurrency, formatNumber } from '@/lib/utils/numberFormat';
 import { normalizeAddress } from '@/lib/utils/addressNormalization';
 import { useToast } from '@/components/ui/use-toast';
 import { ToastAction } from '@/components/ui/toast';
@@ -53,6 +53,44 @@ export const CHART_INTERVALS = [
 
 const ORDER_TYPE_MARKET = 'market';
 
+/** Minimal position shape from Decibel userPositions API */
+interface DecibelPositionRow {
+  market: string;
+  size: number;
+  entry_price: number;
+  user: string;
+  is_deleted?: boolean;
+}
+
+/** Minimal open order shape from Decibel open_orders API */
+interface DecibelOrderRow {
+  market?: string;
+  market_address?: string;
+  price: number;
+  orig_size?: number;
+  remaining_size?: number;
+  reduce_only?: boolean;
+  is_reduce_only?: boolean;
+  order_id?: string;
+}
+
+function normalizeOrdersData(data: unknown): DecibelOrderRow[] {
+  if (Array.isArray(data)) return data as DecibelOrderRow[];
+  if (data && typeof data === 'object' && 'items' in data && Array.isArray((data as { items: unknown }).items)) {
+    return (data as { items: DecibelOrderRow[] }).items;
+  }
+  return [];
+}
+
+function formatSizeShort(size: number): string {
+  const abs = Math.abs(size);
+  if (abs === 0) return '0';
+  if (abs < 0.0001) return size.toFixed(6);
+  if (abs < 0.01) return size.toFixed(4);
+  if (abs < 1) return size.toFixed(4);
+  return formatNumber(size, 2);
+}
+
 interface DecibelOpenPositionModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -80,6 +118,9 @@ export function DecibelOpenPositionModal({
   const [markPx, setMarkPx] = useState<number | null>(null);
   const [decibelNetwork, setDecibelNetwork] = useState<'mainnet' | 'testnet'>('mainnet');
   const [placing, setPlacing] = useState(false);
+  const [marketPositions, setMarketPositions] = useState<DecibelPositionRow[]>([]);
+  const [marketOrders, setMarketOrders] = useState<DecibelOrderRow[]>([]);
+  const [positionsOrdersLoading, setPositionsOrdersLoading] = useState(false);
 
   const fetchOverview = useCallback(async () => {
     if (!account?.address || !open) {
@@ -217,6 +258,49 @@ export function DecibelOpenPositionModal({
     return () => { cancelled = true; };
   }, [open, market?.marketAddr]);
 
+  const fetchPositionsAndOrders = useCallback(async () => {
+    if (!open || !account?.address || !market) {
+      setMarketPositions([]);
+      setMarketOrders([]);
+      return;
+    }
+    const marketKey = normalizeAddress(market.marketAddr);
+    setPositionsOrdersLoading(true);
+    try {
+      const [posRes, orderRes] = await Promise.all([
+        fetch(`/api/protocols/decibel/userPositions?address=${encodeURIComponent(account.address.toString())}`),
+        fetch(
+          `/api/protocols/decibel/openOrders?address=${encodeURIComponent(
+            (subaccountAddr || account.address).toString()
+          )}`
+        ),
+      ]);
+      const posData = await posRes.json();
+      const orderData = await orderRes.json();
+      const allPositions: DecibelPositionRow[] =
+        posData?.success && Array.isArray(posData.data) ? posData.data : [];
+      const activePositions = allPositions.filter(
+        (p) => !p.is_deleted && normalizeAddress(p.market) === marketKey
+      );
+      setMarketPositions(activePositions);
+      const allOrders = normalizeOrdersData(orderData?.data);
+      const marketOrdersFiltered = allOrders.filter(
+        (o) => normalizeAddress(o.market ?? o.market_address ?? '') === marketKey
+      );
+      setMarketOrders(marketOrdersFiltered);
+    } catch {
+      setMarketPositions([]);
+      setMarketOrders([]);
+    } finally {
+      setPositionsOrdersLoading(false);
+    }
+  }, [open, account?.address, market, subaccountAddr]);
+
+  useEffect(() => {
+    if (!open || !account?.address || !market) return;
+    fetchPositionsAndOrders();
+  }, [open, account?.address, market?.marketAddr, fetchPositionsAndOrders]);
+
   const orderSizeNum = orderSizeUsd.trim() === '' ? NaN : parseFloat(orderSizeUsd);
   const isValidSize =
     Number.isFinite(orderSizeNum) &&
@@ -334,6 +418,7 @@ export function DecibelOpenPositionModal({
       });
       setOrderSizeUsd('');
       fetchOverview();
+      fetchPositionsAndOrders();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const isRejected = /reject|denied|cancel/i.test(msg);
@@ -359,6 +444,7 @@ export function DecibelOpenPositionModal({
     isValidSize,
     toast,
     fetchOverview,
+    fetchPositionsAndOrders,
   ]);
 
   const canPlace =
@@ -554,6 +640,59 @@ export function DecibelOpenPositionModal({
                     <> · {truncateAddress(builderConfig.builderAddress)}</>
                   )}
                 </p>
+              )}
+              {/* Open positions and orders for this market (compact) */}
+              {(marketPositions.length > 0 || marketOrders.length > 0 || positionsOrdersLoading) && (
+                <div className="pt-2 mt-2 border-t border-border space-y-1.5">
+                  {positionsOrdersLoading ? (
+                    <p className="text-xs text-muted-foreground">Loading…</p>
+                  ) : (
+                    <>
+                      {marketPositions.map((pos) => {
+                        const isLong = pos.size > 0;
+                        const baseName = market?.marketName?.split('/')[0]?.trim() || '—';
+                        return (
+                          <p key={`${pos.market}-${pos.user}-${pos.entry_price}`} className="text-xs text-muted-foreground">
+                            <span className="font-medium text-foreground">Position:</span>{' '}
+                            <span className={isLong ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>
+                              {isLong ? 'Long' : 'Short'}
+                            </span>{' '}
+                            {formatSizeShort(Math.abs(pos.size))} {baseName}
+                            {' · '}
+                            Entry {formatNumber(pos.entry_price, 2)}
+                          </p>
+                        );
+                      })}
+                      {marketOrders.map((o) => {
+                        const reduceOnly = o.reduce_only ?? o.is_reduce_only === true;
+                        const pxDecimals = marketConfig?.px_decimals ?? 9;
+                        const priceHuman =
+                          o.price > 0 && o.price < 1e12
+                            ? o.price
+                            : o.price / 10 ** pxDecimals;
+                        const rawSize = o.remaining_size ?? o.orig_size;
+                        const szDecimals = marketConfig?.sz_decimals ?? 9;
+                        const sizeHuman =
+                          rawSize != null
+                            ? rawSize > 0 && rawSize < 1e10
+                              ? Math.abs(rawSize)
+                              : Math.abs(rawSize) / 10 ** szDecimals
+                            : 0;
+                        const baseName = market?.marketName?.split('/')[0]?.trim() || '—';
+                        const label = reduceOnly
+                          ? `Limit close @ ${formatNumber(priceHuman, 2)}`
+                          : sizeHuman > 0
+                            ? `Limit ${formatSizeShort(sizeHuman)} ${baseName} @ ${formatNumber(priceHuman, 2)}`
+                            : `Limit @ ${formatNumber(priceHuman, 2)}`;
+                        return (
+                          <p key={o.order_id ?? `${o.price}-${o.remaining_size ?? o.orig_size}`} className="text-xs text-muted-foreground">
+                            <span className="font-medium text-foreground">Order:</span> {label}
+                          </p>
+                        );
+                      })}
+                    </>
+                  )}
+                </div>
               )}
             </div>
           </div>
