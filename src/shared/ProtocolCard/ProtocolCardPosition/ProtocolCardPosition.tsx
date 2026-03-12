@@ -19,6 +19,7 @@ export function ProtocolCardPosition({ position }: ProtocolCardPositionProps) {
   const isPool = Boolean(position.logoUrl && position.logoUrl2);
   const logoUrl = position.logoUrl;
   const logoUrl2 = position.logoUrl2;
+  const isCollateral = position.isCollateral;
 
   if (isPool && logoUrl && logoUrl2) {
     return (
@@ -56,8 +57,16 @@ export function ProtocolCardPosition({ position }: ProtocolCardPositionProps) {
             <div className={styles.labelAndBadge}>
               <span className={styles.label}>{position.label}</span>
               {position.badge && (
-                <Badge variant={getBadgeVariant(position.badge)} className={styles.typeBadge}>
+                <Badge
+                  variant={getBadgeVariant(position.badge)}
+                  className={styles.typeBadge}
+                >
                   {position.badge}
+                </Badge>
+              )}
+              {isCollateral && (
+                <Badge variant="info" className={styles.typeBadge}>
+                  Collateral
                 </Badge>
               )}
             </div>

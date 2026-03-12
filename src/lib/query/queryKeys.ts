@@ -205,6 +205,8 @@ export const queryKeys = {
      */
     aave: {
       pools: () => ['protocols', 'aave', 'pools'] as const,
+      userPositions: (address: string) =>
+        ['protocols', 'aave', 'userPositions', address] as const,
     },
 
     /**

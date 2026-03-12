@@ -25,4 +25,6 @@ export interface ProtocolPosition {
   price?: number;
   /** APR в процентах (например, 12.5 = 12.5%) */
   apr?: string;
+  /** Флаг, что позиция используется как коллатерал (для отображения спец. бейджа) */
+  isCollateral?: boolean;
 }

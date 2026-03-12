@@ -53,8 +53,20 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
       } else if (protocol.name.toLowerCase().includes('amnis')) {
         apiPath = 'amnis';
       } else if (protocol.name.toLowerCase().includes('aave')) {
+        // For Aave we now rely on TanStack Query hooks + cache invalidation, similar to Moar.
         apiPath = 'aave';
-        endpoint = 'positions'; // AAVE использует endpoint 'positions' вместо 'userPositions'
+        endpoint = 'positions';
+
+        window.dispatchEvent(new CustomEvent('refreshPositions', { 
+          detail: { protocol: apiPath }
+        }));
+
+        toast({
+          title: "Success",
+          description: `${protocol.name} positions refreshed successfully`,
+        });
+
+        return;
       } else if (protocol.name.toLowerCase().includes('moar')) {
         // For Moar we now rely entirely on TanStack Query hooks + cache invalidation.
         // Just dispatch the refresh event; protocol components will invalidate and refetch.
