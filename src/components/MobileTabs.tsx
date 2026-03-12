@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import DashboardPanel from "./DashboardPanel";
 import ChatPanelWrapper from "./ChatPanelWrapper";
 import { WalletSelector } from "./WalletSelector";
@@ -30,6 +30,7 @@ import { CollapsibleProvider } from "@/contexts/CollapsibleContext";
 import { MobileManagementProvider } from "@/contexts/MobileManagementContext";
 import { useSolanaPortfolio } from "@/hooks/useSolanaPortfolio";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
+import { ProtocolIcon } from "@/shared/ProtocolIcon/ProtocolIcon";
 
 function MobileTabsContent() {
   const [tab, setTab] = useState<"ideas" | "assets" | "chat">("assets");
@@ -63,6 +64,29 @@ function MobileTabsContent() {
   const [yieldAIValue, setYieldAIValue] = useState<number>(0);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [refreshKey, setRefreshKey] = useState<number>(0);
+  const [checkingProtocols, setCheckingProtocols] = useState<string[]>([]);
+
+  const allProtocolNames = [
+    "Hyperion",
+    "Echelon",
+    "Aries",
+    "Joule",
+    "Tapp Exchange",
+    "Meso Finance",
+    "Auro Finance",
+    "Amnis Finance",
+    "Earnium",
+    "Aave",
+    "Moar Market",
+    "Thala",
+    "Echo Protocol",
+    "Decibel",
+    "AI agent",
+  ];
+
+  const resetChecking = useCallback(() => {
+    setCheckingProtocols(allProtocolNames);
+  }, []);
 
   // When set (e.g. "decibel" or "decibel,thala"), only these protocols are shown and fetched
   const debugProtocolKeys =
@@ -100,6 +124,14 @@ function MobileTabsContent() {
 
     loadPortfolio();
   }, [account?.address, hyperionValue, echelonValue, ariesValue, jouleValue, tappValue, mesoValue, auroValue, earniumValue, aaveValue, moarValue, thalaValue, echoValue, decibelValue, yieldAIValue]);
+
+  useEffect(() => {
+    if (account?.address) {
+      resetChecking();
+    } else {
+      setCheckingProtocols([]);
+    }
+  }, [account?.address, resetChecking]);
 
   // Обработчики изменения суммы позиций в протоколах
   const handleHyperionValueChange = (value: number) => {
@@ -188,6 +220,7 @@ function MobileTabsContent() {
       setEchoValue(0);
       setDecibelValue(0);
       setYieldAIValue(0);
+      resetChecking();
       setRefreshKey((k) => k + 1);
 
       setTotalValue(total.toFixed(2));
@@ -236,6 +269,26 @@ function MobileTabsContent() {
                       isRefreshing={isRefreshing}
                       hasSolanaWallet={!!solanaAddress}
                     />
+                    {checkingProtocols.length > 0 && (
+                      <div className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground">
+                        <span className="whitespace-nowrap">Checking positions on</span>
+                        <div className="flex items-center gap-1">
+                          {checkingProtocols.map((name) => {
+                            const proto = getProtocolByName(name);
+                            const logo = proto?.logoUrl || "/favicon.ico";
+                            return (
+                              <ProtocolIcon
+                                key={name}
+                                logoUrl={logo}
+                                name={name}
+                                size="sm"
+                                isLoading={true}
+                              />
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                     {(() => {
                       const protocolItems = [
                         { component: HyperionPositionsList, value: hyperionValue, name: 'Hyperion', handler: handleHyperionValueChange },
@@ -269,7 +322,9 @@ function MobileTabsContent() {
                             onPositionsValueChange={handler}
                             walletTokens={tokens}
                             refreshKey={refreshKey}
-                            onPositionsCheckComplete={() => {}}
+                            onPositionsCheckComplete={() =>
+                              setCheckingProtocols((prev) => prev.filter((p) => p !== name))
+                            }
                           />
                         ));
                     })()}
