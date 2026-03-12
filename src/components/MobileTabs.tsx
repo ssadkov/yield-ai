@@ -201,7 +201,7 @@ function MobileTabsContent() {
   return (
     <MobileManagementProvider setActiveTab={setTab} scrollToTop={scrollToTop}>
       <CollapsibleProvider>
-        <div className="flex flex-col min-h-screen max-h-screen">
+        <div className="flex flex-col min-h-screen max-h-screen w-full min-w-0 max-w-full overflow-x-hidden">
           {/* Header - fixed at top */}
           <div className="flex-shrink-0 p-4 border-b bg-background">
             <div className="flex items-center justify-between gap-3">
