@@ -86,6 +86,7 @@ export async function GET(
         tokenAddress: t.address,
         symbol: t.symbol,
         name: t.name,
+        logoUrl: t.logoUrl || null,
         decimals: t.decimals,
         amount: t.balance,
         priceUSD: t.priceUSD,

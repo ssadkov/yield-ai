@@ -250,7 +250,7 @@ function MobileTabsContent() {
                         { component: ThalaPositionsList, value: thalaValue, name: 'Thala', handler: handleThalaValueChange },
                         { component: EchoPositionsList, value: echoValue, name: 'Echo Protocol', handler: handleEchoValueChange },
                         { component: DecibelPositionsList, value: decibelValue, name: 'Decibel', handler: handleDecibelValueChange },
-                        { component: AptreePositionsList, value: aptreeValue, name: 'Aptree', handler: handleAptreeValueChange },
+                        { component: AptreePositionsList, value: aptreeValue, name: 'APTree', handler: handleAptreeValueChange },
                       ];
                       const listToRender =
                         debugProtocolKeys?.length && debugProtocolKeys.length > 0

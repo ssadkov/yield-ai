@@ -97,7 +97,7 @@ export default function PortfolioPage() {
     "Thala",
     "Echo Protocol",
     "Decibel",
-    "Aptree",
+    "APTree",
   ];
 
   const resetChecking = useCallback(() => {
@@ -287,7 +287,7 @@ export default function PortfolioPage() {
     { name: 'Thala', value: thalaValue },
     { name: 'Echo Protocol', value: echoValue },
     { name: 'Decibel', value: decibelTotal },
-    { name: 'Aptree', value: aptreeValue },
+    { name: 'APTree', value: aptreeValue },
   ];
 
   // Показываем скелетон во время начальной загрузки
@@ -538,7 +538,7 @@ export default function PortfolioPage() {
                             {
 					          component: AptreePositionsList,
 					          value: aptreeValue,
-					          name: 'Aptree',
+					          name: 'APTree',
 					          showManageButton: false
 					        },
                           ]
@@ -565,7 +565,7 @@ export default function PortfolioPage() {
                                 name === 'Thala' ? handleThalaValueChange :
                                 name === 'Echo Protocol' ? handleEchoValueChange :
                                 name === 'Decibel' ? handleDecibelValueChange :
-                                name === 'Aptree' ? handleAptreeValueChange :
+                                name === 'APTree' ? handleAptreeValueChange :
                                 undefined
                               }
                               onMainnetValueChange={name === 'Decibel' ? handleDecibelMainnetValueChange : undefined}

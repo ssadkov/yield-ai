@@ -53,7 +53,7 @@
     "depositType": "external",
     "depositUrl": "https://app.ariesmarkets.xyz/lending",
     "isDepositEnabled": true,
-    "managedType": "external",
+    "managedType": "native",
     "socialMedia": {
       "twitter": "https://x.com/AriesMarkets"
     },
@@ -422,16 +422,16 @@
     "contractAddresses": []
   },
   {
-    "name": "Aptree",
+    "name": "APTree",
     "key": "aptree",
     "category": "Yield",
     "url": "https://www.aptree.io/earn",
-    "logoUrl": "/favicon.ico",
+    "logoUrl": "/protocol_ico/aptree.png",
     "description": "Simplified yield access layer on Aptos. Deposit stablecoins into optimized earn strategies.",
     "depositType": "external",
     "depositUrl": "https://www.aptree.io/earn",
     "isDepositEnabled": true,
-    "managedType": "external",
+    "managedType": "native",
     "socialMedia": {
       "twitter": "https://x.com/APTreeFinance"
     },

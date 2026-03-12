@@ -89,7 +89,7 @@ export default function Sidebar() {
     "Thala",
 	"Echo Protocol",
     "Decibel",
-    "Aptree",
+    "APTree",
   ];
 
   // When set (e.g. "decibel" or "decibel,thala"), only these protocols are shown in the positions list
@@ -366,7 +366,7 @@ export default function Sidebar() {
                     { component: ThalaPositionsList, value: thalaValue, name: "Thala" },
                     { component: EchoPositionsList, value: echoValue, name: "Echo Protocol" },
                     { component: DecibelPositionsList, value: decibelValue, name: "Decibel" },
-                    { component: AptreePositionsList, value: aptreeValue, name: "Aptree" },
+                    { component: AptreePositionsList, value: aptreeValue, name: "APTree" },
                   ];
                   const listToRender =
                     debugProtocolKeys?.length &&
@@ -399,7 +399,7 @@ export default function Sidebar() {
                         name === 'Thala' ? handleThalaValueChange :
 						name === 'Echo Protocol' ? handleEchoValueChange :
                       name === 'Decibel' ? handleDecibelValueChange :
-                        name === 'Aptree' ? handleAptreeValueChange :
+                        name === 'APTree' ? handleAptreeValueChange :
                         undefined
                       }
                     onMainnetValueChange={name === 'Decibel' ? handleDecibelMainnetValueChange : undefined}

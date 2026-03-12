@@ -8,6 +8,7 @@ interface TokenBalance {
   decimals: number;
   priceUSD: number;
   valueUSD: number;
+  logoUrl?: string | null;
 }
 
 interface WalletData {
@@ -39,7 +40,8 @@ export async function getWalletBalance(address: string): Promise<WalletData> {
         balance: amountNum.toString(),
         decimals: token.decimals,
         priceUSD: priceUSD,
-        valueUSD: valueUSD
+        valueUSD: valueUSD,
+        logoUrl: token.logoUrl || null,
       };
     });
     

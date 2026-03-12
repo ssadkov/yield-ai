@@ -58,6 +58,29 @@ export interface CloseAtLimitParams {
   builderFeeBps?: number | null;
 }
 
+export interface OpenMarketParams {
+  /** Subaccount address */
+  subaccountAddr: string;
+  /** PerpMarket object address */
+  marketAddr: string;
+  /** Desired notional in USD (human decimal) */
+  orderSizeUsd: number;
+  /** Current mark price from prices API */
+  markPx: number;
+  /** Market config from v1/markets */
+  marketConfig: DecibelMarketConfig;
+  /** True for long (buy), false for short (sell) */
+  isLong: boolean;
+  /** Slippage in basis points (default 50 = 0.5%) */
+  slippageBps?: number;
+  /** Use testnet package address (default: false = mainnet) */
+  isTestnet?: boolean;
+  /** Optional builder address */
+  builderAddr?: string | null;
+  /** Optional builder fee in bps */
+  builderFeeBps?: number | null;
+}
+
 /**
  * Round price to valid tick size and return chain units directly.
  * Uses integer rounding to avoid floating-point errors that cause EPRICE_NOT_RESPECTING_TICKER_SIZE.
@@ -86,6 +109,70 @@ function roundSizeToLotChainUnits(
   const denorm = Math.ceil(size * 10 ** szDecimals); // chain units, ceil to not under-close
   const rounded = Math.ceil(denorm / lotSize) * lotSize; // multiple of lot_size
   return Math.max(rounded, minSize);
+}
+
+/**
+ * Builds the transaction payload for opening a position at market (IOC).
+ * Uses place_order_to_subaccount with is_reduce_only=false.
+ */
+export function buildOpenMarketOrderPayload(params: OpenMarketParams): {
+  function: string;
+  typeArguments: string[];
+  functionArguments: unknown[];
+} {
+  const {
+    subaccountAddr,
+    marketAddr,
+    orderSizeUsd,
+    markPx,
+    marketConfig,
+    isLong,
+    slippageBps = 50,
+    isTestnet = false,
+    builderAddr = null,
+    builderFeeBps = null,
+  } = params;
+
+  const pkg = isTestnet ? PACKAGE_TESTNET : PACKAGE_MAINNET;
+  const pxDecimals = marketConfig.px_decimals ?? 9;
+  const szDecimals = marketConfig.sz_decimals ?? 9;
+  const tickSize = marketConfig.tick_size ?? 1_000_000;
+  const lotSize = marketConfig.lot_size ?? 100_000_000;
+  const minSize = marketConfig.min_size ?? 1_000_000_000;
+
+  // Convert USD notional to base size.
+  const size = markPx > 0 ? orderSizeUsd / markPx : 0;
+  const chainSize = roundSizeToLotChainUnits(size, lotSize, minSize, szDecimals);
+
+  // For buy/long use higher price; for sell/short use lower price for IOC fill.
+  const mult = isLong ? 1 + slippageBps / 10_000 : 1 - slippageBps / 10_000;
+  const priceWithSlippage = markPx * mult;
+  const chainPrice = roundPriceToTickChainUnits(priceWithSlippage, tickSize, pxDecimals);
+
+  // time_in_force: 0=GoodTillCanceled, 1=PostOnly, 2=ImmediateOrCancel
+  const timeInForce = 2;
+
+  return {
+    function: `${pkg}::dex_accounts_entry::place_order_to_subaccount`,
+    typeArguments: [],
+    functionArguments: [
+      subaccountAddr,
+      marketAddr,
+      chainPrice,
+      chainSize,
+      isLong, // is_buy
+      timeInForce,
+      false, // is_reduce_only
+      null, // client_order_id
+      null, // stop_price
+      null, // tp_trigger_price
+      null, // tp_limit_price
+      null, // sl_trigger_price
+      null, // sl_limit_price
+      builderAddr ?? null, // builder_addr
+      builderFeeBps ?? null, // builder_fee
+    ],
+  };
 }
 
 /**

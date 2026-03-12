@@ -4,7 +4,7 @@ const APTREE_PERFORMANCE_URL = 'https://www.aptree.io/api/earn-pool-performance'
 
 /**
  * GET /api/protocols/aptree/pools
- * Minimal Aptree integration for Ideas list.
+ * Minimal APTree integration for Ideas list.
  */
 export async function GET() {
   try {
@@ -17,7 +17,7 @@ export async function GET() {
     });
 
     if (!response.ok) {
-      throw new Error(`Aptree API returned ${response.status}`);
+      throw new Error(`APTree API returned ${response.status}`);
     }
 
     const payload = (await response.json()) as { apy_avg?: number };
@@ -28,14 +28,16 @@ export async function GET() {
       data: [
         {
           pool_id: 'aptree-earn',
-          token: 'USDC',
+          token: 'USDT',
+          symbol: 'USDT',
+          name: 'USDT',
           tvl: 0,
           apr: apyAvg, // decimal, e.g. 0.12 = 12%
         },
       ],
     });
   } catch (error) {
-    console.error('[Aptree] pools error:', error);
+    console.error('[APTree] pools error:', error);
     return NextResponse.json(
       {
         success: false,
