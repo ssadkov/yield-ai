@@ -16,7 +16,7 @@ interface DecibelCandle {
 }
 
 const DEFAULT_INTERVAL = '1h';
-const DEFAULT_RANGE_MS = 24 * 60 * 60 * 1000; // 24h
+const DEFAULT_RANGE_MS = 7 * 24 * 60 * 60 * 1000; // 1 week
 
 interface DecibelChartProps {
   marketAddr: string;
