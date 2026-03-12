@@ -420,5 +420,19 @@
       "additionalInfo": "Amps measure ongoing participation and determine allocation during the Token Generation Event (TGE)."
     },
     "contractAddresses": []
+  },
+  {
+    "name": "AI agent",
+    "key": "yield-ai",
+    "category": "Vault",
+    "url": "/",
+    "logoUrl": "/logo.png",
+    "description": "Personal safe (vault) for your assets. Only you can withdraw; an executor can run limited operations within set limits.",
+    "depositType": "external",
+    "isDepositEnabled": false,
+    "managedType": "native",
+    "contractAddresses": [
+      "0x333d1890e0aa3762bb256f5caeeb142431862628c63063801f44c152ef154700"
+    ]
   }
 ] 
