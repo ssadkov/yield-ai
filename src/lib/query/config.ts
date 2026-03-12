@@ -13,10 +13,10 @@ export const CACHE_TIME = {
 
 // Stale time - how long data is considered fresh
 export const STALE_TIME = {
-  BALANCE: 30 * 1000, // 30 seconds
-  POSITIONS: 60 * 1000, // 1 minute
+  BALANCE: 60 * 1000, // 1 minute
+  POSITIONS: 5 * 60 * 1000, // 5 minutes
   POOLS: 5 * 60 * 1000, // 5 minutes
-  PRICES: 30 * 1000, // 30 seconds
+  PRICES: 60 * 1000, // 1 minute
   TRANSACTIONS: 2 * 60 * 1000, // 2 minutes
   TOKEN_INFO: 10 * 60 * 1000, // 10 minutes
 } as const;
