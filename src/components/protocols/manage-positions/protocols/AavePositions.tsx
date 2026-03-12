@@ -267,7 +267,7 @@ export function AavePositions() {
   if (error instanceof Error) {
     return (
       <div className="text-center py-8">
-        <div className="text-red-500 mb-4">{error}</div>
+        <div className="text-red-500 mb-4">{error.message}</div>
         <Button
           onClick={() => window.open('https://aptos.aave.com/', '_blank')}
           variant="outline"
