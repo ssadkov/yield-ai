@@ -200,6 +200,12 @@ export async function GET(request: NextRequest) {
             
             const priceSource = 'Panora API';
             
+            console.log(`🔍 Looking for price of ${underlyingAsset}:`);
+            console.log(`  - Original (${underlyingAsset}): ${prices[underlyingAsset] || 'not found'}`);
+            console.log(`  - Normalized (${normalizedAsset}): ${prices[normalizedAsset] || 'not found'}`);
+            console.log(`  - Short (${shortAsset}): ${prices[shortAsset] || 'not found'}`);
+            console.log(`  - Selected: ${freshPrice}`);
+            console.log(`  - Available keys in prices:`, Object.keys(prices));
             
             // Calculate USD value with fresh price
             const amount = parseFloat(depositedAmount) / Math.pow(10, tokenInfo.decimals);

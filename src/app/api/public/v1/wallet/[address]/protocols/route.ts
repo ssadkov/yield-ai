@@ -30,6 +30,7 @@ const PROTOCOLS: ProtocolConfig[] = [
   { key: 'thala', endpoint: '/api/protocols/thala/userPositions' },
   { key: 'echo', endpoint: '/api/protocols/echo/userPositions' },
   { key: 'decibel', endpoint: '/api/protocols/decibel/userPositions' },
+  { key: 'aptree', endpoint: '/api/protocols/aptree/userPositions' },
 ];
 
 function isRequireKey(): boolean {

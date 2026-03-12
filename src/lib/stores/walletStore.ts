@@ -235,6 +235,7 @@ export const useWalletStore = create<WalletState>()(
               'aave',
               'moar',
               'decibel',
+              'aptree',
             ];
             const protocolsToFetch = protocols ?? (debugProtocols?.length ? debugProtocols : defaultPositionProtocols);
             const newPositions: ProtocolPositions = { ...state.positions };
