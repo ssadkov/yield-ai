@@ -422,6 +422,23 @@
     "contractAddresses": []
   },
   {
+    "name": "APTree",
+    "key": "aptree",
+    "category": "Yield",
+    "url": "https://www.aptree.io/earn",
+    "logoUrl": "/protocol_ico/aptree.png",
+    "description": "Simplified yield access layer on Aptos. Deposit stablecoins into optimized earn strategies.",
+    "depositType": "external",
+    "depositUrl": "https://www.aptree.io/earn",
+    "isDepositEnabled": true,
+    "managedType": "native",
+    "socialMedia": {
+      "twitter": "https://x.com/APTreeFinance"
+    },
+    "airdrop": "",
+    "contractAddresses": []
+  },
+  {
     "name": "AI agent",
     "key": "yield-ai",
     "category": "Vault",

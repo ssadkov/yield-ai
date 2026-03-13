@@ -19,6 +19,7 @@ import { PositionsList as MoarPositionsList } from "./protocols/moar/PositionsLi
 import { PositionsList as ThalaPositionsList } from "./protocols/thala/PositionsList";
 import { PositionsList as EchoPositionsList } from "./protocols/echo/PositionsList";
 import { PositionsList as DecibelPositionsList } from "./protocols/decibel/PositionsList";
+import { PositionsList as AptreePositionsList } from "./protocols/aptree/PositionsList";
 import { PositionsList as YieldAIPositionsList } from "./protocols/yield-ai/PositionsList";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useAptosNativeRestore } from "@/hooks/useAptosNativeRestore";
@@ -61,6 +62,7 @@ function MobileTabsContent() {
   const [thalaValue, setThalaValue] = useState<number>(0);
   const [echoValue, setEchoValue] = useState<number>(0);
   const [decibelValue, setDecibelValue] = useState<number>(0);
+  const [aptreeValue, setAptreeValue] = useState<number>(0);
   const [yieldAIValue, setYieldAIValue] = useState<number>(0);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [refreshKey, setRefreshKey] = useState<number>(0);
@@ -81,6 +83,7 @@ function MobileTabsContent() {
     "Thala",
     "Echo Protocol",
     "Decibel",
+    "APTree",
     "AI agent",
   ];
 
@@ -117,13 +120,13 @@ function MobileTabsContent() {
         }, 0);
 
         setTokens(portfolio.tokens);
-        setTotalValue((total + hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + earniumValue + aaveValue + moarValue + thalaValue + echoValue + decibelValue + yieldAIValue).toFixed(2));
+        setTotalValue((total + hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + earniumValue + aaveValue + moarValue + thalaValue + echoValue + decibelValue + aptreeValue + yieldAIValue).toFixed(2));
       } catch (error) {
       }
     }
 
     loadPortfolio();
-  }, [account?.address, hyperionValue, echelonValue, ariesValue, jouleValue, tappValue, mesoValue, auroValue, earniumValue, aaveValue, moarValue, thalaValue, echoValue, decibelValue, yieldAIValue]);
+  }, [account?.address, hyperionValue, echelonValue, ariesValue, jouleValue, tappValue, mesoValue, auroValue, earniumValue, aaveValue, moarValue, thalaValue, echoValue, decibelValue, aptreeValue, yieldAIValue]);
 
   useEffect(() => {
     if (account?.address) {
@@ -185,6 +188,10 @@ function MobileTabsContent() {
     setDecibelValue(value);
   };
 
+  const handleAptreeValueChange = (value: number) => {
+    setAptreeValue(value);
+  };
+
   const handleYieldAIValueChange = (value: number) => {
     setYieldAIValue(value);
   };
@@ -219,6 +226,7 @@ function MobileTabsContent() {
       setThalaValue(0);
       setEchoValue(0);
       setDecibelValue(0);
+      setAptreeValue(0);
       setYieldAIValue(0);
       resetChecking();
       setRefreshKey((k) => k + 1);
@@ -304,6 +312,7 @@ function MobileTabsContent() {
                         { component: ThalaPositionsList, value: thalaValue, name: 'Thala', handler: handleThalaValueChange },
                         { component: EchoPositionsList, value: echoValue, name: 'Echo Protocol', handler: handleEchoValueChange },
                         { component: DecibelPositionsList, value: decibelValue, name: 'Decibel', handler: handleDecibelValueChange },
+                        { component: AptreePositionsList, value: aptreeValue, name: 'APTree', handler: handleAptreeValueChange },
                         { component: YieldAIPositionsList, value: yieldAIValue, name: 'AI agent', handler: handleYieldAIValueChange },
                       ];
                       const listToRender =
