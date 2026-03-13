@@ -247,7 +247,7 @@ function MobileTabsContent() {
               </div>
 
               <div className="shrink-0">
-                <WalletSelector />
+                <WalletSelector showMobileWalletButton />
               </div>
             </div>
           </div>
