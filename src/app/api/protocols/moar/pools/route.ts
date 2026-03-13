@@ -77,11 +77,11 @@ export async function GET() {
     }
     
     const poolsData = await poolsResponse.json();
-   // console.log('📊 Raw pools data:', poolsData);
+    console.log('📊 Raw pools data:', poolsData);
     
     // Extract the actual pools array from the response
     const pools = Array.isArray(poolsData) && poolsData.length > 0 ? poolsData[0] : poolsData;
-   // console.log('📊 Extracted pools count:', Array.isArray(pools) ? pools.length : 'Not an array');
+    console.log('📊 Extracted pools count:', Array.isArray(pools) ? pools.length : 'Not an array');
     
     if (!Array.isArray(pools)) {
       throw new Error('Invalid pools data format');
@@ -90,11 +90,11 @@ export async function GET() {
     const transformedPools: InvestmentData[] = [];
     
     // Step 2: Calculate APR for each pool
-   // console.log(`📊 Starting APR calculation for ${pools.length} pools`);
+    console.log(`📊 Starting APR calculation for ${pools.length} pools`);
     for (let poolId = 0; poolId < pools.length; poolId++) {
       try {
         const pool = pools[poolId];
-   //     console.log(`📈 Calculating APR for pool ${poolId}...`);
+        console.log(`📈 Calculating APR for pool ${poolId}...`);
         
         // Get interest rate data
         const interestRateResponse = await fetch('https://fullnode.mainnet.aptoslabs.com/v1/view', {

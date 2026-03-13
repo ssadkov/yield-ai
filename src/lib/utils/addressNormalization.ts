@@ -21,25 +21,6 @@ export function toCanonicalAddress(addr: string): string {
 }
 
 /**
- * Converts any Aptos address representation to canonical 0x + 64 hex chars.
- * Decibel (and other APIs) may return addresses as decimal strings; the chain/wallet
- * expects hex. Passing a decimal string into a u64 slot causes "out of range" errors.
- * @param addr - Address as hex ("0x...") or decimal string
- * @returns "0x" + 64 hex chars
- */
-export function toCanonicalAddressFromAny(addr: string): string {
-  if (!addr || typeof addr !== 'string') return addr;
-  const trimmed = addr.trim();
-  if (trimmed.startsWith('0x')) return toCanonicalAddress(trimmed);
-  try {
-    const hex = BigInt(trimmed).toString(16);
-    return '0x' + hex.padStart(64, '0');
-  } catch {
-    return trimmed;
-  }
-}
-
-/**
  * Normalizes an Aptos address by removing leading zeros after 0x prefix
  * @param addr - The address to normalize (e.g., "0x05fabd..." or "0x5fabd...")
  * @returns Normalized address with leading zeros removed (e.g., "0x5fabd...")

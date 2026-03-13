@@ -11,7 +11,11 @@ interface PortfolioToken {
   amount: string;
   price: string | null;
   value: string | null;
+  logoUrl?: string;
 }
+
+const APTREE_EARN_TOKEN_ADDRESS = '0x5ecc6aff1d75144990a3798c904cc7c49e5c0cc3d5a134babc5b60184012310d';
+const APTREE_EARN_TOKEN_ADDRESS_LOWER = APTREE_EARN_TOKEN_ADDRESS.toLowerCase();
 
 export class AptosPortfolioService {
   private walletService: AptosWalletService;
@@ -27,7 +31,10 @@ export class AptosPortfolioService {
       
       // Получаем балансы из кошелька
       const walletData = await this.walletService.getBalances(address);
-      const balances = walletData.balances;
+      const balances = (walletData.balances || []).filter((balance: FungibleAssetBalance) => {
+        const assetType = (balance?.asset_type || '').toLowerCase();
+        return assetType !== APTREE_EARN_TOKEN_ADDRESS_LOWER;
+      });
 
       if (!balances.length) {
         console.log('No balances found');

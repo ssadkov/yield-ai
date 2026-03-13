@@ -14,6 +14,7 @@ import { AmnisPositions } from "./protocols/AmnisPositions";
 import { EarniumPositionsManaging } from "./protocols/EarniumPositions";
 import { AavePositions } from "./protocols/AavePositions";
 import { MoarPositions } from "./protocols/MoarPositions";
+import { AptreePositions } from "./protocols/AptreePositions";
 import { ThalaPositions } from "./protocols/ThalaPositions";
 import { EchoPositions } from "./protocols/EchoPositions";
 import { DecibelPositions } from "./protocols/DecibelPositions";
@@ -148,6 +149,8 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
         return <AavePositions />;
       case 'moar market':
         return <MoarPositions />;
+      case 'aptree':
+        return <AptreePositions />;
       case 'thala':
         return <ThalaPositions />;
       case 'echo protocol':

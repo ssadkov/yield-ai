@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { X } from 'lucide-react';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { DecibelChart, type DecibelChartLimitOrder } from './decibel-chart';
+import { DecibelChart } from './decibel-chart';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
@@ -646,21 +646,6 @@ export function DecibelOpenPositionModal({
     return `${addr.slice(0, 6)}...${addr.slice(-6)}`;
   };
 
-  const chartLimitOrders = useMemo((): DecibelChartLimitOrder[] => {
-    const pxDec = marketConfig?.px_decimals ?? 9;
-    return marketOrders
-      .filter((o) => o.price > 0 && Number.isFinite(o.price))
-      .map((o) => ({
-        price: o.price < 1e12 ? o.price : o.price / 10 ** pxDec,
-        reduceOnly: o.reduce_only ?? o.is_reduce_only === true,
-      }));
-  }, [marketOrders, marketConfig?.px_decimals]);
-
-  const chartEntryPrices = useMemo(
-    () => marketPositions.map((p) => p.entry_price).filter((p) => Number.isFinite(p) && p > 0),
-    [marketPositions]
-  );
-
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -735,8 +720,6 @@ export function DecibelOpenPositionModal({
                 <DecibelChart
                   marketAddr={market.marketAddr}
                   interval={chartInterval}
-                  limitOrders={chartLimitOrders}
-                  entryPrices={chartEntryPrices}
                   className="w-full h-full min-h-[240px] sm:min-h-[280px] lg:min-h-[300px]"
                 />
               </div>

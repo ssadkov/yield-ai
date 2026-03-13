@@ -7,13 +7,7 @@ import {
   TorusWalletAdapter,
   LedgerWalletAdapter,
 } from "@solana/wallet-adapter-wallets";
-import {
-  createDefaultAuthorizationCache,
-  createDefaultChainSelector,
-  createDefaultWalletNotFoundHandler,
-  registerMwa,
-} from "@solana-mobile/wallet-standard-mobile";
-import { useMemo, useEffect, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 
 const WALLET_NAME_KEY = "walletName";
 
@@ -56,21 +50,6 @@ export function SolanaProvider({ children }: { children: ReactNode }) {
     ],
     []
   );
-
-  // Register Mobile Wallet Adapter so "Mobile Wallet" appears in Solana wallet picker on Android Chrome (e.g. Seeker).
-  useEffect(() => {
-    registerMwa({
-      appIdentity: {
-        name: "Yield AI",
-        uri: typeof window !== "undefined" ? window.location.origin : "https://yieldai.io",
-        icon: "/icon.png",
-      },
-      authorizationCache: createDefaultAuthorizationCache(),
-      chains: ["solana:mainnet"],
-      chainSelector: createDefaultChainSelector(),
-      onWalletNotFound: createDefaultWalletNotFoundHandler(),
-    });
-  }, []);
 
   return (
     <ConnectionProvider endpoint={endpoint}>

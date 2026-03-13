@@ -53,7 +53,7 @@
     "depositType": "external",
     "depositUrl": "https://app.ariesmarkets.xyz/lending",
     "isDepositEnabled": true,
-    "managedType": "external",
+    "managedType": "native",
     "socialMedia": {
       "twitter": "https://x.com/AriesMarkets"
     },
@@ -422,17 +422,20 @@
     "contractAddresses": []
   },
   {
-    "name": "AI agent",
-    "key": "yield-ai",
-    "category": "Vault",
-    "url": "/",
-    "logoUrl": "/logo.png",
-    "description": "Personal safe (vault) for your assets. Only you can withdraw; an executor can run limited operations within set limits.",
+    "name": "APTree",
+    "key": "aptree",
+    "category": "Yield",
+    "url": "https://www.aptree.io/earn",
+    "logoUrl": "/protocol_ico/aptree.png",
+    "description": "Simplified yield access layer on Aptos. Deposit stablecoins into optimized earn strategies.",
     "depositType": "external",
-    "isDepositEnabled": false,
+    "depositUrl": "https://www.aptree.io/earn",
+    "isDepositEnabled": true,
     "managedType": "native",
-    "contractAddresses": [
-      "0x333d1890e0aa3762bb256f5caeeb142431862628c63063801f44c152ef154700"
-    ]
+    "socialMedia": {
+      "twitter": "https://x.com/APTreeFinance"
+    },
+    "airdrop": "",
+    "contractAddresses": []
   }
 ] 

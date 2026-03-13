@@ -13,6 +13,7 @@ import { MoarMarketProtocol } from "./moar";
 import { ThalaProtocol } from "./thala";
 import { EchoProtocol } from "./echo";
 import { DecibelProtocol } from "./decibel";
+import { AptreeProtocol } from "./aptree";
 import { BaseProtocol } from "./BaseProtocol";
 import { ProtocolKey } from "../transactions/types";
 
@@ -32,4 +33,5 @@ export const protocols: Record<ProtocolKey, BaseProtocol> = {
   thala: new ThalaProtocol(),
   echo: new EchoProtocol(),
   decibel: new DecibelProtocol(),
+  aptree: new AptreeProtocol(),
 }; 

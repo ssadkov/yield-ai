@@ -63,11 +63,21 @@ export async function GET(request: NextRequest) {
       data: { amounts, sumUsdc },
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    // Decibel returns Move abort when depositor state does not exist.
+    // Treat it as a valid "zero balance" state to avoid noisy 500s in UI.
+    if (message.includes('EDEPOSITOR_STATE_NOT_FOUND') || message.includes('vm_error_code":4016')) {
+      return NextResponse.json({
+        success: true,
+        data: { amounts: [], sumUsdc: 0 },
+      });
+    }
+
     console.error('[Decibel] predepositorBalance error:', error);
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: message || 'Unknown error',
       },
       { status: 500 }
     );

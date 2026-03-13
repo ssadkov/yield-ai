@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import DashboardPanel from "./DashboardPanel";
 import ChatPanelWrapper from "./ChatPanelWrapper";
 import { WalletSelector } from "./WalletSelector";
@@ -19,7 +19,7 @@ import { PositionsList as MoarPositionsList } from "./protocols/moar/PositionsLi
 import { PositionsList as ThalaPositionsList } from "./protocols/thala/PositionsList";
 import { PositionsList as EchoPositionsList } from "./protocols/echo/PositionsList";
 import { PositionsList as DecibelPositionsList } from "./protocols/decibel/PositionsList";
-import { PositionsList as YieldAIPositionsList } from "./protocols/yield-ai/PositionsList";
+import { PositionsList as AptreePositionsList } from "./protocols/aptree/PositionsList";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useAptosNativeRestore } from "@/hooks/useAptosNativeRestore";
 import { AptosPortfolioService } from "@/lib/services/aptos/portfolio";
@@ -30,7 +30,6 @@ import { CollapsibleProvider } from "@/contexts/CollapsibleContext";
 import { MobileManagementProvider } from "@/contexts/MobileManagementContext";
 import { useSolanaPortfolio } from "@/hooks/useSolanaPortfolio";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
-import { ProtocolIcon } from "@/shared/ProtocolIcon/ProtocolIcon";
 
 function MobileTabsContent() {
   const [tab, setTab] = useState<"ideas" | "assets" | "chat">("assets");
@@ -61,32 +60,9 @@ function MobileTabsContent() {
   const [thalaValue, setThalaValue] = useState<number>(0);
   const [echoValue, setEchoValue] = useState<number>(0);
   const [decibelValue, setDecibelValue] = useState<number>(0);
-  const [yieldAIValue, setYieldAIValue] = useState<number>(0);
+  const [aptreeValue, setAptreeValue] = useState<number>(0);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [refreshKey, setRefreshKey] = useState<number>(0);
-  const [checkingProtocols, setCheckingProtocols] = useState<string[]>([]);
-
-  const allProtocolNames = [
-    "Hyperion",
-    "Echelon",
-    "Aries",
-    "Joule",
-    "Tapp Exchange",
-    "Meso Finance",
-    "Auro Finance",
-    "Amnis Finance",
-    "Earnium",
-    "Aave",
-    "Moar Market",
-    "Thala",
-    "Echo Protocol",
-    "Decibel",
-    "AI agent",
-  ];
-
-  const resetChecking = useCallback(() => {
-    setCheckingProtocols(allProtocolNames);
-  }, []);
 
   // When set (e.g. "decibel" or "decibel,thala"), only these protocols are shown and fetched
   const debugProtocolKeys =
@@ -117,21 +93,13 @@ function MobileTabsContent() {
         }, 0);
 
         setTokens(portfolio.tokens);
-        setTotalValue((total + hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + earniumValue + aaveValue + moarValue + thalaValue + echoValue + decibelValue + yieldAIValue).toFixed(2));
+        setTotalValue((total + hyperionValue + echelonValue + ariesValue + jouleValue + tappValue + mesoValue + auroValue + earniumValue + aaveValue + moarValue + thalaValue + echoValue + decibelValue + aptreeValue).toFixed(2));
       } catch (error) {
       }
     }
 
     loadPortfolio();
-  }, [account?.address, hyperionValue, echelonValue, ariesValue, jouleValue, tappValue, mesoValue, auroValue, earniumValue, aaveValue, moarValue, thalaValue, echoValue, decibelValue, yieldAIValue]);
-
-  useEffect(() => {
-    if (account?.address) {
-      resetChecking();
-    } else {
-      setCheckingProtocols([]);
-    }
-  }, [account?.address, resetChecking]);
+  }, [account?.address, hyperionValue, echelonValue, ariesValue, jouleValue, tappValue, mesoValue, auroValue, earniumValue, aaveValue, moarValue, thalaValue, echoValue, decibelValue, aptreeValue]);
 
   // Обработчики изменения суммы позиций в протоколах
   const handleHyperionValueChange = (value: number) => {
@@ -184,9 +152,8 @@ function MobileTabsContent() {
   const handleDecibelValueChange = (value: number) => {
     setDecibelValue(value);
   };
-
-  const handleYieldAIValueChange = (value: number) => {
-    setYieldAIValue(value);
+  const handleAptreeValueChange = (value: number) => {
+    setAptreeValue(value);
   };
 
   // Refresh function
@@ -219,8 +186,7 @@ function MobileTabsContent() {
       setThalaValue(0);
       setEchoValue(0);
       setDecibelValue(0);
-      setYieldAIValue(0);
-      resetChecking();
+      setAptreeValue(0);
       setRefreshKey((k) => k + 1);
 
       setTotalValue(total.toFixed(2));
@@ -234,7 +200,7 @@ function MobileTabsContent() {
   return (
     <MobileManagementProvider setActiveTab={setTab} scrollToTop={scrollToTop}>
       <CollapsibleProvider>
-        <div className="flex flex-col min-h-screen max-h-screen w-full min-w-0 max-w-full overflow-x-hidden">
+        <div className="flex flex-col min-h-screen max-h-screen">
           {/* Header - fixed at top */}
           <div className="flex-shrink-0 p-4 border-b bg-background">
             <div className="flex items-center justify-between gap-3">
@@ -247,7 +213,7 @@ function MobileTabsContent() {
               </div>
 
               <div className="shrink-0">
-                <WalletSelector showMobileWalletButton />
+                <WalletSelector />
               </div>
             </div>
           </div>
@@ -269,26 +235,6 @@ function MobileTabsContent() {
                       isRefreshing={isRefreshing}
                       hasSolanaWallet={!!solanaAddress}
                     />
-                    {checkingProtocols.length > 0 && (
-                      <div className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground">
-                        <span className="whitespace-nowrap">Checking positions on</span>
-                        <div className="flex items-center gap-1">
-                          {checkingProtocols.map((name) => {
-                            const proto = getProtocolByName(name);
-                            const logo = proto?.logoUrl || "/favicon.ico";
-                            return (
-                              <ProtocolIcon
-                                key={name}
-                                logoUrl={logo}
-                                name={name}
-                                size="sm"
-                                isLoading={true}
-                              />
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
                     {(() => {
                       const protocolItems = [
                         { component: HyperionPositionsList, value: hyperionValue, name: 'Hyperion', handler: handleHyperionValueChange },
@@ -304,7 +250,7 @@ function MobileTabsContent() {
                         { component: ThalaPositionsList, value: thalaValue, name: 'Thala', handler: handleThalaValueChange },
                         { component: EchoPositionsList, value: echoValue, name: 'Echo Protocol', handler: handleEchoValueChange },
                         { component: DecibelPositionsList, value: decibelValue, name: 'Decibel', handler: handleDecibelValueChange },
-                        { component: YieldAIPositionsList, value: yieldAIValue, name: 'AI agent', handler: handleYieldAIValueChange },
+                        { component: AptreePositionsList, value: aptreeValue, name: 'APTree', handler: handleAptreeValueChange },
                       ];
                       const listToRender =
                         debugProtocolKeys?.length && debugProtocolKeys.length > 0
@@ -322,9 +268,7 @@ function MobileTabsContent() {
                             onPositionsValueChange={handler}
                             walletTokens={tokens}
                             refreshKey={refreshKey}
-                            onPositionsCheckComplete={() =>
-                              setCheckingProtocols((prev) => prev.filter((p) => p !== name))
-                            }
+                            onPositionsCheckComplete={() => {}}
                           />
                         ));
                     })()}
