@@ -46,6 +46,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { InvestmentsDashboardLoading } from "./InvestmentsDashboardLoading";
+import { DecibelIdeasBlock } from "./decibel-ideas-block";
 
 // Список адресов токенов Echelon, которые нужно исключить из отображения
 const EXCLUDED_ECHELON_TOKENS = [
@@ -1273,6 +1274,11 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   );
                 })}
               </div>
+            </div>
+
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Decibel Perps</h3>
+              <DecibelIdeasBlock />
             </div>
           </div>
         )}

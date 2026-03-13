@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { createChart, CandlestickSeries, ColorType, type UTCTimestamp } from 'lightweight-charts';
+import { createChart, CandlestickSeries, ColorType, LineStyle, type UTCTimestamp } from 'lightweight-charts';
 
 /** Decibel candlestick item: t (open time ms), o, h, l, c, v, i */
 interface DecibelCandle {
@@ -16,13 +16,23 @@ interface DecibelCandle {
 }
 
 const DEFAULT_INTERVAL = '1h';
-const DEFAULT_RANGE_MS = 24 * 60 * 60 * 1000; // 24h
+const DEFAULT_RANGE_MS = 7 * 24 * 60 * 60 * 1000; // 1 week
+
+/** Limit order to show as a horizontal price line on the chart (price in human form) */
+export interface DecibelChartLimitOrder {
+  price: number;
+  reduceOnly?: boolean;
+}
 
 interface DecibelChartProps {
   marketAddr: string;
   interval?: string;
   startTime?: number;
   endTime?: number;
+  /** Limit orders to draw as price lines (e.g. open orders). Price in human form. */
+  limitOrders?: DecibelChartLimitOrder[];
+  /** Position entry prices to draw as price lines (human form). */
+  entryPrices?: number[];
   className?: string;
 }
 
@@ -31,6 +41,8 @@ export function DecibelChart({
   interval = DEFAULT_INTERVAL,
   startTime: startTimeProp,
   endTime: endTimeProp,
+  limitOrders = [],
+  entryPrices = [],
   className,
 }: DecibelChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -99,6 +111,32 @@ export function DecibelChart({
         });
         series.setData(data);
         chart.timeScale().fitContent();
+
+        // Draw limit order price lines (open orders)
+        for (const order of limitOrders) {
+          if (!Number.isFinite(order.price) || order.price <= 0) continue;
+          series.createPriceLine({
+            price: order.price,
+            color: order.reduceOnly ? '#f59e0b' : '#3b82f6',
+            lineWidth: 2,
+            lineStyle: LineStyle.Dashed,
+            axisLabelVisible: true,
+            title: order.reduceOnly ? 'Limit close' : 'Limit',
+          });
+        }
+        // Draw position entry price lines
+        for (const entry of entryPrices) {
+          if (!Number.isFinite(entry) || entry <= 0) continue;
+          series.createPriceLine({
+            price: entry,
+            color: '#6b7280',
+            lineWidth: 1,
+            lineStyle: LineStyle.Dotted,
+            axisLabelVisible: true,
+            title: 'Entry',
+          });
+        }
+
         setLoading(false);
         setError(null);
       })
@@ -116,8 +154,8 @@ export function DecibelChart({
         chartRef.current = null;
       }
     };
-    // Only re-run when market or interval changes; start/end are computed inside
-  }, [marketAddr, interval]);
+    // Re-run when market, interval, or overlay data (orders/entries) change
+  }, [marketAddr, interval, limitOrders, entryPrices]);
 
   return (
     <div className={`relative ${className ?? 'w-full h-[300px]'}`}>
