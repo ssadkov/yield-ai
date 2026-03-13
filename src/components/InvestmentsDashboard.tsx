@@ -97,6 +97,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     'Aave': true,
     'Moar Market': true,
     'Decibel': true,
+    'Echo Protocol': true,
     'APTree': true
   });
   const [protocolsError, setProtocolsError] = useState<Record<string, string | null>>({});
@@ -113,6 +114,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
     'Aave': '/protocol_ico/aave.ico',
     'Moar Market': '/protocol_ico/moar-market-logo-primary.png',
     'Decibel': '/protocol_ico/decibel.png',
+    'Echo Protocol': '/protocol_ico/echo.png',
     'APTree': '/protocol_ico/aptree.png'
   });
   const [claimModalOpen, setClaimModalOpen] = useState(false);
@@ -665,6 +667,25 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   decibelVaultPnl: vaultPnl
                 }
               ];
+            }
+          },
+          {
+            name: 'Echo Protocol',
+            url: '/api/protocols/echo/reserves',
+            logoUrl: '/protocol_ico/echo.png',
+            transform: (data: any) => {
+              const list = data?.data ?? data ?? [];
+              return list.map((r: any) => ({
+                asset: r.symbol ?? 'Unknown',
+                provider: 'Echo Protocol',
+                totalAPY: r.supplyApy ?? 0,
+                depositApy: r.supplyApy ?? 0,
+                borrowAPY: r.borrowApy ?? 0,
+                token: r.underlyingAddress ?? '',
+                protocol: 'Echo Protocol',
+                poolType: 'Lending',
+                tvlUSD: 0,
+              }));
             }
           },
           {
@@ -1480,7 +1501,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
 
 
                     // Include whitelisted protocols that may not resolve tokenInfo yet.
-                    return hasAssetColon || hasTokenInfo || hasDexTokens || item.protocol === 'Echelon' || item.protocol === 'Moar Market' || item.protocol === 'Decibel' || item.protocol === 'APTree';
+                    return hasAssetColon || hasTokenInfo || hasDexTokens || item.protocol === 'Echelon' || item.protocol === 'Moar Market' || item.protocol === 'Decibel' || item.protocol === 'Echo Protocol' || item.protocol === 'APTree';
                   })
                   .sort((a, b) => b.totalAPY - a.totalAPY)
                   .map((item, index) => {
