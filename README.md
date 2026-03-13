@@ -64,6 +64,7 @@ We built a **privacy-preserving cross-chain bridge** from Solana to Aptos, integ
 - **Swap & Deposit**: Automatically swap tokens and deposit to earn yield
 - **Position Management**: View and manage your existing positions across all protocols
 - **Wallet Integration**: Connect Aptos wallets to view balances and execute transactions
+- **Mobile wallet Solana (MWA)**: In the mobile layout, a smartphone-icon button next to the main wallet control lets you connect a Solana wallet via the **Mobile Wallet Adapter (MWA)**—primarily for **Solana Seeker** on Android Chrome. The button is shown only on Android Chrome and opens the Solana wallet picker.
 - **AI Chat Assistant**: Get help and execute actions through an AI-powered chat interface
 
 ### Investment Dashboard

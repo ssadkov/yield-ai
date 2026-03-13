@@ -18,7 +18,6 @@ import { AptreePositions } from "./protocols/AptreePositions";
 import { ThalaPositions } from "./protocols/ThalaPositions";
 import { EchoPositions } from "./protocols/EchoPositions";
 import { DecibelPositions } from "./protocols/DecibelPositions";
-import { AptreePositions } from "./protocols/AptreePositions";
 import { RefreshCw, Info, ExternalLink, Gift } from "lucide-react";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useState } from "react";
