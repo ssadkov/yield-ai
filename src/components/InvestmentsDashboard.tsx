@@ -996,7 +996,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
           )}
         </div>
       </div>
-      <Box pt="2" pb="6">
+      <Box pt="2" pb="3">
         <SegmentedControl.Root
           value={activeTab}
           onValueChange={(value) => setActiveTab(value as "lite" | "pro")}
@@ -1008,7 +1008,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
         </SegmentedControl.Root>
       </Box>
 
-      <Box pt="6">
+      <Box pt="3">
         {activeTab === "lite" && (
           <div className="space-y-6">
             <div>
