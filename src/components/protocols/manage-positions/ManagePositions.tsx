@@ -18,6 +18,7 @@ import { AptreePositions } from "./protocols/AptreePositions";
 import { ThalaPositions } from "./protocols/ThalaPositions";
 import { EchoPositions } from "./protocols/EchoPositions";
 import { DecibelPositions } from "./protocols/DecibelPositions";
+import { AptreePositions } from "./protocols/AptreePositions";
 import { RefreshCw, Info, ExternalLink, Gift } from "lucide-react";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useState } from "react";
@@ -80,6 +81,9 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
         endpoint = 'userPositions';
       } else if (protocol.key === 'decibel' || protocol.name.toLowerCase().includes('decibel')) {
         apiPath = 'decibel';
+        endpoint = 'userPositions';
+      } else if (protocol.key === 'aptree' || protocol.name.toLowerCase().includes('aptree')) {
+        apiPath = 'aptree';
         endpoint = 'userPositions';
       }
       
@@ -157,6 +161,8 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
         return <EchoPositions />;
       case 'decibel':
         return <DecibelPositions />;
+      case 'aptree':
+        return <AptreePositions />;
       default:
         return (
           <div className="text-sm text-muted-foreground">

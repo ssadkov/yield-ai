@@ -24,8 +24,9 @@ import {
   ChevronDown,
   Copy,
   LogOut,
-  User,
   Loader2,
+  Smartphone,
+  User,
 } from "lucide-react";
 import { useCallback, useState, useEffect, useMemo } from "react";
 import { Button } from "./ui/button";
@@ -56,9 +57,11 @@ interface WalletSelectorProps extends WalletSortingOptions {
   externalOpen?: boolean;
   /** Callback when dialog open state changes (for external control) */
   onExternalOpenChange?: (open: boolean) => void;
+  /** When true, show a mobile icon button to the left that opens Solana wallet picker (for Mobile Tabs) */
+  showMobileWalletButton?: boolean;
 }
 
-export function WalletSelector({ externalOpen, onExternalOpenChange, ...walletSortingOptions }: WalletSelectorProps) {
+export function WalletSelector({ externalOpen, onExternalOpenChange, showMobileWalletButton, ...walletSortingOptions }: WalletSelectorProps) {
   const { account, connected: aptosConnected, disconnect, wallet } = useWallet();
   const { publicKey: solanaPublicKey, connected: solanaConnected, wallet: solanaWallet, disconnect: disconnectSolana, wallets: solanaWallets, select: selectSolana, connect: connectSolana } = useSolanaWallet();
   const [internalDialogOpen, setInternalDialogOpen] = useState(false);
@@ -93,6 +96,15 @@ export function WalletSelector({ externalOpen, onExternalOpenChange, ...walletSo
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const isAndroidChrome = useMemo(() => {
+    if (!mounted) return false;
+    const ua = navigator.userAgent || "";
+    const isAndroid = /Android/i.test(ua);
+    const isChromeMobile = /Chrome\/[.0-9]* Mobile/i.test(ua);
+    const isEdge = /Edg/i.test(ua);
+    return isAndroid && isChromeMobile && !isEdge;
+  }, [mounted]);
 
   // Poll adapter state for Phantom (which doesn't trigger React state updates properly)
   useEffect(() => {
@@ -454,7 +466,18 @@ export function WalletSelector({ externalOpen, onExternalOpenChange, ...walletSo
 
   return (
     <>
-      {isAnyWalletConnected ? (
+      <div className="flex items-center gap-2">
+        {showMobileWalletButton && isAndroidChrome && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsSolanaDialogOpen(true)}
+            aria-label="Connect mobile wallet"
+          >
+            <Smartphone className="h-4 w-4" />
+          </Button>
+        )}
+        {isAnyWalletConnected ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button>
@@ -564,6 +587,7 @@ export function WalletSelector({ externalOpen, onExternalOpenChange, ...walletSo
           <ConnectWalletDialog close={closeDialog} isConnecting={isConnecting} {...walletSortingOptions} />
         </Dialog>
       )}
+      </div>
 
       {/* Dialog for connecting Aptos wallets (external control) - always render for external open */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

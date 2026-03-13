@@ -12,6 +12,7 @@ interface PositionsListProps {
   refreshKey?: number;
   onPositionsCheckComplete?: () => void;
   showManageButton?: boolean;
+  walletTokens?: unknown[];
 }
 
 interface AptreePosition {

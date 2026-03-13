@@ -217,7 +217,6 @@ export function AptreePositions() {
                     <div className="text-sm text-muted-foreground">{formatNumber(amount, 4)}</div>
                   </div>
                 </div>
-
               </div>
             </div>
           );
@@ -230,4 +229,3 @@ export function AptreePositions() {
     </div>
   );
 }
-
