@@ -97,6 +97,15 @@ export function WalletSelector({ externalOpen, onExternalOpenChange, showMobileW
     setMounted(true);
   }, []);
 
+  const isAndroidChrome = useMemo(() => {
+    if (!mounted) return false;
+    const ua = navigator.userAgent || "";
+    const isAndroid = /Android/i.test(ua);
+    const isChromeMobile = /Chrome\/[.0-9]* Mobile/i.test(ua);
+    const isEdge = /Edg/i.test(ua);
+    return isAndroid && isChromeMobile && !isEdge;
+  }, [mounted]);
+
   // Poll adapter state for Phantom (which doesn't trigger React state updates properly)
   useEffect(() => {
     if (!solanaWallet?.adapter) return;
@@ -458,7 +467,7 @@ export function WalletSelector({ externalOpen, onExternalOpenChange, showMobileW
   return (
     <>
       <div className="flex items-center gap-2">
-        {showMobileWalletButton && (
+        {showMobileWalletButton && isAndroidChrome && (
           <Button
             variant="ghost"
             size="icon"
