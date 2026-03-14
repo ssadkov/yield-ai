@@ -4,6 +4,12 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { normalizeAddress } from '@/lib/utils/addressNormalization';
 import { formatNumber } from '@/lib/utils/numberFormat';
 import Image from 'next/image';
@@ -204,7 +210,19 @@ export function DecibelIdeasBlock() {
               )}
               <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
                 <p>
-                  Funding APR (24h):{' '}
+                  <TooltipProvider delayDuration={300}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="cursor-help underline decoration-dotted underline-offset-1" tabIndex={0}>
+                          Funding APR (24h):
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[220px]">
+                        24h funding rate annualized (extrapolated to yearly yield).
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  {' '}
                   {apr != null && Number.isFinite(apr) ? (
                     <span className={cn('font-medium', aprColor)}>
                       {apr > 0 ? '+' : ''}{formatNumber(apr, 2)}%

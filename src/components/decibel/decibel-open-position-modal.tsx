@@ -36,6 +36,12 @@ import {
   type DecibelMarketConfig,
 } from '@/lib/protocols/decibel/closePosition';
 import { fetchFundingApr, type FundingAprResult } from '@/lib/protocols/decibel/fundingApr';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 export interface DecibelOpenPositionMarket {
   marketAddr: string;
@@ -755,20 +761,31 @@ export function DecibelOpenPositionModal({
                     ))}
                   </SelectContent>
                 </Select>
-                {/* Current funding (Decibel API): positive = green, negative = red */}
+                {/* Current funding (Decibel API): show in bps, positive = green, negative = red */}
                 <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-                  Funding:
+                  <TooltipProvider delayDuration={300}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="cursor-help underline decoration-dotted underline-offset-1" tabIndex={0}>
+                          Funding:
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[240px]">
+                        Current funding rate in basis points (1 bps = 0.01%). Positive = longs pay shorts.
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                   {fundingRateBps != null && Number.isFinite(fundingRateBps) && isFundingPositive !== null ? (
                     (() => {
-                      const pct = (fundingRateBps / 100) * (isFundingPositive ? 1 : -1);
+                      const bps = fundingRateBps * (isFundingPositive ? 1 : -1);
                       return (
                         <span
                           className={cn(
                             'font-medium',
-                            pct > 0 ? 'text-green-600 dark:text-green-400' : pct < 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'
+                            bps > 0 ? 'text-green-600 dark:text-green-400' : bps < 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'
                           )}
                         >
-                          {pct > 0 ? '+' : ''}{(pct).toFixed(4)}%
+                          {bps > 0 ? '+' : ''}{bps} bps
                         </span>
                       );
                     })()
@@ -778,7 +795,18 @@ export function DecibelOpenPositionModal({
                 </span>
                 {/* Funding 24h APR (external API) */}
                 <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-                  24h:
+                  <TooltipProvider delayDuration={300}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="cursor-help underline decoration-dotted underline-offset-1" tabIndex={0}>
+                          APR:
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[220px]">
+                        24h funding rate annualized (extrapolated to yearly yield).
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                   {fundingApr24h != null && Number.isFinite(fundingApr24h.avg_yearly_apr_pct) ? (
                     <span
                       className={cn(
