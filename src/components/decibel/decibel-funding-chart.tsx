@@ -30,6 +30,8 @@ const CHART_COLORS = [
   '#ec4899',
   '#06b6d4',
   '#f97316',
+  '#14b8a6',
+  '#a855f7',
 ];
 
 /** Normalize market name so "SUI/USDC" and "SOL-USDC" match cards (e.g. "SUI/USD"). */
@@ -218,19 +220,34 @@ export function DecibelFundingChart({
     });
     chartRef.current = chart;
 
-    // Dedicated invisible series for the zero line so it stays visible when any market is toggled off
+    const seriesList: { name: string; series: ReturnType<typeof chart.addSeries> }[] = [];
     let timeMin = Infinity;
     let timeMax = -Infinity;
-    for (const name of marketOrder) {
+    for (let i = 0; i < marketOrder.length; i++) {
+      const name = marketOrder[i];
       const points = seriesByMarket[name];
-      if (!points?.length) continue;
+      if (!points || points.length === 0) continue;
+      const color = CHART_COLORS[i % CHART_COLORS.length];
+      const lineSeries = chart.addSeries(LineSeries, {
+        color,
+        lineWidth: 2,
+        title: name,
+        lineType: LineType.Curved,
+      });
       const smoothed = smoothSeries(points, 5);
-      for (const p of smoothed) {
+      const chartData = smoothed.map((p) => {
         const t = Math.floor(p.time / 1000) || 0;
         if (t < timeMin) timeMin = t;
         if (t > timeMax) timeMax = t;
-      }
+        return { time: t as UTCTimestamp, value: p.value };
+      });
+      lineSeries.setData(chartData);
+      seriesList.push({ name, series: lineSeries });
     }
+    seriesListRef.current = seriesList;
+    applySeriesHighlightAndVisibility(seriesList, visibleMarkets, hoveredMarket);
+
+    // Dedicated invisible series for the zero line (added after market series so it does not affect scale/order)
     if (Number.isFinite(timeMin) && Number.isFinite(timeMax)) {
       const zeroSeries = chart.addSeries(LineSeries, {
         color: 'transparent',
@@ -252,28 +269,6 @@ export function DecibelFundingChart({
       });
     }
 
-    const seriesList: { name: string; series: ReturnType<typeof chart.addSeries> }[] = [];
-    for (let i = 0; i < marketOrder.length; i++) {
-      const name = marketOrder[i];
-      const points = seriesByMarket[name];
-      if (!points || points.length === 0) continue;
-      const color = CHART_COLORS[i % CHART_COLORS.length];
-      const lineSeries = chart.addSeries(LineSeries, {
-        color,
-        lineWidth: 2,
-        title: name,
-        lineType: LineType.Curved,
-      });
-      const smoothed = smoothSeries(points, 5);
-      const chartData = smoothed.map((p) => ({
-        time: (Math.floor(p.time / 1000) || 0) as UTCTimestamp,
-        value: p.value,
-      }));
-      lineSeries.setData(chartData);
-      seriesList.push({ name, series: lineSeries });
-    }
-    seriesListRef.current = seriesList;
-    applySeriesHighlightAndVisibility(seriesList, visibleMarkets, hoveredMarket);
     chart.timeScale().fitContent();
 
     return () => {

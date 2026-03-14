@@ -59,7 +59,7 @@ function latestOINotionalPerMarket(data: RawFundingRecord[]): Record<string, num
   return out;
 }
 
-const CHART_MAX_SERIES = 8;
+const CHART_MAX_SERIES = 10;
 
 export default function DecibelFundingPage() {
   const [rawFunding, setRawFunding] = useState<RawFundingRecord[] | null>(null);
@@ -180,6 +180,7 @@ export default function DecibelFundingPage() {
         <div className="flex-1 min-h-0 flex flex-col">
           <DecibelFundingChart
             rawData={rawFunding}
+            maxSeries={CHART_MAX_SERIES}
             className="w-full flex-1 min-h-0"
             hoveredMarket={hoveredCardMarket}
             visibleMarkets={visibleChartMarkets ?? (chartMarketNames.length > 0 ? new Set(chartMarketNames) : null)}
