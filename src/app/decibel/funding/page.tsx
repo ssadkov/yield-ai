@@ -5,10 +5,10 @@ import Link from 'next/link';
 import { Logo } from '@/components/ui/logo';
 import { WalletSelector } from '@/components/WalletSelector';
 import { DecibelCTABlock } from '@/components/ui/decibel-cta-block';
-import { DecibelFundingChart, type RawFundingRecord } from '@/components/decibel/decibel-funding-chart';
+import { DecibelFundingChart, getChartMarketOrder, type RawFundingRecord } from '@/components/decibel/decibel-funding-chart';
 import { DecibelOpenPositionModal, type DecibelOpenPositionMarket } from '@/components/decibel/decibel-open-position-modal';
 import { fetchFundingApr, marketNameForFundingApi } from '@/lib/protocols/decibel/fundingApr';
-import { formatNumber } from '@/lib/utils/numberFormat';
+import { formatNumber, formatCurrency } from '@/lib/utils/numberFormat';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
@@ -36,27 +36,38 @@ function getLogoUrl(marketName: string): string | undefined {
   return MARKET_LOGOS[key];
 }
 
-/** Latest open interest per market (normalized name e.g. BTC/USD) from raw funding data */
-function latestOIPerMarket(data: RawFundingRecord[]): Record<string, number> {
-  const byMarket: Record<string, { ts: number; oi: number }> = {};
+/**
+ * Latest open interest per market from raw funding data.
+ * API returns OI in base asset (e.g. 23 BTC); we convert to notional USD using mark_px.
+ */
+function latestOINotionalPerMarket(data: RawFundingRecord[]): Record<string, number> {
+  const byMarket: Record<string, { ts: number; oi: number; mark_px: number }> = {};
   for (const row of data) {
     const name = row.market_name;
     if (!name || typeof name !== 'string') continue;
+    const key = marketNameForFundingApi(name);
     const ts = typeof row.transaction_unix_ms === 'number' ? row.transaction_unix_ms : 0;
     const oi = typeof row.open_interest === 'number' ? row.open_interest : 0;
-    const prev = byMarket[name];
-    if (!prev || ts > prev.ts) byMarket[name] = { ts, oi };
+    const markPx = typeof (row as { mark_px?: number }).mark_px === 'number' ? (row as { mark_px: number }).mark_px : (row as { mid_px?: number }).mid_px ?? 0;
+    const prev = byMarket[key];
+    if (!prev || ts > prev.ts) byMarket[key] = { ts, oi, mark_px: markPx };
   }
   const out: Record<string, number> = {};
-  for (const [k, v] of Object.entries(byMarket)) out[k] = v.oi;
+  for (const [k, v] of Object.entries(byMarket)) {
+    out[k] = v.mark_px > 0 ? v.oi * v.mark_px : Number.NaN;
+  }
   return out;
 }
+
+const CHART_MAX_SERIES = 8;
 
 export default function DecibelFundingPage() {
   const [rawFunding, setRawFunding] = useState<RawFundingRecord[] | null>(null);
   const [markets, setMarkets] = useState<DecibelMarketRow[]>([]);
   const [fundingAprByMarket, setFundingAprByMarket] = useState<Record<string, { avg_yearly_apr_pct: number; direction: string } | null>>({});
   const [selectedMarket, setSelectedMarket] = useState<DecibelOpenPositionMarket | null>(null);
+  const [hoveredCardMarket, setHoveredCardMarket] = useState<string | null>(null);
+  const [visibleChartMarkets, setVisibleChartMarkets] = useState<Set<string> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -113,18 +124,26 @@ export default function DecibelFundingPage() {
     };
   }, [markets]);
 
-  const oiByMarket = useMemo(() => (rawFunding ? latestOIPerMarket(rawFunding) : {}), [rawFunding]);
+  const oiNotionalByMarket = useMemo(() => (rawFunding ? latestOINotionalPerMarket(rawFunding) : {}), [rawFunding]);
 
-  /** Markets sorted by Open Interest descending (largest first) */
+  const chartMarketNames = useMemo(() => getChartMarketOrder(rawFunding ?? null, CHART_MAX_SERIES), [rawFunding]);
+
+  useEffect(() => {
+    if (chartMarketNames.length > 0 && visibleChartMarkets === null) {
+      setVisibleChartMarkets(new Set(chartMarketNames));
+    }
+  }, [chartMarketNames, visibleChartMarkets]);
+
+  /** Markets sorted by Open Interest (notional USD) descending */
   const marketsSortedByOI = useMemo(() => {
     return [...markets].sort((a, b) => {
       const keyA = marketNameForFundingApi(a.market_name || '');
       const keyB = marketNameForFundingApi(b.market_name || '');
-      const oiA = oiByMarket[keyA] ?? -Infinity;
-      const oiB = oiByMarket[keyB] ?? -Infinity;
+      const oiA = oiNotionalByMarket[keyA] ?? -Infinity;
+      const oiB = oiNotionalByMarket[keyB] ?? -Infinity;
       return oiB - oiA;
     });
-  }, [markets, oiByMarket]);
+  }, [markets, oiNotionalByMarket]);
 
   return (
     <div className="h-screen flex flex-col md:flex-row bg-background overflow-hidden">
@@ -159,7 +178,22 @@ export default function DecibelFundingPage() {
           Funding rate (bps) over time by market. Positive = longs pay shorts.
         </p>
         <div className="flex-1 min-h-0 flex flex-col">
-          <DecibelFundingChart rawData={rawFunding} className="w-full flex-1 min-h-0" />
+          <DecibelFundingChart
+            rawData={rawFunding}
+            className="w-full flex-1 min-h-0"
+            hoveredMarket={hoveredCardMarket}
+            visibleMarkets={visibleChartMarkets ?? (chartMarketNames.length > 0 ? new Set(chartMarketNames) : null)}
+            onLegendHover={setHoveredCardMarket}
+            onLegendClick={(market) => {
+              setVisibleChartMarkets((prev) => {
+                const base = prev ?? new Set(chartMarketNames);
+                const next = new Set(base);
+                if (next.has(market)) next.delete(market);
+                else next.add(market);
+                return next;
+              });
+            }}
+          />
         </div>
       </main>
 
@@ -171,12 +205,31 @@ export default function DecibelFundingPage() {
             const name = m.market_name || '';
             const key = marketNameForFundingApi(name);
             const apr = fundingAprByMarket[key];
-            const oi = oiByMarket[key];
+            const oiNotional = oiNotionalByMarket[key];
             const logoUrl = getLogoUrl(name);
+            const isOnChart = chartMarketNames.includes(key);
+            const isVisible = visibleChartMarkets == null ? true : visibleChartMarkets.has(key);
             return (
               <li
                 key={m.market_addr}
-                className="flex items-center justify-between gap-2 p-2 rounded-lg border border-border bg-card hover:bg-muted/30"
+                className={cn(
+                  'flex items-center justify-between gap-2 p-2 rounded-lg border border-border bg-card transition-all',
+                  isOnChart && 'cursor-pointer hover:bg-muted/50',
+                  hoveredCardMarket === key && 'ring-1 ring-primary',
+                  isOnChart && !isVisible && 'opacity-50'
+                )}
+                onMouseEnter={() => isOnChart && setHoveredCardMarket(key)}
+                onMouseLeave={() => setHoveredCardMarket(null)}
+                onClick={() => {
+                  if (!isOnChart) return;
+                  setVisibleChartMarkets((prev) => {
+                    const base = prev ?? new Set(chartMarketNames);
+                    const next = new Set(base);
+                    if (next.has(key)) next.delete(key);
+                    else next.add(key);
+                    return next;
+                  });
+                }}
               >
                 <div className="flex items-center gap-2 min-w-0">
                   {logoUrl && (
@@ -208,19 +261,20 @@ export default function DecibelFundingPage() {
                     )}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    Open Interest: {typeof oi === 'number' && Number.isFinite(oi) ? formatNumber(oi, 0) : '—'}
+                    Open Interest: {typeof oiNotional === 'number' && Number.isFinite(oiNotional) ? formatCurrency(oiNotional, 0) : '—'}
                   </span>
                   <Button
                     size="sm"
                     variant="outline"
                     className="mt-1 h-7 text-xs"
-                    onClick={() =>
+                    onClick={(e) => {
+                      e.stopPropagation();
                       setSelectedMarket({
                         marketAddr: m.market_addr,
                         marketName: name,
                         marketLogoUrl: logoUrl,
-                      })
-                    }
+                      });
+                    }}
                   >
                     Open position
                   </Button>
