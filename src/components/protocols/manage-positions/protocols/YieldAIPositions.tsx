@@ -165,13 +165,6 @@ export function YieldAIPositions() {
     return () => window.removeEventListener("refreshPositions", handleRefresh);
   }, [account?.address]);
 
-  const handleWithdrawStub = async (_amount: bigint) => {
-    toast({
-      title: "Coming soon",
-      description: "Withdraw will be implemented later.",
-    });
-  };
-
   const totalValue = tokens.reduce(
     (sum, t) => sum + (t.value ? parseFloat(t.value) : 0),
     0
@@ -342,7 +335,7 @@ export function YieldAIPositions() {
           setSelectedWithdrawToken(null);
         }}
         token={selectedWithdrawToken}
-        onConfirm={handleWithdrawStub}
+        safeAddress={safeAddresses[0]}
       />
     </div>
   );
