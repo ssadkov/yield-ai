@@ -8,6 +8,8 @@ import { normalizeAddress } from '@/lib/utils/addressNormalization';
 import { formatNumber } from '@/lib/utils/numberFormat';
 import Image from 'next/image';
 import { DecibelOpenPositionModal } from '@/components/decibel/decibel-open-position-modal';
+import { fetchFundingApr, type FundingAprResult } from '@/lib/protocols/decibel/fundingApr';
+import { cn } from '@/lib/utils';
 
 /** Logo URLs for the three fixed perp markets. BTC and ETH from Decibel app; APT from Panora. */
 const MARKET_LOGOS: Record<string, string> = {
@@ -31,15 +33,10 @@ interface DecibelPrice {
   open_interest?: number;
 }
 
-function formatFundingRatePercent(fundingRateBps: number): string {
-  const percent = fundingRateBps / 100;
-  const sign = percent > 0 ? '+' : percent < 0 ? '-' : '';
-  return `${sign}${formatNumber(Math.abs(percent), 6)}%`;
-}
-
 export function DecibelIdeasBlock() {
   const [markets, setMarkets] = useState<DecibelMarket[]>([]);
   const [pricesByMarket, setPricesByMarket] = useState<Record<string, DecibelPrice>>({});
+  const [fundingByKey, setFundingByKey] = useState<Record<string, FundingAprResult | null>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedMarket, setSelectedMarket] = useState<{
@@ -100,6 +97,21 @@ export function DecibelIdeasBlock() {
   );
 
   const threeMarkets = [btcMarket, aptMarket, ethMarket].filter(Boolean) as typeof normalizedMarkets;
+  const marketKeysStr = threeMarkets.map((m) => m.key).filter(Boolean).join(',');
+
+  // Fetch 24h funding APR per market (cached 10 min)
+  useEffect(() => {
+    if (!marketKeysStr) return;
+    let cancelled = false;
+    threeMarkets.forEach((m) => {
+      const name = m.market_name;
+      if (!name || !m.key) return;
+      fetchFundingApr(name).then((data) => {
+        if (!cancelled) setFundingByKey((prev) => ({ ...prev, [m.key]: data }));
+      });
+    });
+    return () => { cancelled = true; };
+  }, [marketKeysStr]);
 
   if (loading) {
     return (
@@ -153,11 +165,20 @@ export function DecibelIdeasBlock() {
       {threeMarkets.map((m) => {
         const priceInfo = pricesByMarket[m.key];
         const markPx = priceInfo?.mark_px;
-        const fundingBps = priceInfo?.funding_rate_bps ?? 0;
-        const isFundingPositive = priceInfo?.is_funding_positive === true;
         const marketName = m.market_name || '—';
         const logoUrl = MARKET_LOGOS[marketName];
         const priceDecimals = marketName.toUpperCase().includes('BTC/USD') ? 0 : marketName.toUpperCase().includes('ETH/USD') ? 1 : 4;
+        const funding = fundingByKey[m.key];
+        const apr = funding?.avg_yearly_apr_pct;
+        const direction = funding?.direction ?? '—';
+        const aprColor =
+          apr != null && Number.isFinite(apr)
+            ? apr > 0
+              ? 'text-green-600 dark:text-green-400'
+              : apr < 0
+                ? 'text-red-600 dark:text-red-400'
+                : 'text-muted-foreground'
+            : 'text-muted-foreground';
 
         return (
           <Card key={m.key} className="border-2 min-w-0">
@@ -182,7 +203,17 @@ export function DecibelIdeasBlock() {
                 </>
               )}
               <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
-                <p>Funding: {isFundingPositive ? formatFundingRatePercent(fundingBps) : formatFundingRatePercent(-Math.abs(fundingBps))} {isFundingPositive ? 'Longs pay shorts' : 'Shorts pay longs'}</p>
+                <p>
+                  Funding APR (24h):{' '}
+                  {apr != null && Number.isFinite(apr) ? (
+                    <span className={cn('font-medium', aprColor)}>
+                      {apr > 0 ? '+' : ''}{formatNumber(apr, 2)}%
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                  {direction !== '—' && ` · ${direction}`}
+                </p>
               </div>
               <Button
                 className="mt-4 w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs whitespace-normal min-h-9 py-2 leading-tight"
