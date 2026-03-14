@@ -24,6 +24,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DepositButton } from "@/components/ui/deposit-button";
 import { getProtocolByName, getProtocolsList } from "@/lib/protocols/getProtocolsList";
 import Image from "next/image";
+import Link from "next/link";
 import { ManagePositions } from "./protocols/manage-positions/ManagePositions";
 import { Protocol } from "@/lib/protocols/getProtocolsList";
 import { useProtocol } from "@/lib/contexts/ProtocolContext";
@@ -1153,7 +1154,15 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold mb-4">Decibel Perps</h3>
+              <div className="flex items-center justify-between gap-2 mb-4">
+                <h3 className="text-lg font-semibold">Decibel Perps</h3>
+                <Link
+                  href="/decibel/funding"
+                  className="text-sm text-primary hover:underline shrink-0"
+                >
+                  Funding chart
+                </Link>
+              </div>
               <DecibelIdeasBlock />
             </div>
           </div>
