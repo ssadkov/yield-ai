@@ -35,6 +35,7 @@ import {
   buildCancelOrderPayload,
   type DecibelMarketConfig,
 } from '@/lib/protocols/decibel/closePosition';
+import { fetchFundingApr, type FundingAprResult } from '@/lib/protocols/decibel/fundingApr';
 
 export interface DecibelOpenPositionMarket {
   marketAddr: string;
@@ -121,6 +122,9 @@ export function DecibelOpenPositionModal({
   const [subaccountAddr, setSubaccountAddr] = useState<string | null>(null);
   const [marketConfig, setMarketConfig] = useState<DecibelMarketConfig | null>(null);
   const [markPx, setMarkPx] = useState<number | null>(null);
+  const [fundingRateBps, setFundingRateBps] = useState<number | null>(null);
+  const [isFundingPositive, setIsFundingPositive] = useState<boolean | null>(null);
+  const [fundingApr24h, setFundingApr24h] = useState<FundingAprResult | null>(null);
   const [decibelNetwork, setDecibelNetwork] = useState<'mainnet' | 'testnet'>('mainnet');
   const [placing, setPlacing] = useState(false);
   const [marketPositions, setMarketPositions] = useState<DecibelPositionRow[]>([]);
@@ -251,22 +255,43 @@ export function DecibelOpenPositionModal({
   useEffect(() => {
     if (!open || !market) {
       setMarkPx(null);
+      setFundingRateBps(null);
+      setIsFundingPositive(null);
       return;
     }
     let cancelled = false;
     fetch(`/api/protocols/decibel/prices?market=${encodeURIComponent(market.marketAddr)}`)
       .then((r) => r.json())
-      .then((data: { success?: boolean; data?: { mark_px?: number }[] }) => {
+      .then((data: { success?: boolean; data?: { mark_px?: number; funding_rate_bps?: number; is_funding_positive?: boolean }[] }) => {
         if (cancelled) return;
         const list = data?.success && Array.isArray(data.data) ? data.data : [];
         const first = list[0];
         setMarkPx(typeof first?.mark_px === 'number' ? first.mark_px : null);
+        setFundingRateBps(typeof first?.funding_rate_bps === 'number' ? first.funding_rate_bps : null);
+        setIsFundingPositive(first?.is_funding_positive ?? null);
       })
       .catch(() => {
-        if (!cancelled) setMarkPx(null);
+        if (!cancelled) {
+          setMarkPx(null);
+          setFundingRateBps(null);
+          setIsFundingPositive(null);
+        }
       });
     return () => { cancelled = true; };
   }, [open, market?.marketAddr]);
+
+  // Funding 24h APR from external API (cached)
+  useEffect(() => {
+    if (!open || !market?.marketName) {
+      setFundingApr24h(null);
+      return;
+    }
+    let cancelled = false;
+    fetchFundingApr(market.marketName).then((data) => {
+      if (!cancelled) setFundingApr24h(data);
+    });
+    return () => { cancelled = true; };
+  }, [open, market?.marketName]);
 
   const fetchPositionsAndOrders = useCallback(async () => {
     if (!open || !account?.address || !market) {
@@ -713,7 +738,7 @@ export function DecibelOpenPositionModal({
           {/* Left: chart + interval */}
           {market && (
             <div className="flex flex-col min-h-0 gap-3">
-              <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <div className="flex flex-wrap items-center gap-3 shrink-0">
                 <Label className="text-muted-foreground">Interval</Label>
                 <Select
                   value={chartInterval}
@@ -730,6 +755,48 @@ export function DecibelOpenPositionModal({
                     ))}
                   </SelectContent>
                 </Select>
+                {/* Current funding (Decibel API): positive = green, negative = red */}
+                <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  Funding:
+                  {fundingRateBps != null && Number.isFinite(fundingRateBps) && isFundingPositive !== null ? (
+                    (() => {
+                      const pct = (fundingRateBps / 100) * (isFundingPositive ? 1 : -1);
+                      return (
+                        <span
+                          className={cn(
+                            'font-medium',
+                            pct > 0 ? 'text-green-600 dark:text-green-400' : pct < 0 ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground'
+                          )}
+                        >
+                          {pct > 0 ? '+' : ''}{(pct).toFixed(4)}%
+                        </span>
+                      );
+                    })()
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </span>
+                {/* Funding 24h APR (external API) */}
+                <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  24h:
+                  {fundingApr24h != null && Number.isFinite(fundingApr24h.avg_yearly_apr_pct) ? (
+                    <span
+                      className={cn(
+                        'font-medium',
+                        fundingApr24h.avg_yearly_apr_pct > 0
+                          ? 'text-green-600 dark:text-green-400'
+                          : fundingApr24h.avg_yearly_apr_pct < 0
+                            ? 'text-red-600 dark:text-red-400'
+                            : 'text-muted-foreground'
+                      )}
+                    >
+                      {fundingApr24h.avg_yearly_apr_pct > 0 ? '+' : ''}
+                      {formatNumber(fundingApr24h.avg_yearly_apr_pct, 2)}%
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </span>
               </div>
               <div className="flex-1 min-h-[240px] sm:min-h-[280px] lg:min-h-0">
                 <DecibelChart
