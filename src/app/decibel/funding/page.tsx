@@ -146,9 +146,9 @@ export default function DecibelFundingPage() {
   }, [markets, oiNotionalByMarket]);
 
   return (
-    <div className="h-screen flex flex-col md:flex-row bg-background overflow-hidden">
+    <div className="h-screen min-h-0 flex flex-col md:flex-row bg-background overflow-x-hidden overflow-y-auto md:overflow-hidden" style={{ WebkitOverflowScrolling: 'touch' }}>
       {/* Left: Logo, Wallet, Decibel CTA, then explanation */}
-      <aside className="w-full md:w-72 shrink-0 border-b md:border-b-0 md:border-r border-border p-4 flex flex-col gap-4 overflow-y-auto">
+      <aside className="w-full md:w-72 shrink-0 border-b md:border-b-0 md:border-r border-border p-4 flex flex-col gap-4 md:max-h-screen md:overflow-y-auto min-h-0">
         <Link href="/" className="flex items-center gap-2 shrink-0">
           <Logo size="sm" className="shrink-0" />
           <span className="font-semibold text-sm">Yield AI</span>
@@ -171,13 +171,13 @@ export default function DecibelFundingPage() {
         </div>
       </aside>
 
-      {/* Center: Chart — fits remaining height */}
-      <main className="flex-1 min-w-0 min-h-0 p-4 flex flex-col overflow-hidden">
+      {/* Center: Chart — on mobile use natural height so page can scroll; on desktop fill remaining */}
+      <main className="flex-none min-h-[50vh] md:flex-1 md:min-h-0 min-w-0 p-4 flex flex-col overflow-hidden">
         <h1 className="text-xl font-bold mb-1 shrink-0">Decibel funding</h1>
         <p className="text-sm text-muted-foreground mb-2 shrink-0">
           Funding rate (bps) over time by market. Positive = longs pay shorts.
         </p>
-        <div className="flex-1 min-h-0 flex flex-col">
+        <div className="flex-1 min-h-[55vh] md:min-h-0 flex flex-col">
           <DecibelFundingChart
             rawData={rawFunding}
             maxSeries={CHART_MAX_SERIES}
@@ -199,7 +199,7 @@ export default function DecibelFundingPage() {
       </main>
 
       {/* Right: Markets list (sorted by Open Interest desc) */}
-      <aside className="w-full md:w-80 shrink-0 border-t md:border-t-0 md:border-l border-border p-4 overflow-y-auto">
+      <aside className="w-full md:w-80 shrink-0 border-t md:border-t-0 md:border-l border-border p-4 overflow-y-auto md:max-h-screen min-h-0">
         <h2 className="text-sm font-semibold mb-3">Markets</h2>
         <ul className="space-y-2">
           {marketsSortedByOI.map((m) => {

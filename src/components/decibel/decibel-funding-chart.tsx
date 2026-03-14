@@ -304,7 +304,7 @@ export function DecibelFundingChart({
         className={`w-full flex-1 min-h-0 ${hasError ? 'hidden' : ''}`}
       />
       {marketOrder.length > 0 && !hasError && (
-        <div className="flex flex-wrap gap-3 mt-2 pt-2 border-t border-border text-xs text-muted-foreground">
+        <div className="flex flex-wrap gap-x-2 gap-y-1 mt-1 pt-1.5 border-t border-border text-xs text-muted-foreground">
           {marketOrder.map((name, i) => {
             const visible = visibleMarkets == null ? true : visibleMarkets.has(name);
             const isHovered = hoveredMarket === name;
