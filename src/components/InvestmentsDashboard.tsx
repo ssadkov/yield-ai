@@ -1059,21 +1059,21 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                   return (
                     <Card
                       key={item.key}
-                      className={cn("border-2", getDropZoneClassName(bestPool))}
+                      className={cn("border-2 min-w-0 overflow-hidden", getDropZoneClassName(bestPool))}
                       onDragOver={(e) => handleDragOver(e, bestPool)}
                       onDragLeave={handleDragLeave}
                       onDrop={(e) => handleDropEvent(e, bestPool)}
                     >
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2 w-full flex-wrap">
+                      <CardHeader className="min-w-0">
+                        <CardTitle className="flex items-center gap-2 w-full flex-wrap min-w-0 text-sm md:text-base">
                           <TooltipProvider>
                             <Tooltip>
-                              <TooltipTrigger className="cursor-default">
-                                <div className="flex items-center gap-2">
+                              <TooltipTrigger className="cursor-default min-w-0 flex-1 text-left">
+                                <div className="flex items-start gap-2 min-w-0 flex-wrap">
                                   {isDex ? (
                                     // DEX pool display with up to three tokens
-                                    <div className="flex items-center gap-2">
-                                      <div className="flex">
+                                    <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                                      <div className="flex shrink-0">
                                         {(bestPool as any).tokensInfo?.slice(0,3)?.map((t: any, idx: number) => (
                                           <Avatar key={idx} className={`w-6 h-6 ${idx > 0 ? '-ml-2' : ''}`}>
                                             {t.logoUrl ? (
@@ -1095,13 +1095,13 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                           </>
                                         )}
                                       </div>
-                                      <span>{((bestPool as any).tokensInfo?.slice(0,3)?.map((t: any) => t.symbol) || [bestPool.token1Info?.symbol, bestPool.token2Info?.symbol]).filter(Boolean).join(' / ')}</span>
+                                      <span className="break-words">{((bestPool as any).tokensInfo?.slice(0,3)?.map((t: any) => t.symbol) || [bestPool.token1Info?.symbol, bestPool.token2Info?.symbol]).filter(Boolean).join(' / ')}</span>
                                     </div>
                                   ) : (
                                     // Lending pool display (existing logic)
                                     <>
                                       {logoUrl && (
-                                        <div className="w-6 h-6 relative">
+                                        <div className="w-6 h-6 relative shrink-0">
                                           <Image
                                             src={logoUrl}
                                             alt={displaySymbol}
@@ -1111,15 +1111,15 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                                           />
                                         </div>
                                       )}
-                                      <span>{displaySymbol}</span>
+                                      <span className="break-words">{displaySymbol}</span>
                                     </>
                                   )}
                                 </div>
                               </TooltipTrigger>
                             </Tooltip>
                           </TooltipProvider>
-                          <div className="ml-auto shrink-0 flex items-center gap-2">
-                            <Badge variant="outline">{bestPool.protocol}</Badge>
+                          <div className="shrink-0 flex items-center gap-2 flex-wrap justify-end">
+                            <Badge variant="outline" className="text-xs whitespace-normal break-words max-w-full">{bestPool.protocol}</Badge>
                             {protocol?.airdropInfo && (
                               <AirdropInfoTooltip airdropInfo={protocol.airdropInfo} size="sm">
                                 <div className="flex items-center justify-center w-5 h-5 rounded-full bg-muted hover:bg-muted/80 transition-colors cursor-help">
@@ -1131,7 +1131,7 @@ export function InvestmentsDashboard({ className }: InvestmentsDashboardProps) {
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="text-2xl font-bold">{bestPool.totalAPY?.toFixed(2) || "0.00"}%</div>
+                        <div className="text-lg md:text-2xl font-bold whitespace-nowrap">{bestPool.totalAPY?.toFixed(2) || "0.00"}%</div>
                         <p className="text-xs text-muted-foreground">Total APR</p>
                         <DepositButton
                           protocol={protocol!}

@@ -160,24 +160,24 @@ export function DecibelIdeasBlock() {
         const priceDecimals = marketName.toUpperCase().includes('BTC/USD') ? 0 : marketName.toUpperCase().includes('ETH/USD') ? 1 : 4;
 
         return (
-          <Card key={m.key} className="border-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 w-full flex-wrap">
-                <div className="flex items-center gap-2 min-w-0">
-                  {logoUrl ? (
-                    <div className="w-6 h-6 relative shrink-0">
-                      <Image src={logoUrl} alt="" width={24} height={24} className="object-contain" unoptimized />
-                    </div>
-                  ) : null}
+          <Card key={m.key} className="border-2 min-w-0">
+            <CardHeader className="min-w-0 overflow-visible">
+              <CardTitle className="flex items-center gap-2 w-full flex-wrap min-w-0">
+                {logoUrl ? (
+                  <div className="w-6 h-6 relative shrink-0 overflow-visible flex items-center justify-center">
+                    <Image src={logoUrl} alt="" width={24} height={24} className="object-contain" unoptimized />
+                  </div>
+                ) : null}
+                <div className="flex items-center min-w-0 flex-1 overflow-hidden">
                   <span className="truncate">{marketName}</span>
                 </div>
-                <Badge variant="outline" className="ml-auto shrink-0">Decibel</Badge>
+                <Badge variant="outline" className="shrink-0">Decibel</Badge>
               </CardTitle>
             </CardHeader>
             <CardContent>
               {typeof markPx === 'number' && (
                 <>
-                  <div className="text-2xl font-bold">{formatNumber(markPx, priceDecimals)}</div>
+                  <div className="text-lg font-bold">{formatNumber(markPx, priceDecimals)}</div>
                   <p className="text-xs text-muted-foreground">Mark price</p>
                 </>
               )}
@@ -185,7 +185,7 @@ export function DecibelIdeasBlock() {
                 <p>Funding: {isFundingPositive ? formatFundingRatePercent(fundingBps) : formatFundingRatePercent(-Math.abs(fundingBps))} {isFundingPositive ? 'Longs pay shorts' : 'Shorts pay longs'}</p>
               </div>
               <Button
-                className="mt-4 w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+                className="mt-4 w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs whitespace-normal min-h-9 py-2 leading-tight"
                 onClick={() =>
                   setSelectedMarket({
                     marketAddr: m.key,
