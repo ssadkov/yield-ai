@@ -9,6 +9,7 @@ import { useCollapsible } from "@/contexts/CollapsibleContext";
 import { getProtocolByName } from "@/lib/protocols/getProtocolsList";
 import { TokenList } from "@/components/portfolio/TokenList";
 import { PositionsList as MoarPositionsList } from "@/components/protocols/moar/PositionsList";
+import { ManagePositionsButton } from "@/components/protocols/ManagePositionsButton";
 import { PanoraPricesService } from "@/lib/services/panora/prices";
 import { Token } from "@/lib/types/token";
 import { APTOS_COIN_TYPE } from "@/lib/constants/yieldAiVault";
@@ -35,7 +36,7 @@ export function PositionsList({
   onPositionsValueChange,
   refreshKey,
   onPositionsCheckComplete,
-  showManageButton = false,
+  showManageButton = true,
 }: PositionsListProps) {
   const walletAddress = address ?? null;
   const { toast } = useToast();
@@ -270,6 +271,11 @@ export function PositionsList({
               />
             </div>
           ))}
+        </div>
+      )}
+      {expanded && showManageButton && protocol && (
+        <div className="px-3 pb-2">
+          <ManagePositionsButton protocol={protocol} />
         </div>
       )}
     </div>

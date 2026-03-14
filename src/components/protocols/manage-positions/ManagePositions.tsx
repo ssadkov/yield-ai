@@ -18,6 +18,7 @@ import { AptreePositions } from "./protocols/AptreePositions";
 import { ThalaPositions } from "./protocols/ThalaPositions";
 import { EchoPositions } from "./protocols/EchoPositions";
 import { DecibelPositions } from "./protocols/DecibelPositions";
+import { YieldAIPositions } from "./protocols/YieldAIPositions";
 import { RefreshCw, Info, ExternalLink, Gift } from "lucide-react";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import { useState } from "react";
@@ -84,6 +85,15 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
       } else if (protocol.key === 'aptree' || protocol.name.toLowerCase().includes('aptree')) {
         apiPath = 'aptree';
         endpoint = 'userPositions';
+      } else if (protocol.key === 'yield-ai' || protocol.name.toLowerCase().includes('ai agent')) {
+        apiPath = 'yield-ai';
+        endpoint = 'safes';
+        window.dispatchEvent(new CustomEvent('refreshPositions', { detail: { protocol: 'yield-ai' } }));
+        toast({
+          title: "Success",
+          description: `${protocol.name} positions refreshed successfully`,
+        });
+        return;
       }
       
       const response = await fetch(`/api/protocols/${apiPath}/${endpoint}?address=${account.address}`);
@@ -160,6 +170,8 @@ export function ManagePositions({ protocol, onClose }: ManagePositionsProps) {
         return <EchoPositions />;
       case 'decibel':
         return <DecibelPositions />;
+      case 'ai agent':
+        return <YieldAIPositions />;
       case 'aptree':
         return <AptreePositions />;
       default:
