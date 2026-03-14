@@ -149,7 +149,8 @@ export function DecibelFundingChart({
 }: DecibelFundingChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<ReturnType<typeof createChart> | null>(null);
-  const seriesListRef = useRef<{ name: string; series: ReturnType<typeof chartRef.current.addSeries> }[]>([]);
+  type ChartSeries = ReturnType<ReturnType<typeof createChart>['addSeries']>;
+  const seriesListRef = useRef<{ name: string; series: ChartSeries }[]>([]);
   const [loading, setLoading] = useState(!rawData);
   const [error, setError] = useState<string | null>(null);
   const [internalData, setInternalData] = useState<RawFundingRecord[] | null>(null);
