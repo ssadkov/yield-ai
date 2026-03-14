@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { PanoraPricesService } from "@/lib/services/panora/prices";
 import { Token } from "@/lib/types/token";
-import { APTOS_COIN_TYPE } from "@/lib/constants/yieldAiVault";
+import { APTOS_COIN_TYPE, USDC_FA_METADATA_MAINNET } from "@/lib/constants/yieldAiVault";
 import type { TokenPrice } from "@/lib/types/panora";
 import { formatCurrency, formatNumber } from "@/lib/utils/numberFormat";
 import { useToast } from "@/components/ui/use-toast";
@@ -19,6 +19,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Copy } from "lucide-react";
+import { YieldAIDepositModal } from "@/components/ui/yield-ai-deposit-modal";
+import { YieldAIWithdrawModal } from "@/components/ui/yield-ai-withdraw-modal";
 
 export function YieldAIPositions() {
   const { account } = useWallet();
@@ -27,6 +29,9 @@ export function YieldAIPositions() {
   const [tokens, setTokens] = useState<Token[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [selectedWithdrawToken, setSelectedWithdrawToken] = useState<Token | null>(null);
 
   const loadData = async () => {
     const walletAddress = account?.address?.toString();
@@ -160,14 +165,7 @@ export function YieldAIPositions() {
     return () => window.removeEventListener("refreshPositions", handleRefresh);
   }, [account?.address]);
 
-  const handleDepositStub = () => {
-    toast({
-      title: "Coming soon",
-      description: "Deposit will be implemented later.",
-    });
-  };
-
-  const handleWithdrawStub = () => {
+  const handleWithdrawStub = async (_amount: bigint) => {
     toast({
       title: "Coming soon",
       description: "Withdraw will be implemented later.",
@@ -233,12 +231,33 @@ export function YieldAIPositions() {
           </Tooltip>
         </div>
         <div className="flex gap-2">
-          <Button size="sm" variant="default" onClick={handleDepositStub}>
-            Deposit
-          </Button>
-          <Button size="sm" variant="outline" onClick={handleWithdrawStub}>
-            Withdraw
-          </Button>
+          {tokens.some(
+            (t) =>
+              t.symbol === "USDC" ||
+              normalizeAddress(t.address) === normalizeAddress(USDC_FA_METADATA_MAINNET)
+          ) ? (
+            <>
+              <Button size="sm" variant="default" onClick={() => setShowDepositModal(true)}>
+                Deposit
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  if (tokens.length > 0) {
+                    setSelectedWithdrawToken(tokens[0]);
+                    setShowWithdrawModal(true);
+                  }
+                }}
+              >
+                Withdraw
+              </Button>
+            </>
+          ) : (
+            <Button size="sm" variant="default" onClick={() => setShowDepositModal(true)}>
+              Deposit USDC
+            </Button>
+          )}
         </div>
       </div>
 
@@ -280,11 +299,22 @@ export function YieldAIPositions() {
                     )}
                   </div>
                 </div>
-                <div className="text-right shrink-0">
+                <div className="text-right shrink-0 flex flex-col items-end gap-1">
                   <div className="font-bold">{formatCurrency(value, 2)}</div>
                   <div className="text-sm text-muted-foreground">
                     {formatNumber(amount, 4)}
                   </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={() => {
+                      setSelectedWithdrawToken(token);
+                      setShowWithdrawModal(true);
+                    }}
+                  >
+                    Withdraw
+                  </Button>
                 </div>
               </div>
             );
@@ -298,6 +328,22 @@ export function YieldAIPositions() {
           {formatCurrency(totalValue, 2)}
         </span>
       </div>
+
+      <YieldAIDepositModal
+        isOpen={showDepositModal}
+        onClose={() => setShowDepositModal(false)}
+        safeAddress={safeAddresses[0]}
+      />
+
+      <YieldAIWithdrawModal
+        isOpen={showWithdrawModal}
+        onClose={() => {
+          setShowWithdrawModal(false);
+          setSelectedWithdrawToken(null);
+        }}
+        token={selectedWithdrawToken}
+        onConfirm={handleWithdrawStub}
+      />
     </div>
   );
 }
