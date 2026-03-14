@@ -252,7 +252,7 @@ export function DecibelFundingChart({
     if (Number.isFinite(timeMin) && Number.isFinite(timeMax)) {
       const zeroSeries = chart.addSeries(LineSeries, {
         color: 'transparent',
-        lineWidth: 0,
+        lineWidth: 1,
         title: '',
         lineType: LineType.Curved,
       });
