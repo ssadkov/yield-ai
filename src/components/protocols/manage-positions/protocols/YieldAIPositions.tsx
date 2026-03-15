@@ -5,6 +5,7 @@ import { useWallet } from "@aptos-labs/wallet-adapter-react";
 import Image from "next/image";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { PanoraPricesService } from "@/lib/services/panora/prices";
 import { Token } from "@/lib/types/token";
 import { APTOS_COIN_TYPE, USDC_FA_METADATA_MAINNET } from "@/lib/constants/yieldAiVault";
@@ -17,14 +18,23 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
+  TooltipProvider,
 } from "@/components/ui/tooltip";
 import { Copy } from "lucide-react";
 import { YieldAIDepositModal } from "@/components/ui/yield-ai-deposit-modal";
 import { YieldAIWithdrawModal } from "@/components/ui/yield-ai-withdraw-modal";
+import { useMoarPositions, useMoarPools, type MoarPosition } from "@/lib/query/hooks/protocols/moar";
+import { useWithdraw } from "@/lib/hooks/useWithdraw";
+import { useWalletStore } from "@/lib/stores/walletStore";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query/queryKeys";
+import { DepositModal } from "@/components/ui/deposit-modal";
+import { WithdrawModal } from "@/components/ui/withdraw-modal";
 
 export function YieldAIPositions() {
   const { account } = useWallet();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [safeAddresses, setSafeAddresses] = useState<string[]>([]);
   const [tokens, setTokens] = useState<Token[]>([]);
   const [loading, setLoading] = useState(false);
@@ -32,6 +42,35 @@ export function YieldAIPositions() {
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [selectedWithdrawToken, setSelectedWithdrawToken] = useState<Token | null>(null);
+  const [showMoarDepositModal, setShowMoarDepositModal] = useState(false);
+  const [showMoarWithdrawModal, setShowMoarWithdrawModal] = useState(false);
+  const [selectedMoarDepositPosition, setSelectedMoarDepositPosition] = useState<MoarPosition | null>(null);
+  const [selectedMoarWithdrawPosition, setSelectedMoarWithdrawPosition] = useState<MoarPosition | null>(null);
+
+  const safeAddr = safeAddresses[0];
+  const { data: moarPositions = [], isLoading: moarPositionsLoading } = useMoarPositions(safeAddr, {
+    refetchOnMount: "always",
+  });
+  const { data: poolsResponse } = useMoarPools();
+  const { withdraw, isLoading: isWithdrawing } = useWithdraw();
+  const { getTokenPrice } = useWalletStore();
+
+  const poolsAPR = (() => {
+    if (!poolsResponse?.data) return {} as Record<number, { totalAPR: number; interestRateComponent: number; farmingAPY: number }>;
+    const map: Record<number, { totalAPR: number; interestRateComponent: number; farmingAPY: number }> = {};
+    (poolsResponse.data as { poolId?: number; totalAPY?: number; interestRateComponent?: number; farmingAPY?: number }[]).forEach(
+      (pool) => {
+        if (pool.poolId !== undefined) {
+          map[pool.poolId] = {
+            totalAPR: pool.totalAPY ?? 0,
+            interestRateComponent: pool.interestRateComponent ?? 0,
+            farmingAPY: pool.farmingAPY ?? 0,
+          };
+        }
+      }
+    );
+    return map;
+  })();
 
   const loadData = async () => {
     const walletAddress = account?.address?.toString();
@@ -141,7 +180,14 @@ export function YieldAIPositions() {
         const vb = b.value ? parseFloat(b.value) : 0;
         return vb - va;
       });
-      setTokens(built);
+      // Only show base assets (USDC, APT); hide wrapper/supply tokens
+      const baseOnly = built.filter(
+        (t) =>
+          t.symbol === "USDC" ||
+          normalizeAddress(t.address) === normalizeAddress(USDC_FA_METADATA_MAINNET) ||
+          t.address === APTOS_COIN_TYPE
+      );
+      setTokens(baseOnly);
     } catch {
       setError("Failed to load AI agent safe data");
       setTokens([]);
@@ -165,10 +211,42 @@ export function YieldAIPositions() {
     return () => window.removeEventListener("refreshPositions", handleRefresh);
   }, [account?.address]);
 
-  const totalValue = tokens.reduce(
-    (sum, t) => sum + (t.value ? parseFloat(t.value) : 0),
+  const getMoarTokenAddress = (symbol: string) => {
+    if (symbol === "APT") return "0x1::aptos_coin::AptosCoin";
+    if (symbol === "USDC") return "0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b";
+    return symbol;
+  };
+
+  const handleMoarWithdrawConfirm = async (amount: bigint) => {
+    if (!selectedMoarWithdrawPosition) return;
+    try {
+      const tokenAddress = getMoarTokenAddress(selectedMoarWithdrawPosition.assetInfo.symbol);
+      await withdraw("moar", String(selectedMoarWithdrawPosition.poolId), amount, tokenAddress);
+      setShowMoarWithdrawModal(false);
+      setSelectedMoarWithdrawPosition(null);
+      if (safeAddr) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.protocols.moar.userPositions(safeAddr) });
+      }
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("refreshPositions", { detail: { protocol: "yield-ai" } }));
+      }, 2000);
+    } catch (err) {
+      console.error("Moar withdraw failed:", err);
+      toast({
+        title: "Withdraw Failed",
+        description: err instanceof Error ? err.message : "Withdraw failed. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const moarPositionsValue = moarPositions.reduce(
+    (sum, p) => sum + parseFloat(p.value || "0"),
     0
   );
+  const totalValue =
+    tokens.reduce((sum, t) => sum + (t.value ? parseFloat(t.value) : 0), 0) +
+    moarPositionsValue;
 
   if (loading) {
     return <div className="py-4 text-muted-foreground">Loading safe assets...</div>;
@@ -223,39 +301,109 @@ export function YieldAIPositions() {
             </TooltipContent>
           </Tooltip>
         </div>
-        <div className="flex gap-2">
-          {tokens.some(
-            (t) =>
-              t.symbol === "USDC" ||
-              normalizeAddress(t.address) === normalizeAddress(USDC_FA_METADATA_MAINNET)
-          ) ? (
-            <>
-              <Button size="sm" variant="default" onClick={() => setShowDepositModal(true)}>
-                Deposit
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  if (tokens.length > 0) {
-                    setSelectedWithdrawToken(tokens[0]);
-                    setShowWithdrawModal(true);
-                  }
-                }}
-              >
-                Withdraw
-              </Button>
-            </>
-          ) : (
+        {!tokens.some(
+          (t) =>
+            t.symbol === "USDC" ||
+            normalizeAddress(t.address) === normalizeAddress(USDC_FA_METADATA_MAINNET)
+        ) && (
+          <div className="flex gap-2">
             <Button size="sm" variant="default" onClick={() => setShowDepositModal(true)}>
               Deposit USDC
             </Button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       <ScrollArea className="max-h-[420px]">
-        {tokens.length === 0 ? (
+        {moarPositions.map((position) => {
+          const value = parseFloat(position.value || "0");
+          const decimals = position.assetInfo?.decimals ?? 8;
+          const amount = parseFloat(position.balance || "0") / Math.pow(10, decimals);
+          const poolAPR = poolsAPR[position.poolId];
+          return (
+            <div
+              key={`moar-${position.poolId}`}
+              className="p-3 sm:p-4 border-b last:border-b-0 flex justify-between items-center gap-3"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex items-center -space-x-1">
+                  <div className="w-8 h-8 relative shrink-0 rounded-full bg-muted flex items-center justify-center overflow-hidden ring-2 ring-background">
+                    <Image
+                      src="/protocol_ico/moar-market-logo-primary.png"
+                      alt="MOAR"
+                      width={32}
+                      height={32}
+                      className="object-contain"
+                      unoptimized
+                    />
+                  </div>
+                  {position.assetInfo?.logoUrl && (
+                    <div className="w-8 h-8 relative shrink-0 rounded-full bg-muted flex items-center justify-center overflow-hidden ring-2 ring-background">
+                      <Image
+                        src={position.assetInfo.logoUrl}
+                        alt={position.assetInfo.symbol}
+                        width={32}
+                        height={32}
+                        className="object-contain"
+                        unoptimized
+                      />
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">{position.assetInfo?.symbol ?? "—"}</span>
+                    <Badge
+                      variant="outline"
+                      className="bg-green-500/10 text-green-600 border-green-500/20 text-xs font-normal px-2 py-0.5 h-5"
+                    >
+                      Supply
+                    </Badge>
+                  </div>
+                  {poolAPR && poolAPR.totalAPR > 0 && (
+                    <div className="text-sm text-muted-foreground">
+                      APR: {formatNumber(poolAPR.totalAPR, 2)}%
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <div className="text-lg font-bold">{formatCurrency(value, 2)}</div>
+                <div className="text-base text-muted-foreground font-semibold">
+                  {formatNumber(amount, 4)}
+                </div>
+                <div className="flex gap-2 mt-2 justify-end">
+                  <Button
+                    size="sm"
+                    variant="default"
+                    className="h-10"
+                    onClick={() => {
+                      setSelectedMoarDepositPosition(position);
+                      setShowMoarDepositModal(true);
+                    }}
+                  >
+                    Deposit
+                  </Button>
+                  {amount > 0 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-10"
+                      disabled={isWithdrawing}
+                      onClick={() => {
+                        setSelectedMoarWithdrawPosition(position);
+                        setShowMoarWithdrawModal(true);
+                      }}
+                    >
+                      {isWithdrawing ? "Withdrawing..." : "Withdraw"}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {tokens.length === 0 && moarPositions.length === 0 ? (
           <div className="py-4 text-muted-foreground">No assets in this safe.</div>
         ) : (
           tokens.map((token) => {
@@ -263,6 +411,9 @@ export function YieldAIPositions() {
             const amount =
               parseFloat(token.amount) / Math.pow(10, token.decimals);
             const price = token.price ? parseFloat(token.price) : 0;
+            const isUsdc =
+              token.symbol === "USDC" ||
+              normalizeAddress(token.address) === normalizeAddress(USDC_FA_METADATA_MAINNET);
             return (
               <div
                 key={token.address}
@@ -284,7 +435,17 @@ export function YieldAIPositions() {
                     )}
                   </div>
                   <div className="min-w-0">
-                    <div className="font-semibold">{token.symbol}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">{token.symbol}</span>
+                      {isUsdc && (
+                        <Badge
+                          variant="outline"
+                          className="bg-green-500/10 text-green-600 border-green-500/20 text-xs font-normal px-2 py-0.5 h-5"
+                        >
+                          AGENT WALLET
+                        </Badge>
+                      )}
+                    </div>
                     {price > 0 && (
                       <div className="text-sm text-muted-foreground">
                         {formatCurrency(price, 4)}
@@ -292,22 +453,34 @@ export function YieldAIPositions() {
                     )}
                   </div>
                 </div>
-                <div className="text-right shrink-0 flex flex-col items-end gap-1">
-                  <div className="font-bold">{formatCurrency(value, 2)}</div>
-                  <div className="text-sm text-muted-foreground">
+                <div className="text-right shrink-0">
+                  <div className="text-lg font-bold">{formatCurrency(value, 2)}</div>
+                  <div className="text-base text-muted-foreground font-semibold">
                     {formatNumber(amount, 4)}
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-xs"
-                    onClick={() => {
-                      setSelectedWithdrawToken(token);
-                      setShowWithdrawModal(true);
-                    }}
-                  >
-                    Withdraw
-                  </Button>
+                  {isUsdc && (
+                    <div className="flex gap-2 mt-2 justify-end">
+                      <Button
+                        size="sm"
+                        variant="default"
+                        className="h-10"
+                        onClick={() => setShowDepositModal(true)}
+                      >
+                        Deposit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-10"
+                        onClick={() => {
+                          setSelectedWithdrawToken(token);
+                          setShowWithdrawModal(true);
+                        }}
+                      >
+                        Withdraw
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -337,6 +510,59 @@ export function YieldAIPositions() {
         token={selectedWithdrawToken}
         safeAddress={safeAddresses[0]}
       />
+
+      {selectedMoarWithdrawPosition && (
+        <WithdrawModal
+          isOpen={showMoarWithdrawModal}
+          onClose={() => {
+            setShowMoarWithdrawModal(false);
+            setSelectedMoarWithdrawPosition(null);
+          }}
+          onConfirm={handleMoarWithdrawConfirm}
+          position={{
+            coin: selectedMoarWithdrawPosition.assetInfo.symbol,
+            supply: selectedMoarWithdrawPosition.balance,
+            market: String(selectedMoarWithdrawPosition.poolId),
+          }}
+          tokenInfo={{
+            symbol: selectedMoarWithdrawPosition.assetInfo.symbol,
+            logoUrl: selectedMoarWithdrawPosition.assetInfo.logoUrl ?? undefined,
+            decimals: selectedMoarWithdrawPosition.assetInfo.decimals,
+            usdPrice: getTokenPrice(getMoarTokenAddress(selectedMoarWithdrawPosition.assetInfo.symbol)),
+          }}
+          isLoading={isWithdrawing}
+          userAddress={safeAddr ?? undefined}
+        />
+      )}
+
+      {selectedMoarDepositPosition && (
+        <DepositModal
+          isOpen={showMoarDepositModal}
+          onClose={() => {
+            setShowMoarDepositModal(false);
+            setSelectedMoarDepositPosition(null);
+          }}
+          protocol={{
+            name: "Moar Market",
+            logo: "/protocol_ico/moar-market-logo-primary.png",
+            apy: poolsAPR[selectedMoarDepositPosition.poolId]?.totalAPR ?? 0,
+            key: "moar",
+          }}
+          tokenIn={{
+            symbol: selectedMoarDepositPosition.assetInfo.symbol,
+            logo: selectedMoarDepositPosition.assetInfo.logoUrl ?? "",
+            decimals: selectedMoarDepositPosition.assetInfo.decimals,
+            address: getMoarTokenAddress(selectedMoarDepositPosition.assetInfo.symbol),
+          }}
+          tokenOut={{
+            symbol: selectedMoarDepositPosition.assetInfo.symbol,
+            logo: selectedMoarDepositPosition.assetInfo.logoUrl ?? "",
+            decimals: selectedMoarDepositPosition.assetInfo.decimals,
+            address: getMoarTokenAddress(selectedMoarDepositPosition.assetInfo.symbol),
+          }}
+          priceUSD={parseFloat(getTokenPrice(getMoarTokenAddress(selectedMoarDepositPosition.assetInfo.symbol)) || "0")}
+        />
+      )}
     </div>
   );
 }

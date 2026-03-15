@@ -5,9 +5,11 @@ import { useEffect, useState } from "react";
 interface TokenListProps {
   tokens: Token[];
   disableDrag?: boolean;
+  /** Optional: return badge text for the right side of a token row (e.g. "AGENT WALLET" for USDC) */
+  getRightBadge?: (token: Token) => string | undefined;
 }
 
-export function TokenList({ tokens, disableDrag = false }: TokenListProps) {
+export function TokenList({ tokens, disableDrag = false, getRightBadge }: TokenListProps) {
   const [stakingAprs, setStakingAprs] = useState<Record<string, { aprPct: number; source: string }>>({});
 
   useEffect(() => {
@@ -39,7 +41,13 @@ export function TokenList({ tokens, disableDrag = false }: TokenListProps) {
   return (
     <div className="space-y-2">
       {sortedTokens.map((token) => (
-        <TokenItem key={token.address} token={token} stakingAprs={stakingAprs} disableDrag={disableDrag} />
+        <TokenItem
+          key={token.address}
+          token={token}
+          stakingAprs={stakingAprs}
+          disableDrag={disableDrag}
+          rightBadge={getRightBadge?.(token)}
+        />
       ))}
     </div>
   );

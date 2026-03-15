@@ -382,17 +382,28 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
               {/* Desktop Layout */}
               <div className="hidden sm:flex justify-between items-center">
                 <div className="flex items-center gap-2">
-                  {tokenInfo.logoUrl && (
-                    <div className="w-8 h-8 relative">
+                  <div className="flex items-center -space-x-1">
+                    <div className="w-8 h-8 relative rounded-full overflow-hidden ring-2 ring-background flex items-center justify-center bg-muted">
                       <Image
-                        src={tokenInfo.logoUrl}
-                        alt={tokenInfo.symbol}
+                        src="/protocol_ico/moar-market-logo-primary.png"
+                        alt="MOAR"
                         width={32}
                         height={32}
                         className="object-contain"
                       />
                     </div>
-                  )}
+                    {tokenInfo.logoUrl && (
+                      <div className="w-8 h-8 relative rounded-full overflow-hidden ring-2 ring-background flex items-center justify-center bg-muted">
+                        <Image
+                          src={tokenInfo.logoUrl}
+                          alt={tokenInfo.symbol}
+                          width={32}
+                          height={32}
+                          className="object-contain"
+                        />
+                      </div>
+                    )}
+                  </div>
                   <div>
                     <div className="flex items-center gap-2">
                       <div className="text-lg font-semibold">{tokenInfo.symbol}</div>
@@ -508,17 +519,28 @@ export function MoarPositions({ address, onPositionsValueChange }: MoarPositions
                 {/* Верхняя строка - токен и значение */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    {tokenInfo.logoUrl && (
-                      <div className="w-8 h-8 relative">
+                    <div className="flex items-center -space-x-1">
+                      <div className="w-8 h-8 relative rounded-full overflow-hidden ring-2 ring-background flex items-center justify-center bg-muted">
                         <Image
-                          src={tokenInfo.logoUrl}
-                          alt={tokenInfo.symbol}
+                          src="/protocol_ico/moar-market-logo-primary.png"
+                          alt="MOAR"
                           width={32}
                           height={32}
                           className="object-contain"
                         />
                       </div>
-                    )}
+                      {tokenInfo.logoUrl && (
+                        <div className="w-8 h-8 relative rounded-full overflow-hidden ring-2 ring-background flex items-center justify-center bg-muted">
+                          <Image
+                            src={tokenInfo.logoUrl}
+                            alt={tokenInfo.symbol}
+                            width={32}
+                            height={32}
+                            className="object-contain"
+                          />
+                        </div>
+                      )}
+                    </div>
                     <div>
                       <div className="text-base font-semibold">{tokenInfo.symbol}</div>
                       <div className="text-sm text-muted-foreground">

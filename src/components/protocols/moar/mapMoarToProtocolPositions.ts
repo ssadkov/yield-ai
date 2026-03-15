@@ -25,11 +25,13 @@ export function mapMoarPositionToProtocolPosition(
   const symbol = position.assetInfo?.symbol ?? position.assetName ?? '';
   const formattedAmount = trimTrailingZeros(formatNumber(amount, 4));
 
+  const moarLogoUrl = '/protocol_ico/moar-market-logo-primary.png';
   return {
     id: `moar-${position.poolId}-${position.assetName}`,
     label: symbol || '—',
     value,
-    logoUrl: position.assetInfo?.logoUrl ?? undefined,
+    logoUrl: moarLogoUrl,
+    logoUrl2: position.assetInfo?.logoUrl ?? undefined,
     badge: PositionBadge.Supply,
     subLabel: formattedAmount,
     price,

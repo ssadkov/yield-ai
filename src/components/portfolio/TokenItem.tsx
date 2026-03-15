@@ -14,9 +14,11 @@ interface TokenItemProps {
   token: Token;
   stakingAprs?: Record<string, { aprPct: number; source: string }>;
   disableDrag?: boolean;
+  /** Optional badge text shown on the right (e.g. "AGENT WALLET") */
+  rightBadge?: string;
 }
 
-export function TokenItem({ token, stakingAprs = {}, disableDrag = false }: TokenItemProps) {
+export function TokenItem({ token, stakingAprs = {}, disableDrag = false, rightBadge }: TokenItemProps) {
   const { startDrag, endDrag, state } = useDragDrop();
   
   const formattedAmount = formatNumber(parseFloat(token.amount) / Math.pow(10, token.decimals), 3);
@@ -184,6 +186,11 @@ export function TokenItem({ token, stakingAprs = {}, disableDrag = false }: Toke
         <div className="flex flex-col">
           <div className="flex items-center gap-1">
             <span className="text-sm font-medium truncate">{symbol}</span>
+            {rightBadge && (
+              <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-xs font-normal px-2 py-0.5 h-5 shrink-0">
+                {rightBadge}
+              </Badge>
+            )}
             {stakingAprPct > 0.01 && (
               <TooltipProvider>
                 <Tooltip>
