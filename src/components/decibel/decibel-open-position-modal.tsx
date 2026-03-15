@@ -35,6 +35,7 @@ import {
   buildCancelOrderPayload,
   type DecibelMarketConfig,
 } from '@/lib/protocols/decibel/closePosition';
+import { buildConfigureUserSettingsPayload } from '@/lib/protocols/decibel/configureUserSettings';
 import { fetchFundingApr, type FundingAprResult } from '@/lib/protocols/decibel/fundingApr';
 import {
   Tooltip,
@@ -103,6 +104,23 @@ function formatSizeShort(size: number): string {
   return formatNumber(size, 2);
 }
 
+/** Get expiration timestamp (chain time + ttl) to avoid TRANSACTION_EXPIRED. */
+async function getExpireTimestampSecs(
+  fullnodeBase: string,
+  ttlSeconds: number = 600
+): Promise<number | undefined> {
+  try {
+    const res = await fetch(fullnodeBase);
+    if (!res.ok) return undefined;
+    const info = await res.json();
+    const ledgerTimestamp = parseInt(info?.ledger_timestamp ?? '', 10);
+    if (!Number.isFinite(ledgerTimestamp)) return undefined;
+    return Math.floor(ledgerTimestamp / 1_000_000) + ttlSeconds;
+  } catch {
+    return undefined;
+  }
+}
+
 interface DecibelOpenPositionModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -118,6 +136,7 @@ export function DecibelOpenPositionModal({
   const { toast } = useToast();
   const [chartInterval, setChartInterval] = useState<string>('1h');
   const [side, setSide] = useState<'long' | 'short'>('long');
+  const [leverage, setLeverage] = useState<number>(1);
   const [orderSizeUsd, setOrderSizeUsd] = useState('');
   const [availableToTrade, setAvailableToTrade] = useState<number | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(false);
@@ -352,6 +371,10 @@ export function DecibelOpenPositionModal({
     fetchPositionsAndOrders();
   }, [open, account?.address, market?.marketAddr, fetchPositionsAndOrders]);
 
+  useEffect(() => {
+    if (market) setLeverage(1);
+  }, [market?.marketAddr]);
+
   const orderSizeNum = orderSizeUsd.trim() === '' ? NaN : parseFloat(orderSizeUsd);
   const isValidSize =
     Number.isFinite(orderSizeNum) &&
@@ -378,6 +401,46 @@ export function DecibelOpenPositionModal({
     }
     setPlacing(true);
     try {
+      const fullnodeBase =
+        decibelNetwork === 'testnet'
+          ? 'https://fullnode.testnet.aptoslabs.com/v1'
+          : 'https://fullnode.mainnet.aptoslabs.com/v1';
+      const expireTimestamp = await getExpireTimestampSecs(fullnodeBase, 120);
+
+      // 1. Set leverage for this market (separate transaction)
+      const configurePayload = buildConfigureUserSettingsPayload({
+        subaccountAddr,
+        marketAddr: market.marketAddr,
+        isCross: true,
+        userLeverage: leverage,
+        isTestnet: decibelNetwork === 'testnet',
+      });
+      const configureResult = await signAndSubmitTransaction({
+        data: {
+          function: configurePayload.function as `${string}::${string}::${string}`,
+          typeArguments: configurePayload.typeArguments,
+          functionArguments: configurePayload.functionArguments as (string | number | boolean)[],
+        },
+        options: { maxGasAmount: 10000, ...(expireTimestamp != null && { expireTimestamp }) },
+      });
+      const configureHash = typeof configureResult?.hash === 'string' ? configureResult.hash : (configureResult as { hash?: string })?.hash;
+      if (configureHash) {
+        const fullnode = fullnodeBase;
+        for (let i = 0; i < 45; i++) {
+          await new Promise((r) => setTimeout(r, 1000));
+          try {
+            const res = await fetch(`${fullnode}/transactions/by_hash/${configureHash}`);
+            if (res.ok) {
+              const tx = await res.json();
+              if (tx.success !== undefined) break;
+            }
+          } catch {
+            // keep polling
+          }
+        }
+      }
+
+      // 2. Place market order
       // Debug: log raw addresses before payload build (to see if decimal form comes from API)
       console.log('[Decibel Open] raw inputs:', {
         subaccountAddr: typeof subaccountAddr === 'string' && subaccountAddr.length > 30
@@ -444,7 +507,7 @@ export function DecibelOpenPositionModal({
           typeArguments: payload.typeArguments,
           functionArguments: payload.functionArguments as (string | number | boolean | bigint | null)[],
         },
-        options: { maxGasAmount: 20000 },
+        options: { maxGasAmount: 20000, ...(expireTimestamp != null && { expireTimestamp }) },
       });
       const txHash = typeof result?.hash === 'string' ? result.hash : (result as { hash?: string })?.hash ?? '';
       const baseName = market.marketName?.split('/')[0] ?? 'Position';
@@ -889,7 +952,7 @@ export function DecibelOpenPositionModal({
               </div>
             </div>
 
-            {/* Order type (Market only) + Leverage 1x in one row */}
+            {/* Order type (Market only) + Leverage in one row */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Order type</Label>
@@ -904,11 +967,21 @@ export function DecibelOpenPositionModal({
               </div>
               <div className="space-y-2">
                 <Label>Leverage</Label>
-                <div className="flex gap-1 p-0.5 rounded-lg border bg-muted/40">
-                  <span className="flex-1 rounded-md px-3 py-2 text-sm font-medium bg-background text-foreground shadow-sm text-center">
-                    1x
-                  </span>
-                </div>
+                <Select
+                  value={String(leverage)}
+                  onValueChange={(v) => setLeverage(Number(v))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[1, 2, 5, 10].map((x) => (
+                      <SelectItem key={x} value={String(x)}>
+                        {x}x
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
